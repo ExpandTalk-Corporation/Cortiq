@@ -3,7 +3,7 @@ Contributors: cortiq
 Tags: analytics, ai-tracking, heatmap, cookie-free, gdpr, chatgpt, session-recording
 Requires at least: 5.6
 Tested up to: 6.8
-Stable tag: 5.3.4
+Stable tag: 5.3.5
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -96,6 +96,9 @@ The tracking script is loaded with `defer` so it does not block rendering. Cooki
 Yes. Add `data-cortiq-mask` to any input or element. The field content is replaced with asterisks in the recording. See the [GDPR guide](https://github.com/expandtalk/cortiq/blob/main/GDPR.md) for details.
 
 == Changelog ==
+
+= 5.3.5 =
+* Cache-bust: bumped version so browsers re-fetch the latest `spa-tracking.js` from the CDN. Ensures the updated consent behaviour (clicks, scroll, heatmaps and conversion capture now require analytics consent even in cookieless mode; aggregate page-view measurement stays banner-free) reaches installed sites. No settings change required.
 
 = 5.3.4 =
 * Optional geo-gating: show the cookie banner only to EEA / UK / Switzerland visitors (Privacy settings). Visitors elsewhere don't see it; cookie-free tracking still runs.
