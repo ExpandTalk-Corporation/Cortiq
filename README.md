@@ -149,7 +149,7 @@ GA4 (server-side) · Google Search Console · Tag Manager · Data Warehouse conn
 | AI | Claude (Anthropic) — assistant, GEO audits; BYOK supported |
 | Tracking script | Vanilla JS, ~8 kB gzipped |
 
-**Scale:** ~66 core database tables · 70+ Edge Functions · 130+ migrations · 130+ dashboard components · 28 dashboard tabs
+**Scale:** ~66 core database tables · 76 Edge Functions · 144 migrations · 135 dashboard components · 28 dashboard tabs
 
 ---
 
@@ -230,12 +230,12 @@ For WordPress, generate the 1-click plugin from the dashboard (Settings → Setu
 ```
 cortiq/
 ├── src/
-│   ├── components/dashboard/   # 130+ dashboard components (tabs/ = one per tab)
+│   ├── components/dashboard/   # 135 dashboard components (tabs/ = one per tab)
 │   ├── hooks/                  # 50+ typed data-fetching hooks  ← Data Layer reads
 │   ├── pages/                  # Public pages + Dashboard
 │   └── integrations/supabase/  # Client & generated TypeScript types
 ├── supabase/
-│   ├── functions/              # 70+ Edge Functions (Deno)
+│   ├── functions/              # 76 Edge Functions (Deno)
 │   │   ├── ai-assistant/       #   ← Agentic Layer
 │   │   ├── mcp-server/         #   ← Agentic Layer (external agent API)
 │   │   ├── visitor-identification/, track-event/, record-conversion/  # ← Data Layer ingest

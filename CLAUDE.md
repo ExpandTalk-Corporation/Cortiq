@@ -12,7 +12,7 @@ CortIQ is an open-source web analytics platform focused on AI bot intelligence a
 - **Session replay**: rrweb 2.0
 - **Tracking script**: Vanilla JS, embeddable on any site
 
-Key numbers: 66 DB tables · 55 Edge Functions · 64+ migrations · 85+ dashboard components
+Key numbers: 66 DB tables · 76 Edge Functions · 144 migrations · 135 dashboard components (28 tabs)
 
 ---
 
