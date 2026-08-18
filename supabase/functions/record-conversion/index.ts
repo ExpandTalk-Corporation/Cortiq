@@ -41,8 +41,16 @@ Deno.serve(async (req) => {
     if (hashedEmail && !HEX64.test(hashedEmail)) return json({ error: 'hashedEmail must be a SHA-256 hex digest' }, 400);
 
     // Verify the site exists and is active.
-    const { data: site } = await supabase.from('sites').select('id, is_active').eq('id', siteId).single();
+    const { data: site } = await supabase.from('sites').select('id, is_active, tracking_mode').eq('id', siteId).single();
     if (!site || !site.is_active) return json({ error: 'Invalid or inactive site' }, 403);
+
+    // GDPR guard: a cookieless site does consent-free aggregate measurement (Art. 6.1.f) only.
+    // Conversions persist a hashed email + gclid (pseudonymous personal data, consent-based) —
+    // that must never happen for a cookieless site, even if a client is misconfigured. Mirror
+    // the short-circuit in visitor-identification. No PII is written.
+    if ((site as { tracking_mode?: string }).tracking_mode === 'cookieless') {
+      return json({ success: true, skipped: 'cookieless' });
+    }
 
     // SECURITY: per-site rate limit to blunt anonymous conversion-injection / dashboard pollution.
     const { data: underLimit, error: rlErr } = await supabase.rpc('check_rate_limit', {
