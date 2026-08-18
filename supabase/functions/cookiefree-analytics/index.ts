@@ -25,42 +25,32 @@ serve(async (req) => {
     // 🎯 Grundläggande Traffic KPIs
     const endDateInclusive = `${endDate}T23:59:59`;
 
-    const { data: trackingSessions, error: sessionsError } = await supabase
-      .from('tracking_sessions')
-      .select('*')
-      .eq('site_id', siteId)
-      .gte('started_at', startDate)
-      .lte('started_at', endDateInclusive);
+    // FIX: PostgREST kapar en .select() vid db-max-rows (1000) → totalerna (.length) fastnade på
+    // 1000 och alla fördelningar räknades bara på de första 1000 raderna. Paginera i 1000-block
+    // (ordnat på datumkolumnen för stabil paginering) tills allt är hämtat.
+    const fetchAll = async (table: string, dateCol: string, upper: string) => {
+      const PAGE = 1000;
+      let rows: any[] = [];
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase
+          .from(table)
+          .select('*')
+          .eq('site_id', siteId)
+          .gte(dateCol, startDate)
+          .lte(dateCol, upper)
+          .order(dateCol, { ascending: true })
+          .range(from, from + PAGE - 1);
+        if (error) { console.error(`${table} error:`, error); throw error; }
+        rows = rows.concat(data ?? []);
+        if (!data || data.length < PAGE) break;
+      }
+      return rows;
+    };
 
-    if (sessionsError) {
-      console.error('Sessions error:', sessionsError);
-      throw sessionsError;
-    }
-
-    const { data: pageViews, error: pageViewsError } = await supabase
-      .from('page_views')
-      .select('*')
-      .eq('site_id', siteId)
-      .gte('viewed_at', startDate)
-      .lte('viewed_at', endDateInclusive);
-
-    if (pageViewsError) {
-      console.error('Page views error:', pageViewsError);
-      throw pageViewsError;
-    }
-
+    const trackingSessions = await fetchAll('tracking_sessions', 'started_at', endDateInclusive);
+    const pageViews = await fetchAll('page_views', 'viewed_at', endDateInclusive);
     // 📊 Cookie Banner Data
-    const { data: cookieConsents, error: consentsError } = await supabase
-      .from('cookie_consents')
-      .select('*')
-      .eq('site_id', siteId)
-      .gte('created_at', startDate)
-      .lte('created_at', endDate);
-
-    if (consentsError) {
-      console.error('Cookie consents error:', consentsError);
-      throw consentsError;
-    }
+    const cookieConsents = await fetchAll('cookie_consents', 'created_at', endDateInclusive);
 
     // 🧮 Calculate Basic KPIs
     const totalPageViews = pageViews?.length || 0;
