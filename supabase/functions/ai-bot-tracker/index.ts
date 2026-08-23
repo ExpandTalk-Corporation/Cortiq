@@ -21,6 +21,7 @@ interface BotSignature { pattern: RegExp; type: string; name: string; category: 
 const AI_BOT_REGISTRY: BotSignature[] = [
   // OpenAI
   { pattern: /ChatGPT-User/i,      type: 'chatgpt',    name: 'ChatGPT-User',       category: 'agentic' },
+  { pattern: /ChatGPT Atlas/i,     type: 'chatgpt',    name: 'ChatGPT Atlas',      category: 'agentic' },
   { pattern: /OAI-SearchBot/i,     type: 'chatgpt',    name: 'OAI-SearchBot',      category: 'citation' },
   { pattern: /GPTBot/i,            type: 'chatgpt',    name: 'GPTBot',             category: 'training' },
   // Anthropic
@@ -42,6 +43,9 @@ const AI_BOT_REGISTRY: BotSignature[] = [
   // Apple
   { pattern: /Applebot-Extended/i, type: 'apple',      name: 'Applebot-Extended',  category: 'training' },
   { pattern: /Applebot/i,          type: 'apple',      name: 'Applebot',           category: 'citation' },
+  // You.com / DuckDuckGo — AI-answer crawlers that fetch in real time and cite sources
+  { pattern: /YouBot/i,            type: 'youdotcom',  name: 'YouBot',             category: 'citation' },
+  { pattern: /DuckAssistBot/i,     type: 'duckduckgo', name: 'DuckAssistBot',      category: 'citation' },
   // xAI
   { pattern: /Grok/i,              type: 'grok',       name: 'Grok',               category: 'agentic' },
   // Other training crawlers
@@ -53,6 +57,15 @@ const AI_BOT_REGISTRY: BotSignature[] = [
   { pattern: /DeepSeek/i,          type: 'deepseek',   name: 'DeepSeek',           category: 'training' },
   { pattern: /MistralAI/i,         type: 'mistral',    name: 'MistralAI',          category: 'training' },
 ];
+
+// NOTE on agentic browsers (Perplexity Comet, ChatGPT Atlas in browse mode, Claude
+// for Chrome): these deliberately send a stock Chrome user-agent and are NOT reliably
+// distinguishable by UA — matching e.g. /Comet/ or /Atlas/ would either never fire or
+// false-positive on real Chrome users. We catch their *agent fetches* via the vendor
+// "-User" tokens above (ChatGPT-User / Claude-User / Perplexity-User); the specific
+// "ChatGPT Atlas" token is matched when present, but genuine in-browser human-like
+// traffic is left to the signal-based 'agentic' classification below (jsExecuted &&
+// isVisual), never a UA regex.
 
 // Generic (non-AI) bot fallback.
 const GENERIC_BOT_PATTERN = /bot|crawler|spider|scraper/i;

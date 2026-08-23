@@ -77,9 +77,9 @@ CortIQ classifies AI traffic into three categories — this is the core differen
 
 | Category | Examples | Interpretation |
 |----------|----------|---------------|
-| Training Crawlers | GPTBot, ClaudeBot, BLEXBot | Infrastructure cost, no referral value |
+| Training Crawlers | GPTBot, ClaudeBot, Google-Extended | Infrastructure cost, no referral value |
 | Agentic Browsers | ChatGPT Browser, Perplexity Comet, Claude Browser | Real user intent, track and convert |
-| Citation Crawlers | PerplexityBot, Google-Extended, YouBot | AI search indexing, visibility signal |
+| Citation Crawlers | PerplexityBot, YouBot, DuckAssistBot | AI search indexing, visibility signal |
 
 Classification logic lives in `src/components/dashboard/BotTrafficClassification.tsx` (frontend) and `supabase/functions/ai-bot-tracker/` (ingest).
 
