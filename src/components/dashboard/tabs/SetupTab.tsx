@@ -9,6 +9,7 @@ import { SiteSelector } from '@/components/dashboard/SiteSelector';
 import { AgentMacroManager } from '@/components/dashboard/AgentMacroManager';
 import { DeleteSiteDialog } from '@/components/dashboard/DeleteSiteDialog';
 import PluginDownloader from '@/components/PluginDownloader';
+import { PLUGIN_VERSION } from '@/lib/plugin-version';
 import { useSites } from '@/hooks/useSites';
 import { useNavigate } from 'react-router-dom';
 import type { Site } from '@/types/dashboard';
@@ -151,7 +152,8 @@ export function SetupTab({ selectedSite, onSiteDeleted }: SetupTabProps) {
     siteId: '${selectedSite?.id || 'your-site-id'}',
     apiKey: '${selectedSite?.tracking_id || 'your-tracking-id'}',
     contentType: 'page',
-    platform: 'web'
+    platform: 'web',
+    cookieless: true
   };
 </script>
 <script src="${scriptSrc}" defer></script>`}
@@ -204,7 +206,7 @@ Content-Type: application/json
       apiUrl: '${apiBase}',
       siteId: '\${analytics.siteId}',
       apiKey: '\${analytics.trackingId}',
-      contentType: 'page', platform: 'web'
+      contentType: 'page', platform: 'web', cookieless: true
     };
   </script>
   <script src="${scriptSrc}" defer></script>
@@ -277,7 +279,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Zap className="h-5 w-5 text-orange-500" />
-            🆕 WordPress plugin — v5.3.4
+            🆕 WordPress plugin — v{PLUGIN_VERSION}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">

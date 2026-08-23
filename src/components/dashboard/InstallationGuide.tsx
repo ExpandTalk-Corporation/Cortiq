@@ -59,15 +59,19 @@ export function InstallationGuide({ selectedSite }: InstallationGuideProps) {
     siteId: '${selectedSite.id}',
     apiKey: '${selectedSite.tracking_id}',
     contentType: 'page',
-    platform: 'web'
+    platform: 'web',
+    cookieless: true
   };
 </script>
 <script src="${scriptSrc}" defer></script>`}
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            ✅ One script — heatmaps, sessions, page views, AI search traffic (ChatGPT, Perplexity, Claude, Gemini),
-            AI bot detection (GPTBot, ClaudeBot, PerplexityBot), citations and UTM/paid-ads tracking.
-            GDPR-compliant and cookie-free. The script reads <code>window.cortiqConfig</code>, so keep it directly above the script tag.
+            ✅ One script. With <code>cookieless: true</code>, baseline stats — page views, sessions, AI search
+            traffic (ChatGPT, Perplexity, Claude, Gemini), AI bot detection (GPTBot, ClaudeBot, PerplexityBot),
+            citations and UTM — run cookie-free and banner-free (consent-exempt audience measurement).
+            Heatmaps, click/scroll and conversions, plus paid-ads click-ID attribution, require a consent banner
+            (analytics/marketing consent) even in cookieless mode. The script reads <code>window.cortiqConfig</code>,
+            so keep it directly above the script tag.
           </p>
         </div>
 
