@@ -52,28 +52,29 @@ export const KPIMetricCard = ({ metric, onToggle, orderNumber, value, loading }:
   };
 
   return (
-    <Card className="p-6 hover:shadow-lg transition-shadow relative">
-      <div className="absolute top-4 right-4 flex items-center gap-2">
-        <Badge className={statusColors[metric.status]}>
-          {statusLabels[metric.status]}
-        </Badge>
-        {metric.priority === 'critical' && (
-          <Badge variant="destructive" className="gap-1">
-            <AlertCircle className="h-3 w-3" />
-            Critical
-          </Badge>
-        )}
-        {metric.hasLiveData && (
-          <Badge variant="outline" className="gap-1">
-            <Activity className="h-3 w-3 text-success animate-pulse" />
-            Live Data
-          </Badge>
-        )}
-      </div>
-
+    <Card className="p-6 hover:shadow-lg transition-shadow">
       <div className="space-y-4">
-        <div className="pr-32">
-          <h3 className="text-lg font-semibold mb-2">{metric.title}</h3>
+        <div>
+          <div className="flex items-start justify-between gap-3 mb-2">
+            <h3 className="text-lg font-semibold min-w-0">{metric.title}</h3>
+            <div className="flex flex-wrap items-center justify-end gap-2 shrink-0">
+              <Badge className={statusColors[metric.status]}>
+                {statusLabels[metric.status]}
+              </Badge>
+              {metric.priority === 'critical' && (
+                <Badge variant="destructive" className="gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  Critical
+                </Badge>
+              )}
+              {metric.hasLiveData && (
+                <Badge variant="outline" className="gap-1">
+                  <Activity className="h-3 w-3 text-success animate-pulse" />
+                  Live Data
+                </Badge>
+              )}
+            </div>
+          </div>
           {value !== undefined && (
             <div className="mb-3">
               {loading ? (

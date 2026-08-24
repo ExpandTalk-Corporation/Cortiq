@@ -50,7 +50,7 @@ export const KPICatalogTab = ({ selectedSite }: KPICatalogTabProps) => {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
         <div>
-            <h2 className="text-3xl font-bold tracking-tight">KPI Katalog - AI Bot Analytics</h2>
+            <h2 className="text-3xl font-bold tracking-tight">KPI Catalog - AI Bot Analytics</h2>
             <p className="text-muted-foreground mt-2">
               Realistic metrics based on actual data from your website. All KPIs are GDPR-compatible.
             </p>
@@ -82,7 +82,7 @@ export const KPICatalogTab = ({ selectedSite }: KPICatalogTabProps) => {
             </p>
           </div>
           <Badge variant="destructive" className="ml-auto">
-            {criticalMetrics.length} KPI:er
+            {criticalMetrics.length} KPIs
           </Badge>
         </div>
 
@@ -113,7 +113,7 @@ export const KPICatalogTab = ({ selectedSite }: KPICatalogTabProps) => {
             </p>
           </div>
           <Badge variant="secondary" className="ml-auto">
-            {liveDataMetrics.length} KPI:er
+            {liveDataMetrics.length} KPIs
           </Badge>
         </div>
 
