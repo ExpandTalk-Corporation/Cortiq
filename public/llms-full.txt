@@ -2,95 +2,123 @@
 
 ## What is CortIQ?
 
-CortIQ is a web analytics platform designed for the Agentic Web — the emerging era where AI agents (ChatGPT Browser, Perplexity Comet, Claude Browser) constitute a growing share of web traffic.
+CortIQ is a web analytics platform built for the Agentic Web — the emerging era where AI agents (ChatGPT Browser, Perplexity Comet, Claude Browser) make up a fast-growing share of web traffic. 1 in 31 web visits is now an AI bot, up from 1 in 200 at the start of 2025.
 
-CortIQ is the first analytics platform with a dedicated module for tracking and analyzing AI agent behavior on websites. Beyond AI tracking, it provides a comprehensive analytics stack: cookie-free server-side tracking, click heatmaps, session recording, A/B testing, form analytics, geolocation maps, and a GDPR-compliant consent management platform (CMP).
+CortIQ is the first open-source, EU-built analytics platform with a dedicated module for classifying and analyzing AI traffic. Beyond AI intelligence it provides a full analytics stack: cookie-free server-side tracking, click and scroll heatmaps, session recording, A/B testing, form analytics, geolocation maps, a paid-conversion attribution loop, and an optional GDPR-compliant consent management platform (CMP).
 
 **Production URL:** https://cortiq.se
-**Company:** Expandtalk Corporation AB Sweden
+**Company:** Expandtalk Corporation AB, Göteborg, Sweden
+**License:** AGPL-3.0 (open source, self-hostable)
 **Status:** Invite-only beta
 
 ---
 
 ## Core Features
 
-### Agentic Browser Analytics (World First)
+### AI Bot Intelligence (the differentiator)
 
-Detects and analyzes AI agents that browse websites autonomously:
+CortIQ classifies every AI visit into three categories — this is the core differentiator no other analytics platform offers:
 
-- **Supported agents:** ChatGPT Browser, Perplexity Comet, Claude Browser, Bing AI, and generic AI crawlers
-- **Detection method:** User-agent parsing + behavioral fingerprinting (visual/headless/text-based browser type)
-- **Journey funnel:** Full session path reconstruction for AI agents
-- **Conversion attribution:** Measures conversions triggered by AI-driven traffic
-- **Citation tracking:** Detects LLM citation requests and training crawlers separately from browsing agents
-- **Dashboard tabs:** "AI Traffic" and "AI Agents" in the main analytics dashboard
+- **Training crawlers** (GPTBot, ClaudeBot, CCBot) — infrastructure cost, no referral value
+- **Agentic browsers** (ChatGPT Browser, Perplexity Comet, Claude Browser) — real users acting through an AI; track and convert them
+- **Citation crawlers** (PerplexityBot, Google-Extended, OAI-SearchBot) — AI search indexing, your visibility signal
+
+Detection combines user-agent parsing with browser-type classification (visual / headless / text-based). Server-log and edge ingest count even non-JS training crawlers. Agentic-browser journeys are reconstructed page-by-page with conversion attribution.
 
 ### Cookie-Free Analytics
 
-Server-side tracking without any client-side cookies or personal data collection:
+100% server-side base tracking with no client-side cookies and no personal data in the browser:
 
-- 100% GDPR-compliant
-- PTS-approved (Swedish Post and Telecom Authority)
-- No cookie banners required for this tracking mode
-- GA4 server-side integration for paid ads attribution
-- Parallel to standard first-party cookie tracking (hybrid mode available)
+- Cookie-free by default — no consent banner required for the base audience-measurement layer (GDPR Art. 6.1.f)
+- IP anonymisation at ingest
+- Optional hybrid mode with server-side GA4 for teams that want familiar reporting
 
-### Click Heatmaps
+### Human Visitor Analytics
 
-- Click position recording with device segmentation (desktop / tablet / mobile)
-- Per-page heatmap selection
-- Mobile-specific insights view
-- Rendered as canvas overlays on page screenshots
+- Page views, sessions, bounce rate, traffic sources
+- Click heatmaps with device segmentation (desktop / tablet / mobile), rendered as canvas overlays
+- Scroll-depth funnels (25 / 50 / 75 / 100% milestones)
+- Session recording (rrweb) with input & text masking on by default; AI-agent vs human filter; GDPR-safe visitor-hash search (no PII)
+- Form analytics — field-level funnel and drop-off
 
-### Session Recording
+### Conversion & Attribution
 
-- Full session replay using rrweb
-- AI agent vs human session filter
-- Device and URL filters
-- Visitor hash search (GDPR-safe, no PII)
+Closes the GA4 ↔ Google Ads ↔ CRM attribution gap:
 
-### A/B Testing
+- First-party click-ID capture (gclid, fbclid, msclkid, ttclid, li_fat_id) — consent-gated
+- Conversion-goal health monitor (flags goals that fire too often, went silent, or split Smart Bidding signal)
+- Form auto-discovery with HubSpot / Gravity Forms detection
+- HubSpot lead-quality → Google Ads Enhanced Conversions feedback loop (email SHA-256 hashed in the browser; raw PII never touches CortIQ)
+- Attribution-gap dashboard: CortIQ conversions vs CRM-qualified leads vs upload status
 
-- Two-variant (A/B) test management
-- Statistical significance calculations built-in
-- Conversion goal assignment per test
+### A/B Testing & Optimisation
 
-### Form Analytics
+- Two-variant (A/B) testing with built-in statistical significance
+- Conversion funnels, customizable KPI dashboards, segments and behavioral alerts
 
-- Field-level funnel visualization
-- Drop-off detection per form field
-- Supports contact forms, checkout forms, lead forms
+### Integrations
 
-### GDPR & CMP
+Configured in-app under Settings → Integrations — no code changes on the customer site:
 
-- Cookie consent management with nudging technology
-- Higher opt-in rates through smart banner timing and UX
-- Configurable data retention (default 730 days)
-- TCF v2 compatible
+- **Google Search Console** — search visibility (impressions, clicks, position, queries) plus an AI-search performance view
+- **Google Analytics 4 (server-side)** — import traffic sources, search terms, segments and conversions; sync conversions back to GA4
+- **Google Ads** — Enhanced Conversions via the Conversion Adjustments API (consent-gated, hashed email)
+- **HubSpot** — CRM lead-quality webhook feeding the attribution loop
+- **Google Tag Manager & Consent Mode v2** — deploy via GTM and propagate consent to Google tags
+- **Data warehouse** — scheduled export to BigQuery, Snowflake, Redshift, PostgreSQL, MySQL, Databricks
+- **TikTok** and other paid-channel connectors
+
+### GDPR & Consent (optional CMP)
+
+The base layer is banner-free, but a full CMP is available when richer, consent-based data is wanted:
+
+- Cookie consent management with behavioral nudging for higher opt-in rates
+- Consent verified server-side (not just a client flag); authoritative server-side consent ledger for Art. 7(1) proof
+- Google Consent Mode v2 and TCF v2 compatible
+- Configurable data retention with an automated retention job; data-subject-request path
+
+### AI & Agent-Ready
+
+- **AI Assistant** — ask questions in natural language; answers are grounded in the customer's real data via tool-use, never hallucinated. Every insight shows the tables queried, row counts, model, tokens and duration.
+- **MCP Server** — external AI agents can query analytics with a scoped, rate-limited API key (23 tools). Reads are tenant-scoped and never bypass ownership.
+- **llms.txt / llms-full.txt** published so AI systems can understand the product.
 
 ### Advanced Features
 
-- **Geolocation Maps:** Leaflet.js world map with visitor clusters; drill-down from country to city
-- **Data Warehouse Connectors:** Sync to BigQuery, Snowflake, Redshift, PostgreSQL, MySQL, Databricks
-- **User LTV & Cohort Analysis:** Lifetime value tracking with cohort grouping by first visit month
-- **Tag Manager:** Create event, pixel, script, and HTML tags without code deployment
-- **Web Vitals:** LCP, FID/INP, CLS tracking with historical trends
-- **White Label:** Custom branding and colors for agency resellers
-- **SAML SSO:** Enterprise single sign-on
+- **Geolocation maps** — Leaflet.js world map with visitor clusters, country-to-city drill-down
+- **User LTV & cohort analysis** — lifetime value with cohort grouping by first-visit month
+- **Tag manager** — event, pixel, script and HTML tags without code deployment
+- **Web Vitals** — LCP, INP, CLS with historical trends
+- **White label** — custom branding for agency resellers
+- **WordPress plugin** — 1-click installation
+
+---
+
+## Security & Privacy Posture
+
+Built by an EU company for EU-grade compliance, security-first by design:
+
+- **Row-Level Security on every table** — company/tenant isolation enforced at the database layer, never only in the application
+- **Consent-gated behavioral data** in every mode — clicks, scroll, heatmaps, session replay and conversions require analytics consent; only aggregated page views run banner-free
+- **Data minimisation** — IP anonymisation at ingest; emails SHA-256 hashed before any third-party upload
+- **EU data residency** — Supabase, AWS eu-north-1; any US transfer (AI/ads) is optional, consent-gated and disclosed
+- **The Agentic Layer only ever reads** through governed, tenant-scoped interfaces — AI never sees another tenant's data
+- Vulnerability reports: see the responsible-disclosure policy in the repository (SECURITY.md)
 
 ---
 
 ## Technical Architecture
 
+CortIQ is built as three clearly separated layers — a Data Layer with no AI dependency, an Agentic Layer that only reads through governed interfaces, and a cross-cutting Privacy/Compliance layer. You can self-host Data + Privacy with zero AI dependency and switch the Agentic Layer on only when you want it.
+
 ### Frontend
 - React 18, TypeScript, Vite
-- shadcn-ui (Radix UI), Tailwind CSS
-- Recharts for data visualization
+- shadcn/ui (Radix UI), Tailwind CSS
+- Recharts and Leaflet.js for visualization
 
 ### Backend
 - Supabase (PostgreSQL + Deno Edge Functions)
-- 62 database tables, 51 edge functions
-- Row-level security (RLS) for multi-tenant data isolation
+- Row-Level Security (RLS) for multi-tenant data isolation
 
 ### Tracking Script
 
@@ -100,15 +128,11 @@ Installed on customer websites via a single `<script>` tag:
 <script src="https://cortiq.se/spa-tracking.js" data-site-id="YOUR_SITE_ID" defer></script>
 ```
 
-The script handles: heatmap recording, session events, AI agent detection, UTM parameter capture, GDPR consent integration (CortIQ banner, Cookiebot, TCF v2).
+The script handles page views, click and scroll heatmaps, session events, AI-agent detection, UTM capture and consent integration (CortIQ banner, Cookiebot, TCF v2). Behavioral tracking is consent-gated.
 
 ### API
 
-REST API documented at https://cortiq.se/api (OpenAPI/Swagger). Supports:
-- Event ingestion (`/track-event`)
-- Heatmap data retrieval
-- Analytics queries
-- AI agent session data
+REST API documented at https://cortiq.se/api. Plus an MCP server so AI agents can query analytics programmatically with a scoped API key.
 
 ---
 
@@ -116,15 +140,14 @@ REST API documented at https://cortiq.se/api (OpenAPI/Swagger). Supports:
 
 - Spatial mouse-movement / attention overlay maps (click maps + scroll-depth funnels are supported)
 - Multivariate testing (A/B only, two variants)
-- Visual editor for A/B tests
-- Mobile app
+- Mobile app analytics
 
 ---
 
 ## Target Users
 
 - European SMEs with GDPR compliance requirements
-- WordPress publishers (dedicated plugin in development)
+- WordPress publishers
 - Digital agencies managing analytics for multiple clients
 - Organizations with significant or growing AI-agent traffic
 
@@ -132,10 +155,8 @@ REST API documented at https://cortiq.se/api (OpenAPI/Swagger). Supports:
 
 ## Competitive Position
 
-CortIQ is the only analytics platform with dedicated AI-agent tracking as a first-class feature. Traditional analytics platforms (Google Analytics, Plausible, Fathom, Matomo) treat AI agents as regular bot traffic and filter them out. CortIQ treats them as a distinct traffic category with their own funnel, attribution, and behavior analysis.
-
-The combination of AI-agent analytics + cookie-free server-side tracking + GDPR-native CMP is unique in the European market.
+CortIQ is the only analytics platform with dedicated AI-traffic classification as a first-class feature. Traditional platforms (Google Analytics, Plausible, Fathom, Matomo) treat AI agents as bot noise and filter them out. CortIQ treats them as distinct categories — training, agentic and citation — each with its own funnel, attribution and behavior analysis. The combination of AI-traffic intelligence + cookie-free server-side tracking + a paid-conversion attribution loop + GDPR-native CMP is unique in the European market.
 
 ---
 
-*Last updated: 2026-05-27*
+*Last updated: 2026-07-17*

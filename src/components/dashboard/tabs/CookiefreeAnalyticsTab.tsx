@@ -154,7 +154,7 @@ export function CookiefreeAnalyticsTab({ selectedSite, dateRange }: CookiefreeAn
               <CardContent>
                 <div className="text-2xl font-bold">{formatNumber(analytics.totalPageViews)}</div>
                 <p className="text-xs text-muted-foreground">
-                  {Math.round(analytics.totalPageViews / analytics.period.days)} per dag
+                  {Math.round(analytics.totalPageViews / analytics.period.days)} per day
                 </p>
               </CardContent>
             </Card>
@@ -167,7 +167,7 @@ export function CookiefreeAnalyticsTab({ selectedSite, dateRange }: CookiefreeAn
               <CardContent>
                 <div className="text-2xl font-bold">{formatNumber(analytics.uniqueVisitors)}</div>
                 <p className="text-xs text-muted-foreground">
-                  {Math.round(analytics.uniqueVisitors / analytics.period.days)} per dag
+                  {Math.round(analytics.uniqueVisitors / analytics.period.days)} per day
                 </p>
               </CardContent>
             </Card>

@@ -9,6 +9,14 @@ export interface RealTimeStats {
   lastUpdated: Date;
 }
 
+// Server-side shape returned by public.get_realtime_stats(p_site_id).
+interface RealtimeStatsRow {
+  active_visitors: number;
+  page_views_today: number;
+  top_page: { url: string; views: number } | null;
+  device_breakdown: Record<string, number> | null;
+}
+
 export function useRealTimeAnalytics(siteId: string | null) {
   const [stats, setStats] = useState<RealTimeStats>({
     activeVisitors: 0,
@@ -24,60 +32,29 @@ export function useRealTimeAnalytics(siteId: string | null) {
     if (!siteId) return;
 
     try {
-      const now = new Date();
-      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const activeThreshold = new Date(now.getTime() - 5 * 60 * 1000); // 5 minutes ago
+      // Active visitors, page views today, top page and device split are all computed
+      // server-side in one call (no unbounded row fetch, no 1000-row truncation).
+      const { data, error } = await supabase.rpc('get_realtime_stats', { p_site_id: siteId });
+      if (error) throw error;
 
-      // Get active visitors (sessions with activity in last 5 minutes)
-      const { data: activeSessions, error: activeError } = await supabase
-        .from('tracking_sessions')
-        .select('id')
-        .eq('site_id', siteId)
-        .gte('last_activity', activeThreshold.toISOString());
+      const row = (data as RealtimeStatsRow) ?? ({} as RealtimeStatsRow);
 
-      if (activeError) throw activeError;
-
-      // Get today's page views
-      const { data: todayViews, error: viewsError } = await supabase
-        .from('page_views')
-        .select('url')
-        .eq('site_id', siteId)
-        .gte('viewed_at', todayStart.toISOString());
-
-      if (viewsError) throw viewsError;
-
-      // Get device breakdown for today
-      const { data: todaySessions, error: sessionsError } = await supabase
-        .from('tracking_sessions')
-        .select('device_type')
-        .eq('site_id', siteId)
-        .gte('started_at', todayStart.toISOString());
-
-      if (sessionsError) throw sessionsError;
-
-      // Calculate top page
-      const pageCount = todayViews?.reduce((acc, view) => {
-        acc[view.url] = (acc[view.url] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>) || {};
-
-      const topPage = Object.entries(pageCount).length > 0 
-        ? Object.entries(pageCount).reduce((a, b) => pageCount[a[0]] > pageCount[b[0]] ? a : b)
-        : null;
-
-      // Calculate device breakdown
-      const deviceBreakdown = todaySessions?.reduce((acc, session) => {
-        const device = session.device_type?.toLowerCase() || 'desktop';
-        if (device.includes('mobile')) acc.mobile++;
-        else if (device.includes('tablet')) acc.tablet++;
-        else acc.desktop++;
-        return acc;
-      }, { desktop: 0, mobile: 0, tablet: 0 }) || { desktop: 0, mobile: 0, tablet: 0 };
+      // Fold arbitrary device_type values into the desktop/mobile/tablet buckets.
+      const deviceBreakdown = Object.entries(row.device_breakdown ?? {}).reduce(
+        (acc, [device, count]) => {
+          const d = device.toLowerCase();
+          if (d.includes('mobile')) acc.mobile += count;
+          else if (d.includes('tablet')) acc.tablet += count;
+          else acc.desktop += count;
+          return acc;
+        },
+        { desktop: 0, mobile: 0, tablet: 0 }
+      );
 
       setStats({
-        activeVisitors: activeSessions?.length || 0,
-        pageViewsToday: todayViews?.length || 0,
-        topPage: topPage ? { url: topPage[0], views: topPage[1] } : null,
+        activeVisitors: row.active_visitors ?? 0,
+        pageViewsToday: row.page_views_today ?? 0,
+        topPage: row.top_page ?? null,
         deviceBreakdown,
         lastUpdated: new Date()
       });
@@ -94,7 +71,7 @@ export function useRealTimeAnalytics(siteId: string | null) {
   useEffect(() => {
     if (siteId) {
       fetchRealTimeData();
-      
+
       // Update every 30 seconds
       const interval = setInterval(fetchRealTimeData, 30000);
       return () => clearInterval(interval);

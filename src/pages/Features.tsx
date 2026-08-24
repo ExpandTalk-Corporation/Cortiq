@@ -96,26 +96,44 @@ export default function Features() {
     {
       icon: <Globe className="h-8 w-8" />,
       title: "Google Analytics 4",
-      description: "Seamless integration with GA4 for extended data collection",
-      features: ["GA4 import", "Conversion sync", "Segment analysis", "KPI dashboard"]
+      description: "Server-side GA4 connection — keep the reporting you know while adding cookie-free and AI-agent analytics on top",
+      features: ["Server-side GA4 import", "Two-way conversion sync", "Traffic sources & segments", "Search-term data"]
     },
     {
       icon: <Search className="h-8 w-8" />,
-      title: "Search Console",
-      description: "Integrate SEO data from Google Search Console",
-      features: ["Keyword analysis", "Performance data", "Indexing status", "Click-through rates"]
+      title: "Google Search Console",
+      description: "Pull search visibility into CortIQ — including a dedicated AI-search view of how your content performs for AI-driven queries",
+      features: ["Impressions, clicks & position", "Query-level data", "AI-search performance", "Indexing status"]
+    },
+    {
+      icon: <Target className="h-8 w-8" />,
+      title: "Google Ads — Enhanced Conversions",
+      description: "Send CRM-qualified lead quality back to Google Ads to sharpen Smart Bidding — emails hashed, consent-gated",
+      features: ["Conversion Adjustments API", "SHA-256 hashed email", "Consent-gated upload", "Lead-quality scoring"]
+    },
+    {
+      icon: <Zap className="h-8 w-8" />,
+      title: "HubSpot CRM",
+      description: "Connect HubSpot so lead quality flows into your attribution — closing the ad-spend-to-revenue loop",
+      features: ["Lead-quality webhook (HMAC)", "Attribution-gap dashboard", "Enhanced Conversions feed", "Form GUID detection"]
     },
     {
       icon: <Layers className="h-8 w-8" />,
-      title: "Tag Manager",
-      description: "Works perfectly with Google Tag Manager and other CMPs",
-      features: ["GTM compatibility", "OneTrust support", "Cookiebot integration", "Custom triggers"]
+      title: "Tag Manager & Consent Mode v2",
+      description: "Deploy via Google Tag Manager and propagate consent to Google tags — compatible with OneTrust and Cookiebot",
+      features: ["GTM compatibility", "Consent Mode v2", "OneTrust & Cookiebot", "Custom triggers"]
     },
     {
       icon: <Database className="h-8 w-8" />,
+      title: "Data Warehouse",
+      description: "Scheduled export to your warehouse for downstream modelling and BI",
+      features: ["BigQuery & Snowflake", "Redshift", "PostgreSQL & MySQL", "Databricks"]
+    },
+    {
+      icon: <Settings className="h-8 w-8" />,
       title: "WordPress Plugin",
       description: "Complete WordPress integration with 1-click installation",
-      features: ["Easy installation", "Automatic configuration", "Theme compatibility", "Plugin sync"]
+      features: ["Easy installation", "Automatic configuration", "Theme compatibility", "Consent-banner ready"]
     }
   ];
 

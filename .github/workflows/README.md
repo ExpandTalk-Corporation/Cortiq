@@ -292,8 +292,6 @@ on:
 
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
 - [FTP-Deploy-Action](https://github.com/SamKirkland/FTP-Deploy-Action)
-- [Deployment Checklist](../../DEPLOYMENT_CHECKLIST.md)
-- [Smoke Tests](../../SMOKE_TESTS.md)
 
 ---
 
@@ -321,4 +319,4 @@ After first successful deployment:
 
 ---
 
-**Need help?** Check the logs in GitHub Actions or refer to [DEPLOYMENT_CHECKLIST.md](../../DEPLOYMENT_CHECKLIST.md)
+**Need help?** Check the logs in GitHub Actions or refer to [DEPLOYMENT.md](../../DEPLOYMENT.md)
