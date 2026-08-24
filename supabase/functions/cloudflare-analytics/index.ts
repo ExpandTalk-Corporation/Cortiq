@@ -47,21 +47,39 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const supabase = createClient(
+    // AuthZ: verify_jwt=true only proves *someone* is logged in. Confirm the caller
+    // actually owns this site — via an RLS-scoped read — before burning the site's
+    // Cloudflare quota or writing into its aggregates. (Fixes cross-tenant write, audit P2-1.)
+    const authHeader = req.headers.get('Authorization') ?? '';
+    const userClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
     );
 
-    const { data: site } = await supabase
+    const { data: { user } } = await userClient.auth.getUser();
+    if (!user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // Resolved under the caller's RLS — a site they don't own comes back null.
+    const { data: site } = await userClient
       .from('sites')
       .select('id, cloudflare_zone_id, cloudflare_enabled')
       .eq('id', siteId)
       .maybeSingle();
 
     if (!site) {
-      return new Response(JSON.stringify({ error: 'Unknown site' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: 'Site not found or access denied' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
+
+    // Service-role client for the Cloudflare pull + aggregate upsert (writes bypass RLS).
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
     const zoneTag = (site as { cloudflare_zone_id?: string }).cloudflare_zone_id;
     if (!zoneTag) {
       return new Response(JSON.stringify({ error: 'No Cloudflare Zone ID configured for this site.' }),
