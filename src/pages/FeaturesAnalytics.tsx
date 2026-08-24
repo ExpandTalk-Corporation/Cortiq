@@ -117,27 +117,32 @@ const integrations = [
   {
     icon: <Globe className="h-7 w-7" />,
     title: "Google Analytics 4",
-    items: ["GA4 import", "Server-side GA4", "Conversion sync"],
-  },
-  {
-    icon: <Settings className="h-7 w-7" />,
-    title: "Tag Manager",
-    items: ["Event & pixel tags", "Custom scripts", "Data layer variables"],
-  },
-  {
-    icon: <Database className="h-7 w-7" />,
-    title: "Data Warehouse",
-    items: ["BigQuery", "Snowflake", "Redshift", "PostgreSQL & MySQL"],
+    items: ["Server-side GA4", "Two-way conversion sync", "Traffic sources & segments"],
   },
   {
     icon: <TrendingUp className="h-7 w-7" />,
     title: "Google Search Console",
-    items: ["Keyword analysis", "Click-through rates", "Indexing status"],
+    items: ["Impressions, clicks & position", "Query-level data", "AI-search performance view"],
+  },
+  {
+    icon: <Target className="h-7 w-7" />,
+    title: "Google Ads",
+    items: ["Enhanced Conversions", "Consent-gated upload", "Lead-quality scoring"],
   },
   {
     icon: <Zap className="h-7 w-7" />,
     title: "HubSpot",
-    items: ["Lead quality webhook", "SHA-256 email matching", "Google Ads quality upload"],
+    items: ["Lead-quality webhook", "SHA-256 email matching", "Attribution-gap dashboard"],
+  },
+  {
+    icon: <Settings className="h-7 w-7" />,
+    title: "Tag Manager",
+    items: ["Event & pixel tags", "Consent Mode v2", "Data layer variables"],
+  },
+  {
+    icon: <Database className="h-7 w-7" />,
+    title: "Data Warehouse",
+    items: ["BigQuery", "Snowflake", "Redshift", "PostgreSQL, MySQL & Databricks"],
   },
 ];
 

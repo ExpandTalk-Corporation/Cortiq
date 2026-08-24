@@ -27,6 +27,21 @@ supabase/.temp/
 # Client-specific briefs (contain email addresses and project details)
 docs/itsakerhet-app-developer-brief.md
 
+# Internal ops / security posture docs — kept local, never published to the
+# public repo (they enumerate live gaps, endpoints, infra and attack surface).
+AUDIT-TASKS.md
+SECURITY_AUDIT_REPORT.md
+SECURITY_IMPLEMENTATION_SUMMARY.md
+VALIDATION-IMPLEMENTATION.md
+security-guidelines.md
+RLS_POLICIES_TEMPLATE.md
+SMOKE_TESTS.md
+MONITORING_SETUP.md
+DEPLOYMENT_CHECKLIST.md
+QUICK_DEPLOY.md
+QUICK_START_DEPLOYMENT.md
+SENTRISK-INTEGRATION.md
+
 # Claude Code local settings
 .claude/
 

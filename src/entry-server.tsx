@@ -1,6 +1,6 @@
 import React from 'react';
 import { renderToString } from 'react-dom/server';
-import { StaticRouter } from 'react-router-dom/server';
+import { StaticRouter } from 'react-router-dom';
 import { Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from 'next-themes';
@@ -13,7 +13,6 @@ import FeaturesAnalytics from './pages/FeaturesAnalytics';
 import FeaturesCyber from './pages/FeaturesCyber';
 import BotIntelligence from './pages/BotIntelligence';
 import CMP from './pages/CMP';
-import Pricing from './pages/Pricing';
 import Pricing from './pages/Pricing';
 import ApiDocs from './pages/ApiDocs';
 import Privacy from './pages/Privacy';
@@ -36,7 +35,6 @@ export function render(url: string): string {
             <Route path="/features/cyber" element={<FeaturesCyber />} />
             <Route path="/bot-intelligence" element={<BotIntelligence />} />
             <Route path="/cmp" element={<CMP />} />
-            <Route path="/pricing" element={<Pricing />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/api" element={<ApiDocs />} />
             <Route path="/privacy" element={<Privacy />} />

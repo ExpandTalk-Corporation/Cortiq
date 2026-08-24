@@ -82,11 +82,8 @@
   <body>
     <div id="root"><!--app-html--></div>
 
-    <!-- CortIQ self-tracking (dogfooding) intentionally disabled 2026-07-16.
-         The previous hardcoded key was rotated out (dead). Re-enable by giving cortiq.se
-         its OWN company + ingest-only key (NOT a read-capable account key), then inject
-         window.cortiqConfig from VITE_CORTIQ_* env vars — never hardcode a credential
-         here (it ships in public client JS). See AUDIT-TASKS.md P1-7 / P3. -->
+    <!-- CortIQ self-tracking is disabled. If re-enabled, inject window.cortiqConfig
+         from VITE_CORTIQ_* env vars at build time — never hardcode credentials here. -->
 
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json" />

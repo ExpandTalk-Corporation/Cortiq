@@ -133,4 +133,7 @@ for (const [url, seo] of Object.entries(SEO)) {
 }
 
 console.log(`\nPre-rendered ${rendered} pages${errors ? `, ${errors} errors` : ''}.`);
-if (errors > 0) process.exit(1);
+// Rendering the marketing pages leaves open handles (polyfilled browser globals,
+// next-themes, react-query) that keep Node alive, so exit explicitly instead of
+// waiting for a natural exit that never comes.
+process.exit(errors > 0 ? 1 : 0);

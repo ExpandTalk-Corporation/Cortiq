@@ -260,15 +260,52 @@ The tracking script runs entirely client-side — where Astro serves HTML (Node,
 
 ---
 
+## Platform & data-source integrations
+
+Beyond the tracking script, CortIQ connects to the measurement and attribution tools you already run. Every connector is configured in-app under **Settings → Integrations** — no code changes on your site. OAuth tokens and API credentials are held as server-side secrets and never touch the browser.
+
+### Google Search Console
+Connect via Google OAuth to pull search visibility into CortIQ — impressions, clicks, average position and query-level data — plus an **AI-search view** that shows how your content performs for AI-driven queries. Powers the GSC visibility and AI-performance sections of the dashboard.
+
+### Google Analytics 4 (server-side)
+A server-side GA4 connection for teams keeping GA4 alongside CortIQ. Imports traffic sources, search terms, segments and conversions, and can sync conversions back to GA4 — so you keep familiar GA4 reporting while adding cookie-free and AI-agent analytics on top. Google Site Kit data is also supported.
+
+### Google Tag Manager & Consent Mode v2
+Deploy the tracking script through GTM, and propagate consent state to Google via **Consent Mode v2** so Google tags respect the same consent signal as CortIQ.
+
+### Google Ads — Enhanced Conversions
+Closes the attribution loop: CRM-qualified lead quality flows back to Google Ads via the Conversion Adjustments API. Emails are SHA-256 hashed before upload, and uploads run only for sessions with marketing consent.
+
+### HubSpot
+A setup wizard connects HubSpot CRM. Lead-quality changes arrive by webhook (HMAC-verified), are hashed immediately, and feed both the Google Ads Enhanced Conversions loop and the Attribution Gap dashboard.
+
+### Data warehouse
+Scheduled export to BigQuery, Snowflake, Redshift, PostgreSQL and MySQL for teams that model analytics downstream — see the [Data Warehouse guide](./DATA_WAREHOUSE_GUIDE.md).
+
+### Other channels
+TikTok and additional paid-channel connectors live under the same Integrations tab; the dashboard shows the current list.
+
+---
+
 ## Privacy & GDPR
 
-Default configuration for all sites:
-- ✅ **Cookieless tracking** (browser fingerprint)
-- ✅ **IP anonymisation** enabled
-- ✅ **Opt-out mode** (tracking allowed unless user opts out)
-- ✅ **730-day data retention**
-- ✅ **User agent not stored** (configurable per site)
-- ✅ **Referrer stored** (for traffic source analysis)
+CortIQ is **cookie-free by default**. The base layer counts page views server-side with an in-memory session id — no cookies, no cross-visit fingerprint, no personal data in the browser — so it needs no consent banner (audience measurement, GDPR Art. 6.1.f).
+
+Everything richer is **consent-gated in every mode**:
+
+| Data | Default | Legal basis |
+|------|---------|-------------|
+| Aggregated page views | On, banner-free | Art. 6.1.f (legitimate interest) |
+| Clicks, scroll depth, heatmaps, session replay | Requires analytics consent | Art. 6.1.a (consent) |
+| Conversions & form analytics | Requires analytics consent | Art. 6.1.a |
+| Marketing click IDs (gclid, fbclid, …) | Requires marketing consent | Art. 6.1.a |
+
+- **IP anonymisation** at ingest — raw IP addresses are never stored.
+- **Emails SHA-256 hashed** in the browser before any ad-platform upload — raw PII never reaches CortIQ.
+- **Configurable retention** with an automated retention job across sensitive tables.
+- **Consent verified server-side**, not just a client flag — the consent banner writes an authoritative server-side ledger for Art. 7(1) proof.
+
+See [consent-banner-strategy](./docs/consent-banner-strategy.md) for when a banner is and isn't required.
 
 ---
 

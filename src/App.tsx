@@ -25,7 +25,18 @@ import Navigation from "./pages/Navigation";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Treat data as fresh for 60s so alt-tabbing back to the dashboard does not
+      // fire a wave of refetches against Supabase. Individual hooks can override.
+      staleTime: 60_000,
+      gcTime: 5 * 60_000,
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 const App = () => (
   <ErrorBoundary>
