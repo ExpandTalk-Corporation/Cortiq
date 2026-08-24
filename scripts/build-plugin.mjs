@@ -22,6 +22,9 @@ const zip = new JSZip();
 
 function addDirPrefixed(zip, dir, baseDir, prefix) {
   for (const entry of readdirSync(dir)) {
+    // Don't bundle build artifacts (e.g. a previously-committed plugin .zip) or
+    // VCS/OS cruft into the plugin package.
+    if (entry.endsWith('.zip') || entry.startsWith('.')) continue;
     const full = join(dir, entry);
     if (statSync(full).isDirectory()) {
       addDirPrefixed(zip, full, baseDir, prefix);
