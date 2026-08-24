@@ -23,35 +23,22 @@ export function useHeatmapData(siteId: string | null) {
   const loadTopPages = async (siteId: string) => {
     try {
       setLoading(true);
-      
-      // Get top pages with their view counts (alla sidor, inte bara senaste 7 dagarna)
-      const { data: pageData, error: pageError } = await supabase
-        .from('page_views')
-        .select('url')
-        .eq('site_id', siteId)
-        // Exkludera admin-sidor och preview-sidor
-        .not('url', 'like', '%wp-admin%')
-        .not('url', 'like', '%wp-login%')
-        .not('url', 'like', '%elementor-preview%')
-        .not('url', 'like', '%preview=true%')
-        .order('viewed_at', { ascending: false });
+
+      // Top pages over the full history, aggregated server-side (GROUP BY + LIMIT).
+      // The previous client-side count only saw the newest 1000 rows PostgREST returns,
+      // so "top pages" was silently wrong on busy sites. Ownership enforced in the RPC.
+      const { data, error: pageError } = await supabase.rpc('get_top_pages', {
+        p_site_id: siteId,
+        p_limit: 20,
+      });
 
       if (pageError) throw pageError;
 
-      // Count views per URL
-      const urlCounts = pageData.reduce((acc: Record<string, number>, page) => {
-        acc[page.url] = (acc[page.url] || 0) + 1;
-        return acc;
-      }, {});
-
-      // Convert to array and sort by view count
-      const sortedPages = Object.entries(urlCounts)
-        .map(([url, pageViews]) => ({ url, pageViews, heatmapPoints: [] }))
-        .sort((a, b) => b.pageViews - a.pageViews)
-        .slice(0, 20); // Top 20 pages
+      const sortedPages: PageHeatmapData[] = ((data as { url: string; pageViews: number }[]) ?? [])
+        .map((p) => ({ url: p.url, pageViews: p.pageViews, heatmapPoints: [] }));
 
       setTopPages(sortedPages);
-      
+
       // Auto-select the most visited page
       if (sortedPages.length > 0 && !selectedUrl) {
         setSelectedUrl(sortedPages[0].url);
