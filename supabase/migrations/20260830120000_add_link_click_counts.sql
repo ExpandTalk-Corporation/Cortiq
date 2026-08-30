@@ -52,4 +52,6 @@ AS $$
   DO UPDATE SET click_count = public.link_click_counts.click_count + 1, updated_at = now();
 $$;
 
-REVOKE ALL ON FUNCTION public.increment_link_click(uuid,text,text,text,text,text,date) FROM public, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.increment_link_click(uuid,text,text,text,text,text,date) FROM public, anon, authenticated;
+
+GRANT EXECUTE ON FUNCTION public.increment_link_click(uuid,text,text,text,text,text,date) TO service_role;
