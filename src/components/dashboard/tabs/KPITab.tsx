@@ -41,14 +41,16 @@ export function KPITab({ selectedSite }: KPITabProps) {
     timestamp: new Date().toISOString()
   });
   
-  const { 
-    data, 
-    loading, 
-    error, 
-    refetch, 
-    monthlyOverview, 
-    channelBreakdown, 
-    aiTrafficInsights 
+  const {
+    data,
+    loading,
+    error,
+    hasData,
+    usingFallback,
+    refetch,
+    monthlyOverview,
+    channelBreakdown,
+    aiTrafficInsights
   } = useKPIDashboard(selectedSite.id, selectedYear);
 
   const { toast } = useToast();
@@ -291,8 +293,8 @@ export function KPITab({ selectedSite }: KPITabProps) {
     );
   }
 
-  if (!data) {
-    // Inga fallbacks – visa N/A och ge felsökningsknapp
+  if (!hasData) {
+    // Neither GA4 nor the first-party fallback produced anything — show N/A + debug button.
     return (
       <div className="space-y-6">
         <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-8 rounded-lg border">
@@ -373,6 +375,11 @@ export function KPITab({ selectedSite }: KPITabProps) {
               <Badge variant="secondary" className="text-sm">
                 Report for {selectedYear}
               </Badge>
+              {usingFallback && (
+                <Badge variant="outline" className="text-sm border-amber-300 text-amber-700">
+                  Source: CortIQ first-party data (GA4 not configured — conversions/revenue unavailable)
+                </Badge>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-6">

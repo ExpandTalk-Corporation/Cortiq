@@ -29,34 +29,24 @@ export function useKPIDashboard(siteId: string, year: number = 2025) {
   const fetchKPIData = async () => {
     if (!siteId) return;
 
-    console.log('🔍 KPI Dashboard - fetchKPIData called with:', {
-      siteId,
-      year,
-      timestamp: new Date().toISOString()
-    });
-
     setLoading(true);
     setError(null);
 
+    // Calculate date ranges for full year vs previous year. Declared outside the
+    // try so the catch/fallback paths can reuse them.
+    const currentYear = year;
+    const previousYear = year - 1;
+    const startDate = `${currentYear}-01-01`;
+    // For the current year, cap the end date at today to avoid GA4 errors for future months.
+    const today = new Date();
+    const isCurrentYear = currentYear === today.getFullYear();
+    const endDate = isCurrentYear
+      ? today.toISOString().split('T')[0]
+      : `${currentYear}-12-31`;
+    const comparisonStartDate = `${previousYear}-01-01`;
+    const comparisonEndDate = `${previousYear}-12-31`;
+
     try {
-      // Calculate date ranges for full year vs previous year
-      const currentYear = year;
-      const previousYear = year - 1;
-      
-      const startDate = `${currentYear}-01-01`;
-      
-      // For current year, use today's date as end date to avoid GA4 errors for future months
-      const today = new Date();
-      const isCurrentYear = currentYear === today.getFullYear();
-      const endDate = isCurrentYear 
-        ? today.toISOString().split('T')[0]  // Current date for 2025
-        : `${currentYear}-12-31`;           // Full year for previous years
-      
-      const comparisonStartDate = `${previousYear}-01-01`;
-      const comparisonEndDate = `${previousYear}-12-31`;
-
-      console.log(`Fetching KPI data for full year ${currentYear} vs ${previousYear}`);
-
       const { data: kpiData, error: functionError } = await supabase.functions.invoke('ga4-kpi-dashboard', {
         body: {
           siteId,
@@ -68,20 +58,27 @@ export function useKPIDashboard(siteId: string, year: number = 2025) {
       });
 
       if (functionError) {
-        console.error('KPI Dashboard function error:', functionError);
         throw new Error(functionError.message || 'Failed to fetch KPI data');
       }
 
-      console.log('KPI Dashboard data received:', kpiData);
-      console.log('🔍 Site verification - Edge function response for site:', siteId);
-      setData(kpiData);
+      // GA4 returned usable monthly data — use it and drop any stale fallback.
+      if (kpiData?.overgripande?.data?.length > 0) {
+        setData(kpiData);
+        setFallbackMonthly([]);
+        return;
+      }
 
+      // GA4 responded but has nothing (typically: no ga_measurement_id on the site).
+      // Fall back to CortIQ's own first-party tables so the KPI tab still shows numbers.
+      console.warn('KPI: no GA4 data returned, computing fallback from internal tables');
+      setData(null);
+      await computeFallbackMonthly(startDate, endDate);
     } catch (err) {
-      console.error('Error fetching KPI data:', err);
-      // No fallback or dummy data per user preference
-      setFallbackMonthly([]);
+      // GA4 call failed entirely — try the first-party fallback before giving up.
+      console.error('Error fetching KPI data, using internal fallback:', err);
       setData(null);
       setError(err instanceof Error ? err.message : 'Failed to fetch GA4 KPI data');
+      await computeFallbackMonthly(startDate, endDate);
     } finally {
       setLoading(false);
     }
@@ -338,10 +335,17 @@ export function useKPIDashboard(siteId: string, year: number = 2025) {
     return Object.values(aiPlatforms).sort((a: any, b: any) => b.sessions - a.sessions);
   };
 
+  // The tab has real data to render when GA4 returned something OR the first-party
+  // fallback produced months. usingFallback lets the UI label the data source.
+  const usingFallback = !data && fallbackMonthly.length > 0;
+  const hasData = !!data || fallbackMonthly.length > 0;
+
   return {
     data,
     loading,
     error,
+    hasData,
+    usingFallback,
     refetch: fetchKPIData,
     monthlyOverview: getMonthlyOverview(),
     channelBreakdown: getChannelBreakdown(),
