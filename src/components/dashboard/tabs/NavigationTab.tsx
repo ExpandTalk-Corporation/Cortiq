@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { NavigationAnalytics } from '@/components/dashboard/NavigationAnalytics';
+import { LinkClickCounts } from '@/components/dashboard/LinkClickCounts';
 import { NavigationSync } from '@/components/dashboard/NavigationSync';
 import { DateRangePicker } from '@/components/dashboard/DateRangePicker';
 import { DashboardCard } from '@/components/dashboard/DashboardCard';
@@ -30,6 +31,8 @@ export function NavigationTab({ selectedSite }: NavigationTabProps) {
         siteId={selectedSite?.id || null}
         selectedSite={selectedSite}
       />
+
+      <LinkClickCounts siteId={selectedSite?.id || null} />
     </div>
   );
 }

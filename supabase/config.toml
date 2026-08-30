@@ -45,6 +45,9 @@ verify_jwt = false
 [functions.track-event]
 verify_jwt = false
 
+[functions.link-click-counter]
+verify_jwt = false
+
 # Owner-triggered from the dashboard (requires a logged-in session); pulls Cloudflare
 # edge analytics via the CLOUDFLARE_API_TOKEN project secret.
 [functions.cloudflare-analytics]
