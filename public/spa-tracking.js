@@ -547,6 +547,49 @@
     identify: identifyVisitor
   };
 
+  // Anonymous aggregate per-link counter. Runs under analytics consent (unconditional in
+  // cookieless) — deliberately NOT behind hasInteractionConsent(). Sends no session id,
+  // no visitor id, no coordinates: only page path + link + device, so it stays within the
+  // audience-measurement exemption. Query/hash are stripped before sending.
+  function linkDestination(anchor) {
+    try {
+      const u = new URL(anchor.href, window.location.origin);
+      return (u.host + u.pathname).slice(0, 200);
+    } catch (_) { return ''; }
+  }
+
+  function setupAggregateLinkCounter() {
+    document.addEventListener('click', function (e) {
+      const el = e.target.closest && e.target.closest('a[href], button, [role="button"]');
+      if (!el) return;
+      const isAnchor = el.tagName === 'A' && el.getAttribute('href');
+      const label = (el.textContent || '').trim().slice(0, 200);
+      const linkKind = isAnchor ? 'link' : 'button';
+      const linkKey = isAnchor ? linkDestination(el) : label;
+      if (!linkKey) return;
+
+      const payload = {
+        siteId: SITE_ID,
+        pagePath: window.location.pathname, // no search, no hash
+        linkKind: linkKind,
+        linkKey: linkKey,
+        linkLabel: label,
+        deviceType: getDeviceType()
+      };
+
+      try {
+        fetch(API_URL + '/link-click-counter', {
+          method: 'POST',
+          headers: API_KEY
+            ? { 'Authorization': 'Bearer ' + API_KEY, 'Content-Type': 'application/json' }
+            : { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          keepalive: true // survive the navigation the click may trigger
+        }).catch(function () {});
+      } catch (_) {}
+    }, true); // capture phase: fire before navigation
+  }
+
   // Run the analytics pipeline (visitor identification, pageview, interaction
   // tracking). Only called once analytics consent is present.
   async function startAnalytics() {
@@ -556,6 +599,7 @@
       await identifyVisitor();
     }
     trackPageView();
+    setupAggregateLinkCounter(); // anonymous per-link tallies — runs in cookieless too
     setupClickTracking();
     setupConversionTracking();
     setupScrollTracking();
