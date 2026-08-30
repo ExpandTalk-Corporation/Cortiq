@@ -554,6 +554,7 @@
   function linkDestination(anchor) {
     try {
       const u = new URL(anchor.href, window.location.origin);
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') return '';
       return (u.host + u.pathname).slice(0, 200);
     } catch (_) { return ''; }
   }
@@ -578,11 +579,10 @@
       };
 
       try {
+        const apiKey = API_KEY || SITE_ID;
         fetch(API_URL + '/link-click-counter', {
           method: 'POST',
-          headers: API_KEY
-            ? { 'Authorization': 'Bearer ' + API_KEY, 'Content-Type': 'application/json' }
-            : { 'Content-Type': 'application/json' },
+          headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
           keepalive: true // survive the navigation the click may trigger
         }).catch(function () {});
