@@ -96,7 +96,7 @@ const features = [
   {
     icon: <Zap className="h-7 w-7" />,
     title: "Cookie-Free Analytics",
-    description: "Full analytics without cookies — 100% GDPR-safe, no consent needed.",
+    description: "Cookie-free, server-side analytics for the banner-free base layer; advanced tracking is opt-in with consent.",
     items: ["Privacy-first tracking", "Cookie-free sessions", "Unique visitor estimation", "Zero data loss"],
   },
   {

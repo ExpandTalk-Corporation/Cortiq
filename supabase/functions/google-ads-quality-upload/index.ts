@@ -4,6 +4,7 @@
 // Called as a scheduled daily batch (cron or manual trigger from dashboard).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getSessionConsent } from '../_shared/session-consent.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -134,14 +135,33 @@ Deno.serve(async (req) => {
       // + manual) can't upload the same conversions twice. Only rows we actually
       // claim proceed.
       const candidateIds = candidates.map(c => c.id);
-      const { data: pending } = await supabase
+      const { data: claimed } = await supabase
         .from('conversion_events')
         .update({ upload_status: 'uploading', upload_claimed_at: new Date().toISOString() })
         .in('id', candidateIds)
         .eq('upload_status', 'pending')
-        .select('id, gclid, hashed_email, quality_value, quality_classified_at, created_at');
+        .select('id, gclid, hashed_email, quality_value, quality_classified_at, created_at, form_data');
 
-      if (!pending || pending.length === 0) continue;
+      if (!claimed || claimed.length === 0) continue;
+
+      // Capture-time consent is necessary but insufficient: a queued conversion
+      // must not be exported after withdrawal or expiry. Legacy rows without a
+      // verifiable browser session are deliberately not exported.
+      const pending = [];
+      for (const conversion of claimed) {
+        const sessionId = conversion.form_data?.tracking_session_id;
+        const current = typeof sessionId === 'string'
+          ? await getSessionConsent(supabase, site.id, sessionId)
+          : { analytics: false, marketing: false };
+        if (current.analytics && current.marketing) {
+          pending.push(conversion);
+        } else {
+          await supabase.from('conversion_events')
+            .update({ upload_status: 'skipped_no_consent', upload_claimed_at: null })
+            .eq('id', conversion.id).eq('upload_status', 'uploading');
+        }
+      }
+      if (pending.length === 0) continue;
 
       // Build adjustments payload
       const conversionActionResource = `customers/${google_ads_customer_id}/conversionActions/${google_ads_conversion_id}`;

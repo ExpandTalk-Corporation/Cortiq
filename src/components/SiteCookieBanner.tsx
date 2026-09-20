@@ -17,7 +17,6 @@ interface ConsentTypes {
 export function SiteCookieBanner() {
   const [showBanner, setShowBanner] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [cookiefreeMode, setCookiefreeMode] = useState(false);
   const [consent, setConsent] = useState<ConsentTypes>({
     necessary: true,
     analytics: false,
@@ -28,44 +27,22 @@ export function SiteCookieBanner() {
   const { updateConsent } = useGoogleConsentMode();
 
   useEffect(() => {
-    // Check if running in cookiefree mode for this site
-    const checkCookiefreeMode = async () => {
-      try {
-        // Get the tracking ID from the page (if available)
-        const trackingId = document.querySelector('[data-tracking-id]')?.getAttribute('data-tracking-id');
-        if (!trackingId) return;
-
-        // Fetch GDPR settings for this site to check cookiefree mode
-        const response = await fetch(`https://cxmkdtgfocgbfizawlwa.supabase.co/rest/v1/gdpr_settings?select=cookiefree_mode`, {
-          headers: {
-            'apikey': 'YOUR_SUPABASE_ANON_KEY',
-          }
-        });
-        const data = await response.json();
-        if (data?.[0]?.cookiefree_mode) {
-          setCookiefreeMode(true);
-          return; // Don't show banner in cookiefree mode
-        }
-      } catch (error) {
-        console.error('Error checking cookiefree mode:', error);
-      }
-
-      // Check if consent already given
+    // The site's privacy choice must remain available without a tracking tag.
+    // A cookieless analytics flag does not authorize other optional technologies.
+    try {
       const existingConsent = localStorage.getItem('site_cookie_consent');
-      if (!existingConsent) {
-        // Small delay to avoid flash of banner
-        const timer = setTimeout(() => {
-          setShowBanner(true);
-        }, 1000);
-        return () => clearTimeout(timer);
-      } else {
+      if (existingConsent) {
         const parsed = JSON.parse(existingConsent);
-        setConsent(parsed);
-        initializeAnalytics(parsed);
+        if (parsed && Date.parse(parsed.expiresAt) > Date.now() &&
+            ['analytics', 'marketing', 'preferences'].every(key => typeof parsed[key] === 'boolean')) {
+          setConsent(parsed);
+          updateConsent(parsed);
+          return;
+        }
       }
-    };
-
-    checkCookiefreeMode();
+    } catch { /* Missing/corrupt/blocked storage requires a new choice. */ }
+    const timer = setTimeout(() => setShowBanner(true), 1000);
+    return () => clearTimeout(timer);
   }, []); // Cookie banner should always be available regardless of auth state
 
   const initializeAnalytics = (consentTypes: ConsentTypes) => {
@@ -80,7 +57,9 @@ export function SiteCookieBanner() {
 
   const saveConsent = (consentTypes: ConsentTypes) => {
     setConsent(consentTypes);
-    localStorage.setItem('site_cookie_consent', JSON.stringify(consentTypes));
+    const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+    try { localStorage.setItem('site_cookie_consent', JSON.stringify({ ...consentTypes, expiresAt })); }
+    catch { /* Apply the choice for this page even when storage is blocked. */ }
     
     // Set cookie for server-side detection
     const expires = new Date();
@@ -140,8 +119,11 @@ export function SiteCookieBanner() {
     saveConsent(consent);
   };
 
-  // Don't show banner in cookiefree mode
-  if (!showBanner || cookiefreeMode) return null;
+  if (!showBanner) return (
+    <Button variant="outline" className="fixed bottom-3 right-3 z-50" onClick={() => setShowBanner(true)}>
+      Cookieinställningar
+    </Button>
+  );
 
   return (
     <>
@@ -169,24 +151,25 @@ export function SiteCookieBanner() {
                     <h3 className="text-lg font-bold">🍪 Vi respekterar din integritet</h3>
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    Vi har fokus på <strong>1st party cookies</strong> för korrekt data och mäter även <strong>AI-trafik</strong> 
-                    för att förbättra användarupplevelsen och visa relevanta funktioner.
+                    Du väljer om vi får använda valfria cookies för analys, marknadsföring och inställningar.
+                    Du kan ändra ditt val när som helst via Cookieinställningar.
                   </p>
                 </div>
 
                 <div className="flex flex-wrap gap-3 items-center">
                   <Button 
                     onClick={handleAcceptAll} 
-                    className="group bg-gradient-primary hover-scale hover-glow text-sm px-8 py-3 h-auto font-semibold"
+                    variant="outline"
+                    className="text-sm px-6 py-3 h-auto font-semibold"
                   >
                     <Shield className="h-4 w-4 mr-2" />
-                    ✨ Acceptera alla (Rekommenderat)
+                    Acceptera alla
                   </Button>
                   
                   <Button 
                     variant="outline" 
                     onClick={handleRejectAll}
-                    className="text-sm px-6 py-2 h-auto"
+                    className="text-sm px-6 py-3 h-auto font-semibold"
                   >
                     Endast nödvändiga
                   </Button>

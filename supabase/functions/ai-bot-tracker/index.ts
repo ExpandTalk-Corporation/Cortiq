@@ -1,74 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.3";
 import { anonymizeIP } from "../_shared/jurisdiction.ts";
+// Canonical AI-bot classification — shared with cloudflare-ingest so both the JS-tag
+// and server-log paths classify identically. See _shared/ai-bot-registry.ts.
+import { classifyBot, type BotCategory } from "../_shared/ai-bot-registry.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-// AI bot detection registry.
-// Ordered MOST-SPECIFIC-FIRST: the first pattern that matches wins, so agentic
-// user-agents (e.g. ChatGPT-User) are matched before the training crawler that
-// shares a vendor prefix (GPTBot). `name` is the canonical UA token persisted to
-// bot_name; `category` is the single source of truth for classification.
-//   training = crawls to build/refresh a model corpus (infrastructure cost)
-//   agentic  = a real user's AI browser acting on their behalf (treat like a human)
-//   citation = indexes content for AI-powered search results (visibility signal)
-type BotCategory = 'training' | 'agentic' | 'citation';
-interface BotSignature { pattern: RegExp; type: string; name: string; category: BotCategory; }
-
-const AI_BOT_REGISTRY: BotSignature[] = [
-  // OpenAI
-  { pattern: /ChatGPT-User/i,      type: 'chatgpt',    name: 'ChatGPT-User',       category: 'agentic' },
-  { pattern: /ChatGPT Atlas/i,     type: 'chatgpt',    name: 'ChatGPT Atlas',      category: 'agentic' },
-  { pattern: /OAI-SearchBot/i,     type: 'chatgpt',    name: 'OAI-SearchBot',      category: 'citation' },
-  { pattern: /GPTBot/i,            type: 'chatgpt',    name: 'GPTBot',             category: 'training' },
-  // Anthropic
-  { pattern: /Claude-User/i,       type: 'claude',     name: 'Claude-User',        category: 'agentic' },
-  { pattern: /Claude-SearchBot/i,  type: 'claude',     name: 'Claude-SearchBot',   category: 'citation' },
-  { pattern: /ClaudeBot|anthropic-ai/i, type: 'claude', name: 'ClaudeBot',         category: 'training' },
-  // Perplexity
-  { pattern: /Perplexity-User/i,   type: 'perplexity', name: 'Perplexity-User',    category: 'agentic' },
-  { pattern: /PerplexityBot/i,     type: 'perplexity', name: 'PerplexityBot',      category: 'citation' },
-  // Google
-  { pattern: /Google-Extended/i,   type: 'gemini',     name: 'Google-Extended',    category: 'training' },
-  { pattern: /GoogleOther/i,       type: 'gemini',     name: 'GoogleOther',        category: 'citation' },
-  { pattern: /Googlebot/i,         type: 'gemini',     name: 'Googlebot',          category: 'citation' },
-  // Microsoft / Bing
-  { pattern: /bingbot|BingPreview/i, type: 'bingbot',  name: 'Bingbot',            category: 'citation' },
-  // Meta
-  { pattern: /Meta-ExternalAgent/i, type: 'meta',      name: 'Meta-ExternalAgent', category: 'training' },
-  { pattern: /FacebookBot|facebookexternalhit/i, type: 'meta', name: 'FacebookBot', category: 'citation' },
-  // Apple
-  { pattern: /Applebot-Extended/i, type: 'apple',      name: 'Applebot-Extended',  category: 'training' },
-  { pattern: /Applebot/i,          type: 'apple',      name: 'Applebot',           category: 'citation' },
-  // You.com / DuckDuckGo — AI-answer crawlers that fetch in real time and cite sources
-  { pattern: /YouBot/i,            type: 'youdotcom',  name: 'YouBot',             category: 'citation' },
-  { pattern: /DuckAssistBot/i,     type: 'duckduckgo', name: 'DuckAssistBot',      category: 'citation' },
-  // xAI
-  { pattern: /Grok/i,              type: 'grok',       name: 'Grok',               category: 'agentic' },
-  // Other training crawlers
-  { pattern: /Amazonbot/i,         type: 'amazon',     name: 'Amazonbot',          category: 'citation' },
-  { pattern: /Bytespider/i,        type: 'bytedance',  name: 'Bytespider',         category: 'training' },
-  { pattern: /CCBot/i,             type: 'commoncrawl',name: 'CCBot',              category: 'training' },
-  { pattern: /Diffbot/i,           type: 'diffbot',    name: 'Diffbot',            category: 'training' },
-  { pattern: /cohere-ai/i,         type: 'cohere',     name: 'cohere-ai',          category: 'training' },
-  { pattern: /DeepSeek/i,          type: 'deepseek',   name: 'DeepSeek',           category: 'training' },
-  { pattern: /MistralAI/i,         type: 'mistral',    name: 'MistralAI',          category: 'training' },
-];
-
-// NOTE on agentic browsers (Perplexity Comet, ChatGPT Atlas in browse mode, Claude
-// for Chrome): these deliberately send a stock Chrome user-agent and are NOT reliably
-// distinguishable by UA — matching e.g. /Comet/ or /Atlas/ would either never fire or
-// false-positive on real Chrome users. We catch their *agent fetches* via the vendor
-// "-User" tokens above (ChatGPT-User / Claude-User / Perplexity-User); the specific
-// "ChatGPT Atlas" token is matched when present, but genuine in-browser human-like
-// traffic is left to the signal-based 'agentic' classification below (jsExecuted &&
-// isVisual), never a UA regex.
-
-// Generic (non-AI) bot fallback.
-const GENERIC_BOT_PATTERN = /bot|crawler|spider|scraper/i;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -176,24 +116,11 @@ serve(async (req) => {
     }
 
     // Detect bot from user agent using the canonical registry (first match wins).
-    let botType = 'other';
-    let botName = 'Unknown Bot';
-    let botCategory: BotCategory | null = null;
-
     // Prefer the real request User-Agent header over the client-supplied body value:
     // the body is trivially forgeable (POST {userAgent:"GPTBot"}), the request header
     // is not settable from browser fetch. Fall back to the body only if absent.
     const ua = req.headers.get('user-agent') || userAgent || '';
-    const matched = AI_BOT_REGISTRY.find(sig => sig.pattern.test(ua));
-    if (matched) {
-      botType = matched.type;
-      botName = matched.name;       // persist the real UA token, not a capitalized key
-      botCategory = matched.category;
-    } else if (GENERIC_BOT_PATTERN.test(ua)) {
-      botType = 'other';
-      botName = 'Other Bot';
-      botCategory = 'citation';     // unknown crawler — treat as visibility signal, not training
-    }
+    const { botType, botName, botCategory }: { botType: string; botName: string; botCategory: BotCategory | null } = classifyBot(ua);
 
     // Detect asset type
     const { isAsset, assetType } = detectAssetType(url);

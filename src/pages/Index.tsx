@@ -205,12 +205,12 @@ const Index = () => {
                 100% Banner-Free
               </Badge>
               <h2 className="text-4xl md:text-5xl font-black mb-8 text-gradient-primary">
-                True banner-free analytics - legally compliant
+                Banner-free server-side analytics
               </h2>
               <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
-                Server-side analytics with ONLY aggregated data. No cookies, no IP storage, no fingerprinting. 
-                Works with server logs for complete banner-free tracking. Plus heatmaps and advanced tracking via hybrid solution with smart nudging. 
-                100% compliant with Swedish PTS and EU ePrivacy.
+                Server-side analytics with ONLY aggregated data. No cookies, no IP storage, no fingerprinting.
+                The banner-free base runs on server logs. Advanced tracking like heatmaps and conversions is opt-in and runs only with visitor consent.
+                Built around Swedish PTS and EU ePrivacy guidance.
               </p>
 
               <div className="space-y-6 mb-12">
@@ -223,7 +223,7 @@ const Index = () => {
                       <div>
                         <h3 className="font-bold text-lg mb-2">True Banner-Free Analytics</h3>
                         <p className="text-muted-foreground">
-                          Only aggregated, anonymous server data. NO cookies, IP storage, or fingerprinting. 100% banner-free per PTS/ePrivacy.
+                          Only aggregated, anonymous server data. NO cookies, IP storage, or fingerprinting. Designed to run banner-free, based on PTS/ePrivacy guidance.
                         </p>
                       </div>
                     </div>
@@ -356,10 +356,10 @@ const Index = () => {
               Security & Compliance
             </Badge>
             <h2 className="text-4xl md:text-5xl font-black mb-6 text-gradient-primary">
-              Bot security requires NO cookie banner
+              Bot security without a cookie banner
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-              According to ePrivacy Art. 5.3, security measures are "strictly necessary" - DDoS protection, spy bots, and scrapers can be measured without consent.
+              Under ePrivacy Art. 5.3, security measures can qualify as "strictly necessary" - DDoS protection, spy bots, and scrapers, subject to your own legal assessment.
             </p>
           </div>
 
@@ -374,8 +374,8 @@ const Index = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Identify and block malicious bots attempting to overload your website. 
-                  Legal without consent under ePrivacy Art. 5.3 (strictly necessary).
+                  Identify and block malicious bots attempting to overload your website.
+                  Can qualify as strictly necessary under ePrivacy Art. 5.3.
                 </p>
               </CardContent>
             </Card>
@@ -419,7 +419,7 @@ const Index = () => {
               <Badge className="mb-4 bg-gradient-primary text-white mx-auto">
                 Legal Framework
               </Badge>
-              <CardTitle className="text-2xl">Why bot security is legal without consent</CardTitle>
+              <CardTitle className="text-2xl">The legal basis for security measurement</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid md:grid-cols-2 gap-6">
@@ -429,8 +429,8 @@ const Index = () => {
                     ePrivacy Art. 5.3
                   </h4>
                   <p className="text-sm text-muted-foreground">
-                    EU ePrivacy Directive states that techniques "strictly necessary" for security do not require consent. 
-                    Bot detection, DDoS protection, and fraud prevention qualify.
+                    The EU ePrivacy Directive exempts techniques "strictly necessary" for security from consent.
+                    Bot detection, DDoS protection, and fraud prevention may qualify, subject to your own assessment.
                   </p>
                 </div>
                 <div className="space-y-3">

@@ -188,7 +188,7 @@ export function AIInsightsWidget({ siteId }: AIInsightsWidgetProps) {
                 
                 <div className="flex justify-between items-center mt-3 pt-2 border-t">
                   <span className="text-xs text-muted-foreground">
-                    Confidence: {insight.confidence_score}%
+                    AI suggestion — verify against the sources
                   </span>
                   <div className="flex items-center gap-3">
                     {insight.run_id && (

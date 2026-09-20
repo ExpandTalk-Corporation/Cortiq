@@ -7,6 +7,7 @@ import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
 import { SiteCookieBanner } from "@/components/SiteCookieBanner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { ClientOnly } from "@/components/ClientOnly";
 import Index from "./pages/Index";
 import CMP from "./pages/CMP";
 import Features from "./pages/Features";
@@ -44,9 +45,14 @@ const App = () => (
       <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
         <AuthProvider>
           <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <SiteCookieBanner />
+          {/* Global client-only widgets. Gated behind ClientOnly so they emit no
+              DOM during hydration — the prerendered SSG HTML contains none of
+              these, and rendering them here would break hydration (React #418/#423). */}
+          <ClientOnly>
+            <Toaster />
+            <Sonner />
+            <SiteCookieBanner />
+          </ClientOnly>
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />

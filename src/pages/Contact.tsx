@@ -158,9 +158,9 @@ const Contact = () => {
                 </p>
               </div>
               <div className="p-6 rounded-lg bg-primary/5">
-                <h3 className="font-semibold mb-2">🔒 GDPR Ready</h3>
+                <h3 className="font-semibold mb-2">🔒 Privacy-first</h3>
                 <p className="text-sm text-muted-foreground">
-                  100% compliant cookie-free tracking
+                  Cookie-free tracking, consent-driven when you go deeper
                 </p>
               </div>
               <div className="p-6 rounded-lg bg-primary/5">

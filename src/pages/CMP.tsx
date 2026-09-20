@@ -9,7 +9,7 @@ import { useSEO } from "@/hooks/useSEO";
 export default function CMP() {
   useSEO({
     title: 'Consent Management Platform (CMP) — CortIQ',
-    description: 'GDPR-compliant cookie consent with smart nudging to increase opt-in rates. Google Consent Mode v2 built in. No cookie banner required for server-side analytics.',
+    description: 'Cookie consent with smart nudging to increase opt-in rates. Google Consent Mode v2 built in. Server-side base analytics is designed to run banner-free; advanced tracking is consent-driven.',
   });
   const features = [
     {
