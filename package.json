@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/minify-tracker.mjs && vite build && vite build --ssr src/entry-server.tsx --outDir dist/server && node scripts/prerender.mjs && node scripts/prepare-ftp.mjs",
+    "build": "node scripts/minify-tracker.mjs && node scripts/build-plugin.mjs && vite build && vite build --ssr src/entry-server.tsx --outDir dist/server && node scripts/prerender.mjs && node scripts/prepare-ftp.mjs",
     "build:client": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",

@@ -3,7 +3,7 @@
  * Plugin Name: CortIQ Analytics
  * Plugin URI: https://cortiq.se
  * Description: Analytics for the agentic web. Track AI agents (ChatGPT Browser, Perplexity, Claude, Gemini) and human visitors — cookie-free, GDPR-compliant, with heatmaps, session recording and A/B testing.
- * Version: 5.3.5
+ * Version: 5.4.0
  * Author: CortIQ
  * Author URI: https://cortiq.se
  * Requires at least: 5.6
@@ -20,7 +20,8 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 if ( defined( 'CORTIQ_LOADED' ) ) return;
 define( 'CORTIQ_LOADED', true );
 
-define( 'CORTIQ_VERSION',    '5.3.5' );
+// Shared with public/spa-tracking.js (CORTIQ_VERSION) — also the ?ver= cache-bust for it.
+define( 'CORTIQ_VERSION',    '5.4.0' );
 define( 'CORTIQ_OPTION_KEY', 'cortiq_options' );
 define( 'CORTIQ_CDN',        'https://cortiq.se' );
 // Supabase Edge Functions base — used for the GDPR consent ledger (store-consent).
@@ -40,7 +41,7 @@ function cortiq_defaults() {
         'anonymize_ip'          => true,
         'excluded_roles'        => array( 'administrator' ),
         'accent_color'          => '#6366f1',
-        'tracking_mode'         => 'full',   // 'cookieless' (consent-exempt) | 'full'
+        'tracking_mode'         => 'full',   // 'cookieless' (no fingerprint/profile) | 'full'
         'banner_language'       => 'auto',   // 'auto' (WP locale) | 'en' | 'sv' | 'de'
         'consent_mode'          => 'basic',  // GA4 Consent Mode: 'basic' | 'advanced'
         'policy_version'        => '1',      // change to re-prompt every visitor
@@ -254,8 +255,8 @@ function cortiq_enqueue() {
         'apiKey'      => $opts['tracking_id'],
         'contentType' => 'page',
         'platform'    => 'web',
-        // Cookieless mode: spa-tracking.js runs consent-exempt (no fingerprint, no
-        // device storage) and needs no Statistics consent toggle.
+        // Cookieless mode: no fingerprint and no cross-visit profile. It still
+        // requires analytics consent — only the bot/security layer runs without it.
         'cookieless'  => ( 'cookieless' === $opts['tracking_mode'] ),
     ) );
     wp_add_inline_script( 'cortiq-tracking', 'window.cortiqConfig = ' . $config . ';', 'before' );
@@ -279,10 +280,6 @@ function cortiq_cookie_banner() {
     if ( empty( $opts['gdpr_enabled'] ) ) return;
     $accent = $opts['accent_color'] ? esc_attr( $opts['accent_color'] ) : '#6366f1';
     $t      = cortiq_banner_strings( cortiq_banner_lang( $opts ) );
-    // Show the Statistics toggle only when something actually needs analytics consent:
-    // GA4, or full (fingerprint) mode. In cookieless mode CortIQ's own analytics are
-    // consent-exempt, so with no GA4 there is nothing to consent to under Statistics.
-    $show_statistics = ( 'cookieless' !== $opts['tracking_mode'] ) || ! empty( $opts['ga4_id'] );
     ?>
 <style>
 #cq-overlay,#cq-reopen{--cq-accent:<?php echo $accent; ?>}
@@ -349,7 +346,6 @@ function cortiq_cookie_banner() {
         </div>
         <label class="cq-toggle"><input type="checkbox" id="cq-preferences"><span class="cq-slider"></span></label>
       </div>
-      <?php if ( $show_statistics ) : ?>
       <div class="cq-cat">
         <div class="cq-cat-info">
           <div class="cq-cat-name"><?php echo esc_html( $t['statistics'] ); ?></div>
@@ -357,7 +353,6 @@ function cortiq_cookie_banner() {
         </div>
         <label class="cq-toggle"><input type="checkbox" id="cq-analytics"><span class="cq-slider"></span></label>
       </div>
-      <?php endif; ?>
       <div class="cq-cat">
         <div class="cq-cat-info">
           <div class="cq-cat-name"><?php echo esc_html( $t['marketing'] ); ?></div>
@@ -397,7 +392,7 @@ function cortiq_cookie_banner() {
   var KEY = 'site_cookie_consent';
   var overlay = document.getElementById('cq-overlay');
   var chkPref = document.getElementById('cq-preferences');
-  var chkAnal = document.getElementById('cq-analytics'); // absent when Statistics is hidden (cookieless, no GA4)
+  var chkAnal = document.getElementById('cq-analytics');
   var chkMark = document.getElementById('cq-marketing');
   var details = document.getElementById('cq-details');
   var reopen  = document.getElementById('cq-reopen');
@@ -424,8 +419,11 @@ function cortiq_cookie_banner() {
   }
 
   function save(pref,anal,mark){
+    var now=Date.now();
+    // spa-tracking.js only honours a stored choice with a future expiresAt.
     var c={ necessary:true, preferences:pref, analytics:anal, marketing:mark,
-      timestamp:Date.now(), consentId:genId(), policyVersion:POLICY_VERSION };
+      timestamp:now, expiresAt:new Date(now+MAX_AGE).toISOString(),
+      consentId:genId(), policyVersion:POLICY_VERSION };
     try { localStorage.setItem(KEY,JSON.stringify(c)); } catch(e){}
     // GA4 Consent Mode + spa-tracking listen for this event.
     window.dispatchEvent(new CustomEvent('siteConsentUpdated',{detail:c}));
@@ -492,6 +490,12 @@ function cortiq_cookie_banner() {
   // Show the banner only if there's no fresh decision. A saved choice (even reject) is
   // respected for ~12 months — no nagging.
   var fresh = existing && existing.policyVersion===POLICY_VERSION && ((Date.now()-(existing.timestamp||0)) < MAX_AGE);
+  // Choices saved by plugin < 5.4.0 have no expiresAt, so spa-tracking.js ignores them.
+  // Backfill it here: this footer script runs before the deferred tracker executes.
+  if(fresh && !(Date.parse(existing.expiresAt) > Date.now())){
+    existing.expiresAt=new Date(existing.timestamp+MAX_AGE).toISOString();
+    try { localStorage.setItem(KEY,JSON.stringify(existing)); } catch(e){}
+  }
   function showBanner(){
     if(!GEO_GATING){ overlay.style.display='flex'; return; }
     // Geo-gated: only show inside the EEA/UK/CH; elsewhere no cookie banner is required.
@@ -756,7 +760,7 @@ function cortiq_settings_page() {
                                    <?php checked( ! empty( $opts['geo_gating'] ) ); ?> />
                             Show the cookie banner only to EEA / UK / Switzerland visitors
                         </label>
-                        <p class="description">Visitors outside the EEA/UK/CH won't see the banner (no consent required there). Cookie-free CortIQ tracking still runs.</p>
+                        <p class="description">Visitors outside the EEA/UK/CH won't see the banner. Without a choice, CortIQ visitor analytics stay off for them; AI-agent and bot detection still runs.</p>
                     </td>
                 </tr>
 
@@ -766,15 +770,15 @@ function cortiq_settings_page() {
                         <label style="display:block;margin-bottom:8px">
                             <input type="radio" name="<?php echo CORTIQ_OPTION_KEY; ?>[tracking_mode]" value="cookieless"
                                    <?php checked( 'cookieless', $opts['tracking_mode'] ); ?> />
-                            <strong>Cookieless</strong> — consent-exempt audience measurement. No device storage, no fingerprint,
-                            no cross-visit profile. The <em>Statistics</em> category is removed from the banner (unless GA4 is set).
+                            <strong>Cookieless</strong> — privacy-minimised measurement. No fingerprint, no cross-visit profile.
+                            Requires analytics consent (<em>Statistics</em> in the banner).
                         </label>
                         <label style="display:block">
                             <input type="radio" name="<?php echo CORTIQ_OPTION_KEY; ?>[tracking_mode]" value="full"
                                    <?php checked( 'full', $opts['tracking_mode'] ); ?> />
                             <strong>Full</strong> — device fingerprint + returning-visitor profiling. Requires analytics consent.
                         </label>
-                        <p class="description">Cookieless lets CortIQ measure without a Statistics consent toggle. You decide the legal basis for your site.</p>
+                        <p class="description">Both modes need analytics consent before visitor analytics start. AI-agent and bot detection runs without it as a strictly necessary security function — you decide the legal basis for your site.</p>
                     </td>
                 </tr>
 

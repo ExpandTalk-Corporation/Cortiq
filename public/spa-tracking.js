@@ -1,6 +1,7 @@
 /**
  * CortIQ Advanced Tracking Script
  * Unified visitor profiling with AI agent detection
+ * Version: 5.4.0 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
  *
  * Usage:
  * <script>
@@ -14,6 +15,9 @@
 
 (function() {
   'use strict';
+
+  // Keep in sync with wordpress-plugin/cortiq-analytics.php (CORTIQ_VERSION).
+  const CORTIQ_VERSION = '5.4.0';
 
   // Configuration
   const config = window.cortiqConfig || window.wfaConfig || {};
@@ -129,6 +133,17 @@
     };
   }
 
+  // A stored choice counts only until its expiresAt. WordPress plugin < 5.4.0 saved
+  // { timestamp, consentId, policyVersion } without expiresAt; honour those for the
+  // plugin's default 365-day cooldown so installed sites keep working until they update.
+  const LEGACY_CONSENT_MAX_AGE = 365 * 24 * 60 * 60 * 1000;
+  function consentUnexpired(saved) {
+    if (saved.expiresAt != null) return Date.parse(saved.expiresAt) > Date.now();
+    const legacy = typeof saved.timestamp === 'number' && saved.timestamp <= Date.now() &&
+      typeof saved.consentId === 'string' && saved.policyVersion != null;
+    return legacy && saved.timestamp + LEGACY_CONSENT_MAX_AGE > Date.now();
+  }
+
   // Check if visitor has given marketing/advertising consent
   function hasMarketingConsent() {
     if (COOKIELESS) return false;
@@ -137,7 +152,7 @@
     try {
       const stored = localStorage.getItem('site_cookie_consent');
       const saved = stored ? JSON.parse(stored) : null;
-      if (saved?.marketing === true && Date.parse(saved.expiresAt) > Date.now()) return true;
+      if (saved?.marketing === true && consentUnexpired(saved)) return true;
     } catch (_) { /* Storage or browser capability unavailable. */ }
     return false;
   }
@@ -441,7 +456,7 @@
     try {
       const stored = localStorage.getItem('site_cookie_consent');
       const saved = stored ? JSON.parse(stored) : null;
-      if (saved?.analytics === true && Date.parse(saved.expiresAt) > Date.now()) return true;
+      if (saved?.analytics === true && consentUnexpired(saved)) return true;
     } catch (_) { /* Storage or browser capability unavailable. */ }
     return false;
   }
@@ -566,6 +581,7 @@
 
   // Public API
   window.CortIQ = window.WFATracker = {
+    version: CORTIQ_VERSION,
     track: trackEvent,
     trackView: trackPageView,
     trackClick: (contentId, metadata) => trackEvent('click', contentId, metadata),

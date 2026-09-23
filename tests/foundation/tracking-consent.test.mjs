@@ -95,6 +95,29 @@ for (const expiresAt of ['2000-01-01T00:00:00Z', null, 'invalid']) {
   });
 }
 
+// WordPress plugin < 5.4.0 stored { timestamp, consentId, policyVersion } without expiresAt.
+const DAY = 24 * 60 * 60 * 1000;
+const legacy = (extra) => ({ analytics: true, marketing: false, expiresAt: undefined, consentId: 'c1', policyVersion: '1', ...extra });
+
+test('legacy WP plugin consent (no expiresAt) is honoured within 365 days', async () => {
+  const b = browser({}, legacy({ timestamp: Date.now() - 10 * DAY }));
+  await settle();
+  assert.ok(b.calls.some(c => c.body.event_type === 'view'));
+});
+
+for (const [label, extra] of [
+  ['older than 365 days', { timestamp: Date.now() - 366 * DAY }],
+  ['timestamp in the future', { timestamp: Date.now() + DAY }],
+  ['missing consentId', { timestamp: Date.now(), consentId: undefined }],
+  ['missing policyVersion', { timestamp: Date.now(), policyVersion: undefined }],
+]) {
+  test(`legacy consent is not used when ${label}`, async () => {
+    const b = browser({}, legacy(extra));
+    await settle();
+    assert.equal(b.calls.length, 0);
+  });
+}
+
 test('cookieless with consent does not identify visitors or persist IDs', async () => {
   const b = browser({ cookieless: true }, { analytics: true, marketing: true });
   await settle();

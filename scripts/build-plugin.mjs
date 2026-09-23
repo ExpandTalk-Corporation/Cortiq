@@ -1,6 +1,6 @@
 /**
  * Packages wordpress-plugin/ into public/cortiq-wordpress-plugin.zip
- * Runs automatically as part of `npm run build` (see package.json prebuild).
+ * Runs automatically as part of `npm run build` (see package.json "build").
  */
 
 import { readFileSync, readdirSync, statSync, writeFileSync, mkdirSync, existsSync } from 'fs';
