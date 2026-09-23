@@ -100,8 +100,7 @@ const Privacy = () => {
                   'AI bot and agent detection (e.g. ChatGPT Browser, Perplexity Comet, Claude Browser) based on the User-Agent string and browser capability signals',
                   'Crawler classification (training crawlers, citation crawlers, search engines, scrapers)',
                   'Bot probe — runs only when the client looks automated; ordinary browsers send nothing',
-                  'Honeypot and canary links — invisible elements that only automated clients interact with',
-                  'AI-search and citation detection — records when a visit arrives from an AI service (referrer, landing URL, UTM parameters, User-Agent, device type)'
+                  'Honeypot and canary links — invisible elements that only automated clients interact with'
                 ].map((item, index) => (
                   <li key={index} className="flex items-start space-x-3">
                     <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
@@ -236,6 +235,7 @@ const Privacy = () => {
               <ul className="space-y-3">
                 {[
                   'Page views and most visited pages',
+                  'AI referrals — when a visit arrives from an AI service such as ChatGPT or Perplexity (referrer, landing URL, UTM parameters, device type)',
                   'Referrers and traffic sources (including UTM parameters)',
                   'Sessions, device type, browser and country',
                   'Clicks and link clicks',
@@ -583,7 +583,6 @@ const Privacy = () => {
                     <li>• AI bot &amp; agent detection</li>
                     <li>• Crawler classification</li>
                     <li>• Bot probe, honeypot, canary</li>
-                    <li>• AI-search / citation detection</li>
                     <li>• Server &amp; edge logs (operations, security)</li>
                     <li className="font-semibold text-foreground">No visitor analytics, no cookies</li>
                     <li className="font-semibold text-foreground">Basis: legitimate interest (Art. 6.1.f), our assessment</li>
@@ -593,7 +592,7 @@ const Privacy = () => {
                   <h4 className="font-bold mb-3">Analytics consent</h4>
                   <p className="text-sm text-muted-foreground mb-3">Cookieless or Full mode</p>
                   <ul className="text-sm space-y-2 text-muted-foreground">
-                    <li>• Page views, pages, referrers</li>
+                    <li>• Page views, pages, referrers, AI referrals</li>
                     <li>• Sessions</li>
                     <li>• Clicks, scroll depth, heatmaps</li>
                     <li>• Forms, e-commerce, conversions</li>

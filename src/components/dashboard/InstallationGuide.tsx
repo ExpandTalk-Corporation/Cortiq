@@ -66,9 +66,9 @@ export function InstallationGuide({ selectedSite }: InstallationGuideProps) {
 <script src="${scriptSrc}" defer></script>`}
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            ✅ One script. AI bot detection (GPTBot, ClaudeBot, PerplexityBot) and
-            AI search/citation detection run without consent as a security layer. All visitor analytics — page views,
-            sessions, heatmaps, click/scroll, conversions — start only after analytics consent, also with
+            ✅ One script. AI bot detection (GPTBot, ClaudeBot, PerplexityBot) runs
+            without consent as a security layer. All visitor analytics — page views, sessions, AI referrals
+            (ChatGPT, Perplexity, Claude, Gemini), heatmaps, click/scroll, conversions — start only after analytics consent, also with
             <code>cookieless: true</code> (which drops fingerprinting and persistent IDs). Paid-ads click IDs need
             marketing consent. The script reads <code>window.cortiqConfig</code>,
             so keep it directly above the script tag.

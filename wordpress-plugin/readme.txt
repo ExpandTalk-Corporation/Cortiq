@@ -3,7 +3,7 @@ Contributors: cortiq
 Tags: analytics, ai-tracking, heatmap, cookie-free, gdpr, chatgpt, session-recording
 Requires at least: 5.6
 Tested up to: 6.8
-Stable tag: 5.4.0
+Stable tag: 5.4.1
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -94,6 +94,9 @@ The tracking script is loaded with `defer` so it does not block rendering.
 Yes. Add `data-cortiq-mask` to any input or element. The field content is replaced with asterisks in the recording. See the [GDPR guide](https://github.com/expandtalk/cortiq/blob/main/GDPR.md) for details.
 
 == Changelog ==
+
+= 5.4.1 =
+* Tracking script: AI-referral measurement (visitors arriving from ChatGPT, Perplexity, Claude, Gemini) now starts only after analytics consent. Only AI-bot and security detection runs without consent.
 
 = 5.4.0 =
 * Plugin and tracking script now share one version number; `spa-tracking.js` exposes it as `window.CortIQ.version`.

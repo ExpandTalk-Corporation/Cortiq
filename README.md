@@ -124,8 +124,8 @@ npm install && npm run dev  # → http://localhost:8080
 
 ### 🔒 Privacy & GDPR — built in, not bolted on
 CortIQ is built by an EU company for EU-grade compliance:
-- **AI-bot / security layer without consent** — AI bot & agent detection, crawler classification, bot probe, honeypot, canary, AI-search detection and Cloudflare edge-log bot classification. Designed to run as strictly necessary security processing; the site operator makes the final legal assessment
-- **Consent-gated visitor analytics** — page views, sessions, clicks, scroll, heatmaps, forms, e-commerce, conversions, session recording and A/B tests start only after analytics consent (GDPR Art. 6.1.a / ePrivacy Art. 5.3), verified **server-side**. Consent is valid 12 months, then re-asked
+- **AI-bot / security layer without consent** — AI bot & agent detection, crawler classification, bot probe, honeypot, canary and Cloudflare edge-log bot classification. Designed to run as strictly necessary security processing; the site operator makes the final legal assessment
+- **Consent-gated visitor analytics** — page views, sessions, AI referrals, clicks, scroll, heatmaps, forms, e-commerce, conversions, session recording and A/B tests start only after analytics consent (GDPR Art. 6.1.a / ePrivacy Art. 5.3), verified **server-side**. Consent is valid 12 months, then re-asked
 - **Cookieless or Full mode** — Cookieless: no cookies, no fingerprint, no cross-visit profile, no persistent IDs (still needs consent). Full: persistent visitor ID and returning-visitor analysis after consent. Marketing click IDs only with marketing consent
 - **Demonstrable consent** — the consent banner writes an authoritative server-side ledger (timestamp, version, GPC signal) for Art. 7(1) proof
 - **Data minimisation** — IP addresses anonymised at ingest; emails SHA-256 hashed before any third-party upload

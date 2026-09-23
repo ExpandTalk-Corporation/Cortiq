@@ -1,7 +1,7 @@
 /**
  * CortIQ Advanced Tracking Script
  * Unified visitor profiling with AI agent detection
- * Version: 5.4.0 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
+ * Version: 5.4.1 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
  *
  * Usage:
  * <script>
@@ -17,7 +17,7 @@
   'use strict';
 
   // Keep in sync with wordpress-plugin/cortiq-analytics.php (CORTIQ_VERSION).
-  const CORTIQ_VERSION = '5.4.0';
+  const CORTIQ_VERSION = '5.4.1';
 
   // Configuration
   const config = window.cortiqConfig || window.wfaConfig || {};
@@ -51,6 +51,7 @@
   let analyticsStarted = false;
   let listenersInstalled = false;
   let securityStarted = false;
+  let aiReferralTracked = false;
 
   // Security/bot-detection session id. In-memory only, never written to the
   // visitor's device and never cross-visit — this identifies a single page
@@ -876,6 +877,8 @@
   // legal assessment. Sends bot signatures and coarse capability signals for a
   // single page context (SECURITY_SESSION_ID, in-memory). No cross-visit
   // identity is written to the visitor's device.
+  // trackAISearch/trackAICitation below measure human AI referrals and are NOT part
+  // of this layer: startAnalytics() calls them only after analytics consent.
   // ─────────────────────────────────────────────────────────────────────────
 
   const AI_BOT_UA = {
@@ -953,6 +956,7 @@
     function finish() {
       if (done) return;
       done = true;
+      if (!hasAnalyticsConsent()) return;
       const secs = Math.round((Date.now() - start) / 1000);
       try {
         fetch(API_URL + '/ai-search-tracker', {
@@ -1055,8 +1059,6 @@
       if (EXCLUDE_PATHS.some(function (x) { return p.startsWith(x); })) return;
     }
     securityStarted = true;
-    try { trackAISearch(); } catch (_) {}
-    try { trackAICitation(); } catch (_) {}
     try { runBotProbe(); } catch (_) {}
     try { setupCanary(); } catch (_) {}
     try { setupHoneypot(); } catch (_) {}
@@ -1077,6 +1079,13 @@
     }
     if (generation !== consentGeneration || !hasAnalyticsConsent()) return;
     trackPageView();
+    // AI-referral measurement (a human arriving from ChatGPT/Perplexity/…) is visitor
+    // analytics, not security: it only runs after consent, once per page load.
+    if (!aiReferralTracked) {
+      aiReferralTracked = true;
+      try { trackAISearch(); } catch (_) {}
+      try { trackAICitation(); } catch (_) {}
+    }
     if (!listenersInstalled) {
       listenersInstalled = true;
       setupAggregateLinkCounter();

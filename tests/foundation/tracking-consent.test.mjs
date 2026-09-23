@@ -7,7 +7,7 @@ import { webcrypto } from 'node:crypto';
 const script = readFileSync(new URL('../../public/spa-tracking.js', import.meta.url), 'utf8');
 const settle = async () => { for (let i = 0; i < 12; i++) await new Promise(resolve => setImmediate(resolve)); };
 
-function browser(config = {}, storedConsent = null, identifyResponse = null) {
+function browser(config = {}, storedConsent = null, identifyResponse = null, page = {}) {
   const calls = [];
   const storageWrites = [];
   const local = new Map(storedConsent ? [['site_cookie_consent', JSON.stringify({ expiresAt: '2099-01-01T00:00:00Z', ...storedConsent })]] : []);
@@ -22,12 +22,12 @@ function browser(config = {}, storedConsent = null, identifyResponse = null) {
   };
   const window = Object.assign(surface(), {
     cortiqConfig: { siteId: 'site-1', apiKey: 'tracking-key', ...config },
-    location: { href: 'https://site.test/start', origin: 'https://site.test', pathname: '/start', search: '' },
+    location: { href: 'https://site.test/start', origin: 'https://site.test', pathname: '/start', search: page.search || '' },
     innerWidth: 1200, innerHeight: 800, scrollY: 0,
   });
   let canvasReads = 0;
   const document = Object.assign(surface(), {
-    readyState: 'complete', referrer: '', documentElement: { scrollHeight: 4000 },
+    readyState: 'complete', referrer: page.referrer || '', title: 'Start', documentElement: { scrollHeight: 4000 },
     createElement() { canvasReads++; return { getContext: () => null }; },
   });
   const history = {
@@ -94,6 +94,34 @@ for (const expiresAt of ['2000-01-01T00:00:00Z', null, 'invalid']) {
     assert.equal(b.storageWrites.length, 0);
   });
 }
+
+// Human visits arriving from AI services are visitor analytics, not security.
+const aiReferral = { referrer: 'https://chatgpt.com/', search: '?utm_source=chatgpt.com' };
+const isAIReferralCall = c => c.url.endsWith('/ai-search-tracker') || (c.url.endsWith('/ai-bot-tracker') && c.body.citationData);
+
+test('AI-referral visit sends nothing before consent', async () => {
+  const b = browser({}, null, null, aiReferral);
+  await settle();
+  assert.equal(b.calls.filter(isAIReferralCall).length, 0);
+});
+
+test('AI-referral visit is measured once after consent, and not after revocation', async () => {
+  const b = browser({}, null, null, aiReferral);
+  b.choose(true);
+  await settle();
+  assert.equal(b.calls.filter(c => c.url.endsWith('/ai-search-tracker')).length, 1);
+  assert.equal(b.calls.filter(c => c.url.endsWith('/ai-bot-tracker') && c.body.citationData).length, 1);
+  b.choose(false);
+  b.choose(true);
+  await settle();
+  assert.equal(b.calls.filter(c => c.url.endsWith('/ai-search-tracker')).length, 1, 'no duplicate on re-grant');
+});
+
+test('AI-referral visit with stored consent is measured on load', async () => {
+  const b = browser({ cookieless: true }, { analytics: true }, null, aiReferral);
+  await settle();
+  assert.equal(b.calls.filter(isAIReferralCall).length, 2);
+});
 
 // WordPress plugin < 5.4.0 stored { timestamp, consentId, policyVersion } without expiresAt.
 const DAY = 24 * 60 * 60 * 1000;

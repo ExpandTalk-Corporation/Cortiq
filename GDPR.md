@@ -23,7 +23,6 @@ Consent is stored with an expiry and is valid for 12 months; after that the bann
 
 - AI bot & agent detection and crawler classification (training / agentic / citation)
 - Bot probe, honeypot and canary checks
-- AI-search / citation detection
 - Server-side bot classification from Cloudflare edge logs (cloudflare-ingest), if the Cloudflare integration is enabled
 
 This layer analyses request characteristics such as the user-agent and request patterns. It is designed to run as strictly necessary security processing (protecting the site against automated traffic). Whether that assessment holds for your site is your decision as data controller.
@@ -37,6 +36,7 @@ This layer analyses request characteristics such as the user-agent and request p
 Activated only when a visitor accepts the "Statistics" category in the cookie banner. This applies in both Cookieless and Full mode.
 
 - **Page views and sessions** — page URL, referrer, device type, browser family, viewport category
+- **AI referrals** — visits arriving from AI services (ChatGPT, Perplexity, Claude, Gemini): referrer, landing URL, UTM parameters, time on page
 - **Anonymised IP address** — last octet masked before storage (e.g. 192.168.1.0)
 - **Click positions** — x/y coordinates for heatmap generation
 - **Scroll depth** — how far the visitor scrolled (25%, 50%, 75%, 100% milestones)

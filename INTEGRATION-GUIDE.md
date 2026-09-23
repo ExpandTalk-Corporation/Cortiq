@@ -289,14 +289,14 @@ TikTok and additional paid-channel connectors live under the same Integrations t
 
 ## Privacy & GDPR
 
-Without consent, only the **AI-bot / security layer** runs: AI bot & agent detection, crawler classification (training / agentic / citation), bot probe, honeypot, canary, AI-search/citation detection, and server-side bot classification from Cloudflare edge logs (`cloudflare-ingest`). It is designed to run as strictly necessary security processing; the site operator makes the final legal assessment.
+Without consent, only the **AI-bot / security layer** runs: AI bot & agent detection, crawler classification (training / agentic / citation), bot probe, honeypot, canary, and server-side bot classification from Cloudflare edge logs (`cloudflare-ingest`). It is designed to run as strictly necessary security processing; the site operator makes the final legal assessment.
 
 **All visitor analytics are consent-gated in both modes**:
 
 | Data | Default | Legal basis |
 |------|---------|-------------|
 | AI-bot / security layer | On | Designed as strictly necessary security processing (operator's assessment) |
-| Page views, sessions | Requires analytics consent | Art. 6.1.a GDPR / ePrivacy Art. 5.3 (consent) |
+| Page views, sessions, AI referrals | Requires analytics consent | Art. 6.1.a GDPR / ePrivacy Art. 5.3 (consent) |
 | Clicks, scroll depth, heatmaps, session replay, A/B tests | Requires analytics consent | Art. 6.1.a / ePrivacy Art. 5.3 |
 | Conversions, e-commerce & form analytics | Requires analytics consent | Art. 6.1.a / ePrivacy Art. 5.3 |
 | Marketing click IDs (gclid, fbclid, …) | Requires marketing consent | Art. 6.1.a |

@@ -31,14 +31,13 @@ Without consent, only the AI-bot / security layer runs:
 
 - AI bot & agent detection and crawler classification (training / agentic / citation)
 - Bot probe, honeypot and canary checks
-- AI-search / citation detection
 - Server-side bot classification from Cloudflare edge logs (cloudflare-ingest)
 
 This layer is designed to run as strictly necessary security processing. The site operator makes the final legal assessment.
 
 ### Consent-Gated Visitor Analytics
 
-All visitor analytics — page views, sessions, clicks, scroll, heatmaps, forms, e-commerce, conversions, session recording, A/B tests — start only after the visitor grants analytics consent, in both modes. Legal basis: consent (GDPR Art. 6.1.a / ePrivacy Art. 5.3). Consent is valid 12 months (stored with an expiry), then re-asked.
+All visitor analytics — page views, sessions, AI referrals, clicks, scroll, heatmaps, forms, e-commerce, conversions, session recording, A/B tests — start only after the visitor grants analytics consent, in both modes. Legal basis: consent (GDPR Art. 6.1.a / ePrivacy Art. 5.3). Consent is valid 12 months (stored with an expiry), then re-asked.
 
 - **Cookieless mode** — no cookies, no fingerprint, no cross-visit profile, no persistent IDs. Still requires consent.
 - **Full mode** — persistent visitor ID and returning-visitor analysis after consent.
