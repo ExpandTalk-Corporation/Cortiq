@@ -90,15 +90,15 @@ const features = [
     description: "Security intelligence without compromising visitor privacy — all data is anonymized and EU-hosted.",
     items: [
       "Hashed visitor IDs (no PII)",
-      "Cookie-free tracking mode",
+      "Cookieless tracking mode",
       "EU data hosting",
-      "GDPR-compliant by design",
+      "Built for GDPR, privacy by design",
     ],
   },
   {
     icon: <Shield className="h-7 w-7" />,
-    title: "GDPR & Compliance",
-    description: "Built-in compliance tools so you meet legal requirements without separate software.",
+    title: "GDPR & Consent",
+    description: "Built-in consent and data-protection tools, no separate CMP required. You make the final legal assessment for your site.",
     items: [
       "Cookie consent management (CMP)",
       "Configurable data retention",

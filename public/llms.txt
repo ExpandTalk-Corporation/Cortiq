@@ -1,18 +1,19 @@
 # CortIQ
 
-> First open-source, EU-built web analytics platform with dedicated AI-traffic classification — ChatGPT Browser, Perplexity Comet, Claude Browser, and every AI crawler. Cookie-free by default. Built for the Agentic Web.
+> First open-source, EU-built web analytics platform with dedicated AI-traffic classification — ChatGPT Browser, Perplexity Comet, Claude Browser, and every AI crawler. Cookieless mode available. Built for the Agentic Web.
 
-CortIQ combines cookie-free server-side analytics, AI bot intelligence, a paid-conversion attribution loop, and an optional GDPR-compliant consent management platform. Built by Expandtalk Corporation AB, Sweden. AGPL-3.0, self-hostable.
+CortIQ combines AI bot intelligence, consent-gated visitor analytics (Cookieless or Full mode), a paid-conversion attribution loop, and a built-in consent management platform. Built by Expandtalk Corporation AB, Sweden. AGPL-3.0, self-hostable.
 
 ## Product capabilities
 
 - **AI Bot Intelligence**: Classify every AI visit into training crawlers (GPTBot, ClaudeBot), agentic browsers (ChatGPT Browser, Perplexity Comet, Claude Browser) and citation crawlers (PerplexityBot, Google-Extended). Agent journey funnels, conversion attribution, browser-type classification (visual/headless/text-based). This 3-way taxonomy is the core differentiator.
-- **Cookie-Free Analytics**: 100% server-side base tracking. No cookies, no personal data in the browser, IP anonymised at ingest. No consent banner required for the base audience-measurement layer (GDPR Art. 6.1.f).
+- **AI-Bot & Security Layer (runs without consent)**: AI bot & agent detection, crawler classification, bot probe, honeypot, canary, AI-search/citation detection, and server-side bot classification from Cloudflare edge logs. Designed to run as strictly necessary security processing; the site operator makes the final legal assessment.
+- **Consent-Gated Visitor Analytics**: All visitor analytics (page views, sessions, clicks, scroll, heatmaps, forms, e-commerce, conversions, session recording, A/B tests) start only after analytics consent (GDPR Art. 6.1.a / ePrivacy Art. 5.3), in both modes. Cookieless mode: no cookies, no fingerprint, no cross-visit profile, no persistent IDs. Full mode: persistent visitor ID and returning-visitor analysis. Consent is valid 12 months, then re-asked. IP anonymised at ingest.
 - **Human Analytics**: Click heatmaps + scroll-depth funnels (25/50/75/100%), session recording (rrweb, masking on by default), form analytics, A/B testing with statistical significance, geolocation maps, KPI dashboards.
 - **Conversion & Attribution**: First-party click-ID capture (gclid, fbclid, msclkid, ttclid, li_fat_id), conversion-goal health monitor, form auto-discovery, and a HubSpot lead-quality → Google Ads Enhanced Conversions loop (email SHA-256 hashed in the browser). Closes the GA4 ↔ Google Ads ↔ CRM gap.
 - **Integrations**: Google Search Console (incl. AI-search view), Google Analytics 4 (server-side), Google Ads Enhanced Conversions, HubSpot, Google Tag Manager + Consent Mode v2, TikTok, and data-warehouse export (BigQuery, Snowflake, Redshift, PostgreSQL, MySQL, Databricks).
 - **AI & Agent-Ready**: AI Assistant grounded in your real data (never hallucinated, every insight shows its source). MCP server so external agents can query analytics with a scoped, rate-limited API key.
-- **Optional CMP**: Smart consent banner with behavioral nudging, server-side consent ledger, Consent Mode v2 and TCF v2 compatible — for when you want richer opt-in data on top of the banner-free base.
+- **Built-in CMP**: Consent banner (required for visitor analytics in both modes), server-side consent ledger, 12-month consent expiry, Consent Mode v2 and TCF v2 compatible. Marketing click IDs only with marketing consent.
 
 ## Security & privacy
 
@@ -30,8 +31,8 @@ Invite-only beta. Website: https://cortiq.se
 
 ## Tracking script
 
-https://cortiq.se/spa-tracking.js — drop-in JavaScript for any site (heatmaps, session recording, AI-agent detection, UTM, form analytics). Behavioral tracking is consent-gated.
+https://cortiq.se/spa-tracking.js — drop-in JavaScript for any site (heatmaps, session recording, AI-agent detection, UTM, form analytics). All visitor analytics are consent-gated; only AI-agent detection runs without consent.
 
 ## Company
 
-Expandtalk Corporation AB — Göteborg, Sweden. GDPR-compliant, EU-hosted. AGPL-3.0.
+Expandtalk Corporation AB — Göteborg, Sweden. EU-hosted, built for GDPR. AGPL-3.0.

@@ -4,7 +4,7 @@
 
 CortIQ is a web analytics platform built for the Agentic Web — the emerging era where AI agents (ChatGPT Browser, Perplexity Comet, Claude Browser) make up a fast-growing share of web traffic. 1 in 31 web visits is now an AI bot, up from 1 in 200 at the start of 2025.
 
-CortIQ is the first open-source, EU-built analytics platform with a dedicated module for classifying and analyzing AI traffic. Beyond AI intelligence it provides a full analytics stack: cookie-free server-side tracking, click and scroll heatmaps, session recording, A/B testing, form analytics, geolocation maps, a paid-conversion attribution loop, and an optional GDPR-compliant consent management platform (CMP).
+CortIQ is the first open-source, EU-built analytics platform with a dedicated module for classifying and analyzing AI traffic. Beyond AI intelligence it provides a full analytics stack: consent-gated visitor analytics (Cookieless or Full mode), click and scroll heatmaps, session recording, A/B testing, form analytics, geolocation maps, a paid-conversion attribution loop, and a built-in consent management platform (CMP).
 
 **Production URL:** https://cortiq.se
 **Company:** Expandtalk Corporation AB, Göteborg, Sweden
@@ -25,11 +25,23 @@ CortIQ classifies every AI visit into three categories — this is the core diff
 
 Detection combines user-agent parsing with browser-type classification (visual / headless / text-based). Server-log and edge ingest count even non-JS training crawlers. Agentic-browser journeys are reconstructed page-by-page with conversion attribution.
 
-### Cookie-Free Analytics
+### AI-Bot & Security Layer (runs without consent)
 
-100% server-side base tracking with no client-side cookies and no personal data in the browser:
+Without consent, only the AI-bot / security layer runs:
 
-- Cookie-free by default — no consent banner required for the base audience-measurement layer (GDPR Art. 6.1.f)
+- AI bot & agent detection and crawler classification (training / agentic / citation)
+- Bot probe, honeypot and canary checks
+- AI-search / citation detection
+- Server-side bot classification from Cloudflare edge logs (cloudflare-ingest)
+
+This layer is designed to run as strictly necessary security processing. The site operator makes the final legal assessment.
+
+### Consent-Gated Visitor Analytics
+
+All visitor analytics — page views, sessions, clicks, scroll, heatmaps, forms, e-commerce, conversions, session recording, A/B tests — start only after the visitor grants analytics consent, in both modes. Legal basis: consent (GDPR Art. 6.1.a / ePrivacy Art. 5.3). Consent is valid 12 months (stored with an expiry), then re-asked.
+
+- **Cookieless mode** — no cookies, no fingerprint, no cross-visit profile, no persistent IDs. Still requires consent.
+- **Full mode** — persistent visitor ID and returning-visitor analysis after consent.
 - IP anonymisation at ingest
 - Optional hybrid mode with server-side GA4 for teams that want familiar reporting
 
@@ -68,11 +80,13 @@ Configured in-app under Settings → Integrations — no code changes on the cus
 - **Data warehouse** — scheduled export to BigQuery, Snowflake, Redshift, PostgreSQL, MySQL, Databricks
 - **TikTok** and other paid-channel connectors
 
-### GDPR & Consent (optional CMP)
+### GDPR & Consent (built-in CMP)
 
-The base layer is banner-free, but a full CMP is available when richer, consent-based data is wanted:
+The consent banner is required for visitor analytics in both modes:
 
 - Cookie consent management with behavioral nudging for higher opt-in rates
+- Consent valid 12 months, then re-asked; closing the banner saves "necessary only"
+- Marketing click IDs captured only with marketing consent
 - Consent verified server-side (not just a client flag); authoritative server-side consent ledger for Art. 7(1) proof
 - Google Consent Mode v2 and TCF v2 compatible
 - Configurable data retention with an automated retention job; data-subject-request path
@@ -90,7 +104,7 @@ The base layer is banner-free, but a full CMP is available when richer, consent-
 - **Tag manager** — event, pixel, script and HTML tags without code deployment
 - **Web Vitals** — LCP, INP, CLS with historical trends
 - **White label** — custom branding for agency resellers
-- **WordPress plugin** — 1-click installation
+- **WordPress plugin** (v5.4.0, same version as the tracking script) — download the zip from the dashboard; choose Cookieless or Full tracking mode
 
 ---
 
@@ -99,7 +113,7 @@ The base layer is banner-free, but a full CMP is available when richer, consent-
 Built by an EU company for EU-grade compliance, security-first by design:
 
 - **Row-Level Security on every table** — company/tenant isolation enforced at the database layer, never only in the application
-- **Consent-gated behavioral data** in every mode — clicks, scroll, heatmaps, session replay and conversions require analytics consent; only aggregated page views run banner-free
+- **Consent-gated behavioral data** in every mode — all visitor analytics, including page views, require analytics consent; only the AI-bot / security layer runs without it
 - **Data minimisation** — IP anonymisation at ingest; emails SHA-256 hashed before any third-party upload
 - **EU data residency** — Supabase, AWS eu-north-1; any US transfer (AI/ads) is optional, consent-gated and disclosed
 - **The Agentic Layer only ever reads** through governed, tenant-scoped interfaces — AI never sees another tenant's data
@@ -128,7 +142,7 @@ Installed on customer websites via a single `<script>` tag:
 <script src="https://cortiq.se/spa-tracking.js" data-site-id="YOUR_SITE_ID" defer></script>
 ```
 
-The script handles page views, click and scroll heatmaps, session events, AI-agent detection, UTM capture and consent integration (CortIQ banner, Cookiebot, TCF v2). Behavioral tracking is consent-gated.
+The script handles page views, click and scroll heatmaps, session events, AI-agent detection, UTM capture and consent integration (CortIQ banner, Cookiebot, TCF v2). All visitor analytics are consent-gated; only AI-agent detection runs without consent.
 
 ### API
 
@@ -155,8 +169,8 @@ REST API documented at https://cortiq.se/api. Plus an MCP server so AI agents ca
 
 ## Competitive Position
 
-CortIQ is the only analytics platform with dedicated AI-traffic classification as a first-class feature. Traditional platforms (Google Analytics, Plausible, Fathom, Matomo) treat AI agents as bot noise and filter them out. CortIQ treats them as distinct categories — training, agentic and citation — each with its own funnel, attribution and behavior analysis. The combination of AI-traffic intelligence + cookie-free server-side tracking + a paid-conversion attribution loop + GDPR-native CMP is unique in the European market.
+CortIQ is the only analytics platform with dedicated AI-traffic classification as a first-class feature. Traditional platforms (Google Analytics, Plausible, Fathom, Matomo) treat AI agents as bot noise and filter them out. CortIQ treats them as distinct categories — training, agentic and citation — each with its own funnel, attribution and behavior analysis. The combination of AI-traffic intelligence + consent-gated cookieless analytics + a paid-conversion attribution loop + a built-in CMP is unique in the European market.
 
 ---
 
-*Last updated: 2026-07-17*
+*Last updated: 2026-09-23*

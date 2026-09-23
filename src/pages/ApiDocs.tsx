@@ -328,9 +328,9 @@ export default function ApiDocs() {
                 <div className="flex items-start gap-3">
                   <CheckCircle className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
                   <div>
-                    <h3 className="font-semibold mb-1">Cookie-Free Data</h3>
+                    <h3 className="font-semibold mb-1">Cookieless Data</h3>
                     <p className="text-muted-foreground">
-                      100% GDPR-compliant server-side tracking without cookies
+                      Consent-first tracking with a cookieless mode — EU-hosted, built for GDPR
                     </p>
                   </div>
                 </div>

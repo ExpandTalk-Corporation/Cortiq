@@ -25,7 +25,7 @@
 
 1 in 31 web visits is now an AI bot — up from 1 in 200 at the start of 2025. Every other platform treats that traffic as noise to filter, or a binary block/allow decision.
 
-CortIQ is the **first open-source, EU-built analytics platform** that turns AI traffic into a signal instead of noise — and does it **cookie-free by default**, so the base layer needs no consent banner.
+CortIQ is the **first open-source, EU-built analytics platform** that turns AI traffic into a signal instead of noise — with consent-gated visitor analytics and a cookieless mode (no cookies, no fingerprint, no persistent IDs).
 
 It classifies every AI visit into three categories:
 
@@ -61,7 +61,7 @@ CortIQ is built as three clearly separated layers. This separation is deliberate
 │      writes ▼                                                          │
 ├──────────────────────────────────────────────────────────────────────┤
 │  🔒  PRIVACY / COMPLIANCE LAYER  (cross-cutting, EU-first)             │
-│      • Cookie-free baseline · consent gating · IP anonymisation        │
+│      • Cookieless mode · consent gating · IP anonymisation             │
 │      • Server-side consent ledger · retention cron · DSAR path         │
 │      • Data residency in the EU · email hashing before any ad upload   │
 └──────────────────────────────────────────────────────────────────────┘
@@ -124,8 +124,9 @@ npm install && npm run dev  # → http://localhost:8080
 
 ### 🔒 Privacy & GDPR — built in, not bolted on
 CortIQ is built by an EU company for EU-grade compliance:
-- **Cookie-free by default** — server-side tracking, no personal data in the browser, no consent banner for the base layer (GDPR Art. 6.1.f)
-- **Consent-gated everything else** — click IDs, fingerprinting and session replay only run after explicit consent, verified **server-side** (not just a client flag)
+- **AI-bot / security layer without consent** — AI bot & agent detection, crawler classification, bot probe, honeypot, canary, AI-search detection and Cloudflare edge-log bot classification. Designed to run as strictly necessary security processing; the site operator makes the final legal assessment
+- **Consent-gated visitor analytics** — page views, sessions, clicks, scroll, heatmaps, forms, e-commerce, conversions, session recording and A/B tests start only after analytics consent (GDPR Art. 6.1.a / ePrivacy Art. 5.3), verified **server-side**. Consent is valid 12 months, then re-asked
+- **Cookieless or Full mode** — Cookieless: no cookies, no fingerprint, no cross-visit profile, no persistent IDs (still needs consent). Full: persistent visitor ID and returning-visitor analysis after consent. Marketing click IDs only with marketing consent
 - **Demonstrable consent** — the consent banner writes an authoritative server-side ledger (timestamp, version, GPC signal) for Art. 7(1) proof
 - **Data minimisation** — IP addresses anonymised at ingest; emails SHA-256 hashed before any third-party upload
 - **Retention & erasure** — automated retention cron across all sensitive tables + a data-subject-request path
@@ -133,7 +134,7 @@ CortIQ is built by an EU company for EU-grade compliance:
 - **Transparent transfers** — Google, HubSpot and Anthropic are named as recipients/processors in the privacy policy with SCC coverage
 
 ### ⚙️ Integrations & Advanced
-GA4 (server-side) · Google Search Console · Tag Manager · Data Warehouse connectors (BigQuery, Snowflake, Redshift, PostgreSQL) · Geolocation maps · User LTV & cohorts · Web Vitals (LCP, INP, CLS) · White-label · WordPress plugin (1-click) · REST + MCP API.
+GA4 (server-side) · Google Search Console · Tag Manager · Data Warehouse connectors (BigQuery, Snowflake, Redshift, PostgreSQL) · Geolocation maps · User LTV & cohorts · Web Vitals (LCP, INP, CLS) · White-label · WordPress plugin · REST + MCP API.
 
 ---
 
@@ -221,7 +222,7 @@ npm run build
 <script src="https://YOUR_DOMAIN/spa-tracking.js" data-site-id="YOUR_SITE_ID" defer></script>
 ```
 
-For WordPress, generate the 1-click plugin from the dashboard (Settings → Setup).
+For WordPress, download the plugin zip from the dashboard (Settings → Setup). The plugin (v5.4.0) shares its version with the tracking script (`window.CortIQ.version`).
 
 ---
 

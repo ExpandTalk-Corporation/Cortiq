@@ -95,9 +95,9 @@ const features = [
   },
   {
     icon: <Zap className="h-7 w-7" />,
-    title: "Cookie-Free Analytics",
-    description: "Cookie-free, server-side analytics for the banner-free base layer; advanced tracking is opt-in with consent.",
-    items: ["Privacy-first tracking", "Cookie-free sessions", "Unique visitor estimation", "Zero data loss"],
+    title: "Cookieless Mode",
+    description: "Privacy-minimised analytics with no cookies, no device fingerprint and no cross-visit profile. Starts only after analytics consent, like all visitor analytics.",
+    items: ["No cookies or persistent IDs", "No device fingerprinting", "No cross-visit profiling", "Consent valid 12 months"],
   },
   {
     icon: <AlertTriangle className="h-7 w-7" />,
@@ -117,7 +117,7 @@ const integrations = [
   {
     icon: <Globe className="h-7 w-7" />,
     title: "Google Analytics 4",
-    items: ["Server-side GA4", "Two-way conversion sync", "Traffic sources & segments"],
+    items: ["Consent Mode v2 (fires after consent)", "Two-way conversion sync", "Traffic sources & segments"],
   },
   {
     icon: <TrendingUp className="h-7 w-7" />,
@@ -149,7 +149,7 @@ const integrations = [
 export default function FeaturesAnalytics() {
   useSEO({
     title: 'Web Analytics — CortIQ',
-    description: 'Cookie-free server-side analytics, click heatmaps, form analytics, session recording and A/B testing — all GDPR-compliant and without a cookie banner.',
+    description: 'Consent-first web analytics: cookieless mode, click heatmaps, form analytics, session recording and A/B testing. EU-hosted and built for GDPR.',
   });
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
@@ -163,11 +163,11 @@ export default function FeaturesAnalytics() {
             Marketing & Analytics
           </Badge>
           <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-            Understand every visitor. Optimize everything.
+            Understand your visitors. Optimize everything.
           </h1>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
             From heatmaps and session recordings to A/B tests and lifetime value — all the tools
-            marketing and product teams need in one platform.
+            marketing and product teams need in one platform. Every visitor-analytics feature starts only after analytics consent.
           </p>
         </div>
 

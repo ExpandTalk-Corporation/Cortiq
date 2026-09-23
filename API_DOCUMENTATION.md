@@ -241,12 +241,12 @@ CortIQ is the **world's first analytics platform** with dedicated AI agent track
   - Understand query intent from AI agents
   - Track AI-driven conversions
 
-### Cookie-Free Tracking
+### Consent-Gated Tracking
 
-- 100% GDPR-compliant
-- Server-side tracking without cookies
-- PTS-approved (Swedish Data Protection Authority)
-- No cookie banners required
+- Visitor analytics start only after analytics consent (GDPR Art. 6.1.a / ePrivacy Art. 5.3), in both Cookieless and Full mode
+- Cookieless mode: no cookies, no fingerprint, no cross-visit profile, no persistent IDs
+- Consent valid 12 months, then re-asked
+- AI-bot / security layer runs without consent, designed as strictly necessary security processing — the site operator makes the final legal assessment
 
 ## 🛠️ SDKs & Libraries
 

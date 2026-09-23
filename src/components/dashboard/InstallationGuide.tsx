@@ -66,11 +66,11 @@ export function InstallationGuide({ selectedSite }: InstallationGuideProps) {
 <script src="${scriptSrc}" defer></script>`}
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            ✅ One script. With <code>cookieless: true</code>, baseline stats — page views, sessions, AI search
-            traffic (ChatGPT, Perplexity, Claude, Gemini), AI bot detection (GPTBot, ClaudeBot, PerplexityBot),
-            citations and UTM — run cookie-free and banner-free (consent-exempt audience measurement).
-            Heatmaps, click/scroll and conversions, plus paid-ads click-ID attribution, require a consent banner
-            (analytics/marketing consent) even in cookieless mode. The script reads <code>window.cortiqConfig</code>,
+            ✅ One script. AI bot detection (GPTBot, ClaudeBot, PerplexityBot) and
+            AI search/citation detection run without consent as a security layer. All visitor analytics — page views,
+            sessions, heatmaps, click/scroll, conversions — start only after analytics consent, also with
+            <code>cookieless: true</code> (which drops fingerprinting and persistent IDs). Paid-ads click IDs need
+            marketing consent. The script reads <code>window.cortiqConfig</code>,
             so keep it directly above the script tag.
           </p>
         </div>

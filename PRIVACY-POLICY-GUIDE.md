@@ -1,8 +1,8 @@
-# Privacy Policy Mall för Hybrid Cookie-free/Cookie-baserad Analys
+# Privacy Policy Mall för CortIQ (Cookieless- eller Full-läge)
 
-## GDPR-kompatibel Privacy Policy
+## Mall för integritetspolicy
 
-Kopiera och anpassa texten nedan för din webbplats. Ersätt [DITT FÖRETAGSNAMN] med ditt faktiska företagsnamn.
+Kopiera och anpassa texten nedan för din webbplats. Ersätt [DITT FÖRETAGSNAMN] med ditt faktiska företagsnamn, behåll stycket för det spårningsläge du använder (Cookieless eller Full) och gör din egen rättsliga bedömning innan publicering.
 
 ---
 
@@ -22,45 +22,53 @@ Kopiera och anpassa texten nedan för din webbplats. Ersätt [DITT FÖRETAGSNAMN
 
 ### 3. Vilken data samlar vi in?
 
-#### 3.1 Automatisk Cookiefree Analys (Kräver INGET samtycke)
+#### 3.1 Bot- och säkerhetsskydd (alltid aktivt)
 
-Vi samlar automatiskt in följande **anonymiserad** data utan användning av cookies:
+För att skydda webbplatsen mot automatiserad trafik analyserar vi tekniska uppgifter i förfrågan (t.ex. webbläsarens user-agent och förfrågningsmönster) för att upptäcka och klassificera botar och AI-agenter. Inga cookies används för detta.
 
+**Rättslig grund (GDPR):** [Ange er rättsliga grund. CortIQ är utformat för att detta ska kunna köras som strikt nödvändig säkerhetsbehandling, men bedömningen görs av er som personuppgiftsansvarig.]
+
+#### 3.2 Besöksstatistik (kräver ditt samtycke)
+
+Endast om du **aktivt accepterar kategorin Statistik** i vår cookie-banner samlar vi in:
+
+- **Sidvisningar och sessioner** (vilka sidor du besöker, varifrån du kom)
+- **Enhetstyp och webbläsartyp**
 - **Anonymiserad IP-adress** (sista oktetten maskerad, t.ex. 192.168.1.0)
-- **Sidvisningar** (vilka sidor du besöker)
-- **Referrers** (varifrån du kom till vår webbplats)
-- **Enhetstyp** (mobil, surfplatta, desktop)
-- **Webbläsartyp** (Chrome, Firefox, Safari, etc.)
-- **Viewport-storlek** (skärmupplösning)
-
-**Rättslig grund (GDPR):** Berättigat intresse (Art. 6.1.f GDPR) - Vi använder denna data för att förbättra webbplatsens prestanda och användarupplevelse. Ingen personidentifiering är möjlig.
-
-**Datalagring:** Cookiefree analytics data sparas i [X] månader.
-
-#### 3.2 Förbättrad Cookie-baserad Analys (Kräver ditt samtycke)
-
-Om du **frivilligt accepterar cookies** samlar vi även in:
-
-- **Session-ID** (för att spåra din session på webbplatsen)
-- **Klickdata** (vilka knappar/länkar du klickar på)
+- **Klickdata och heatmap-data** (klickpositioner)
 - **Scrolldjup** (hur långt ned du scrollar)
-- **Heatmap-data** (aggregerad klick-/muspekare-data)
 - **Formulärinteraktioner** (när du börjar fylla i formulär, INTE vad du skriver)
+- **Konverteringar och e-handelshändelser**
+- **Sessionsinspelning** (inmatningar maskerade som standard)
 
-**Rättslig grund (GDPR):** Samtycke (Art. 6.1.a GDPR)
+Utan ditt samtycke samlas ingen av dessa uppgifter in.
 
-**Datalagring:** Enhanced analytics data sparas i [X] månader.
+[Cookieless-läge:] Inga cookies sätts och ingen beständig identifierare sparas. Besök kopplas inte ihop med varandra.
+[Full-läge:] Vi använder en beständig besöksidentifierare, härledd från tekniska egenskaper hos din enhet, för att känna igen återkommande besök, samt en sessionsidentifierare i webbläsaren under besöket.
 
-### 4. Cookies vi använder
+**Rättslig grund (GDPR):** Samtycke (Art. 6.1.a GDPR, ePrivacy Art. 5.3). Ditt val sparas i 12 månader, därefter frågar vi igen. Du kan när som helst återkalla samtycket via cookie-ikonen.
 
-#### 4.1 Nödvändiga Cookies (Alltid aktiva)
-- `heatmap_consent_given` - Sparar dina cookie-val
-- Livstid: 1 år
+**Datalagring:** Besöksstatistik sparas i [X] månader.
 
-#### 4.2 Analytiska Cookies (Kräver samtycke)
-- `heatmap_session` - Session-ID för att koppla ihop dina sidbesök
-- `heatmap_consent` - Detaljerade consent-preferenser
-- Livstid: Session (raderas när du stänger webbläsaren)
+#### 3.3 Marknadsföring (kräver separat samtycke)
+
+Klick-ID från annonsplattformar (t.ex. gclid, fbclid) sparas endast om du accepterar kategorin Marknadsföring.
+
+### 4. Lagring i din webbläsare
+
+#### 4.1 Nödvändig lagring (alltid aktiv)
+- `site_cookie_consent` (localStorage) - Sparar dina cookie-val
+- Livstid: 12 månader, därefter visas bannern igen
+
+#### 4.2 Statistik (kräver samtycke, endast Full-läge)
+- `cortiq_session_id` (sessionStorage) - Session-ID för att koppla ihop dina sidbesök
+- Livstid: Session (raderas när du stänger fliken/webbläsaren)
+
+I Cookieless-läge sparas inget utöver ditt cookie-val.
+
+#### 4.3 Marknadsföring (kräver samtycke)
+- `cortiq_click_ids` (sessionStorage) - Klick-ID från annonser
+- Livstid: Session
 
 ### 5. Google Analytics Integration (Om aktiverad)
 
@@ -103,8 +111,7 @@ Vi använder följande säkerhetsåtgärder:
 
 ### 8. Data Retention (Lagring)
 
-- **Cookiefree data:** [90] dagar
-- **Enhanced analytics:** [365] dagar
+- **Besöksstatistik:** [365] dagar
 - **Cookie consent records:** 2 år (lagstadgat beviskrav)
 
 Efter dessa perioder raderas all data automatiskt.
@@ -120,7 +127,7 @@ Vi delar endast data med:
 
 ### 10. Internationella överföringar
 
-All data lagras inom EU (Supabase EU region). Om du accepterar Google Analytics kan anonymiserad data överföras till USA under Google's Privacy Shield certifiering.
+All data lagras inom EU (Supabase EU region). Om du accepterar Google Analytics kan data överföras till USA med stöd av EU-US Data Privacy Framework och EU:s standardavtalsklausuler.
 
 ### 11. Ändringar i denna policy
 
@@ -148,20 +155,18 @@ Telefon: 08-657 61 00
 
 ## Snabbguide: Vad är skillnaden?
 
-### ❌ UTAN Cookies (Cookiefree - Alltid aktiv)
-- Anonymiserad IP
-- Sidvisningar
-- Enhetstyp
-- Referrer
-- **Ingen personidentifiering möjlig**
+### Utan samtycke (alltid aktivt)
+- Bot- och AI-agentdetektion (säkerhetsskydd)
+- **Ingen besöksstatistik**
 
-### ✅ MED Cookies (Enhanced - Efter samtycke)
+### Med samtycke – Cookieless-läge
+- Sidvisningar, sessioner inom ett besök, klick, scroll, heatmaps, formulär, konverteringar
+- Inga cookies, inget fingeravtryck, inga beständiga ID:n, ingen koppling mellan besök
+
+### Med samtycke – Full-läge
 - Allt ovanstående PLUS:
-- Sessions (följ din resa)
-- Heatmaps (klick-positioner)
-- Formulärinteraktioner
-- Detaljerad användarresa
-- **Fortfarande GDPR-säker**
+- Återkommande besökare (beständigt besöks-ID)
+- Detaljerad användarresa över flera besök
 
 ---
 
@@ -171,7 +176,8 @@ Telefon: 08-657 61 00
 - [ ] Ersätt alla [PLATSHÅLLARE] med din information
 - [ ] Lägg till länk till Privacy Policy i footer
 - [ ] Uppdatera cookie-bannerns "Läs mer"-länk till din privacy policy
-- [ ] Se över retention-perioder (90/365 dagar) och anpassa efter ditt behov
+- [ ] Välj spårningsläge (Cookieless/Full) och behåll motsvarande stycke i policyn
+- [ ] Se över retention-perioden och anpassa efter ditt behov
 - [ ] Om du använder Google Analytics - verifiera att du har ett DPA (Data Processing Agreement) med Google
 - [ ] Dokumentera hur användare kan utöva sina GDPR-rättigheter
 - [ ] Testa processen för data export/radering
@@ -180,17 +186,17 @@ Telefon: 08-657 61 00
 
 ## Vanliga Frågor
 
-**Q: Behöver jag en cookie-banner om jag bara kör cookiefree?**  
-A: Nej, cookiefree tracking kräver inget samtycke enligt GDPR (berättigat intresse). Men du MÅSTE informera i Privacy Policy.
+**Q: Behöver jag en cookie-banner om jag kör Cookieless-läge?**  
+A: Ja. All besöksstatistik startar först efter samtycke, i både Cookieless- och Full-läge. Cookieless-läget minskar vilka data som samlas in, men ersätter inte samtycket.
 
 **Q: Kan jag helt skippa cookie-bannern?**  
-A: Ja, om du ENDAST kör cookiefree och inte vill ha enhanced tracking. Men vi rekommenderar hybrid för bättre insights.
+A: Då körs endast bot- och säkerhetslagret, ingen besöksstatistik.
 
-**Q: Vad händer om användare säger nej till cookies?**  
-A: Cookiefree tracking fortsätter (inget samtycke krävs). Enhanced tracking aktiveras inte.
+**Q: Vad händer om användare säger nej eller stänger bannern?**  
+A: Ingen besöksstatistik samlas in. Att stänga bannern sparas som "endast nödvändiga". Bot- och säkerhetslagret fortsätter.
 
-**Q: Är detta verkligen GDPR-compliant?**  
-A: Ja! Cookiefree = berättigat intresse (Art. 6.1.f). Enhanced = samtycke (Art. 6.1.a). Båda är lagliga grunder.
+**Q: Vilken rättslig grund gäller?**  
+A: Besöksstatistik = samtycke (Art. 6.1.a GDPR / ePrivacy Art. 5.3). Bot- och säkerhetslagret är utformat som strikt nödvändig säkerhetsbehandling. Den slutliga rättsliga bedömningen görs av dig som webbplatsägare.
 
 **Q: Hur länge sparas data?**  
-A: Default är 90 dagar (cookiefree) och 365 dagar (enhanced). Anpassa i WordPress-inställningar.
+A: Enligt den retention-period du ställer in i CortIQ (standard 730 dagar). Samtyckesval gäller i 12 månader.

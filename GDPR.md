@@ -4,61 +4,52 @@ CortIQ is designed to give you complete analytics coverage while staying within 
 
 ---
 
-## Two tracking modes
+## What runs when
 
-CortIQ operates in two modes that can run in parallel:
+CortIQ separates an AI-bot / security layer from visitor analytics:
 
-| Mode | Cookies | Consent required | Legal basis |
-|------|---------|-----------------|-------------|
-| **Cookie-free** | None | No | Legitimate interest (Art. 6.1.f GDPR) |
-| **Enhanced** (heatmaps, sessions) | Yes | Yes | Consent (Art. 6.1.a GDPR) |
+| Layer | Runs | Storage in the browser | Legal basis |
+|-------|------|------------------------|-------------|
+| **AI-bot / security layer** | Always | None | Designed as strictly necessary security processing — the site operator makes the final assessment |
+| **Visitor analytics — Cookieless mode** | Only after analytics consent | None (no cookies, no fingerprint, no persistent IDs) | Consent (Art. 6.1.a GDPR / ePrivacy Art. 5.3) |
+| **Visitor analytics — Full mode** | Only after analytics consent | Session ID (sessionStorage) + persistent visitor ID for returning-visitor recognition | Consent (Art. 6.1.a GDPR / ePrivacy Art. 5.3) |
+| **Marketing click IDs** (gclid, fbclid, …) | Only after marketing consent | Session storage | Consent (Art. 6.1.a GDPR) |
 
-Cookie-free tracking is active by default and collects no personal data. Enhanced tracking activates only after a visitor grants consent via the cookie banner.
+Consent is stored with an expiry and is valid for 12 months; after that the banner is shown again. Closing the banner without a choice saves "necessary only".
 
 ---
 
-## Cookie-free tracking — what is collected
+## AI-bot / security layer — what runs without consent
 
-No cookies are set. No personal data is stored in the browser.
+- AI bot & agent detection and crawler classification (training / agentic / citation)
+- Bot probe, honeypot and canary checks
+- AI-search / citation detection
+- Server-side bot classification from Cloudflare edge logs (cloudflare-ingest), if the Cloudflare integration is enabled
 
-Data collected server-side:
+This layer analyses request characteristics such as the user-agent and request patterns. It is designed to run as strictly necessary security processing (protecting the site against automated traffic). Whether that assessment holds for your site is your decision as data controller.
+
+**Disclosure required:** Yes. Describe this processing in your privacy policy. See the [Privacy Policy Template](#privacy-policy-template) below.
+
+---
+
+## Visitor analytics — what is collected (after consent)
+
+Activated only when a visitor accepts the "Statistics" category in the cookie banner. This applies in both Cookieless and Full mode.
+
+- **Page views and sessions** — page URL, referrer, device type, browser family, viewport category
 - **Anonymised IP address** — last octet masked before storage (e.g. 192.168.1.0)
-- **Page URL and referrer** — which pages were visited and from where
-- **Device type** — mobile, tablet, or desktop
-- **Browser family** — Chrome, Firefox, Safari, etc. (not version or fingerprint)
-- **Viewport dimensions** — screen size category
-- **AI agent classification** — whether the visitor is an AI browser (ChatGPT, Perplexity, Claude, Gemini) or a human
-
-**Legal basis:** Legitimate interest (Art. 6.1.f GDPR). Aggregate analytics for site improvement with no personal identification possible.
-
-**Consent required:** No. Cookie-free tracking may run without a cookie banner.
-
-**Disclosure required:** Yes. Your privacy policy must describe this data collection. See the [Privacy Policy Template](#privacy-policy-template) below.
-
----
-
-## Enhanced tracking — what is collected (after consent)
-
-Activated when a visitor accepts the "Statistics" category in the cookie banner.
-
-In addition to cookie-free data:
-- **Session ID** — links page views within a single visit (expires on browser close)
 - **Click positions** — x/y coordinates for heatmap generation
 - **Scroll depth** — how far the visitor scrolled (25%, 50%, 75%, 100% milestones)
 - **Form interactions** — which fields were filled, when the form was abandoned (not the content of the fields)
-- **Session recording** — a replay of the user's interaction with the page
+- **E-commerce and conversion events**
+- **Session recording** — a replay of the user's interaction with the page (inputs masked by default)
+- **A/B test assignment**
 
-All session data is associated with a hashed visitor ID, not a name or email address.
+**Cookieless mode:** no cookies, no fingerprint, no cross-visit profile, no persistent IDs. Page views within a visit are linked in memory only. Consent is still required.
 
-**Legal basis:** Consent (Art. 6.1.a GDPR).
+**Full mode:** a persistent visitor ID (derived from device characteristics) lets returning visits be recognised, and a session ID is kept in sessionStorage. Data is associated with a hashed visitor ID, not a name or email address.
 
-**Consent required:** Yes. Visitors must accept via the cookie banner before this data is collected.
-
----
-
-## AI agent tracking
-
-CortIQ detects AI browsers (ChatGPT Browser, Perplexity Comet, Claude Browser, Gemini, and others) by analysing the HTTP user-agent string and request patterns. This detection does not involve storing personal data — AI agents are not natural persons and GDPR does not apply to machine traffic.
+**Legal basis:** Consent (Art. 6.1.a GDPR / ePrivacy Art. 5.3).
 
 ---
 
@@ -77,7 +68,7 @@ CortIQ detects AI browsers (ChatGPT Browser, Perplexity Comet, Claude Browser, G
 |-----------|------|----------|-----|
 | Supabase | Database, edge functions | EU (AWS eu-north-1) | [DPA](https://supabase.com/privacy) |
 | Google (optional) | GA4 if configured | EU/US | [DPA](https://business.safety.google/adsprocessorterms/) |
-| Cloudflare (optional) | Edge web analytics (aggregate, cookie-free) + geo lookup for banner gating, if the Cloudflare integration is enabled | US (EU-US DPF; SCCs) | [DPA](https://www.cloudflare.com/cloudflare-customer-dpa/) |
+| Cloudflare (optional) | Server-side bot classification from edge logs, edge web analytics (aggregate) + geo lookup for banner gating, if the Cloudflare integration is enabled | US (EU-US DPF; SCCs) | [DPA](https://www.cloudflare.com/cloudflare-customer-dpa/) |
 
 CortIQ does not sell or share visitor data with third parties for advertising.
 
@@ -105,9 +96,9 @@ CortIQ acts as a **data processor** on behalf of site owners (data controllers) 
 
 ## Visitor rights
 
-CortIQ stores data under hashed visitor IDs, not names or email addresses. Because cookie-free data is not directly linked to an individual, most Subject Access Requests (SARs) cannot be fulfilled by CortIQ data alone.
+CortIQ stores data under hashed visitor IDs, not names or email addresses. Cookieless-mode data is not linked across visits, so most Subject Access Requests (SARs) cannot be matched to an individual from CortIQ data alone. In Full mode, data can be located via the persistent visitor ID if the visitor provides it.
 
-For enhanced tracking (session recordings, heatmaps), a visitor can withdraw consent at any time via the cookie banner. Data collected before withdrawal is retained for the configured retention period.
+A visitor can withdraw analytics consent at any time via the cookie banner. Data collected before withdrawal is retained for the configured retention period.
 
 Configure data deletion under **Settings → GDPR → Data Retention** in the CortIQ dashboard.
 
@@ -121,6 +112,8 @@ The CortIQ cookie banner (included in the WordPress plugin and available as a st
 - No pre-checked boxes for non-essential categories (compliant with CJEU Planet49 ruling)
 - Consent ID and timestamp logged per user for audit trail
 - Consent version tracking — banner re-shown if your policy version changes
+- Consent expiry — each choice is stored with an expiry and is valid for 12 months, then re-asked
+- Closing the banner saves "necessary only"
 - Google Consent Mode v2 wired automatically when GA4 is configured
 
 ---
@@ -129,7 +122,9 @@ The CortIQ cookie banner (included in the WordPress plugin and available as a st
 
 | Setting | Recommended value | Notes |
 |---------|-------------------|-------|
-| Show cookie banner | ✅ Enabled | Unless another CMP is already active |
+| Tracking mode | Cookieless or Full | Cookieless: no cookies or persistent IDs. Full: persistent visitor ID for returning visitors. Both require analytics consent |
+| Show cookie banner | ✅ Enabled | Required for visitor analytics in both modes, unless another CMP is already active |
+| Statistics toggle | Always shown | The banner always shows the Statistics category |
 | Anonymise IP | ✅ Enabled | Always recommended |
 | Exclude administrators | ✅ Enabled | Avoids polluting analytics with admin traffic |
 
@@ -137,7 +132,7 @@ The CortIQ cookie banner (included in the WordPress plugin and available as a st
 
 ## Privacy Policy Template
 
-Copy this section into your site's privacy policy. Replace `[YOUR COMPANY]` and `[CONTACT EMAIL]`.
+Copy this section into your site's privacy policy. Replace `[YOUR COMPANY]` and `[CONTACT EMAIL]`, keep the paragraph for the tracking mode you use, and review it with your own legal assessment.
 
 ---
 
@@ -145,13 +140,18 @@ Copy this section into your site's privacy policy. Replace `[YOUR COMPANY]` and 
 
 This website uses CortIQ Analytics to understand how visitors use the site.
 
-**Cookie-free analytics (always active)**
+**Bot and security protection (always active)**
 
-We collect anonymised data without cookies: anonymised IP address, visited pages, referrer, device type and browser family. No personal data is stored in your browser. This processing is based on our legitimate interest in improving the website (Art. 6.1.f GDPR). No consent is required.
+To protect the website against automated traffic, we analyse technical request data (such as the browser user-agent and request patterns) to detect and classify bots and AI agents. No cookies are set for this. [Describe your legal basis for this processing.]
 
-**Enhanced analytics (after consent)**
+**Analytics (only after consent)**
 
-If you accept the Statistics category in our cookie banner, we also collect: session recordings, click positions (heatmaps) and form interaction data. This data is linked to a temporary session ID and expires when you close your browser. This processing is based on your consent (Art. 6.1.a GDPR). You can withdraw consent at any time via the cookie icon in the bottom corner.
+If you accept the Statistics category in our cookie banner, we collect: visited pages, referrer, device type, browser family, anonymised IP address, click positions (heatmaps), scroll depth, form interaction data, conversion events and session recordings. Without your consent, none of this is collected.
+
+[Cookieless mode:] No cookies are set and no persistent identifier is stored; visits are not linked to each other.
+[Full mode:] We use a persistent visitor identifier, derived from technical characteristics of your device, so that returning visits can be recognised, and store a session identifier in your browser for the duration of your visit.
+
+This processing is based on your consent (Art. 6.1.a GDPR). Your choice is stored for 12 months, after which we ask again. You can withdraw consent at any time via the cookie icon in the bottom corner.
 
 **Data storage and retention**
 
@@ -164,7 +164,8 @@ All data is stored in the EU. We retain analytics data for [X] days. You have th
 ## Compliance checklist
 
 - [ ] Privacy policy updated with the CortIQ analytics section above
-- [ ] Cookie banner enabled (or existing CMP configured to dispatch `siteConsentUpdated` event)
+- [ ] Cookie banner enabled — required for visitor analytics in both modes (or existing CMP configured to dispatch `siteConsentUpdated` event)
+- [ ] Tracking mode (Cookieless / Full) chosen and matching paragraph kept in the privacy policy
 - [ ] Data retention period reviewed and set in CortIQ dashboard
 - [ ] GA4 server-side configured if using Google Analytics (avoids GA4 client-side cookies)
 - [ ] Session recording: sensitive fields marked with `data-cortiq-mask`

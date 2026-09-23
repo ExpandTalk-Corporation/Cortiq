@@ -29,12 +29,12 @@ const resolve = (p) => path.resolve(__dirname, '..', p);
 const SEO = {
   '/': {
     title: 'CortIQ — AI Agent Analytics & Cookie-Free Tracking',
-    description: 'First-to-market analytics for the Agentic Web. Track ChatGPT Browser, Perplexity & Claude Browser. Cookie-free, GDPR-compliant. Heatmaps, A/B testing, form analytics.',
+    description: 'First-to-market analytics for the Agentic Web. Track ChatGPT Browser, Perplexity & Claude Browser. Cookieless, consent-first, EU-hosted. Heatmaps, A/B testing, form analytics.',
     canonical: 'https://cortiq.se/',
   },
   '/features': {
     title: 'Features — CortIQ Analytics Platform',
-    description: 'Full feature overview: AI agent tracking, click heatmaps, A/B testing, form analytics, session recording, data warehouse export and GDPR-compliant CMP. All in one platform.',
+    description: 'Full feature overview: AI agent tracking, click heatmaps, A/B testing, form analytics, session recording, data warehouse export and a built-in consent banner (CMP). All in one platform.',
     canonical: 'https://cortiq.se/features',
   },
   '/features/ai': {
@@ -44,7 +44,7 @@ const SEO = {
   },
   '/features/analytics': {
     title: 'Web Analytics — CortIQ',
-    description: 'Cookie-free server-side analytics, click heatmaps, form analytics, session recording and A/B testing — all GDPR-compliant and without a cookie banner.',
+    description: 'Consent-first web analytics: cookieless mode, click heatmaps, form analytics, session recording and A/B testing. EU-hosted and built for GDPR.',
     canonical: 'https://cortiq.se/features/analytics',
   },
   '/features/cyber': {
@@ -59,7 +59,7 @@ const SEO = {
   },
   '/cmp': {
     title: 'Consent Management Platform (CMP) — CortIQ',
-    description: 'GDPR-compliant cookie consent with smart nudging to increase opt-in rates. Google Consent Mode v2 built in. No cookie banner required for server-side analytics.',
+    description: 'Built-in consent banner with Google Consent Mode v2. Visitor analytics and GA4 start only after analytics consent, valid for 12 months. EU-hosted, privacy by design.',
     canonical: 'https://cortiq.se/cmp',
   },
   '/pricing': {
@@ -74,7 +74,7 @@ const SEO = {
   },
   '/privacy': {
     title: 'Privacy Policy — CortIQ',
-    description: 'CortIQ privacy policy. GDPR-compliant data handling, EU data storage, data retention details and your rights as a data subject.',
+    description: 'CortIQ privacy policy. Privacy-by-design data handling, EU data storage, data retention details and your rights as a data subject.',
     canonical: 'https://cortiq.se/privacy',
   },
   '/contact': {

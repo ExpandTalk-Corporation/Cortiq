@@ -36,7 +36,7 @@ import {
 export default function Features() {
   useSEO({
     title: 'Features — CortIQ Analytics Platform',
-    description: 'Full feature overview: AI agent tracking, click heatmaps, A/B testing, form analytics, session recording, data warehouse export and GDPR-compliant CMP. All in one platform.',
+    description: 'Full feature overview: AI agent tracking, click heatmaps, A/B testing, form analytics, session recording, data warehouse export and a built-in consent banner (CMP). All in one platform.',
   });
   const coreFeatures = [
     {
@@ -68,9 +68,9 @@ export default function Features() {
   const cmpFeatures = [
     {
       icon: <Shield className="h-8 w-8" />,
-      title: "GDPR Compliance",
-      description: "Automatic GDPR compliance with intelligent cookie management",
-      features: ["Automatic categorization", "Legal security", "Data handling", "User rights"]
+      title: "Privacy by Design",
+      description: "Consent-first cookie handling, built for GDPR",
+      features: ["Automatic categorization", "Consent records", "Data handling", "User rights"]
     },
     {
       icon: <Cookie className="h-8 w-8" />,
@@ -96,8 +96,8 @@ export default function Features() {
     {
       icon: <Globe className="h-8 w-8" />,
       title: "Google Analytics 4",
-      description: "Server-side GA4 connection — keep the reporting you know while adding cookie-free and AI-agent analytics on top",
-      features: ["Server-side GA4 import", "Two-way conversion sync", "Traffic sources & segments", "Search-term data"]
+      description: "Keep the GA4 reporting you know — GA4 fires only after analytics consent (Consent Mode v2, basic mode) — and add cookieless and AI-agent analytics on top",
+      features: ["GA4 data import", "Two-way conversion sync", "Traffic sources & segments", "Search-term data"]
     },
     {
       icon: <Search className="h-8 w-8" />,
@@ -147,7 +147,7 @@ export default function Features() {
     {
       icon: <Monitor className="h-8 w-8" />,
       title: "Cross-Device Tracking",
-      description: "Follow user journeys across different devices and sessions",
+      description: "Follow consented user journeys across devices and sessions (Full mode)",
       features: ["Device sync", "Session linking", "User journey mapping", "Attribution modeling"]
     },
     {
@@ -179,9 +179,9 @@ export default function Features() {
     },
     {
       icon: <Users className="h-8 w-8" />,
-      title: "Cookie-Free Analytics",
-      description: "Complete analytics even without cookies - GDPR-safe",
-      features: ["Privacy-first tracking", "Cookie-free sessions", "Unique visitors", "Estimated data loss"]
+      title: "Cookieless Mode",
+      description: "Privacy-minimised analytics without cookies — starts after analytics consent",
+      features: ["No cookies or persistent IDs", "No device fingerprinting", "No cross-visit profile", "Consent-gated"]
     },
     {
       icon: <Settings className="h-8 w-8" />,
@@ -205,14 +205,14 @@ export default function Features() {
         <div className="text-center mb-16">
           <Badge variant="secondary" className="text-sm font-medium mb-4">
             <Zap className="h-4 w-4 mr-2" />
-            AI Bot Intelligence · Cookie-Free · EU-Built
+            AI Bot Intelligence · Cookieless · EU-Built
           </Badge>
           <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
             The first analytics platform that turns AI traffic into signal
           </h1>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
             CortIQ classifies every AI visit — training crawler, agentic browser, or citation
-            crawler — and pairs it with full cookie-free human analytics and a paid-conversion
+            crawler — and pairs it with consent-first, cookieless human analytics and a paid-conversion
             attribution loop. Built in the EU, GDPR-first.
           </p>
         </div>
@@ -295,7 +295,7 @@ export default function Features() {
                 <CardTitle className="text-lg flex items-center gap-2"><Lock className="h-5 w-5 text-primary" /> Privacy Layer</CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground">
-                Cross-cutting, EU-first: cookie-free baseline, consent gating, IP anonymisation,
+                Cross-cutting, EU-first: cookieless mode, consent gating for all visitor analytics, IP anonymisation,
                 a server-side consent ledger, retention automation and EU data residency.
               </CardContent>
             </Card>
@@ -346,7 +346,7 @@ export default function Features() {
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold mb-4">🛡️ Cookie Management Platform (CMP)</h2>
             <p className="text-lg text-muted-foreground">
-              Full GDPR compliance and cookie management
+              Consent management built for GDPR
             </p>
           </div>
           <div className="grid lg:grid-cols-2 gap-8">
@@ -435,9 +435,9 @@ export default function Features() {
                     <Shield className="h-8 w-8" />
                   </div>
                   <div>
-                    <CardTitle className="text-xl mb-2">Optional & Secure Implementation</CardTitle>
+                    <CardTitle className="text-xl mb-2">Basic Mode by Default</CardTitle>
                     <CardDescription className="text-base">
-                      GCM v2 is disabled by default and can only be activated after legal review
+                      Google tags load only after the visitor grants analytics consent
                     </CardDescription>
                   </div>
                 </div>
@@ -446,11 +446,11 @@ export default function Features() {
                 <ul className="space-y-2">
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-orange-600 flex-shrink-0" />
-                    <span className="text-sm">Disabled by default for legal security</span>
+                    <span className="text-sm">GA4 fires only after analytics consent</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-orange-600 flex-shrink-0" />
-                    <span className="text-sm">Clear warnings about "ping" functionality</span>
+                    <span className="text-sm">No cookieless pings before consent (basic mode, the default)</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-orange-600 flex-shrink-0" />
@@ -510,12 +510,12 @@ export default function Features() {
                 <h3 className="text-lg font-semibold mb-2 text-orange-800 dark:text-orange-200">Important Information About GCM v2</h3>
                 <div className="text-sm text-orange-700 dark:text-orange-300 space-y-2">
                   <p>
-                    <strong>Legal Warning:</strong> GCM v2 sends "pings" to Google even when users deny consent for marketing. 
-                    Some legal departments do not approve this due to GDPR uncertainty.
+                    <strong>Legal Warning:</strong> GCM v2 advanced mode sends cookieless "pings" to Google even when users deny consent.
+                    CortIQ defaults to basic mode, where Google tags do not load until analytics consent is granted. Advanced mode is an explicit opt-in setting.
                   </p>
                   <p>
-                    <strong>Our Recommendation:</strong> Always consult your legal department before activating GCM v2. 
-                    The system works excellently without GCM v2 for full GDPR compliance.
+                    <strong>Our Recommendation:</strong> Consult your legal department before changing Consent Mode settings.
+                    CortIQ analytics work fully without GA4 or GCM v2.
                   </p>
                   <p>
                     <strong>Transparency:</strong> We always clearly inform about what happens when GCM v2 is activated, 
@@ -527,12 +527,12 @@ export default function Features() {
           </div>
         </section>
 
-        {/* Hybrid Cookie Tracking */}
+        {/* Tracking Modes */}
         <section className="mb-20">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-4">🍪 Hybrid Cookie Tracking Solution</h2>
+            <h2 className="text-3xl font-bold mb-4">🍪 Cookieless or Full Mode</h2>
             <p className="text-lg text-muted-foreground">
-              Unique combination of 1st and 3rd party cookies for optimal tracking and GDPR compliance
+              Two tracking modes for visitor analytics. Both start only after the visitor grants analytics consent.
             </p>
           </div>
           <div className="grid lg:grid-cols-3 gap-8 mb-12">
@@ -540,12 +540,12 @@ export default function Features() {
               <CardHeader>
                 <div className="flex items-start gap-4">
                   <div className="text-primary">
-                    <Database className="h-8 w-8" />
+                    <Lock className="h-8 w-8" />
                   </div>
                   <div>
-                    <CardTitle className="text-xl mb-2">1st Party Cookies</CardTitle>
+                    <CardTitle className="text-xl mb-2">Cookieless Mode</CardTitle>
                     <CardDescription className="text-base">
-                      Secure tracking from your own domain for maximum data quality
+                      Privacy-minimised visitor analytics — not consent-free
                     </CardDescription>
                   </div>
                 </div>
@@ -554,19 +554,19 @@ export default function Features() {
                 <ul className="space-y-2">
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span className="text-sm">No blocking by ad-blockers</span>
+                    <span className="text-sm">No cookies</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span className="text-sm">100% data accuracy</span>
+                    <span className="text-sm">No device fingerprint</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span className="text-sm">Longer session lifetime</span>
+                    <span className="text-sm">No cross-visit profile</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span className="text-sm">GDPR-friendly implementation</span>
+                    <span className="text-sm">No persistent IDs</span>
                   </li>
                 </ul>
               </CardContent>
@@ -576,12 +576,12 @@ export default function Features() {
               <CardHeader>
                 <div className="flex items-start gap-4">
                   <div className="text-primary">
-                    <Globe className="h-8 w-8" />
+                    <Database className="h-8 w-8" />
                   </div>
                   <div>
-                    <CardTitle className="text-xl mb-2">3rd Party Cookies</CardTitle>
+                    <CardTitle className="text-xl mb-2">Full Mode</CardTitle>
                     <CardDescription className="text-base">
-                      Cross-domain tracking for complete user journey analysis
+                      First-party cookies for returning-visitor and journey analysis
                     </CardDescription>
                   </div>
                 </div>
@@ -590,19 +590,19 @@ export default function Features() {
                 <ul className="space-y-2">
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span className="text-sm">Cross-domain tracking</span>
+                    <span className="text-sm">First-party cookies only</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span className="text-sm">Attribution modeling</span>
+                    <span className="text-sm">Returning visitors & journeys</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span className="text-sm">Remarketing capabilities</span>
+                    <span className="text-sm">Session recording & A/B testing</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span className="text-sm">Consent-based activation</span>
+                    <span className="text-sm">Starts after analytics consent</span>
                   </li>
                 </ul>
               </CardContent>
@@ -615,9 +615,9 @@ export default function Features() {
                     <Zap className="h-8 w-8" />
                   </div>
                   <div>
-                    <CardTitle className="text-xl mb-2">Hybrid Solution</CardTitle>
+                    <CardTitle className="text-xl mb-2">AI-Agent & Bot Layer</CardTitle>
                     <CardDescription className="text-base">
-                      Automatic switching between cookie types based on consent
+                      Runs before consent — designed as strictly necessary security processing
                     </CardDescription>
                   </div>
                 </div>
@@ -626,19 +626,19 @@ export default function Features() {
                 <ul className="space-y-2">
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span className="text-sm">Intelligent cookie routing</span>
+                    <span className="text-sm">AI bot & agent detection</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span className="text-sm">Automatic fallback</span>
+                    <span className="text-sm">Training / agentic / citation classification</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span className="text-sm">Maximum data collection</span>
+                    <span className="text-sm">Bot probe, honeypot & canary</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span className="text-sm">Future-proof architecture</span>
+                    <span className="text-sm">Server-side classification from edge logs</span>
                   </li>
                 </ul>
               </CardContent>
@@ -648,21 +648,21 @@ export default function Features() {
           <div className="bg-muted/50 rounded-lg p-6">
             <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
               <Settings className="h-5 w-5 text-primary" />
-              How Our Hybrid Solution Works
+              What Runs When
             </h3>
             <div className="grid md:grid-cols-2 gap-6">
               <div>
                 <h4 className="font-medium mb-2">Before Consent</h4>
                 <p className="text-sm text-muted-foreground">
-                  Only necessary 1st party cookies are used for basic functionality. 
-                  No personal data is collected without consent.
+                  Only the AI-bot, agent and security layer runs. It is designed to run as strictly necessary
+                  security processing; the site operator makes the final legal assessment. No visitor analytics are collected.
                 </p>
               </div>
               <div>
-                <h4 className="font-medium mb-2">After Consent</h4>
+                <h4 className="font-medium mb-2">After Analytics Consent</h4>
                 <p className="text-sm text-muted-foreground">
-                  The system activates 3rd party cookies for extended analysis while 
-                  1st party cookies continue for optimal data quality.
+                  Page views, sessions, clicks, scroll, heatmaps, forms, e-commerce, conversions, session recording
+                  and A/B testing start in the mode you chose. Consent is valid for 12 months.
                 </p>
               </div>
             </div>
@@ -785,7 +785,7 @@ export default function Features() {
                 description: "Capture gclid, fbclid, msclkid and more from ad click URLs and store them server-side — so CortIQ owns the attribution data, not the ad platform.",
                 features: [
                   "Google Ads (gclid), Meta (fbclid), Microsoft (msclkid), TikTok, LinkedIn",
-                  "Only captured with explicit marketing consent (GDPR-safe)",
+                  "Only captured with explicit marketing consent",
                   "Persisted per session, attached to all conversion events",
                   "Foundation for Enhanced Conversions upload",
                 ],

@@ -88,7 +88,7 @@ export function CMPDashboard({ selectedSite }: CMPDashboardProps) {
     try {
       await supabase.from('sites').update({ tracking_mode: mode } as any).eq('id', selectedSite.id);
       setTrackingMode(mode);
-      toast.success(mode === 'cookieless' ? 'Switched to cookieless (consent-exempt)' : 'Switched to full tracking');
+      toast.success(mode === 'cookieless' ? 'Switched to cookieless mode' : 'Switched to full tracking');
     } catch (error) {
       console.error('Error updating tracking mode:', error);
       toast.error('Could not update tracking mode');
@@ -246,10 +246,10 @@ export function CMPDashboard({ selectedSite }: CMPDashboardProps) {
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5 pr-4">
-                  <Label>Cookieless (consent-exempt)</Label>
+                  <Label>Cookieless</Label>
                   <p className="text-sm text-muted-foreground">
-                    No device storage, no fingerprint, no cross-visit profile. Removes the
-                    Statistics consent toggle from the banner. Recommended for privacy-first sites.
+                    No device storage, no fingerprint, no cross-visit profile. Still requires
+                    analytics consent. Recommended for privacy-first sites.
                   </p>
                 </div>
                 <Switch

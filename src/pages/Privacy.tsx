@@ -4,17 +4,19 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import PublicNavigation from "@/components/PublicNavigation";
 import { useSEO } from "@/hooks/useSEO";
-import { Shield, CheckCircle, Mail, FileText, Lock, Database, Users } from "lucide-react";
+import { Shield, CheckCircle, Mail, FileText, Lock, Database, Users, BarChart3, Megaphone } from "lucide-react";
+
+const LAST_UPDATED = "September 23, 2026";
 
 const Privacy = () => {
   useSEO({
     title: 'Privacy Policy — CortIQ',
-    description: 'CortIQ privacy policy. GDPR-compliant data handling, EU data storage, data retention details and your rights as a data subject.',
+    description: 'CortIQ privacy policy: what is processed without consent (security and bot detection), what requires analytics or marketing consent, EU data storage, retention periods and your rights.',
   });
   return (
     <div className="min-h-screen bg-background">
       <PublicNavigation />
-      
+
       <div className="container mx-auto px-4 py-16 max-w-4xl">
         {/* Header */}
         <div className="text-center mb-16">
@@ -25,7 +27,7 @@ const Privacy = () => {
             We Respect Your Privacy
           </h1>
           <p className="text-xl text-muted-foreground">
-            Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+            Last updated: {LAST_UPDATED}
           </p>
         </div>
 
@@ -40,9 +42,17 @@ const Privacy = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-muted-foreground leading-relaxed">
-                CortIQ ("we", "us", "our") respects your privacy and is committed to protecting your personal data. 
+                CortIQ ("we", "us", "our") respects your privacy and is committed to protecting your personal data.
                 This privacy policy explains how we collect and use data when you use our analytics platform.
               </p>
+              <p className="text-muted-foreground leading-relaxed">
+                Processing on websites that use CortIQ falls into three tiers:
+              </p>
+              <ul className="text-muted-foreground space-y-2 ml-4">
+                <li>• <strong>Without consent</strong> — security, AI-bot and agent detection, and server/edge logs (section 3).</li>
+                <li>• <strong>With analytics (Statistics) consent</strong> — all visitor analytics, in both Cookieless and Full mode (section 5).</li>
+                <li>• <strong>With marketing consent</strong> — advertising click IDs and conversion feedback to ad platforms (section 5A).</li>
+              </ul>
             </CardContent>
           </Card>
 
@@ -76,22 +86,22 @@ const Privacy = () => {
             <CardHeader>
               <div className="flex items-center space-x-3 mb-2">
                 <Shield className="h-6 w-6 text-primary" />
-                <CardTitle>3A. Security & Bot Detection (NO cookie banner required)</CardTitle>
+                <CardTitle>3A. Security &amp; AI-Bot Detection (Without consent)</CardTitle>
               </div>
-              <Badge className="w-fit bg-gradient-accent text-white">Strictly necessary</Badge>
+              <Badge className="w-fit bg-gradient-accent text-white">Security layer</Badge>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-muted-foreground leading-relaxed">
-                To protect you and our platform, we collect security data:
+                Before any consent choice is made, the CortIQ script runs only a limited security and
+                bot-detection layer:
               </p>
               <ul className="space-y-3">
                 {[
-                  'DDoS protection (identify malicious bots overloading websites)',
-                  'Spy bots & scrapers (detect competitors stealing content/prices)',
-                  'Fraud prevention (click-fraud, fake registrations)',
-                  'AI agent tracking (ChatGPT Browser, Perplexity Comet, Claude Browser)',
-                  'Bot signature analysis (User-Agent patterns, request frequency)',
-                  'IP reputation (block known threat sources)'
+                  'AI bot and agent detection (e.g. ChatGPT Browser, Perplexity Comet, Claude Browser) based on the User-Agent string and browser capability signals',
+                  'Crawler classification (training crawlers, citation crawlers, search engines, scrapers)',
+                  'Bot probe — runs only when the client looks automated; ordinary browsers send nothing',
+                  'Honeypot and canary links — invisible elements that only automated clients interact with',
+                  'AI-search and citation detection — records when a visit arrives from an AI service (referrer, landing URL, UTM parameters, User-Agent, device type)'
                 ].map((item, index) => (
                   <li key={index} className="flex items-start space-x-3">
                     <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
@@ -100,127 +110,66 @@ const Privacy = () => {
                 ))}
               </ul>
               <div className="bg-primary/5 p-4 rounded-lg mt-4">
-                <p className="text-sm text-muted-foreground mb-3">
-                  <strong className="text-foreground">Why this is legal without a cookie banner:</strong>
-                </p>
                 <ul className="text-sm text-muted-foreground space-y-2 ml-4">
-                  <li>✓ <strong>ePrivacy Art. 5.3:</strong> "Strictly necessary" for security does NOT require consent</li>
-                  <li>✓ <strong>GDPR Art. 6.1.f:</strong> Legitimate interest to protect website and users from threats</li>
-                  <li>✓ All security data is stored anonymized and aggregated</li>
-                  <li>✓ Used ONLY for security - never marketing</li>
+                  <li>• No cookies are set and no analytics identifiers are stored by this layer. It uses a random identifier that exists only for the current page load.</li>
+                  <li>• If a client is classified as automated, a page-depth counter (<code>_ciq_adp</code>) is kept in sessionStorage for that tab session.</li>
+                  <li>• Data from this layer is used for security, abuse prevention and bot classification — not for advertising or visitor profiling.</li>
                 </ul>
                 <p className="text-sm text-muted-foreground mt-3">
-                  <strong className="text-foreground">AI Agent Tracking:</strong> We are first to market with tracking AI agents 
-                  (ChatGPT Browser, Perplexity Comet, Claude Browser). This counts as bot detection and security since we 
-                  identify agents via User-Agent strings - no personal data is collected from AI agents.
+                  <strong className="text-foreground">Legal basis (our assessment):</strong> legitimate interest
+                  (GDPR Art. 6.1.f) in protecting websites against abuse and in identifying automated traffic. To the
+                  extent the script accesses information on the device, we consider this strictly necessary for the
+                  security of the service within the meaning of ePrivacy Directive Art. 5.3. This is our
+                  interpretation; supervisory authorities may take a different view, and site operators remain
+                  responsible for their own assessment.
                 </p>
               </div>
             </CardContent>
           </Card>
 
-          {/* Server-Side Analytics Without Consent */}
+          {/* Server & Edge Logs */}
           <Card className="glass shadow-elegant border-primary/20">
             <CardHeader>
               <div className="flex items-center space-x-3 mb-2">
                 <Database className="h-6 w-6 text-primary" />
-                <CardTitle>3B. Server-Side Analytics & Server Logs (NO cookie banner required)</CardTitle>
+                <CardTitle>3B. Server &amp; Edge Logs (Without consent)</CardTitle>
               </div>
-              <Badge className="w-fit bg-gradient-accent text-white">100% banner-free</Badge>
+              <Badge className="w-fit bg-gradient-accent text-white">Operations &amp; security</Badge>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-muted-foreground leading-relaxed">
-                We collect <strong>only aggregated, anonymized data</strong> via server logs and server-side analytics:
+                Every HTTP request produces a log entry on the web server, and — where the site operator enables the
+                Cloudflare integration — at Cloudflare's edge. CortIQ processes these raw logs for technical
+                operation, security and bot classification.
               </p>
-              
+
               <div className="bg-primary/10 p-4 rounded-lg">
-                <h4 className="font-semibold mb-2 text-foreground">📋 Server Log Files (Access Logs)</h4>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Standard HTTP server logs for technical operation and security:
-                </p>
+                <h4 className="font-semibold mb-2 text-foreground">Data in a log entry</h4>
                 <ul className="text-sm text-muted-foreground space-y-1 ml-4">
-                  <li>• <strong>Timestamp:</strong> When the request was made</li>
-                  <li>• <strong>HTTP Method & URL:</strong> GET /products/product-123</li>
-                  <li>• <strong>HTTP Status Code:</strong> 200 OK, 404 Not Found, 500 Error</li>
-                  <li>• <strong>User-Agent:</strong> Browser & device type (bot detection)</li>
-                  <li>• <strong>Referrer:</strong> Where the visitor came from</li>
-                  <li>• <strong>IP Address → Country:</strong> Immediate anonymization (192.168.1.123 → "US" → IP deleted)</li>
-                  <li>• <strong>Load Time:</strong> Performance monitoring</li>
+                  <li>• <strong>Timestamp</strong> of the request</li>
+                  <li>• <strong>HTTP method and URL path</strong> (e.g. GET /products/product-123)</li>
+                  <li>• <strong>HTTP status code</strong> (200, 404, 500)</li>
+                  <li>• <strong>User-Agent</strong> (used for crawler and bot classification)</li>
+                  <li>• <strong>Referrer</strong></li>
+                  <li>• <strong>Country</strong>, derived from the IP address</li>
+                  <li>• <strong>Truncated IP address</strong> — the last octet is removed (/24 subnet) before CortIQ stores it; the full IP address is not stored</li>
+                  <li>• <strong>Request identifier</strong> (e.g. Cloudflare Ray ID) and load time</li>
                 </ul>
                 <p className="text-xs text-muted-foreground mt-2 italic">
-                  <strong>Retention:</strong> 7-30 days for operations, 90 days for security logs, then automatically deleted.
+                  <strong>Retention:</strong> see section 9.
                 </p>
               </div>
 
-              <p className="text-muted-foreground mt-4">
-                <strong>Aggregated statistics we create from server logs:</strong>
-              </p>
-              <ul className="space-y-3">
-                {[
-                  'Page views per day/week (counts, no user IDs)',
-                  'Most popular pages & products',
-                  'Referrer sources (Google, Facebook, direct traffic)',
-                  'Device type (mobile 45%, desktop 55%)',
-                  'Browser type (Chrome 60%, Safari 25%, Firefox 15%)',
-                  'Country/region distribution',
-                  'Performance metrics (average load time)',
-                  'Error frequency (404 errors, server errors)'
-                ].map((item, index) => (
-                  <li key={index} className="flex items-start space-x-3">
-                    <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                    <span className="text-muted-foreground">{item}</span>
-                  </li>
-                ))}
-              </ul>
               <div className="bg-primary/5 p-4 rounded-lg mt-4">
-                <p className="text-sm text-muted-foreground mb-3">
-                  <strong className="text-foreground">Important - no personal tracking:</strong>
-                </p>
                 <ul className="text-sm text-muted-foreground space-y-2 ml-4">
-                  <li>✓ No cookies are placed on your device in this banner-free mode</li>
-                  <li>✓ IP addresses are anonymized immediately (→ country → IP deleted)</li>
-                  <li>✓ No device fingerprinting for tracking in banner-free mode (only security fingerprinting for bot detection)</li>
-                  <li>✓ No cross-visit visitor identification in banner-free mode</li>
-                  <li>✓ Only aggregated, anonymous statistics (NO individual profiling)</li>
-                  <li>✓ This banner-free, server-log data is not shared with advertising third parties. Consent-based features (see sections 5A–5C) do involve processors and, where applicable, international transfers — disclosed there.</li>
+                  <li>• Log processing sets nothing on the visitor's device.</li>
+                  <li>• Log data is used to operate the service, detect errors and attacks, and classify crawlers and AI bots (which typically do not execute JavaScript and are only visible in logs).</li>
+                  <li>• Log data is not used to build visitor profiles and is not shared with advertising recipients.</li>
                 </ul>
                 <p className="text-sm text-muted-foreground mt-3">
-                  <strong className="text-foreground">Legal Basis:</strong> Legitimate interest (GDPR Art. 6.1.f) for technical operation & security monitoring + 
-                  Strictly necessary (ePrivacy Art. 5.3) for system security. No cookie banner required because:
-                </p>
-                <ul className="text-sm text-muted-foreground space-y-1 ml-4 mt-2">
-                  <li>1. Server logs are technically necessary for operation</li>
-                  <li>2. IP addresses are anonymized immediately (no personal identification)</li>
-                  <li>3. No data is stored on the visitor's device</li>
-                  <li>4. Used only for aggregated statistics & security</li>
-                </ul>
-              </div>
-
-              <div className="bg-primary/5 p-4 rounded-lg mt-4">
-                <p className="text-sm text-muted-foreground mb-3">
-                  <strong className="text-foreground">Cookieless JavaScript audience measurement (optional banner-free mode):</strong>
-                </p>
-                <p className="text-sm text-muted-foreground mb-2">
-                  When a site runs in cookieless mode, a lightweight script measures aggregate audience
-                  statistics — page-view counts and referrer source — using a session identifier held only
-                  in memory for the duration of the visit. Nothing is stored on your device, there is no
-                  device fingerprinting, and there is no cross-visit or cross-site identification.
-                </p>
-                <ul className="text-sm text-muted-foreground space-y-1 ml-4">
-                  <li>✓ In-memory session id only — never written to cookies or device storage</li>
-                  <li>✓ Aggregate page-view counts + referrer source</li>
-                  <li>✓ No fingerprint, no returning-visitor profile, no cross-site tracking</li>
-                </ul>
-                <p className="text-sm text-muted-foreground mt-3">
-                  <strong className="text-foreground">Legal Basis:</strong> ePrivacy Art. 5.3 read with the
-                  EDPB/CNIL audience-measurement exemption + legitimate interest (GDPR Art. 6.1.f). Because it
-                  is strictly first-party, aggregate, and stores nothing on your device, no cookie banner is
-                  required for this base measurement.
-                </p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  <strong className="text-foreground">Behavioural data always requires consent:</strong> clicks,
-                  scroll depth, heatmaps and conversion capture (including a hashed email) are collected only
-                  after you grant analytics consent (GDPR Art. 6.1.a) — in every mode, including cookieless.
-                  See section 5.
+                  <strong className="text-foreground">Legal basis (our assessment):</strong> legitimate interest
+                  (GDPR Art. 6.1.f) in operating and securing the service. Server logging does not involve storing or
+                  reading information on the visitor's device.
                 </p>
               </div>
             </CardContent>
@@ -262,33 +211,38 @@ const Privacy = () => {
                   <li>• <strong>Legitimate interest</strong> (GDPR Art. 6.1.f) - Improve platform based on user activity</li>
                 </ul>
                 <p className="text-sm text-muted-foreground mt-2">
-                  <strong className="text-foreground">Important:</strong> This does NOT require a cookie banner because you actively create an account 
-                  and data is used only for contractual purposes (not marketing/tracking without consent).
+                  <strong className="text-foreground">Note:</strong> This covers account holders of the CortIQ
+                  platform. It is separate from the visitor analytics described in section 5, which always requires
+                  consent.
                 </p>
               </div>
             </CardContent>
           </Card>
 
-          {/* Enhanced Analytics with Consent */}
+          {/* Visitor Analytics with Consent */}
           <Card className="glass shadow-elegant border-accent/20">
             <CardHeader>
               <div className="flex items-center space-x-3 mb-2">
-                <Lock className="h-6 w-6 text-accent" />
-                <CardTitle>5. Enhanced Analytics with Cookies (Requires consent)</CardTitle>
+                <BarChart3 className="h-6 w-6 text-accent" />
+                <CardTitle>5. Visitor Analytics (Requires analytics consent)</CardTitle>
               </div>
               <Badge className="w-fit bg-gradient-primary text-white">With your approval</Badge>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-muted-foreground leading-relaxed">
-                If you <strong>voluntarily accept cookies</strong>, we also collect:
+                All visitor analytics starts <strong>only after you grant analytics (Statistics) consent</strong>.
+                This applies in both Cookieless and Full mode:
               </p>
               <ul className="space-y-3">
                 {[
-                  'Session ID (to track your session)',
-                  'Click data (which elements you click on)',
-                  'Scroll depth (how far you scroll)',
-                  'Heatmap data (aggregated click data)',
-                  'Form interactions (NOT the content)'
+                  'Page views and most visited pages',
+                  'Referrers and traffic sources (including UTM parameters)',
+                  'Sessions, device type, browser and country',
+                  'Clicks and link clicks',
+                  'Scroll depth and heatmaps',
+                  'Form interactions (field content is not captured) and form submissions',
+                  'E-commerce events and conversions',
+                  'Session recording, where enabled by the site operator (section 5B)'
                 ].map((item, index) => (
                   <li key={index} className="flex items-start space-x-3">
                     <CheckCircle className="h-5 w-5 text-accent flex-shrink-0 mt-0.5" />
@@ -296,9 +250,68 @@ const Privacy = () => {
                   </li>
                 ))}
               </ul>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="bg-accent/5 p-4 rounded-lg">
+                  <h4 className="font-semibold mb-2 text-foreground">Cookieless mode</h4>
+                  <ul className="text-sm text-muted-foreground space-y-1 ml-4">
+                    <li>• No cookies</li>
+                    <li>• No device fingerprinting</li>
+                    <li>• No cross-visit or cross-site profile</li>
+                    <li>• Session identifier held in memory only</li>
+                    <li>• No advertising click IDs</li>
+                    <li>• Still requires consent</li>
+                  </ul>
+                </div>
+                <div className="bg-accent/5 p-4 rounded-lg">
+                  <h4 className="font-semibold mb-2 text-foreground">Full mode</h4>
+                  <ul className="text-sm text-muted-foreground space-y-1 ml-4">
+                    <li>• Session identifier in sessionStorage (deleted when the tab closes)</li>
+                    <li>• Visitor identification across page views, used to link sessions and conversions</li>
+                    <li>• Marketing features only with marketing consent (section 5A)</li>
+                  </ul>
+                </div>
+              </div>
+
               <div className="bg-accent/5 p-4 rounded-lg mt-4">
                 <p className="text-sm text-muted-foreground">
-                  <strong className="text-foreground">Legal Basis (GDPR):</strong> Consent (Art. 6.1.a GDPR)
+                  <strong className="text-foreground">Legal basis:</strong> consent (GDPR Art. 6.1.a; ePrivacy
+                  Directive Art. 5.3).
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  <strong className="text-foreground">Withdrawal:</strong> you can withdraw consent at any time via
+                  the site's cookie settings. Tracking stops immediately, and the session identifier and any stored
+                  click IDs are cleared from your browser. Withdrawal does not affect processing carried out before it.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Marketing with Consent */}
+          <Card className="glass shadow-elegant border-accent/20">
+            <CardHeader>
+              <div className="flex items-center space-x-3 mb-2">
+                <Megaphone className="h-6 w-6 text-accent" />
+                <CardTitle>5A. Marketing &amp; Advertising Measurement (Requires marketing consent)</CardTitle>
+              </div>
+              <Badge className="w-fit bg-gradient-primary text-white">With your approval</Badge>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-muted-foreground leading-relaxed">
+                In Full mode, and only if you grant <strong>marketing</strong> consent, CortIQ may also process:
+              </p>
+              <ul className="space-y-2 text-muted-foreground text-sm ml-4">
+                <li>• Advertising click IDs from the page URL (<code>gclid</code>, <code>fbclid</code>, <code>msclkid</code>, <code>ttclid</code>, <code>li_fat_id</code>), kept in sessionStorage for the tab session and linked to conversions.</li>
+                <li>• Conversion feedback to advertising platforms (e.g. Google Ads Enhanced Conversions), using a SHA-256 hash of an email address submitted in a form together with the click ID (section 5C).</li>
+                <li>• Canvas/WebGL device signals for visitor identification — only where the site operator has explicitly enabled this feature.</li>
+              </ul>
+              <p className="text-sm text-muted-foreground">
+                None of the above runs in Cookieless mode or without marketing consent.
+              </p>
+              <div className="bg-accent/5 p-4 rounded-lg mt-4">
+                <p className="text-sm text-muted-foreground">
+                  <strong className="text-foreground">Legal basis:</strong> consent (GDPR Art. 6.1.a; ePrivacy
+                  Directive Art. 5.3).
                 </p>
               </div>
             </CardContent>
@@ -309,7 +322,7 @@ const Privacy = () => {
             <CardHeader>
               <div className="flex items-center space-x-3 mb-2">
                 <Lock className="h-6 w-6 text-accent" />
-                <CardTitle>5A. Session Replay (Requires consent)</CardTitle>
+                <CardTitle>5B. Session Replay (Requires consent)</CardTitle>
               </div>
               <Badge className="w-fit bg-gradient-primary text-white">With your approval</Badge>
             </CardHeader>
@@ -338,7 +351,7 @@ const Privacy = () => {
             <CardHeader>
               <div className="flex items-center space-x-3 mb-2">
                 <Users className="h-6 w-6 text-accent" />
-                <CardTitle>5B. Third-Party Recipients & Processors</CardTitle>
+                <CardTitle>5C. Third-Party Recipients &amp; Processors</CardTitle>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -351,7 +364,7 @@ const Privacy = () => {
                 <li>• <strong>Anthropic</strong> (AI assistant &amp; GEO analysis, USA) — when you use AI features, relevant analytics results are sent to the Claude API to generate answers.</li>
                 <li>• <strong>Google Ads</strong> (Enhanced Conversions for Leads, USA) — when the operator enables conversion feedback and marketing consent was given, a SHA-256 hash of the email plus the ad click ID (gclid) and conversion value are uploaded. The raw email never leaves the browser.</li>
                 <li>• <strong>HubSpot</strong> (CRM lead-quality feedback, USA/EU) — when the operator connects HubSpot, lead-quality signals are exchanged to enrich conversion measurement.</li>
-                <li>• <strong>Cloudflare</strong> (edge web analytics &amp; geo lookup, USA — EU-US DPF certified) — when the operator enables the Cloudflare integration, Cloudflare processes visitor IP addresses at its edge to derive country and aggregate, cookie-free traffic statistics.</li>
+                <li>• <strong>Cloudflare</strong> (edge logs &amp; geo lookup, USA — EU-US DPF certified) — when the operator enables the Cloudflare integration, Cloudflare processes visitor IP addresses at its edge; CortIQ receives the country and a truncated IP address for security and bot classification (section 3B).</li>
               </ul>
               <div className="bg-accent/5 p-4 rounded-lg mt-4">
                 <p className="text-sm text-muted-foreground">
@@ -366,7 +379,7 @@ const Privacy = () => {
           {/* International Transfers */}
           <Card className="glass shadow-elegant">
             <CardHeader>
-              <CardTitle>5C. International Data Transfers</CardTitle>
+              <CardTitle>5D. International Data Transfers</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-muted-foreground">
               <p className="leading-relaxed">
@@ -378,8 +391,8 @@ const Privacy = () => {
               </p>
               <p className="text-sm">
                 Core analytics infrastructure (Supabase) is hosted in the EU. AI, advertising and
-                Cloudflare edge-analytics features that may involve US transfers are optional and
-                consent- or operator-gated.
+                Cloudflare features that may involve US transfers are optional and enabled by the site
+                operator; advertising transfers additionally require the visitor's marketing consent.
               </p>
             </CardContent>
           </Card>
@@ -393,20 +406,27 @@ const Privacy = () => {
               <div>
                 <h4 className="font-semibold mb-2">Necessary (Always active)</h4>
                 <ul className="text-muted-foreground space-y-1 ml-4">
-                  <li>• <code>site_cookie_consent</code> (localStorage) - Saves your cookie preferences (Lifetime: persistent)</li>
-                  <li>• <code>site_consent</code> (cookie) - Mirror of your consent choices (Lifetime: 1 year)</li>
+                  <li>• <code>site_cookie_consent</code> (localStorage) - Saves your consent choices (Lifetime: 12 months; you are then asked again)</li>
+                  <li>• <code>site_consent</code> (cookie) - Mirror of your consent choices (Lifetime: 12 months)</li>
+                  <li>• <code>_ciq_adp</code> (sessionStorage) - Page-depth counter, written only for clients classified as automated (Lifetime: tab session)</li>
                 </ul>
               </div>
               <div>
-                <h4 className="font-semibold mb-2">Analytical (Requires consent)</h4>
+                <h4 className="font-semibold mb-2">Analytical (Requires analytics consent, Full mode only)</h4>
                 <ul className="text-muted-foreground space-y-1 ml-4">
-                  <li>• <code>cortiq_session_id</code> (sessionStorage) - Per-session identifier (Lifetime: tab session)</li>
-                  <li>• <code>cortiq_click_ids</code> (sessionStorage) - Ad click IDs, only with marketing consent (Lifetime: tab session)</li>
+                  <li>• <code>cortiq_session_id</code> (sessionStorage) - Per-session identifier (Lifetime: tab session). In Cookieless mode it is held in memory only.</li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-semibold mb-2">Marketing (Requires marketing consent, Full mode only)</h4>
+                <ul className="text-muted-foreground space-y-1 ml-4">
+                  <li>• <code>cortiq_click_ids</code> (sessionStorage) - Ad click IDs (Lifetime: tab session)</li>
                 </ul>
               </div>
               <p className="text-sm text-muted-foreground">
-                CortIQ is cookie-free by default; the items above are the only client-side storage used,
-                and analytical storage is written only after consent.
+                The items above are the only client-side storage CortIQ uses. Apart from the consent-choice
+                mirror, CortIQ sets no cookies. Analytical and marketing storage is written only after the
+                corresponding consent.
               </p>
             </CardContent>
           </Card>
@@ -422,8 +442,9 @@ const Privacy = () => {
                 <li>✓ <strong>Right of access</strong> (Art. 15 GDPR) - Request a copy of your data</li>
                 <li>✓ <strong>Right to erasure</strong> (Art. 17 GDPR) - Request deletion of your data</li>
                 <li>✓ <strong>Right to rectification</strong> (Art. 16 GDPR) - Correct inaccurate data</li>
-                <li>✓ <strong>Right to object</strong> (Art. 21 GDPR) - Object to processing</li>
+                <li>✓ <strong>Right to object</strong> (Art. 21 GDPR) - Object to processing based on legitimate interest (section 3)</li>
                 <li>✓ <strong>Right to data portability</strong> (Art. 20 GDPR) - Get your data in structured form</li>
+                <li>✓ <strong>Right to withdraw consent</strong> (Art. 7.3 GDPR) - At any time, via the site's cookie settings</li>
               </ul>
               <div className="bg-muted/50 p-4 rounded-lg mt-4">
                 <p className="text-sm text-muted-foreground mb-2">
@@ -434,6 +455,10 @@ const Privacy = () => {
                   <li>2. Include: Your name, email, and which right you want to exercise</li>
                   <li>3. We will respond within 30 days</li>
                 </ol>
+                <p className="text-sm text-muted-foreground mt-2">
+                  You also have the right to lodge a complaint with a supervisory authority, in Sweden
+                  Integritetsskyddsmyndigheten (IMY).
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -447,9 +472,9 @@ const Privacy = () => {
               <p className="text-muted-foreground mb-4">We use the following security measures:</p>
               <ul className="space-y-2 text-muted-foreground">
                 <li>🔒 <strong>Encryption:</strong> All data is transferred via HTTPS/TLS</li>
-                <li>🔒 <strong>IP anonymization:</strong> Automatic masking of IP addresses</li>
-                <li>🔒 <strong>Access control:</strong> Only authorized personnel have access</li>
-                <li>🔒 <strong>Supabase:</strong> Secure data storage in EU (GDPR-compliant)</li>
+                <li>🔒 <strong>IP truncation:</strong> IP addresses are truncated before storage</li>
+                <li>🔒 <strong>Access control:</strong> Only authorized personnel have access; row-level security isolates each customer's data</li>
+                <li>🔒 <strong>Supabase:</strong> Data storage in the EU</li>
               </ul>
             </CardContent>
           </Card>
@@ -457,76 +482,66 @@ const Privacy = () => {
           {/* Data Retention */}
           <Card className="glass shadow-elegant">
             <CardHeader>
-              <CardTitle>9. Data Retention & Automatic Deletion</CardTitle>
+              <CardTitle>9. Data Retention &amp; Automatic Deletion</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="bg-primary/5 p-4 rounded-lg">
-                <h4 className="font-semibold mb-2 text-foreground">📋 Server Log Files</h4>
+                <h4 className="font-semibold mb-2 text-foreground">📋 Server &amp; Edge Logs</h4>
                 <ul className="text-sm text-muted-foreground space-y-1 ml-4">
                   <li>• <strong>Access logs (HTTP logs):</strong> 7-30 days</li>
                   <li>• <strong>Security logs (bot detection, DDoS):</strong> 90 days</li>
                   <li>• <strong>Error logs (debugging):</strong> 30 days</li>
-                  <li>• <strong>IP addresses:</strong> Anonymized immediately at collection (never stored)</li>
+                  <li>• <strong>IP addresses:</strong> Truncated (/24) before storage; full IP addresses are not stored</li>
                 </ul>
               </div>
 
               <div className="bg-primary/5 p-4 rounded-lg">
-                <h4 className="font-semibold mb-2 text-foreground">📊 Aggregated Analytics</h4>
+                <h4 className="font-semibold mb-2 text-foreground">📊 Visitor Analytics (with consent)</h4>
                 <ul className="text-sm text-muted-foreground space-y-1 ml-4">
-                  <li>• <strong>Cookie-free data (server-side):</strong> 90 days</li>
-                  <li>• <strong>Enhanced analytics (with cookies):</strong> 365 days</li>
-                  <li>• <strong>Aggregated statistics (dashboards):</strong> 24 months (no personal data)</li>
+                  <li>• <strong>Event-level analytics data:</strong> per the site operator's configured retention period (default 365 days)</li>
+                  <li>• <strong>Aggregated statistics (dashboards):</strong> 24 months</li>
                 </ul>
               </div>
 
               <div className="bg-primary/5 p-4 rounded-lg">
                 <h4 className="font-semibold mb-2 text-foreground">🔒 Legal Records</h4>
                 <ul className="text-sm text-muted-foreground space-y-1 ml-4">
-                  <li>• <strong>Cookie consent records:</strong> 2 years (legally required evidence per GDPR)</li>
-                  <li>• <strong>Security incidents:</strong> 3 years (per security requirements)</li>
+                  <li>• <strong>Consent records (proof of consent):</strong> 2 years, to demonstrate consent under GDPR Art. 7.1. This is separate from how long a consent choice is valid: a consent choice expires after 12 months, after which you are asked again.</li>
+                  <li>• <strong>Security incidents:</strong> 3 years</li>
                 </ul>
               </div>
 
               <p className="text-sm text-muted-foreground mt-4">
-                <strong className="text-foreground">Automatic deletion:</strong> All data is automatically deleted after these periods. 
-                You can request immediate deletion at any time by contacting privacy@cortiq.se.
+                <strong className="text-foreground">Automatic deletion:</strong> Data is automatically deleted after these periods.
+                You can request earlier deletion at any time by contacting privacy@cortiq.se.
               </p>
             </CardContent>
           </Card>
 
-          {/* What Does NOT Qualify */}
+          {/* Techniques Not Used Without Consent */}
           <Card className="glass shadow-elegant border-destructive/20">
             <CardHeader>
               <div className="flex items-center space-x-3 mb-2">
                 <Shield className="h-6 w-6 text-destructive" />
-                <CardTitle>10. What Does NOT Qualify as Banner-Free</CardTitle>
+                <CardTitle>10. Techniques We Do Not Use Without Consent</CardTitle>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-muted-foreground leading-relaxed">
-                In <strong>banner-free mode</strong>, we do <strong>NOT</strong> use the following techniques
-                that would require a cookie banner:
+                Without consent, CortIQ does <strong>not</strong> use:
               </p>
               <ul className="space-y-2 text-muted-foreground">
-                <li>❌ <strong>Google Analytics cookies</strong> (_ga, _gid, _gat)</li>
-                <li>❌ <strong>Facebook Pixel cookies</strong> (_fbp, _fbc)</li>
-                <li>❌ <strong>GA proxy with user identifiers</strong> (Client ID, IP storage)</li>
-                <li>❌ <strong>Device fingerprinting</strong> (Canvas, WebGL, font detection)</li>
-                <li>❌ <strong>Hash-based tracking</strong> (IP+UserAgent hash)</li>
+                <li>❌ <strong>Analytics or advertising cookies</strong> (CortIQ does not set Google Analytics or Facebook Pixel cookies such as _ga or _fbp)</li>
+                <li>❌ <strong>Visitor analytics of any kind</strong> (page views, sessions, clicks, scroll depth, heatmaps)</li>
+                <li>❌ <strong>Device fingerprinting for identification</strong> (Canvas, WebGL, font detection)</li>
+                <li>❌ <strong>Hash-based tracking</strong> (e.g. IP + User-Agent hash)</li>
+                <li>❌ <strong>Advertising click IDs</strong> (gclid, fbclid, etc.)</li>
               </ul>
               <div className="bg-destructive/5 p-4 rounded-lg mt-4">
                 <p className="text-sm text-muted-foreground">
-                  <strong className="text-foreground">Important:</strong> All these methods require prior consent under
-                  the ePrivacy Directive, even if they run server-side or use your own domain.
-                </p>
-              </div>
-              <div className="bg-primary/5 p-4 rounded-lg mt-4">
-                <p className="text-sm text-muted-foreground">
-                  <strong className="text-foreground">Consent-based mode:</strong> if the site operator enables the
-                  optional consent-based analytics script and you give explicit consent, additional techniques may be
-                  used — canvas/WebGL fingerprinting, cross-visit visitor identification, and ad click-ID capture
-                  (gclid, fbclid, etc.). These run only after your consent, which is exactly why they require it.
-                  Without consent, none of them are used.
+                  <strong className="text-foreground">Note:</strong> Cookieless operation does not remove the need
+                  for consent. Under the ePrivacy Directive, reading or storing information on a device for analytics
+                  requires consent regardless of whether cookies are used or the script runs on the site's own domain.
                 </p>
               </div>
             </CardContent>
@@ -556,41 +571,43 @@ const Privacy = () => {
           {/* Comparison */}
           <Card className="bg-gradient-to-br from-primary/5 to-accent/5 border-2 border-primary/20">
             <CardHeader>
-              <CardTitle className="text-center">Quick Guide: What's the Difference?</CardTitle>
+              <CardTitle className="text-center">Quick Guide: What Runs When?</CardTitle>
+              <CardDescription className="text-center">Summary only — sections 3 to 5D are authoritative.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid md:grid-cols-2 gap-6">
+              <div className="grid md:grid-cols-3 gap-6">
                 <div className="bg-background/80 p-6 rounded-lg">
-                  <h4 className="font-bold mb-3 flex items-center">
-                    <span className="text-2xl mr-2">❌</span>
-                    WITHOUT Cookies (100% Banner-Free)
-                  </h4>
-                  <p className="text-sm text-muted-foreground mb-3">Server-side + Server logs - Always active</p>
+                  <h4 className="font-bold mb-3">Without consent</h4>
+                  <p className="text-sm text-muted-foreground mb-3">Security layer + logs</p>
                   <ul className="text-sm space-y-2 text-muted-foreground">
-                    <li>• <strong>Server log files:</strong> Access logs, HTTP status, load times</li>
-                    <li>• Aggregated statistics (server logs)</li>
-                    <li>• Page views & most popular pages</li>
-                    <li>• Referrers & traffic sources</li>
-                    <li>• Device type & browser</li>
-                    <li>• Bot security & AI agents</li>
-                    <li>• Country/region (IP → country → IP deleted)</li>
-                    <li className="font-semibold text-foreground">✓ No personal identification</li>
-                    <li className="font-semibold text-foreground">✓ No cookie banner required</li>
-                    <li className="font-semibold text-foreground">✓ GDPR Art. 6.1.f (Legitimate interest)</li>
+                    <li>• AI bot &amp; agent detection</li>
+                    <li>• Crawler classification</li>
+                    <li>• Bot probe, honeypot, canary</li>
+                    <li>• AI-search / citation detection</li>
+                    <li>• Server &amp; edge logs (operations, security)</li>
+                    <li className="font-semibold text-foreground">No visitor analytics, no cookies</li>
+                    <li className="font-semibold text-foreground">Basis: legitimate interest (Art. 6.1.f), our assessment</li>
                   </ul>
                 </div>
                 <div className="bg-background/80 p-6 rounded-lg">
-                  <h4 className="font-bold mb-3 flex items-center">
-                    <span className="text-2xl mr-2">✅</span>
-                    WITH Cookies
-                  </h4>
-                  <p className="text-sm text-muted-foreground mb-3">Enhanced - After consent</p>
+                  <h4 className="font-bold mb-3">Analytics consent</h4>
+                  <p className="text-sm text-muted-foreground mb-3">Cookieless or Full mode</p>
                   <ul className="text-sm space-y-2 text-muted-foreground">
-                    <li>• Everything from Cookie-free PLUS:</li>
-                    <li>• Sessions (track users)</li>
-                    <li>• Heatmaps (click data)</li>
-                    <li>• Form interactions</li>
-                    <li className="font-semibold text-foreground">✓ Still GDPR-safe</li>
+                    <li>• Page views, pages, referrers</li>
+                    <li>• Sessions</li>
+                    <li>• Clicks, scroll depth, heatmaps</li>
+                    <li>• Forms, e-commerce, conversions</li>
+                    <li>• Session recording (if enabled)</li>
+                    <li className="font-semibold text-foreground">Basis: consent (Art. 6.1.a)</li>
+                  </ul>
+                </div>
+                <div className="bg-background/80 p-6 rounded-lg">
+                  <h4 className="font-bold mb-3">Marketing consent</h4>
+                  <p className="text-sm text-muted-foreground mb-3">Full mode only</p>
+                  <ul className="text-sm space-y-2 text-muted-foreground">
+                    <li>• Ad click IDs (gclid etc.)</li>
+                    <li>• Conversion feedback to ad platforms</li>
+                    <li className="font-semibold text-foreground">Basis: consent (Art. 6.1.a)</li>
                   </ul>
                 </div>
               </div>

@@ -9,7 +9,7 @@ import { useSEO } from "@/hooks/useSEO";
 export default function CMP() {
   useSEO({
     title: 'Consent Management Platform (CMP) — CortIQ',
-    description: 'Cookie consent with smart nudging to increase opt-in rates. Google Consent Mode v2 built in. Server-side base analytics is designed to run banner-free; advanced tracking is consent-driven.',
+    description: 'Built-in consent banner with Google Consent Mode v2. Visitor analytics and GA4 start only after analytics consent, valid for 12 months. EU-hosted, privacy by design.',
   });
   const features = [
     {
@@ -19,8 +19,8 @@ export default function CMP() {
     },
     {
       icon: <Shield className="h-6 w-6" />,
-      title: "GDPR Compliance",
-      description: "Full compliance with GDPR and other privacy regulations"
+      title: "Built for GDPR",
+      description: "Consent-first by design: visitor analytics and third-party tags wait for consent"
     },
     {
       icon: <Users className="h-6 w-6" />,
@@ -45,8 +45,8 @@ export default function CMP() {
   ];
 
   const benefits = [
-    "Automatic GDPR compliance",
-    "Reduced legal risk",
+    "Consent-first by design",
+    "Consent valid for 12 months",
     "Better user trust",
     "Professional cookie management",
     "Real-time consent monitoring",
@@ -61,7 +61,7 @@ export default function CMP() {
       <section className="container mx-auto px-4 py-16 text-center">
         <Badge variant="secondary" className="mb-4">
           <Globe className="h-4 w-4 mr-2" />
-          GDPR-Compliant CMP Solution
+          Consent-First CMP, Built for GDPR
         </Badge>
         
         <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-primary bg-clip-text text-transparent">
@@ -69,8 +69,8 @@ export default function CMP() {
         </h1>
         
         <p className="text-xl text-muted-foreground mb-8 max-w-3xl mx-auto">
-          Full GDPR compliance with automatic cookie management, server-side blocking 
-          and real-time monitoring of user consent.
+          Built-in consent banner with automatic cookie management, server-side blocking
+          and real-time monitoring of user consent. Google Consent Mode v2 included.
         </p>
         
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
@@ -121,8 +121,9 @@ export default function CMP() {
                 Why Choose Our CMP Solution?
               </h2>
               <p className="text-muted-foreground mb-8">
-                Our CMP goes beyond traditional cookie banners. We actually block 
-                server-side API calls based on user consent, providing true GDPR compliance.
+                Our CMP goes beyond traditional cookie banners. We also block server-side
+                API calls until consent is given. Only the AI-bot and security layer runs before consent,
+                designed as strictly necessary security processing; you make the final legal assessment.
               </p>
               
               <div className="space-y-4">
@@ -167,7 +168,7 @@ export default function CMP() {
       {/* CTA Section */}
       <section className="container mx-auto px-4 py-16 text-center">
         <h2 className="text-3xl font-bold mb-6">
-          Make Your Website GDPR-Compliant Today
+          Put Consent First on Your Website
         </h2>
         <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
           Get started with our CMP solution and gain full control over user consent 

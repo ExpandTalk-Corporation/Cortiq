@@ -287,7 +287,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
             <div className="flex items-start gap-2">
               <span className="text-green-500">✅</span>
               <div>
-                <strong>Cookieless mode</strong> — consent-exempt, banner-free statistics (per-site toggle)
+                <strong>Cookieless mode</strong> — no fingerprint or persistent IDs, still consent-gated (per-site toggle)
               </div>
             </div>
             <div className="flex items-start gap-2">

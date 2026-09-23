@@ -42,7 +42,7 @@ declare global {
 const Index = () => {
   useSEO({
     title: 'CortIQ — AI Agent Analytics & Cookie-Free Tracking',
-    description: 'First-to-market analytics for the Agentic Web. Track ChatGPT Browser, Perplexity & Claude Browser. Cookie-free, GDPR-compliant. Heatmaps, A/B testing, form analytics.',
+    description: 'First-to-market analytics for the Agentic Web. Track ChatGPT Browser, Perplexity & Claude Browser. Cookieless, consent-first, EU-hosted. Heatmaps, A/B testing, form analytics.',
     canonical: 'https://cortiq.se/',
   });
 
@@ -75,13 +75,13 @@ const Index = () => {
     },
     {
       icon: Cookie,
-      title: "Nudging Cookie Banners & 1st Party Data",
-      description: "Smart nudging technology in cookie banners for higher consent rates plus accurate data with 1st party cookies."
+      title: "Built-in Consent Banner",
+      description: "Consent banner with Google Consent Mode v2. Choose Cookieless mode (no cookies, no fingerprint) or Full mode with first-party cookies — both start only after analytics consent."
     },
     {
       icon: Globe,
       title: "Universal Tracking Script",
-      description: "One script works on any CMS or custom site. Deep WordPress integration in early access for invited users."
+      description: "One script works on any CMS or custom site. WordPress plugin with built-in consent banner."
     }
   ];
 
@@ -89,8 +89,8 @@ const Index = () => {
     "First on the market with agentic browser analytics",
     "Track ChatGPT Browser, Perplexity Comet, and Claude Browser",
     "Agent-specific dashboards and insights",
-    "Nudging cookie banners for higher consent rates", 
-    "Accurate data with 1st party cookies",
+    "Built-in consent banner with Google Consent Mode v2",
+    "Cookieless mode: no cookies, no fingerprinting, no cross-visit profile",
     "Universal tracking script for any CMS or custom site",
     "Real-time analytics for both humans and AI agents",
     "Ready for the future web before competitors understand it"
@@ -143,7 +143,7 @@ const Index = () => {
               </h1>
               <p className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-2xl mx-auto lg:mx-0 animate-fade-in leading-relaxed">
                 Not all AI traffic is equal. CortIQ classifies every AI visit — training crawlers, agentic browsers, and citation bots — so you know what to optimize, what to ignore, and what's costing you infrastructure budget.
-                Plus cookie-free analytics, heatmaps, A/B testing, and GDPR compliance.
+                Plus consent-first, cookieless visitor analytics, heatmaps, and A/B testing — EU-hosted and built for GDPR.
               </p>
               <div className="flex flex-col sm:flex-row gap-6 justify-center lg:justify-start items-center animate-scale-in">
                 <Link to="/auth">
@@ -202,15 +202,14 @@ const Index = () => {
             <div className="animate-fade-in">
               <Badge className="mb-6 bg-gradient-primary text-white hover-scale">
                 <Shield className="h-4 w-4 mr-2 inline" />
-                100% Banner-Free
+                Consent-first by design
               </Badge>
               <h2 className="text-4xl md:text-5xl font-black mb-8 text-gradient-primary">
-                Banner-free server-side analytics
+                AI-agent intelligence without consent friction
               </h2>
               <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
-                Server-side analytics with ONLY aggregated data. No cookies, no IP storage, no fingerprinting.
-                The banner-free base runs on server logs. Advanced tracking like heatmaps and conversions is opt-in and runs only with visitor consent.
-                Built around Swedish PTS and EU ePrivacy guidance.
+                AI-bot and agent detection is designed to run as strictly necessary security processing — the site operator makes the final legal assessment.
+                All visitor analytics — page views, sessions, clicks, heatmaps, conversions — start only after the visitor grants analytics consent. Consent is valid for 12 months.
               </p>
 
               <div className="space-y-6 mb-12">
@@ -221,9 +220,9 @@ const Index = () => {
                         <Shield className="h-6 w-6 text-white" />
                       </div>
                       <div>
-                        <h3 className="font-bold text-lg mb-2">True Banner-Free Analytics</h3>
+                        <h3 className="font-bold text-lg mb-2">AI-Agent &amp; Bot Layer</h3>
                         <p className="text-muted-foreground">
-                          Only aggregated, anonymous server data. NO cookies, IP storage, or fingerprinting. Designed to run banner-free, based on PTS/ePrivacy guidance.
+                          AI bot and agent detection, crawler classification (training / agentic / citation), honeypots and server-side bot classification from edge logs. Designed to run as strictly necessary security processing, based on ePrivacy guidance — the site operator makes the final legal assessment.
                         </p>
                       </div>
                     </div>
@@ -237,9 +236,9 @@ const Index = () => {
                         <Zap className="h-6 w-6 text-white" />
                       </div>
                       <div>
-                        <h3 className="font-bold text-lg mb-2">Hybrid Solution</h3>
+                        <h3 className="font-bold text-lg mb-2">Cookieless or Full Mode</h3>
                         <p className="text-muted-foreground">
-                          Banner-free base analytics + smart nudging for opt-in advanced tracking. Best of both worlds.
+                          Cookieless mode: no cookies, no device fingerprint, no cross-visit profile. Full mode adds first-party cookies. Both start only after analytics consent.
                         </p>
                       </div>
                     </div>
@@ -255,7 +254,7 @@ const Index = () => {
                       <div>
                         <h3 className="font-bold text-lg mb-2">Privacy-First Solution</h3>
                         <p className="text-muted-foreground">
-                          Same privacy-first principles - aggregated data, no user tracking, EU hosting, fully GDPR compliant.
+                          Privacy by design: EU hosting, no persistent IDs in Cookieless mode, built-in consent banner. Built for GDPR.
                         </p>
                       </div>
                     </div>
@@ -266,7 +265,7 @@ const Index = () => {
               <Link to="/auth">
                 <Button size="lg" className="group bg-gradient-primary hover-scale hover-glow text-lg px-8 py-4 h-auto">
                   <Shield className="mr-2 h-5 w-5" />
-                  Try banner-free analytics
+                  Try consent-first analytics
                   <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-2 transition-transform duration-300" />
                 </Button>
               </Link>
@@ -278,59 +277,59 @@ const Index = () => {
                   <Badge className="mb-4 bg-gradient-accent text-white mx-auto">
                     Comparison
                   </Badge>
-                  <CardTitle className="text-2xl">Traditional vs Banner-Free Server-Side</CardTitle>
+                  <CardTitle className="text-2xl">Traditional analytics vs CortIQ</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <span className="font-semibold">Cookie Banner</span>
+                      <span className="font-semibold">Cookies</span>
                       <div className="flex items-center space-x-3">
                         <Badge variant="destructive">Required</Badge>
-                        <Badge className="bg-primary text-primary-foreground">Not needed ✓</Badge>
+                        <Badge className="bg-primary text-primary-foreground">Optional (Cookieless mode) ✓</Badge>
                       </div>
                     </div>
                     <div className="flex items-center justify-between mb-3">
-                      <span className="font-semibold">GDPR Compliance</span>
+                      <span className="font-semibold">Device fingerprinting</span>
                       <div className="flex items-center space-x-3">
-                        <Badge variant="outline">Complex</Badge>
-                        <Badge className="bg-primary text-primary-foreground">Simpler ✓</Badge>
+                        <Badge variant="outline">Common</Badge>
+                        <Badge className="bg-primary text-primary-foreground">None ✓</Badge>
                       </div>
                     </div>
                     <div className="flex items-center justify-between mb-3">
-                      <span className="font-semibold">User Experience</span>
+                      <span className="font-semibold">Cross-visit profiling</span>
                       <div className="flex items-center space-x-3">
-                        <Badge variant="outline">Disruptive</Badge>
-                        <Badge className="bg-primary text-primary-foreground">Smoother ✓</Badge>
+                        <Badge variant="outline">Yes</Badge>
+                        <Badge className="bg-primary text-primary-foreground">No (Cookieless mode) ✓</Badge>
                       </div>
                     </div>
                     <div className="flex items-center justify-between mb-3">
-                      <span className="font-semibold">User Tracking</span>
+                      <span className="font-semibold">AI-agent visibility</span>
                       <div className="flex items-center space-x-3">
-                        <Badge variant="outline">Yes (cookies)</Badge>
-                        <Badge className="bg-primary text-primary-foreground">No (aggregated) ✓</Badge>
+                        <Badge variant="destructive">None</Badge>
+                        <Badge className="bg-primary text-primary-foreground">Classified ✓</Badge>
                       </div>
                     </div>
                     <div className="flex items-center justify-between mb-3">
-                      <span className="font-semibold">Conversion</span>
+                      <span className="font-semibold">Hosting</span>
                       <div className="flex items-center space-x-3">
-                        <Badge variant="destructive">Lower</Badge>
-                        <Badge className="bg-primary text-primary-foreground">Higher ✓</Badge>
+                        <Badge variant="outline">Often US</Badge>
+                        <Badge className="bg-primary text-primary-foreground">EU ✓</Badge>
                       </div>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold">Setup Time</span>
+                      <span className="font-semibold">Consent handling</span>
                       <div className="flex items-center space-x-3">
-                        <Badge variant="outline">Days</Badge>
-                        <Badge className="bg-primary text-primary-foreground">5 min ✓</Badge>
+                        <Badge variant="outline">Separate CMP</Badge>
+                        <Badge className="bg-primary text-primary-foreground">Built-in banner ✓</Badge>
                       </div>
                     </div>
                   </div>
 
                   <div className="pt-6 border-t">
                     <div className="bg-gradient-primary/10 rounded-xl p-4 text-center">
-                      <p className="font-bold text-lg mb-2">Want advanced tracking?</p>
+                      <p className="font-bold text-lg mb-2">What needs consent?</p>
                       <p className="text-sm text-muted-foreground">
-                        Add opt-in banner with smart nudging for sessions, heatmaps, and conversions. Banner-free base + advanced tracking = hybrid solution.
+                        All visitor analytics — sessions, heatmaps, forms, conversions, recordings — start only after analytics consent, in both Cookieless and Full mode. Only the AI-bot and security layer runs before consent.
                       </p>
                     </div>
                   </div>
@@ -356,7 +355,7 @@ const Index = () => {
               Security & Compliance
             </Badge>
             <h2 className="text-4xl md:text-5xl font-black mb-6 text-gradient-primary">
-              Bot security without a cookie banner
+              Bot security as strictly necessary processing
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
               Under ePrivacy Art. 5.3, security measures can qualify as "strictly necessary" - DDoS protection, spy bots, and scrapers, subject to your own legal assessment.
@@ -391,7 +390,7 @@ const Index = () => {
               <CardContent>
                 <p className="text-muted-foreground">
                   Detect competitor scrapers and spy tools attempting to steal your content or pricing. 
-                  Security-necessary under GDPR Art. 6.1.f.
+                  Designed to rely on legitimate interest under GDPR Art. 6.1.f — subject to your own assessment.
                 </p>
               </CardContent>
             </Card>
@@ -407,7 +406,7 @@ const Index = () => {
               <CardContent>
                 <p className="text-muted-foreground">
                   Prevent click-fraud, fake registrations, and fraudulent transactions. 
-                  PTS and Swedish law allow this without cookie banners.
+                  Designed to run as strictly necessary security processing; the site operator makes the final legal assessment.
                 </p>
               </CardContent>
             </Card>
@@ -429,7 +428,7 @@ const Index = () => {
                     ePrivacy Art. 5.3
                   </h4>
                   <p className="text-sm text-muted-foreground">
-                    The EU ePrivacy Directive exempts techniques "strictly necessary" for security from consent.
+                    The EU ePrivacy Directive provides a consent exemption for processing that is "strictly necessary".
                     Bot detection, DDoS protection, and fraud prevention may qualify, subject to your own assessment.
                   </p>
                 </div>
@@ -439,8 +438,8 @@ const Index = () => {
                     GDPR Art. 6.1.f
                   </h4>
                   <p className="text-sm text-muted-foreground">
-                    Legitimate interest to protect your website and users from threats and fraud. 
-                    Proportionate and minimal according to Swedish PTS.
+                    Legitimate interest can support protecting your website and users from threats and fraud,
+                    provided processing is proportionate and minimal. The site operator makes the final assessment.
                   </p>
                 </div>
               </div>
@@ -448,7 +447,7 @@ const Index = () => {
               <div className="bg-primary/5 p-6 rounded-lg">
                 <h4 className="font-bold mb-3 flex items-center">
                   <Bot className="h-5 w-5 text-primary mr-2" />
-                  What we measure for security (WITHOUT cookie banner)
+                  What we measure for security (before consent)
                 </h4>
                 <ul className="grid md:grid-cols-2 gap-3 text-sm text-muted-foreground">
                   <li className="flex items-start">
@@ -682,15 +681,15 @@ const Index = () => {
               Analytics Your Way
             </Badge>
             <h2 className="text-4xl md:text-5xl font-black mb-6 text-gradient-primary">
-              Banner-free or hybrid with GA4
+              CortIQ, GA4, or both
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-              Choose our 100% banner-free server-side analytics, or hybrid solution with GA4 server-side + smart consent management.
+              Use CortIQ's consent-first analytics, GA4 under Consent Mode v2, or both — all behind the same built-in consent banner.
             </p>
           </div>
 
           <div className="grid lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
-            {/* Our Bannerfri Server-Side Analytics */}
+            {/* CortIQ Cookieless Analytics */}
             <Card className="group border-2 border-primary/20 shadow-elegant hover-lift bg-gradient-card relative overflow-hidden">
               <div className="absolute inset-0 bg-gradient-primary opacity-0 group-hover:opacity-5 transition-opacity duration-500"></div>
               
@@ -713,15 +712,15 @@ const Index = () => {
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
-                  <span className="text-foreground">Zero cookies - no banner needed</span>
+                  <span className="text-foreground">Cookieless mode: no cookies, no fingerprint, no persistent IDs</span>
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
-                  <span className="text-foreground">100% GDPR compliant automatically</span>
+                  <span className="text-foreground">Visitor analytics start only after consent (valid 12 months)</span>
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
-                  <span className="text-foreground">Better data quality (100% vs ~60%)</span>
+                  <span className="text-foreground">EU-hosted, built for GDPR</span>
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
@@ -729,7 +728,7 @@ const Index = () => {
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
-                  <span className="text-foreground">WordPress plugin for easy setup</span>
+                  <span className="text-foreground">WordPress plugin with built-in consent banner</span>
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
@@ -740,7 +739,7 @@ const Index = () => {
               <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-primary opacity-10 rounded-tr-full"></div>
             </Card>
 
-            {/* GA4 Server-Side */}
+            {/* GA4 with Consent Mode v2 */}
             <Card className="group border-2 border-accent/20 shadow-elegant hover-lift bg-gradient-card relative overflow-hidden">
               <div className="absolute inset-0 bg-gradient-accent opacity-0 group-hover:opacity-5 transition-opacity duration-500"></div>
               
@@ -751,9 +750,9 @@ const Index = () => {
                 <Badge className="mb-4 bg-gradient-accent text-white mx-auto">
                   Also Available
                 </Badge>
-                <CardTitle className="text-2xl font-bold">GA4 Server-Side</CardTitle>
+                <CardTitle className="text-2xl font-bold">GA4 with Consent Mode v2</CardTitle>
                 <CardDescription className="text-base mt-2">
-                  Keep Google Analytics without cookies
+                  Keep Google Analytics, consent-gated
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 relative z-10">
@@ -763,11 +762,11 @@ const Index = () => {
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-accent flex-shrink-0 mt-1" />
-                  <span className="text-foreground">We run it server-side for you</span>
+                  <span className="text-foreground">Google Consent Mode v2 (basic mode)</span>
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-accent flex-shrink-0 mt-1" />
-                  <span className="text-foreground">No cookies, no banner needed</span>
+                  <span className="text-foreground">GA4 fires only after analytics consent</span>
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-accent flex-shrink-0 mt-1" />
@@ -775,11 +774,11 @@ const Index = () => {
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-accent flex-shrink-0 mt-1" />
-                  <span className="text-foreground">GDPR compliant tracking</span>
+                  <span className="text-foreground">Same consent banner as CortIQ analytics</span>
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-accent flex-shrink-0 mt-1" />
-                  <span className="text-foreground">Easy migration from client-side GA4</span>
+                  <span className="text-foreground">Connect your GA4 property in minutes</span>
                 </div>
                 <div className="space-y-2 pt-4">
                   <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground">
@@ -798,7 +797,7 @@ const Index = () => {
                 <h3 className="text-2xl font-bold mb-4 text-gradient-primary">Use both together</h3>
                 <p className="text-lg text-muted-foreground mb-6 leading-relaxed">
                   Many of our customers run both solutions simultaneously. Get the best of both worlds - 
-                  our agentic analytics for future-proof insights, plus GA4 server-side for familiar reporting.
+                  our agentic analytics for future-proof insights, plus GA4 for familiar reporting.
                 </p>
                 <Link to="/auth">
                   <Button size="lg" className="group bg-gradient-primary hover-scale hover-glow text-lg px-8 py-4 h-auto">
@@ -826,7 +825,7 @@ const Index = () => {
               Cookiefree remarketing that actually works
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-              Run Google Ads, Facebook, and TikTok remarketing without cookies - using server-side conversion APIs and privacy-safe user matching.
+              Run Google Ads, Facebook, and TikTok remarketing without third-party cookies — using server-side conversion APIs and hashed matching, only for visitors who gave marketing consent.
             </p>
           </div>
 
@@ -853,7 +852,7 @@ const Index = () => {
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
-                  <span className="text-foreground">No cookies needed on the website</span>
+                  <span className="text-foreground">No third-party ad cookies on the website</span>
                 </div>
               </CardContent>
             </Card>
@@ -880,7 +879,7 @@ const Index = () => {
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-accent flex-shrink-0 mt-1" />
-                  <span className="text-foreground">Higher attribution accuracy than cookies</span>
+                  <span className="text-foreground">Consented conversions not lost to cookie blocking</span>
                 </div>
               </CardContent>
             </Card>
@@ -932,7 +931,7 @@ const Index = () => {
                     Better Attribution
                   </h4>
                   <p className="text-muted-foreground">
-                    Server-side APIs aren't blocked by ad blockers, giving you 100% accurate conversion tracking instead of ~60%.
+                    Server-side conversion APIs aren't affected by ad blockers, so consented conversions are reported more reliably than with browser pixels.
                   </p>
                 </div>
                 <div>
@@ -1208,7 +1207,7 @@ const Index = () => {
                 <span className="font-black text-xl text-gradient-primary">CortIQ</span>
               </div>
               <p className="text-muted-foreground leading-relaxed mb-6 max-w-md">
-                GDPR-compliant analytics that helps you understand your users without compromising privacy.
+                AI-agent intelligence without consent friction; visitor analytics that are consent-first and cookieless.
               </p>
               <div className="flex space-x-4">
                 <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center hover-scale cursor-pointer">
