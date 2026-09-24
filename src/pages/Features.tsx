@@ -8,7 +8,6 @@ import {
   MousePointer,
   BarChart3,
   FormInput,
-  TestTube,
   Shield,
   Cookie,
   Users,
@@ -36,14 +35,14 @@ import {
 export default function Features() {
   useSEO({
     title: 'Features — CortIQ Analytics Platform',
-    description: 'Full feature overview: AI agent tracking, click heatmaps, A/B testing, form analytics, session recording, data warehouse export and a built-in consent banner (CMP). All in one platform.',
+    description: 'Full feature overview: AI bot classification, server-side bot ingestion, click and scroll heatmaps, form analytics, conversion attribution, an MCP server and a built-in consent banner (CMP).',
   });
   const coreFeatures = [
     {
       icon: <MousePointer className="h-8 w-8" />,
       title: "Visual Analytics",
-      description: "Visualize exactly where users click, scroll, and interact on your website",
-      features: ["Click heatmaps", "Scroll heatmaps", "Move heatmaps", "Device-specific views"]
+      description: "Visualize where users click and how far they scroll on your website",
+      features: ["Click heatmaps", "Scroll-depth heatmaps (25/50/75/100%)", "Device-specific views", "Desktop, tablet and mobile"]
     },
     {
       icon: <BarChart3 className="h-8 w-8" />,
@@ -58,10 +57,10 @@ export default function Features() {
       features: ["Form funnel", "Drop-off points", "Field analysis", "Completion rate"]
     },
     {
-      icon: <TestTube className="h-8 w-8" />,
-      title: "A/B Testing",
-      description: "Test different variants of your website to optimize performance",
-      features: ["Multivariate tests", "Statistical significance", "Audience segmentation", "ROI measurement"]
+      icon: <Link2 className="h-8 w-8" />,
+      title: "Link Click Counter",
+      description: "Cookieless, aggregate click counts per link and button — no visitor ID attached",
+      features: ["Counts per link and button", "Per page and device type", "No cookies or visitor IDs", "Starts after analytics consent"]
     }
   ];
 
@@ -103,7 +102,7 @@ export default function Features() {
       icon: <Search className="h-8 w-8" />,
       title: "Google Search Console",
       description: "Pull search visibility into CortIQ — including a dedicated AI-search view of how your content performs for AI-driven queries",
-      features: ["Impressions, clicks & position", "Query-level data", "AI-search performance", "Indexing status"]
+      features: ["Impressions, clicks & position", "Query-level data", "AI-search performance"]
     },
     {
       icon: <Target className="h-8 w-8" />,
@@ -120,20 +119,14 @@ export default function Features() {
     {
       icon: <Layers className="h-8 w-8" />,
       title: "Tag Manager & Consent Mode v2",
-      description: "Deploy via Google Tag Manager and propagate consent to Google tags — compatible with OneTrust and Cookiebot",
-      features: ["GTM compatibility", "Consent Mode v2", "OneTrust & Cookiebot", "Custom triggers"]
-    },
-    {
-      icon: <Database className="h-8 w-8" />,
-      title: "Data Warehouse",
-      description: "Scheduled export to your warehouse for downstream modelling and BI",
-      features: ["BigQuery & Snowflake", "Redshift", "PostgreSQL & MySQL", "Databricks"]
+      description: "Deploy via Google Tag Manager and propagate consent to Google tags — reads Cookiebot consent directly",
+      features: ["GTM compatibility", "Consent Mode v2", "Cookiebot consent", "Custom triggers"]
     },
     {
       icon: <Settings className="h-8 w-8" />,
       title: "WordPress Plugin",
-      description: "Complete WordPress integration with 1-click installation",
-      features: ["Easy installation", "Automatic configuration", "Theme compatibility", "Consent-banner ready"]
+      description: "WordPress plugin — paste your Site ID and Tracking ID",
+      features: ["Paste Site ID and Tracking ID", "Cookieless or Full mode", "Theme compatibility", "Built-in consent banner"]
     }
   ];
 
@@ -146,9 +139,9 @@ export default function Features() {
     },
     {
       icon: <Monitor className="h-8 w-8" />,
-      title: "Cross-Device Tracking",
-      description: "Follow consented user journeys across devices and sessions (Full mode)",
-      features: ["Device sync", "Session linking", "User journey mapping", "Attribution modeling"]
+      title: "Device & Visitor Profiles",
+      description: "Device, browser and OS breakdowns, plus returning-visitor profiles with consent (Full mode)",
+      features: ["Device type, browser & OS", "Returning-visitor recognition", "Per-site salted identifiers"]
     },
     {
       icon: <Navigation className="h-8 w-8" />,
@@ -160,7 +153,7 @@ export default function Features() {
       icon: <Target className="h-8 w-8" />,
       title: "Segmentation",
       description: "Advanced segmentation for deeper user insights",
-      features: ["Demographics", "Behavior segments", "Traffic sources", "Conversion groups"]
+      features: ["Behavior segments", "Traffic sources", "Device segments", "Conversion groups"]
     }
   ];
 
@@ -176,6 +169,18 @@ export default function Features() {
       title: "KPI Dashboard",
       description: "Customizable KPI dashboards to track your most important metrics",
       features: ["Custom KPIs", "Real-time data", "Trend analysis", "Goal tracking"]
+    },
+    {
+      icon: <Upload className="h-8 w-8" />,
+      title: "Server-Side Bot Ingestion",
+      description: "Ingest Cloudflare logs to catch training and citation crawlers that never execute JavaScript",
+      features: ["Cloudflare log ingest", "Same bot registry as the JS tag", "Training & citation crawlers", "No tracking script required"]
+    },
+    {
+      icon: <Layers className="h-8 w-8" />,
+      title: "MCP Analytics Server",
+      description: "Let external AI agents query your analytics through a Model Context Protocol server",
+      features: ["23 analytics tools", "Scoped, rate-limited API key", "Tenant-scoped reads", "AI-agent and human traffic"]
     },
     {
       icon: <Users className="h-8 w-8" />,
@@ -208,7 +213,7 @@ export default function Features() {
             AI Bot Intelligence · Cookieless · EU-Built
           </Badge>
           <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-            The first analytics platform that turns AI traffic into signal
+            The analytics platform that turns AI traffic into signal
           </h1>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
             CortIQ classifies every AI visit — training crawler, agentic browser, or citation
@@ -222,15 +227,15 @@ export default function Features() {
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold mb-4">🤖 AI Bot Intelligence</h2>
             <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-              1 in 31 web visits is now an AI bot. Every other tool filters them out. CortIQ tells
-              you which ones matter — and which are just cost.
+              By Q4 2025 there was one AI bot visit for every 31 human visits (TollBit, State of the Bots,
+              Q4 2025). CortIQ tells you which ones matter — and which are just cost.
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             <Card className="border-red-500/30">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">🔴 Training Crawlers</CardTitle>
-                <CardDescription>GPTBot, ClaudeBot, CCBot</CardDescription>
+                <CardDescription>GPTBot, ClaudeBot, Google-Extended, CCBot</CardDescription>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground">
                 Pure infrastructure cost — they consume your content to train models, with no
@@ -240,17 +245,17 @@ export default function Features() {
             <Card className="border-green-500/40">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">🟢 Agentic Browsers</CardTitle>
-                <CardDescription>ChatGPT Browser, Perplexity Comet, Claude Browser</CardDescription>
+                <CardDescription>ChatGPT-User, Claude-User, Perplexity-User + JS-signal heuristics</CardDescription>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground">
-                Real users acting through an AI. Track their journeys page-by-page and convert
-                them like any high-intent visitor.
+                Real users acting through an AI. Agent fetches are detected by user agent; in-browser
+                AI agents by JS-signal heuristics. Track and convert them like any high-intent visitor.
               </CardContent>
             </Card>
             <Card className="border-blue-500/30">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">🔵 Citation Crawlers</CardTitle>
-                <CardDescription>PerplexityBot, Google-Extended, OAI-SearchBot</CardDescription>
+                <CardDescription>PerplexityBot, OAI-SearchBot, Claude-SearchBot</CardDescription>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground">
                 AI search indexing your content — your visibility signal for the era of answer
@@ -598,10 +603,6 @@ export default function Features() {
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span className="text-sm">Session recording & A/B testing</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
                     <span className="text-sm">Starts after analytics consent</span>
                   </li>
                 </ul>
@@ -661,8 +662,8 @@ export default function Features() {
               <div>
                 <h4 className="font-medium mb-2">After Analytics Consent</h4>
                 <p className="text-sm text-muted-foreground">
-                  Page views, sessions, clicks, scroll, heatmaps, forms, e-commerce, conversions, session recording
-                  and A/B testing start in the mode you chose. Consent is valid for 12 months.
+                  Page views, sessions, clicks, scroll, heatmaps, link click counts, forms, e-commerce and conversions
+                  start in the mode you chose. Consent is valid for 12 months, then re-asked.
                 </p>
               </div>
             </div>
@@ -775,8 +776,8 @@ export default function Features() {
                 features: [
                   "HubSpot form GUID detection (hs_context + data-form-id)",
                   "Gravity Forms and Contact Form 7 auto-detection",
-                  "\"9 forms found, 7 unidentified\" dashboard view",
-                  "Assign conversion goals directly from the form list",
+                  "\"X forms found, Y unidentified\" dashboard view",
+                  "Label forms to track them as goals",
                 ],
               },
               {
@@ -784,9 +785,9 @@ export default function Features() {
                 title: "First-Party Click ID Capture",
                 description: "Capture gclid, fbclid, msclkid and more from ad click URLs and store them server-side — so CortIQ owns the attribution data, not the ad platform.",
                 features: [
-                  "Google Ads (gclid), Meta (fbclid), Microsoft (msclkid), TikTok, LinkedIn",
+                  "Google Ads (gclid), Meta (fbclid), Microsoft (msclkid), TikTok (ttclid), LinkedIn (li_fat_id)",
                   "Only captured with explicit marketing consent",
-                  "Persisted per session, attached to all conversion events",
+                  "Persisted per session and stored with the visitor profile",
                   "Foundation for Enhanced Conversions upload",
                 ],
               },
@@ -805,7 +806,7 @@ export default function Features() {
               {
                 icon: <ArrowUpDown className="h-8 w-8" />,
                 title: "Attribution Gap Dashboard",
-                description: "See the gap between what CortIQ tracks, what Google Ads claims, and what HubSpot classifies as quality leads — in a single view.",
+                description: "See the gap between CortIQ conversions and HubSpot quality leads, plus Enhanced Conversions upload status — in a single view.",
                 features: [
                   "CortIQ conversions vs. HubSpot MQLs comparison",
                   "Gap % with actionable diagnosis",
@@ -845,12 +846,11 @@ export default function Features() {
             Ready to Discover the Power of Professional Web Analytics?
           </h2>
           <p className="text-muted-foreground mb-6 max-w-2xl mx-auto">
-            Get started today and access all features. No commitment, 
-            cancel anytime.
+            CortIQ is free during beta. Create an account and get access to all features.
           </p>
           <div className="flex gap-4 justify-center flex-wrap">
             <Button asChild size="lg">
-              <Link to="/auth">Join Waitlist</Link>
+              <Link to="/auth">Create free account</Link>
             </Button>
             <Button variant="outline" size="lg" asChild>
               <Link to="/cmp">Learn More About CMP</Link>

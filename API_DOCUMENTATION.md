@@ -1,304 +1,140 @@
 # CortIQ Public REST API
 
-> **World's First Analytics Platform with Dedicated AI Agent Tracking**
+Read-only REST API for CortIQ analytics data, served by the `public-api` Supabase Edge Function
+(`supabase/functions/public-api/index.ts`). The OpenAPI spec is in
+[`public/api-docs/swagger.json`](./public/api-docs/swagger.json) and rendered at
+[https://cortiq.se/api-docs/](https://cortiq.se/api-docs/). Landing page: [https://cortiq.se/api](https://cortiq.se/api).
 
-The CortIQ Public REST API provides programmatic access to your analytics data. Build custom dashboards, automate reports, and integrate CortIQ with your favorite tools.
+## Base URL
 
-## 🚀 Quick Start
-
-### 1. Get Your API Key
-
-1. Log in to [CortIQ Dashboard](https://cortiq.se/dashboard)
-2. Navigate to **Settings** → **API Keys**
-3. Click **Create API Key**
-4. Copy your API key (starts with `ck_live_`)
-
-⚠️ **Important**: Store your API key securely. It won't be shown again!
-
-### 2. Make Your First Request
-
-```bash
-curl https://cortiq.se/api/v1/sites \
-  -H "Authorization: Bearer ck_live_your_api_key_here"
+```
+https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1/public-api
 ```
 
-## 📚 Documentation
+`https://cortiq.se/api/v1/...` is **not** routed to the API (cortiq.se serves the SPA). Always call the
+Supabase function URL. For backwards compatibility the function also accepts a legacy `/api/v1` prefix
+after the function name (`.../public-api/api/v1/sites`), but the documented paths below are canonical.
 
-- **Interactive API Docs**: [https://cortiq.se/api-docs/](https://cortiq.se/api-docs/)
-- **API Landing Page**: [https://cortiq.se/api](https://cortiq.se/api)
-- **OpenAPI Spec**: [swagger.json](./public/api-docs/swagger.json)
+## Authentication
 
-## 🔑 Authentication
+Every request needs a CortIQ API key as a Bearer token:
 
-All API requests require authentication using an API key in the `Authorization` header:
-
-```bash
+```
 Authorization: Bearer ck_live_your_api_key_here
 ```
 
-## 📊 Available Endpoints
+- No Supabase `apikey` header or JWT is needed (`verify_jwt = false` for this function).
+- Keys are stored only as a SHA-256 hash (`api_keys.key_hash`).
+- Each key is scoped to **one site** (`api_keys.site_id`). Requests for any other site return 404.
+- Keys with `is_active = false` or a past `expires_at` are rejected with 401.
+- Create keys in the dashboard: Settings → CortIQ API & MCP. The full key is shown once at creation.
 
-### Sites
+## Endpoints
 
-- `GET /api/v1/sites` - List all sites
+All endpoints are `GET`. Other methods return 405.
 
-### Analytics Data
+| Path | Returns | Source table |
+|---|---|---|
+| `/sites` | Array with the one site the key is scoped to (`id, domain, name, created_at, is_active`) | `sites` |
+| `/sites/{id}/visits` | Sessions, newest first, filtered on `started_at`. IP and raw user agent are not returned. | `tracking_sessions` |
+| `/sites/{id}/pages` | Page views, newest first, filtered on `viewed_at` | `page_views` |
+| `/sites/{id}/referrers` | `[{ domain, visits }]`: sessions with a referrer, grouped by referrer hostname, sorted by count | `tracking_sessions` |
+| `/sites/{id}/agents` | AI agent sessions (agentic browsers), filtered on `started_at`. Device fingerprint is not returned. | `ai_agent_sessions` |
+| `/sites/{id}/conversions` | Conversion events, filtered on `created_at`. Form data and hashed email are not returned. | `conversion_events` |
+| `/sites/{id}/heatmaps` | Click/scroll heatmap points, filtered on `created_at`. IP is not returned. | `heatmap_data` |
 
-- `GET /api/v1/sites/{id}/visits` - Get visit/session data
-- `GET /api/v1/sites/{id}/pages` - Get page views
-- `GET /api/v1/sites/{id}/referrers` - Get traffic sources
-- `GET /api/v1/sites/{id}/events` - Get custom events
-- `GET /api/v1/sites/{id}/conversions` - Get conversions
-- `GET /api/v1/sites/{id}/heatmaps` - Get heatmap click data
+Field lists per endpoint are in the OpenAPI spec.
 
-### AI Agent Analytics (🤖 Unique to CortIQ!)
+## Query parameters
 
-- `GET /api/v1/sites/{id}/agents` - Get AI agent traffic data
-  - Track ChatGPT Browser, Perplexity Comet, Claude Browser
-  - Understand how AI agents interact with your content
-  - Optimize for the Agentic Web
+| Parameter | Applies to | Description | Default |
+|---|---|---|---|
+| `date_from` | all `/sites/{id}/*` | Start of range, ISO 8601 date or date-time, inclusive | 30 days ago |
+| `date_to` | all `/sites/{id}/*` | End of range, ISO 8601 date or date-time, inclusive | now |
+| `limit` | all except `referrers` | Rows to return, clamped to 1–1000 | 1000 |
+| `offset` | all except `referrers` | Rows to skip (pagination) | 0 |
+| `page_url` | `heatmaps` | Exact page URL filter | none |
+| `format` | all | `json` or `csv` | `json` |
 
-## 🔧 Query Parameters
+`referrers` has no pagination; it aggregates over the 1,000 most recent sessions with a referrer in the range.
 
-All endpoints support the following query parameters:
-
-| Parameter   | Type     | Description                                    | Default        |
-|-------------|----------|------------------------------------------------|----------------|
-| `date_from` | ISO 8601 | Start date for data range                      | 30 days ago    |
-| `date_to`   | ISO 8601 | End date for data range                        | Now            |
-| `limit`     | Integer  | Maximum number of results (max 10,000)         | 1,000          |
-| `offset`    | Integer  | Number of results to skip (pagination)         | 0              |
-| `format`    | String   | Response format (`json` or `csv`)              | `json`         |
-
-## 💡 Examples
-
-### Get Visits for the Last 7 Days
+## Examples
 
 ```bash
-curl "https://cortiq.se/api/v1/sites/abc-123/visits?date_from=2024-01-01&date_to=2024-01-07" \
+BASE=https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1/public-api
+
+# The site this key can read
+curl "$BASE/sites" -H "Authorization: Bearer ck_live_your_api_key_here"
+
+# Sessions in January
+curl "$BASE/sites/YOUR_SITE_ID/visits?date_from=2026-01-01&date_to=2026-01-31" \
+  -H "Authorization: Bearer ck_live_your_api_key_here"
+
+# Page views as CSV, second page of 1,000
+curl "$BASE/sites/YOUR_SITE_ID/pages?format=csv&offset=1000" \
+  -H "Authorization: Bearer ck_live_your_api_key_here" -o pageviews.csv
+
+# AI agent sessions
+curl "$BASE/sites/YOUR_SITE_ID/agents?date_from=2026-01-01" \
   -H "Authorization: Bearer ck_live_your_api_key_here"
 ```
 
-### Export Page Views as CSV
+Referrers response:
 
-```bash
-curl "https://cortiq.se/api/v1/sites/abc-123/pages?format=csv" \
-  -H "Authorization: Bearer ck_live_your_api_key_here" \
-  -o pageviews.csv
-```
-
-### Get AI Agent Traffic (Unique to CortIQ!)
-
-```bash
-curl "https://cortiq.se/api/v1/sites/abc-123/agents?date_from=2024-01-01" \
-  -H "Authorization: Bearer ck_live_your_api_key_here"
-```
-
-**Response:**
 ```json
 [
-  {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "site_id": "abc-123",
-    "agent_type": "chatgpt_browser",
-    "started_at": "2024-01-15T10:30:00Z",
-    "page_views": 5,
-    "query_intent": "research product features"
-  },
-  {
-    "id": "660e8400-e29b-41d4-a716-446655440001",
-    "site_id": "abc-123",
-    "agent_type": "perplexity_comet",
-    "started_at": "2024-01-15T11:45:00Z",
-    "page_views": 3,
-    "query_intent": "compare pricing"
-  }
+  { "domain": "www.google.com", "visits": 1250 },
+  { "domain": "chatgpt.com", "visits": 310 }
 ]
 ```
 
-### Get Traffic Sources
+## Rate limiting
 
-```bash
-curl "https://cortiq.se/api/v1/sites/abc-123/referrers" \
-  -H "Authorization: Bearer ck_live_your_api_key_here"
-```
-
-**Response:**
-```json
-[
-  {
-    "domain": "google.com",
-    "visits": 1250
-  },
-  {
-    "domain": "facebook.com",
-    "visits": 830
-  },
-  {
-    "domain": "direct",
-    "visits": 620
-  }
-]
-```
-
-## 🔒 Rate Limiting
-
-- **Default**: 1,000 requests per hour per API key
-- **Configurable**: Increase limits in dashboard settings
-- **Headers**: Rate limit info returned in response headers
-
-```
-X-RateLimit-Limit: 1000
-X-RateLimit-Remaining: 856
-X-RateLimit-Reset: 1642348800
-```
-
-When rate limit is exceeded, you'll receive a `429 Too Many Requests` response:
+- Default **1,000 requests per rolling hour per key** (`api_keys.rate_limit`, default 1000).
+- Only successful (200) requests are logged in `api_key_usage` and counted.
+- Every successful response includes `X-RateLimit-Limit` and `X-Response-Time` (ms). No
+  `X-RateLimit-Remaining` or reset header is sent.
+- When exceeded: `429` with `Retry-After: 3600` and
 
 ```json
-{
-  "error": "Rate limit exceeded",
-  "retry_after": 3600
-}
+{ "error": "Rate limit exceeded", "retry_after": 3600 }
 ```
 
-## 📦 Response Formats
+## Response formats
 
-### JSON (Default)
+- JSON (default): an array of rows.
+- CSV (`format=csv`): header row from the first row's keys, served with
+  `Content-Disposition: attachment`. An empty result returns an empty body.
 
-```bash
-curl "https://cortiq.se/api/v1/sites/abc-123/visits" \
-  -H "Authorization: Bearer ck_live_your_api_key_here"
-```
+## Errors
 
-### CSV Export
+| Status | Body | Cause |
+|---|---|---|
+| 401 | `{"error":"Invalid or missing API key"}` | Missing/unknown/inactive/expired key |
+| 404 | `{"error":"Site not found or access denied"}` | Site ID is not the key's site |
+| 404 | `{"error":"Unknown resource: <name>"}` | Unknown resource under `/sites/{id}/` |
+| 404 | `{"error":"Invalid API endpoint"}` | Any other path |
+| 405 | `{"error":"Method not allowed"}` | Non-GET request |
+| 429 | `{"error":"Rate limit exceeded","retry_after":3600}` | Rate limit reached |
+| 500 | `{"error":"Internal server error","message":"..."}` | Database or server error |
 
-```bash
-curl "https://cortiq.se/api/v1/sites/abc-123/visits?format=csv" \
-  -H "Authorization: Bearer ck_live_your_api_key_here" \
-  -o visits.csv
-```
+## Data collection context
 
-## ❌ Error Handling
+The API returns what the tracker collected. Visitor analytics (sessions, page views, heatmaps,
+conversions) are collected only after the visitor gives analytics consent, in both Cookieless and
+Full mode. Consent is valid for 12 months. Only the AI-bot/security layer runs without consent; the
+site operator makes the final legal assessment of that processing.
 
-### 401 Unauthorized
+## Agentic layer (MCP)
 
-```json
-{
-  "error": "Invalid or missing API key"
-}
-```
+AI agents can query the same data through the MCP server at
+`https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1/mcp-server` with the same API key. It exposes
+23 read-only tools (`supabase/functions/mcp-server/index.ts`).
 
-**Solution**: Check that your API key is correct and included in the `Authorization` header.
+## SDKs
 
-### 404 Not Found
+There are no official SDKs. Use plain HTTP.
 
-```json
-{
-  "error": "Site not found or access denied"
-}
-```
+## Support
 
-**Solution**: Verify the site ID and that your API key has access to this site.
-
-### 429 Rate Limit Exceeded
-
-```json
-{
-  "error": "Rate limit exceeded",
-  "retry_after": 3600
-}
-```
-
-**Solution**: Wait before making more requests or upgrade your rate limit.
-
-### 500 Internal Server Error
-
-```json
-{
-  "error": "Internal server error",
-  "message": "Detailed error message"
-}
-```
-
-**Solution**: Contact support if the issue persists.
-
-## 🌟 Unique Features
-
-### AI Agent Analytics
-
-CortIQ is the **world's first analytics platform** with dedicated AI agent tracking:
-
-- **Agent Types Tracked**:
-  - ChatGPT Browser
-  - Perplexity Comet
-  - Claude Browser
-  - Other AI agents
-
-- **Why It Matters**:
-  - AI agents will account for 10-15% of web traffic within 3 years
-  - Optimize your content for AI-driven discovery
-  - Understand query intent from AI agents
-  - Track AI-driven conversions
-
-### Consent-Gated Tracking
-
-- Visitor analytics start only after analytics consent (GDPR Art. 6.1.a / ePrivacy Art. 5.3), in both Cookieless and Full mode
-- Cookieless mode: no cookies, no fingerprint, no cross-visit profile, no persistent IDs
-- Consent valid 12 months, then re-asked
-- AI-bot / security layer runs without consent, designed as strictly necessary security processing — the site operator makes the final legal assessment
-
-## 🛠️ SDKs & Libraries
-
-### JavaScript/TypeScript
-
-```typescript
-import { CortIQClient } from '@cortiq/sdk';
-
-const client = new CortIQClient({
-  apiKey: 'ck_live_your_api_key_here'
-});
-
-const visits = await client.sites.getVisits('site-id', {
-  dateFrom: '2024-01-01',
-  dateTo: '2024-01-31'
-});
-```
-
-### Python
-
-```python
-from cortiq import CortIQClient
-
-client = CortIQClient(api_key='ck_live_your_api_key_here')
-
-visits = client.sites.get_visits(
-    site_id='site-id',
-    date_from='2024-01-01',
-    date_to='2024-01-31'
-)
-```
-
-> 📝 **Note**: SDKs are coming soon! For now, use direct HTTP requests.
-
-## 📞 Support
-
-- **Documentation**: [https://cortiq.se/api](https://cortiq.se/api)
-- **Email**: support@cortiq.se
-- **Status Page**: [status.cortiq.se](https://status.cortiq.se)
-
-## 📄 License
-
-The CortIQ API is proprietary. See [Terms of Service](https://cortiq.se/terms) for usage rights.
-
-## 🚀 Getting Started
-
-1. [Sign up for CortIQ](https://cortiq.se/auth)
-2. [Create your first site](https://cortiq.se/dashboard)
-3. [Generate an API key](https://cortiq.se/dashboard)
-4. [Read the docs](https://cortiq.se/api-docs/)
-5. Start building!
-
----
-
-Made with ❤️ by [CortIQ](https://cortiq.se) - The Analytics Platform for the Agentic Web
+support@cortiq.se

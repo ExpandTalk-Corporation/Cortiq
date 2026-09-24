@@ -95,11 +95,11 @@ export function InstallationGuide({ selectedSite }: InstallationGuideProps) {
         <div className="p-4 bg-blue-50 rounded-md">
           <h4 className="font-semibold text-blue-900">💡 Tips</h4>
           <ul className="text-sm text-blue-800 mt-2 space-y-1">
-            <li>• The script is only ~15KB and does not affect performance</li>
-            <li>• GDPR-compliant with automatic consent handling</li>
-            <li>• Tracks clicks, scrolls, and sessions anonymously</li>
+            <li>• The script is about 13 KB gzipped and loads with <code>defer</code></li>
+            <li>• Reads the visitor's stored consent choice; nothing but the bot/security layer runs before analytics consent</li>
+            <li>• After analytics consent it tracks sessions, page views, clicks and scrolls; in cookieless mode without cookies or persistent IDs</li>
             <li>• Data appears in real-time on this dashboard</li>
-            <li>• <strong>Paid Ads:</strong> Use UTM parameters in your ad links (e.g. ?utm_source=google&utm_medium=cpc&utm_campaign=winter2025) to track campaign performance cookie-free!</li>
+            <li>• <strong>Paid Ads:</strong> Use UTM parameters in your ad links (e.g. ?utm_source=google&utm_medium=cpc&utm_campaign=winter2025) to attribute consented visits to campaigns without cookies</li>
           </ul>
         </div>
 

@@ -32,13 +32,13 @@ import {
 export default function ApiDocs() {
   useSEO({
     title: 'API Documentation — CortIQ',
-    description: 'CortIQ REST API reference. Track events, query analytics, heatmaps, A/B tests and more. OpenAPI-compatible with API key authentication.',
+    description: 'CortIQ read-only REST API: sessions, page views, referrers, AI agent sessions, conversions and heatmaps as JSON or CSV. OpenAPI spec, API key authentication.',
   });
   const features = [
     {
       icon: <Zap className="h-6 w-6" />,
       title: 'Fast & Reliable',
-      description: 'Built on Supabase Edge Functions with global CDN for low latency',
+      description: 'Served by a Supabase Edge Function in the same project as your data',
     },
     {
       icon: <Shield className="h-6 w-6" />,
@@ -47,31 +47,32 @@ export default function ApiDocs() {
     },
     {
       icon: <TrendingUp className="h-6 w-6" />,
-      title: 'Scalable',
-      description: 'Handles millions of requests with automatic scaling',
+      title: 'Site-scoped',
+      description: 'Each API key reads data for exactly one site',
     },
     {
       icon: <Bot className="h-6 w-6" />,
       title: 'AI Agent Analytics',
-      description: 'Unique endpoint for tracking ChatGPT Browser, Perplexity, Claude',
+      description: 'Dedicated endpoint for AI agent sessions (agentic browsers)',
     },
   ];
 
+  const API_BASE = 'https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1/public-api';
+
   const endpoints = [
-    { method: 'GET', path: '/api/v1/sites', description: 'List all sites' },
-    { method: 'GET', path: '/api/v1/sites/{id}/visits', description: 'Get visit data' },
-    { method: 'GET', path: '/api/v1/sites/{id}/pages', description: 'Get page views' },
-    { method: 'GET', path: '/api/v1/sites/{id}/referrers', description: 'Get traffic sources' },
-    { method: 'GET', path: '/api/v1/sites/{id}/events', description: 'Get custom events' },
-    { method: 'GET', path: '/api/v1/sites/{id}/agents', description: 'Get AI agent traffic 🤖' },
-    { method: 'GET', path: '/api/v1/sites/{id}/conversions', description: 'Get conversions' },
-    { method: 'GET', path: '/api/v1/sites/{id}/heatmaps', description: 'Get heatmap data' },
+    { method: 'GET', path: '/sites', description: 'The site this key is scoped to' },
+    { method: 'GET', path: '/sites/{id}/visits', description: 'Sessions' },
+    { method: 'GET', path: '/sites/{id}/pages', description: 'Page views' },
+    { method: 'GET', path: '/sites/{id}/referrers', description: 'Sessions per referrer hostname' },
+    { method: 'GET', path: '/sites/{id}/agents', description: 'AI agent sessions' },
+    { method: 'GET', path: '/sites/{id}/conversions', description: 'Conversion events' },
+    { method: 'GET', path: '/sites/{id}/heatmaps', description: 'Click and scroll heatmap points' },
   ];
 
-  const codeExample = `curl https://cortiq.se/api/v1/sites/abc123/visits \\
+  const codeExample = `curl ${API_BASE}/sites/YOUR_SITE_ID/visits \\
   -H "Authorization: Bearer ck_live_your_api_key_here" \\
-  -G --data-urlencode "date_from=2024-01-01" \\
-     --data-urlencode "date_to=2024-01-31" \\
+  -G --data-urlencode "date_from=2026-01-01" \\
+     --data-urlencode "date_to=2026-01-31" \\
      --data-urlencode "format=json"`;
 
   return (
@@ -102,10 +103,10 @@ export default function ApiDocs() {
                 View API Documentation
               </Button>
             </a>
-            <Link to="/auth">
+            <Link to="/dashboard?tab=cortiq-api">
               <Button size="lg" variant="outline" className="hover-lift">
                 <Key className="mr-2 h-5 w-5" />
-                Get API Key
+                Create API Key
               </Button>
             </Link>
           </div>
@@ -133,12 +134,12 @@ export default function ApiDocs() {
                 <CardDescription>Read your analytics programmatically (dashboards, reports, exports)</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3 text-sm text-muted-foreground">
-                <p>Query pageviews, sessions, bot traffic, conversions and more. JSON or CSV.</p>
+                <p>Read sessions, page views, referrers, AI agent sessions, conversions and heatmap points. JSON or CSV.</p>
                 <code className="block p-3 bg-muted rounded font-mono text-xs overflow-x-auto">
-                  GET /functions/v1/public-api/analytics?site_id=…
+                  GET /functions/v1/public-api/sites/&#123;site_id&#125;/pages?date_from=…
                   <br />Authorization: Bearer ck_live_…
                 </code>
-                <p className="text-xs">Auth: CortIQ API key · scoped to your sites · rate-limited.</p>
+                <p className="text-xs">Auth: CortIQ API key · scoped to one site · default 1,000 requests/hour.</p>
               </CardContent>
             </Card>
 
@@ -157,7 +158,7 @@ export default function ApiDocs() {
                   POST /functions/v1/mcp-server
                   <br />Authorization: Bearer ck_live_…
                 </code>
-                <p className="text-xs">Auth: same API-key model · read-only tools · per-key rate limits &amp; permissions. AI never sees another tenant's data.</p>
+                <p className="text-xs">Auth: same API-key model · read-only tools · per-key rate limit · queries scoped to the key's site.</p>
               </CardContent>
             </Card>
           </div>
@@ -166,9 +167,9 @@ export default function ApiDocs() {
             <Shield className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
             <p className="text-sm text-muted-foreground">
               <strong className="text-foreground">Security model:</strong> both APIs authenticate with a
-              hashed CortIQ API key (never stored in plaintext), enforce Row-Level Security at the database
-              layer, are rate-limited per key, and validate every input. Keys can be scoped and revoked from
-              the dashboard.
+              CortIQ API key that is stored only as a SHA-256 hash. Each key is scoped to one site, and every
+              query is filtered to that site server-side. Keys are rate-limited per key and can expire or be
+              deactivated.
             </p>
           </div>
         </div>
@@ -216,7 +217,7 @@ export default function ApiDocs() {
                   1. Authentication
                 </CardTitle>
                 <CardDescription>
-                  Get your API key from the dashboard and include it in your requests
+                  Send your CortIQ API key as a Bearer token on every request
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -229,7 +230,9 @@ export default function ApiDocs() {
                 <div className="flex items-start gap-2">
                   <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
                   <p className="text-sm text-muted-foreground">
-                    API keys are managed in your dashboard under Settings → API Keys
+                    Each key is scoped to one site. Create keys in the dashboard under{' '}
+                    <Link to="/dashboard?tab=cortiq-api" className="text-primary hover:underline">Settings → CortIQ API &amp; MCP</Link>.
+                    The full key is shown once; only its SHA-256 hash is stored.
                   </p>
                 </div>
               </CardContent>
@@ -247,6 +250,12 @@ export default function ApiDocs() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">Base URL:</p>
+                  <code className="block p-3 bg-muted rounded text-xs font-mono overflow-x-auto">
+                    {API_BASE}
+                  </code>
+                </div>
                 <div>
                   <p className="text-sm text-muted-foreground mb-2">Example cURL:</p>
                   <pre className="p-3 bg-muted rounded text-xs font-mono overflow-x-auto">
@@ -267,7 +276,7 @@ export default function ApiDocs() {
               Available Endpoints
             </h2>
             <p className="text-xl text-muted-foreground">
-              8 endpoints covering all your analytics needs
+              7 read-only GET endpoints
             </p>
           </div>
 
@@ -319,18 +328,19 @@ export default function ApiDocs() {
                 <div className="flex items-start gap-3">
                   <CheckCircle className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
                   <div>
-                    <h3 className="font-semibold mb-1">First with AI Agent Analytics</h3>
+                    <h3 className="font-semibold mb-1">AI Agent Sessions</h3>
                     <p className="text-muted-foreground">
-                      Track ChatGPT Browser, Perplexity Comet, Claude Browser - data no other platform provides
+                      Sessions from agentic browsers such as ChatGPT agent and Perplexity Comet, as a separate endpoint
                     </p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
                   <div>
-                    <h3 className="font-semibold mb-1">Cookieless Data</h3>
+                    <h3 className="font-semibold mb-1">Consent-Gated Data</h3>
                     <p className="text-muted-foreground">
-                      Consent-first tracking with a cookieless mode — EU-hosted, built for GDPR
+                      Visitor analytics are collected only after analytics consent, in both cookieless and full
+                      mode. Only the bot/security layer runs without consent.
                     </p>
                   </div>
                 </div>
@@ -339,7 +349,7 @@ export default function ApiDocs() {
                   <div>
                     <h3 className="font-semibold mb-1">Export Formats</h3>
                     <p className="text-muted-foreground">
-                      JSON and CSV support on all endpoints for easy integration
+                      JSON by default, CSV with format=csv on every endpoint
                     </p>
                   </div>
                 </div>
@@ -348,16 +358,16 @@ export default function ApiDocs() {
                   <div>
                     <h3 className="font-semibold mb-1">Rate Limiting</h3>
                     <p className="text-muted-foreground">
-                      Configurable rate limits (default 1,000 requests/hour)
+                      Per-key limit, default 1,000 successful requests per rolling hour; 429 with Retry-After when exceeded
                     </p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
                   <div>
-                    <h3 className="font-semibold mb-1">Usage Analytics</h3>
+                    <h3 className="font-semibold mb-1">Pagination</h3>
                     <p className="text-muted-foreground">
-                      Track API usage, response times, and errors in real-time
+                      Up to 1,000 rows per request; page with limit and offset
                     </p>
                   </div>
                 </div>
@@ -369,9 +379,9 @@ export default function ApiDocs() {
                 Ready to Build?
               </h3>
               <div className="space-y-4">
-                <Link to="/auth" className="block">
+                <Link to="/dashboard?tab=cortiq-api" className="block">
                   <Button className="w-full bg-gradient-primary hover-scale hover-glow" size="lg">
-                    Get Your API Key
+                    Create an API Key
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
                 </Link>

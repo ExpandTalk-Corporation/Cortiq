@@ -5,12 +5,20 @@ import { Link } from "react-router-dom";
 import PublicNavigation from "@/components/PublicNavigation";
 import { useSEO } from "@/hooks/useSEO";
 import {
+  AI_BOT_REGISTRY,
+  BOT_CATEGORIES,
+  BOT_CATEGORY_META,
+  REGISTRY_BOT_COUNT,
+  botsInCategory,
+  vendorOf,
+  type BotCategory,
+} from "@/lib/aiBotRegistry";
+import {
   Bot,
   Activity,
   TrendingUp,
   Search,
   Eye,
-  Cpu,
   Database,
   CheckCircle,
   ArrowRight,
@@ -20,39 +28,28 @@ import {
 const features = [
   {
     icon: <Bot className="h-7 w-7" />,
-    title: "AI Agent Detection",
-    description: "World's first dedicated tracking for AI browsers — identify exactly which AI agent visited your site.",
-    items: [
-      "ChatGPT Browser",
-      "Perplexity Comet",
-      "Claude Browser",
-      "Microsoft Copilot",
-      "Google Gemini",
-      "Grok / xAI",
-      "Meta AI",
-    ],
+    title: "Three-Way AI Traffic Classification",
+    description: "Every AI request is classified at ingest as training, agentic or citation — the same rules for the JS tag and server logs.",
+    items: BOT_CATEGORIES.map((c) => `${BOT_CATEGORY_META[c].label} — ${botsInCategory(c).length} named bots`),
     highlight: true,
   },
   {
     icon: <Eye className="h-7 w-7" />,
-    title: "Browser Type Classification",
-    description: "Know how an agent interacts with your site — does it render CSS and JavaScript, or just read raw text?",
+    title: "Agentic Fetch Detection",
+    description: "When an AI assistant opens a page for a user, it identifies itself with a -User token. CortIQ tracks those as real-intent traffic.",
     items: [
-      "Visual (renders full page)",
-      "Headless (executes JS, no display)",
-      "Text-based (raw HTTP only)",
-      "Webdriver & automation signals",
+      ...botsInCategory("agentic").map((b) => `${b.name} (${vendorOf(b)})`),
+      "JS-signal heuristics for in-browser AI agents",
     ],
   },
   {
     icon: <Activity className="h-7 w-7" />,
     title: "Agent Journey Funnel",
-    description: "Visualize exactly how AI agents navigate your site — where they enter, what they read, where they stop.",
+    description: "See how far AI agents get through your site — from landing page to conversion.",
     items: [
-      "Page-by-page journey",
-      "Session depth tracking",
-      "Entry & exit points",
-      "Multi-session analysis",
+      "Funnel by page type: landing → category → product → checkout → conversion",
+      "Agent sessions per funnel step",
+      "Drop-off between steps",
     ],
   },
   {
@@ -61,20 +58,20 @@ const features = [
     description: "Dedicated dashboards for AI-driven traffic — split cleanly from human visitor data.",
     items: [
       "AI vs human traffic split",
-      "Conversion attribution from AI",
+      "AI referral traffic (ChatGPT, Perplexity, Claude, Gemini)",
       "Traffic trend over time",
-      "Agent-specific KPIs",
+      "Per-bot and per-category KPIs",
     ],
   },
   {
     icon: <Search className="h-7 w-7" />,
-    title: "Citation & Crawler Tracking",
-    description: "Know when LLMs are crawling your content for training or citations — and track it over time.",
+    title: "Server-Side Crawler Ingestion",
+    description: "Training and citation crawlers rarely execute JavaScript. Connect Cloudflare logs and CortIQ classifies them server-side with the same registry.",
     items: [
-      "LLM citation requests",
-      "Training crawler detection",
-      "AI search traffic",
-      "Content indexing signals",
+      "Cloudflare log ingestion",
+      "Catches crawlers the JS tag never sees",
+      "Identical classification to the JS tag",
+      "Runs without visitor consent (no personal data)",
     ],
   },
   {
@@ -88,49 +85,18 @@ const features = [
       "Timestamp and duration on each run",
     ],
   },
-  {
-    icon: <Cpu className="h-7 w-7" />,
-    title: "Search Engine Bot Intelligence",
-    description: "Full coverage of all major search and Microsoft crawlers — distinguish between them precisely.",
-    items: [
-      "Bingbot (desktop & mobile)",
-      "AdIdxBot (Bing Ads crawler)",
-      "BingPreview & MicrosoftPreview",
-      "BingVideoPreview",
-      "Googlebot",
-      "GPTBot & OpenAI crawlers",
-    ],
-  },
 ];
 
-const agentList = [
-  { name: "ChatGPT Browser", vendor: "OpenAI", type: "Visual" },
-  { name: "Perplexity Comet", vendor: "Perplexity", type: "Visual" },
-  { name: "Claude Browser", vendor: "Anthropic", type: "Visual" },
-  { name: "Microsoft Copilot", vendor: "Microsoft", type: "Visual" },
-  { name: "Google Gemini", vendor: "Google", type: "Text-based" },
-  { name: "Grok", vendor: "xAI", type: "Text-based" },
-  { name: "Meta AI", vendor: "Meta", type: "Text-based" },
-  { name: "GPTBot", vendor: "OpenAI", type: "Headless" },
-  { name: "Bingbot", vendor: "Microsoft", type: "Headless" },
-  { name: "AdIdxBot", vendor: "Microsoft", type: "Headless" },
-  { name: "BingPreview", vendor: "Microsoft", type: "Headless" },
-  { name: "MicrosoftPreview", vendor: "Microsoft", type: "Headless" },
-  { name: "BingVideoPreview", vendor: "Microsoft", type: "Headless" },
-  { name: "Googlebot", vendor: "Google", type: "Headless" },
-  { name: "Common Crawl", vendor: "Common Crawl", type: "Headless" },
-];
-
-const typeColor: Record<string, string> = {
-  Visual: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
-  Headless: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
-  "Text-based": "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+const categoryColor: Record<BotCategory, string> = {
+  training: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
+  agentic: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+  citation: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
 };
 
 export default function FeaturesAI() {
   useSEO({
     title: 'AI Agent Analytics — CortIQ',
-    description: 'Track and analyse traffic from ChatGPT Browser, Perplexity Comet, Claude Browser and other AI agents. Journey funnels, conversion attribution, citation tracking. First on the market.',
+    description: 'Classify AI traffic into training crawlers, agentic fetches and citation crawlers — GPTBot, ClaudeBot, ChatGPT-User, PerplexityBot and more. JS tag and server-side log ingestion.',
   });
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
@@ -147,8 +113,8 @@ export default function FeaturesAI() {
             The web is filling up with AI agents. Track them.
           </h1>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            AI browsers, search crawlers, and LLM training bots are becoming a significant slice of
-            web traffic. CortIQ is the first platform built to understand them.
+            AI training crawlers, assistants fetching pages for users, and AI search crawlers are a
+            growing slice of web traffic. CortIQ separates them so you know which ones cost you and which ones send value.
           </p>
         </div>
 
@@ -188,7 +154,7 @@ export default function FeaturesAI() {
         <section className="mb-20">
           <div className="text-center mb-10">
             <h2 className="text-2xl font-bold mb-2">Agent Coverage</h2>
-            <p className="text-muted-foreground">Every major AI agent and crawler, tracked out of the box</p>
+            <p className="text-muted-foreground">The {REGISTRY_BOT_COUNT} named bots CortIQ classifies today, straight from the ingest registry</p>
           </div>
           <Card>
             <CardContent className="p-0">
@@ -198,17 +164,17 @@ export default function FeaturesAI() {
                     <tr className="border-b bg-muted/40">
                       <th className="text-left px-6 py-3 font-semibold">Agent</th>
                       <th className="text-left px-6 py-3 font-semibold">Vendor</th>
-                      <th className="text-left px-6 py-3 font-semibold">Browser Type</th>
+                      <th className="text-left px-6 py-3 font-semibold">Category</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {agentList.map((a, i) => (
-                      <tr key={i} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
-                        <td className="px-6 py-3 font-medium">{a.name}</td>
-                        <td className="px-6 py-3 text-muted-foreground">{a.vendor}</td>
+                    {AI_BOT_REGISTRY.map((b) => (
+                      <tr key={b.name} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
+                        <td className="px-6 py-3 font-medium">{b.name}</td>
+                        <td className="px-6 py-3 text-muted-foreground">{vendorOf(b)}</td>
                         <td className="px-6 py-3">
-                          <span className={`text-xs font-medium px-2 py-1 rounded-full ${typeColor[a.type]}`}>
-                            {a.type}
+                          <span className={`text-xs font-medium px-2 py-1 rounded-full ${categoryColor[b.category]}`}>
+                            {BOT_CATEGORY_META[b.category].label}
                           </span>
                         </td>
                       </tr>
@@ -224,12 +190,12 @@ export default function FeaturesAI() {
         <div className="text-center bg-primary/5 rounded-lg p-8">
           <h2 className="text-2xl font-bold mb-3">Ready for the agentic web?</h2>
           <p className="text-muted-foreground mb-6 max-w-xl mx-auto">
-            AI agents are already visiting your site. Start tracking them today — before your competitors do.
+            AI agents are already visiting your site. CortIQ is free during the beta.
           </p>
           <div className="flex gap-4 justify-center flex-wrap">
             <Button asChild size="lg">
               <Link to="/auth">
-                Start Free <ArrowRight className="ml-2 h-4 w-4" />
+                Create free account <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
             <Button variant="outline" size="lg" asChild>

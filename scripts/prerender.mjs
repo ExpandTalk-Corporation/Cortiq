@@ -29,22 +29,22 @@ const resolve = (p) => path.resolve(__dirname, '..', p);
 const SEO = {
   '/': {
     title: 'CortIQ — AI Agent Analytics & Cookie-Free Tracking',
-    description: 'First-to-market analytics for the Agentic Web. Track ChatGPT Browser, Perplexity & Claude Browser. Cookieless, consent-first, EU-hosted. Heatmaps, A/B testing, form analytics.',
+    description: 'Analytics for the Agentic Web: classify AI training crawlers, agent fetches and citation crawlers. Consent-first, cookieless visitor analytics, heatmaps, form analytics. EU-hosted. Free during beta.',
     canonical: 'https://cortiq.se/',
   },
   '/features': {
     title: 'Features — CortIQ Analytics Platform',
-    description: 'Full feature overview: AI agent tracking, click heatmaps, A/B testing, form analytics, session recording, data warehouse export and a built-in consent banner (CMP). All in one platform.',
+    description: 'Full feature overview: AI bot classification, server-side bot ingestion, click and scroll heatmaps, form analytics, conversion attribution, an MCP server and a built-in consent banner (CMP).',
     canonical: 'https://cortiq.se/features',
   },
   '/features/ai': {
     title: 'AI Agent Analytics — CortIQ',
-    description: 'Track and analyse traffic from ChatGPT Browser, Perplexity Comet, Claude Browser and other AI agents. Journey funnels, conversion attribution, citation tracking. First on the market.',
+    description: 'Classify AI traffic into training crawlers, agentic fetches and citation crawlers — GPTBot, ClaudeBot, ChatGPT-User, PerplexityBot and more. JS tag and server-side log ingestion.',
     canonical: 'https://cortiq.se/features/ai',
   },
   '/features/analytics': {
     title: 'Web Analytics — CortIQ',
-    description: 'Consent-first web analytics: cookieless mode, click heatmaps, form analytics, session recording and A/B testing. EU-hosted and built for GDPR.',
+    description: 'Consent-first web analytics: cookieless mode, click and scroll heatmaps, form analytics, link click counts and conversion attribution. EU-hosted and built for GDPR.',
     canonical: 'https://cortiq.se/features/analytics',
   },
   '/features/cyber': {
@@ -53,8 +53,8 @@ const SEO = {
     canonical: 'https://cortiq.se/features/cyber',
   },
   '/bot-intelligence': {
-    title: 'Bot Intelligence — CortIQ',
-    description: 'Understand which bots visit your site, what they do, and how they affect your analytics. Training crawlers, citation bots and agentic browsers — all classified and tracked.',
+    title: 'AI Bot Intelligence — CortIQ',
+    description: 'Not all AI traffic is equal. CortIQ classifies training crawlers, agentic fetches, and citation crawlers — so you know which bots are valuable and which are just infrastructure cost.',
     canonical: 'https://cortiq.se/bot-intelligence',
   },
   '/cmp': {
@@ -64,22 +64,22 @@ const SEO = {
   },
   '/pricing': {
     title: 'Pricing — CortIQ Analytics',
-    description: 'Simple, transparent pricing for AI agent analytics, cookie-free tracking and GDPR CMP. Invite-only beta — request access today.',
+    description: 'CortIQ is free during beta: AI agent analytics, cookie-free tracking and a built-in consent banner. Create a free account, or contact us about Enterprise.',
     canonical: 'https://cortiq.se/pricing',
   },
   '/api': {
     title: 'API Documentation — CortIQ',
-    description: 'CortIQ REST API reference. Track events, query analytics, heatmaps, A/B tests and more. OpenAPI-compatible with API key authentication.',
+    description: 'CortIQ read-only REST API: sessions, page views, referrers, AI agent sessions, conversions and heatmaps as JSON or CSV. OpenAPI spec, API key authentication.',
     canonical: 'https://cortiq.se/api',
   },
   '/privacy': {
     title: 'Privacy Policy — CortIQ',
-    description: 'CortIQ privacy policy. Privacy-by-design data handling, EU data storage, data retention details and your rights as a data subject.',
+    description: 'CortIQ privacy policy: what is processed without consent (security and bot detection), what requires analytics or marketing consent, EU data storage, retention periods and your rights.',
     canonical: 'https://cortiq.se/privacy',
   },
   '/contact': {
     title: 'Contact — CortIQ',
-    description: 'Get in touch with the CortIQ team. Request an invitation to our analytics platform or ask about AI agent tracking and cookie-free analytics.',
+    description: 'Get in touch with the CortIQ team. CortIQ is free during beta — ask about AI agent tracking, cookie-free analytics or Enterprise onboarding.',
     canonical: 'https://cortiq.se/contact',
   },
 };

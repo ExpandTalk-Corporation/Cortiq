@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import PublicNavigation from "@/components/PublicNavigation";
 import { useSEO } from "@/hooks/useSEO";
-import { Shield, CheckCircle, Mail, FileText, Lock, Database, Users, BarChart3, Megaphone } from "lucide-react";
+import { Shield, CheckCircle, Mail, FileText, Database, Users, BarChart3, Megaphone } from "lucide-react";
 
-const LAST_UPDATED = "September 23, 2026";
+const LAST_UPDATED = "September 24, 2026";
 
 const Privacy = () => {
   useSEO({
@@ -144,9 +144,12 @@ const Privacy = () => {
 
               <div className="bg-primary/10 p-4 rounded-lg">
                 <h4 className="font-semibold mb-2 text-foreground">Data in a log entry</h4>
+                <p className="text-sm text-muted-foreground mb-2">
+                  For requests classified as automated (crawlers, AI bots, scrapers, monitoring) CortIQ stores:
+                </p>
                 <ul className="text-sm text-muted-foreground space-y-1 ml-4">
                   <li>• <strong>Timestamp</strong> of the request</li>
-                  <li>• <strong>HTTP method and URL path</strong> (e.g. GET /products/product-123)</li>
+                  <li>• <strong>HTTP method and URL path</strong> without query string (e.g. GET /products/product-123)</li>
                   <li>• <strong>HTTP status code</strong> (200, 404, 500)</li>
                   <li>• <strong>User-Agent</strong> (used for crawler and bot classification)</li>
                   <li>• <strong>Referrer</strong></li>
@@ -154,6 +157,11 @@ const Privacy = () => {
                   <li>• <strong>Truncated IP address</strong> — the last octet is removed (/24 subnet) before CortIQ stores it; the full IP address is not stored</li>
                   <li>• <strong>Request identifier</strong> (e.g. Cloudflare Ray ID) and load time</li>
                 </ul>
+                <p className="text-sm text-muted-foreground mt-2">
+                  For requests that look human or cannot be classified, CortIQ keeps only an anonymous count:
+                  timestamp, method, status code, country and whether it was a file request. No user agent,
+                  referrer, IP subnet, request identifier or URL is stored for those requests.
+                </p>
                 <p className="text-xs text-muted-foreground mt-2 italic">
                   <strong>Retention:</strong> see section 9.
                 </p>
@@ -235,14 +243,13 @@ const Privacy = () => {
               <ul className="space-y-3">
                 {[
                   'Page views and most visited pages',
-                  'AI referrals — when a visit arrives from an AI service such as ChatGPT or Perplexity (referrer, landing URL, UTM parameters, device type)',
+                  'AI referrals — when a visit arrives from an AI service such as ChatGPT or Perplexity (referring site, landing page with UTM parameters only, device type, time on page)',
                   'Referrers and traffic sources (including UTM parameters)',
                   'Sessions, device type, browser and country',
                   'Clicks and link clicks',
                   'Scroll depth and heatmaps',
                   'Form interactions (field content is not captured) and form submissions',
-                  'E-commerce events and conversions',
-                  'Session recording, where enabled by the site operator (section 5B)'
+                  'E-commerce events and conversions'
                 ].map((item, index) => (
                   <li key={index} className="flex items-start space-x-3">
                     <CheckCircle className="h-5 w-5 text-accent flex-shrink-0 mt-0.5" />
@@ -302,7 +309,7 @@ const Privacy = () => {
               </p>
               <ul className="space-y-2 text-muted-foreground text-sm ml-4">
                 <li>• Advertising click IDs from the page URL (<code>gclid</code>, <code>fbclid</code>, <code>msclkid</code>, <code>ttclid</code>, <code>li_fat_id</code>), kept in sessionStorage for the tab session and linked to conversions.</li>
-                <li>• Conversion feedback to advertising platforms (e.g. Google Ads Enhanced Conversions), using a SHA-256 hash of an email address submitted in a form together with the click ID (section 5C).</li>
+                <li>• Conversion feedback to advertising platforms (e.g. Google Ads Enhanced Conversions), using a SHA-256 hash of an email address submitted in a form together with the click ID (section 5B).</li>
                 <li>• Canvas/WebGL device signals for visitor identification — only where the site operator has explicitly enabled this feature.</li>
               </ul>
               <p className="text-sm text-muted-foreground">
@@ -317,41 +324,12 @@ const Privacy = () => {
             </CardContent>
           </Card>
 
-          {/* Session Replay */}
-          <Card className="glass shadow-elegant border-accent/20">
-            <CardHeader>
-              <div className="flex items-center space-x-3 mb-2">
-                <Lock className="h-6 w-6 text-accent" />
-                <CardTitle>5B. Session Replay (Requires consent)</CardTitle>
-              </div>
-              <Badge className="w-fit bg-gradient-primary text-white">With your approval</Badge>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-muted-foreground leading-relaxed">
-                If the site operator enables session replay and you give consent, we record a
-                reconstruction of your session (page structure, navigation, clicks and scrolling)
-                using the rrweb library, so operators can understand usability issues.
-              </p>
-              <ul className="space-y-2 text-muted-foreground text-sm ml-4">
-                <li>• Text input into form fields is masked by default.</li>
-                <li>• On-screen text masking is enabled by default; operators may unmask non-sensitive pages.</li>
-                <li>• Elements marked <code>.sensitive</code> or <code>[data-private]</code> are excluded from capture.</li>
-                <li>• Recordings are retained according to the operator's configured period and then deleted.</li>
-              </ul>
-              <div className="bg-accent/5 p-4 rounded-lg mt-4">
-                <p className="text-sm text-muted-foreground">
-                  <strong className="text-foreground">Legal Basis:</strong> Consent (Art. 6.1.a GDPR / ePrivacy Art. 5.3). Session replay is never active without it.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Third-Party Recipients */}
           <Card className="glass shadow-elegant border-accent/20">
             <CardHeader>
               <div className="flex items-center space-x-3 mb-2">
                 <Users className="h-6 w-6 text-accent" />
-                <CardTitle>5C. Third-Party Recipients &amp; Processors</CardTitle>
+                <CardTitle>5B. Third-Party Recipients &amp; Processors</CardTitle>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -379,7 +357,7 @@ const Privacy = () => {
           {/* International Transfers */}
           <Card className="glass shadow-elegant">
             <CardHeader>
-              <CardTitle>5D. International Data Transfers</CardTitle>
+              <CardTitle>5C. International Data Transfers</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-muted-foreground">
               <p className="leading-relaxed">
@@ -400,33 +378,47 @@ const Privacy = () => {
           {/* Cookies */}
           <Card className="glass shadow-elegant">
             <CardHeader>
-              <CardTitle>6. Cookies &amp; Local Storage We Use</CardTitle>
+              <CardTitle>6. Cookies &amp; Browser Storage</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               <div>
-                <h4 className="font-semibold mb-2">Necessary (Always active)</h4>
-                <ul className="text-muted-foreground space-y-1 ml-4">
-                  <li>• <code>site_cookie_consent</code> (localStorage) - Saves your consent choices (Lifetime: 12 months; you are then asked again)</li>
-                  <li>• <code>site_consent</code> (cookie) - Mirror of your consent choices (Lifetime: 12 months)</li>
+                <h4 className="font-semibold mb-2">A. On websites that use CortIQ</h4>
+                <p className="text-sm text-muted-foreground mb-3">
+                  The CortIQ tracking script and the CortIQ consent banner use the following. If the site operator
+                  uses a different consent tool, that tool's own storage applies instead of the consent items.
+                </p>
+                <h5 className="font-semibold text-sm mb-1">Necessary (always active)</h5>
+                <ul className="text-muted-foreground space-y-1 ml-4 mb-3">
+                  <li>• <code>site_cookie_consent</code> (localStorage) - Your consent choices, read by the tracking script before anything is measured (Lifetime: 12 months; you are then asked again)</li>
+                  <li>• <code>site_consent</code> (cookie) - Mirror of your consent choices, set by the consent banner (Lifetime: 12 months)</li>
+                  <li>• <code>user_consent</code> (sessionStorage) - Copy of your consent choices for the current tab, set by the consent banner (Lifetime: tab session)</li>
                   <li>• <code>_ciq_adp</code> (sessionStorage) - Page-depth counter, written only for clients classified as automated (Lifetime: tab session)</li>
                 </ul>
-              </div>
-              <div>
-                <h4 className="font-semibold mb-2">Analytical (Requires analytics consent, Full mode only)</h4>
+                <h5 className="font-semibold text-sm mb-1">Analytical (requires analytics consent, Full mode only)</h5>
+                <ul className="text-muted-foreground space-y-1 ml-4 mb-3">
+                  <li>• <code>cortiq_session_id</code> (sessionStorage) - Per-session identifier (Lifetime: tab session). In Cookieless mode it is held in memory only and nothing is written.</li>
+                </ul>
+                <h5 className="font-semibold text-sm mb-1">Marketing (requires marketing consent, Full mode only)</h5>
                 <ul className="text-muted-foreground space-y-1 ml-4">
-                  <li>• <code>cortiq_session_id</code> (sessionStorage) - Per-session identifier (Lifetime: tab session). In Cookieless mode it is held in memory only.</li>
+                  <li>• <code>cortiq_click_ids</code> (sessionStorage) - Ad click IDs from the landing URL (Lifetime: tab session)</li>
                 </ul>
               </div>
               <div>
-                <h4 className="font-semibold mb-2">Marketing (Requires marketing consent, Full mode only)</h4>
+                <h4 className="font-semibold mb-2">B. On cortiq.se</h4>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Our own website does not load Google Analytics, advertising pixels or the CortIQ tracking
+                  script. It sets only:
+                </p>
                 <ul className="text-muted-foreground space-y-1 ml-4">
-                  <li>• <code>cortiq_click_ids</code> (sessionStorage) - Ad click IDs (Lifetime: tab session)</li>
+                  <li>• <code>site_cookie_consent</code> (localStorage), <code>site_consent</code> (cookie) and <code>user_consent</code> (sessionStorage) - Your consent choices, as above</li>
+                  <li>• <code>theme</code> (localStorage) - Light/dark theme, only if you switch theme</li>
+                  <li>• <code>sb-…-auth-token</code> (localStorage) - Login session for the dashboard, only when you log in</li>
                 </ul>
               </div>
               <p className="text-sm text-muted-foreground">
-                The items above are the only client-side storage CortIQ uses. Apart from the consent-choice
-                mirror, CortIQ sets no cookies. Analytical and marketing storage is written only after the
-                corresponding consent.
+                The only cookie CortIQ sets is the consent-choice mirror <code>site_consent</code>. Analytical and
+                marketing storage is written only after the corresponding consent. Withdrawing consent removes
+                <code> cortiq_session_id</code> and <code>cortiq_click_ids</code>.
               </p>
             </CardContent>
           </Card>
@@ -486,33 +478,45 @@ const Privacy = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="bg-primary/5 p-4 rounded-lg">
-                <h4 className="font-semibold mb-2 text-foreground">📋 Server &amp; Edge Logs</h4>
+                <h4 className="font-semibold mb-2 text-foreground">Visitor analytics and AI-bot traffic</h4>
+                <p className="text-sm text-muted-foreground mb-2">
+                  A daily job deletes data older than the site's retention period. One period per site applies to all
+                  of the following: page views, sessions, interactions, heatmap data, form analytics, conversion
+                  events (including hashed email and click IDs), visitor profiles, AI referral records, AI-bot
+                  traffic, and AI agent sessions and journeys.
+                </p>
                 <ul className="text-sm text-muted-foreground space-y-1 ml-4">
-                  <li>• <strong>Access logs (HTTP logs):</strong> 7-30 days</li>
-                  <li>• <strong>Security logs (bot detection, DDoS):</strong> 90 days</li>
-                  <li>• <strong>Error logs (debugging):</strong> 30 days</li>
-                  <li>• <strong>IP addresses:</strong> Truncated (/24) before storage; full IP addresses are not stored</li>
+                  <li>• <strong>Retention period:</strong> the value in the site's GDPR settings (default 365 days)</li>
+                  <li>• <strong>Sites without GDPR settings:</strong> 730 days</li>
                 </ul>
               </div>
 
               <div className="bg-primary/5 p-4 rounded-lg">
-                <h4 className="font-semibold mb-2 text-foreground">📊 Visitor Analytics (with consent)</h4>
+                <h4 className="font-semibold mb-2 text-foreground">Security layer</h4>
                 <ul className="text-sm text-muted-foreground space-y-1 ml-4">
-                  <li>• <strong>Event-level analytics data:</strong> per the site operator's configured retention period (default 365 days)</li>
-                  <li>• <strong>Aggregated statistics (dashboards):</strong> 24 months</li>
+                  <li>• <strong>Server-log (Cloudflare) records:</strong> 90 days, or the site's retention period if shorter</li>
+                  <li>• <strong>Bot detection records:</strong> 730 days</li>
+                  <li>• <strong>Hourly bot statistics (aggregated):</strong> 365 days</li>
                 </ul>
               </div>
 
               <div className="bg-primary/5 p-4 rounded-lg">
-                <h4 className="font-semibold mb-2 text-foreground">🔒 Legal Records</h4>
+                <h4 className="font-semibold mb-2 text-foreground">Consent and data-subject requests</h4>
                 <ul className="text-sm text-muted-foreground space-y-1 ml-4">
                   <li>• <strong>Consent records (proof of consent):</strong> 2 years, to demonstrate consent under GDPR Art. 7.1. This is separate from how long a consent choice is valid: a consent choice expires after 12 months, after which you are asked again.</li>
-                  <li>• <strong>Security incidents:</strong> 3 years</li>
+                  <li>• <strong>Data-subject requests:</strong> 3 years, or 1 year after a request is completed</li>
                 </ul>
+              </div>
+
+              <div className="bg-primary/5 p-4 rounded-lg">
+                <h4 className="font-semibold mb-2 text-foreground">Hosting providers</h4>
+                <p className="text-sm text-muted-foreground">
+                  Request logs held by our hosting providers (Supabase and, where enabled, Cloudflare) follow those
+                  providers' own log retention. Deleting a site from CortIQ deletes all of its data immediately.
+                </p>
               </div>
 
               <p className="text-sm text-muted-foreground mt-4">
-                <strong className="text-foreground">Automatic deletion:</strong> Data is automatically deleted after these periods.
                 You can request earlier deletion at any time by contacting privacy@cortiq.se.
               </p>
             </CardContent>
@@ -572,7 +576,7 @@ const Privacy = () => {
           <Card className="bg-gradient-to-br from-primary/5 to-accent/5 border-2 border-primary/20">
             <CardHeader>
               <CardTitle className="text-center">Quick Guide: What Runs When?</CardTitle>
-              <CardDescription className="text-center">Summary only — sections 3 to 5D are authoritative.</CardDescription>
+              <CardDescription className="text-center">Summary only — sections 3 to 5C are authoritative.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid md:grid-cols-3 gap-6">
@@ -596,7 +600,6 @@ const Privacy = () => {
                     <li>• Sessions</li>
                     <li>• Clicks, scroll depth, heatmaps</li>
                     <li>• Forms, e-commerce, conversions</li>
-                    <li>• Session recording (if enabled)</li>
                     <li className="font-semibold text-foreground">Basis: consent (Art. 6.1.a)</li>
                   </ul>
                 </div>

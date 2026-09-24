@@ -25,6 +25,8 @@ const SetupTab                 = lazy(() => import('./tabs/SetupTab').then(m => 
 const ExternalIntegrationsTab  = lazy(() => import('./tabs/ExternalIntegrationsTab').then(m => ({ default: m.ExternalIntegrationsTab })));
 const CookiefreeAnalyticsTab   = lazy(() => import('./tabs/CookiefreeAnalyticsTab').then(m => ({ default: m.CookiefreeAnalyticsTab })));
 const ApiKeysTab               = lazy(() => import('./tabs/ApiKeysTab').then(m => ({ default: m.ApiKeysTab })));
+const ApiKeyManager            = lazy(() => import('./ApiKeyManager'));
+const MCPServerConfig          = lazy(() => import('./MCPServerConfig').then(m => ({ default: m.MCPServerConfig })));
 const GDPRTab                  = lazy(() => import('./tabs/GDPRTab').then(m => ({ default: m.GDPRTab })));
 const NavigationTab            = lazy(() => import('./tabs/NavigationTab').then(m => ({ default: m.NavigationTab })));
 const BehavioralAlertsTab      = lazy(() => import('./tabs/BehavioralAlertsTab').then(m => ({ default: m.BehavioralAlertsTab })));
@@ -129,7 +131,8 @@ const NAV_GROUPS: NavGroup[] = [
 const SETTINGS_OPTIONS: NavOption[] = [
   { value: 'setup',             label: 'Setup & tracking script',  icon: Code2 },
   { value: 'integrations',      label: 'Integrations',             icon: ExternalLink },
-  { value: 'api-keys',          label: 'API Keys',                 icon: Key },
+  { value: 'cortiq-api',        label: 'CortIQ API & MCP',         icon: Key },
+  { value: 'api-keys',          label: 'Third-party Keys',         icon: Key },
   { value: 'gdpr',              label: 'GDPR',                     icon: Shield },
   { value: 'notifications',     label: 'Notifications',            icon: Bell },
   { value: 'tag-manager',       label: 'Tag Manager',              icon: Code2 },
@@ -402,6 +405,13 @@ function DashboardTabsInner({ selectedSite, analytics, dateRange, onSiteDeleted 
       <TabsContent value="integrations" className="space-y-6">
         <TabErrorBoundary tabName="Integrations">
           <ExternalIntegrationsTab selectedSite={selectedSite} />
+        </TabErrorBoundary>
+      </TabsContent>
+
+      <TabsContent value="cortiq-api" className="space-y-6">
+        <TabErrorBoundary tabName="CortIQ API & MCP">
+          <ApiKeyManager />
+          <MCPServerConfig />
         </TabErrorBoundary>
       </TabsContent>
 

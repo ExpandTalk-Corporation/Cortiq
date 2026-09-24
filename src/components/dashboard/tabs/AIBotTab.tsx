@@ -85,17 +85,14 @@ export const AIBotTab = ({ selectedSite }: AIBotTabProps) => {
           <AlertDescription>
             <div className="space-y-2">
               <p className="font-semibold">No AI bot activity detected yet</p>
-              <p>Install the combined AI tracking script on your website:</p>
-              <pre className="bg-muted p-3 rounded-md text-xs overflow-x-auto mt-2">
-{`<script 
-  src="${window.location.origin}/ai-tracking-unified.js"
-  data-site-id="${selectedSite.id}"
-  data-supabase-url="https://cxmkdtgfocgbfizawlwa.supabase.co"
-  defer>
-</script>`}
-              </pre>
-              <p className="text-sm text-muted-foreground mt-2">
-                Add the script to the &lt;head&gt; section. Data will appear when AI bots and AI search traffic visit your website.
+              <p>
+                The CortIQ tracking script already includes AI bot detection — install it from{' '}
+                <strong>Settings → Setup &amp; tracking script</strong> (or use the WordPress plugin).
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Bot detection runs without visitor consent and only reports requests that look automated. Most training
+                and citation crawlers never execute JavaScript, so connect Cloudflare logs under
+                Server Logs to see them too.
               </p>
             </div>
           </AlertDescription>

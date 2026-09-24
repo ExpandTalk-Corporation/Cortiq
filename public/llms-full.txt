@@ -2,14 +2,14 @@
 
 ## What is CortIQ?
 
-CortIQ is a web analytics platform built for the Agentic Web — the emerging era where AI agents (ChatGPT Browser, Perplexity Comet, Claude Browser) make up a fast-growing share of web traffic. 1 in 31 web visits is now an AI bot, up from 1 in 200 at the start of 2025.
+CortIQ is a web analytics platform built for the Agentic Web — the emerging era where AI agents and crawlers make up a fast-growing share of web traffic. By Q4 2025 there was one AI bot visit for every 31 human visits, up from one in 200 in Q1 2025 (TollBit, State of the Bots, Q4 2025).
 
-CortIQ is the first open-source, EU-built analytics platform with a dedicated module for classifying and analyzing AI traffic. Beyond AI intelligence it provides a full analytics stack: consent-gated visitor analytics (Cookieless or Full mode), click and scroll heatmaps, session recording, A/B testing, form analytics, geolocation maps, a paid-conversion attribution loop, and a built-in consent management platform (CMP).
+CortIQ is an open-source, EU-built analytics platform with a dedicated module for classifying and analyzing AI traffic. Beyond AI intelligence it provides consent-gated visitor analytics (Cookieless or Full mode), click and scroll heatmaps, a cookieless per-link click counter, form analytics, geolocation maps, a paid-conversion attribution loop, an MCP server, and a built-in consent management platform (CMP).
 
 **Production URL:** https://cortiq.se
 **Company:** Expandtalk Corporation AB, Göteborg, Sweden
 **License:** AGPL-3.0 (open source, self-hostable)
-**Status:** Invite-only beta
+**Status:** Beta — free, open signup at https://cortiq.se/auth
 
 ---
 
@@ -17,27 +17,28 @@ CortIQ is the first open-source, EU-built analytics platform with a dedicated mo
 
 ### AI Bot Intelligence (the differentiator)
 
-CortIQ classifies every AI visit into three categories — this is the core differentiator no other analytics platform offers:
+CortIQ classifies every AI visit into three categories — this is the core differentiator. The canonical bot registry is shared by the JS tag and the server-side ingest path:
 
-- **Training crawlers** (GPTBot, ClaudeBot, CCBot) — infrastructure cost, no referral value
-- **Agentic browsers** (ChatGPT Browser, Perplexity Comet, Claude Browser) — real users acting through an AI; track and convert them
-- **Citation crawlers** (PerplexityBot, Google-Extended, OAI-SearchBot) — AI search indexing, your visibility signal
+- **Training crawlers** (GPTBot, ClaudeBot, Google-Extended, Meta-ExternalAgent, CCBot, Bytespider) — infrastructure cost, no referral value
+- **Agentic** (agent fetches via ChatGPT-User, Claude-User, Perplexity-User, plus JS-signal heuristics for in-browser AI agents) — real users acting through an AI; track and convert them. AI browsers such as Perplexity Comet or Claude for Chrome send a stock Chrome user agent and are not identified by name.
+- **Citation crawlers** (PerplexityBot, OAI-SearchBot, Claude-SearchBot, YouBot, DuckAssistBot) — AI search indexing, your visibility signal
 
-Detection combines user-agent parsing with browser-type classification (visual / headless / text-based). Server-log and edge ingest count even non-JS training crawlers. Agentic-browser journeys are reconstructed page-by-page with conversion attribution.
+Detection combines user-agent parsing with browser-type classification (visual / headless / text-based). Server-side ingest from Cloudflare logs (cloudflare-ingest) counts training and citation crawlers that never execute JavaScript. Agentic-browser journeys are reconstructed page-by-page with conversion attribution.
 
 ### AI-Bot & Security Layer (runs without consent)
 
 Without consent, only the AI-bot / security layer runs:
 
 - AI bot & agent detection and crawler classification (training / agentic / citation)
-- Bot probe, honeypot and canary checks
-- Server-side bot classification from Cloudflare edge logs (cloudflare-ingest)
+- Bot probe, invisible honeypot link, and canary pixel/link traps
+- Click-fraud scoring of paid-ad sessions (confirmed bots, webdriver/headless signals, zero-engagement sessions)
+- Server-side bot classification from Cloudflare logs (cloudflare-ingest)
 
 This layer is designed to run as strictly necessary security processing. The site operator makes the final legal assessment.
 
 ### Consent-Gated Visitor Analytics
 
-All visitor analytics — page views, sessions, AI referrals, clicks, scroll, heatmaps, forms, e-commerce, conversions, session recording, A/B tests — start only after the visitor grants analytics consent, in both modes. Legal basis: consent (GDPR Art. 6.1.a / ePrivacy Art. 5.3). Consent is valid 12 months (stored with an expiry), then re-asked.
+All visitor analytics — page views, sessions, AI referrals, clicks, link click counts, scroll, heatmaps, forms, e-commerce, conversions — start only after the visitor grants analytics consent, in both modes. Legal basis: consent (GDPR Art. 6.1.a / ePrivacy Art. 5.3). Consent is valid 12 months (stored with an expiry), then re-asked.
 
 - **Cookieless mode** — no cookies, no fingerprint, no cross-visit profile, no persistent IDs. Still requires consent.
 - **Full mode** — persistent visitor ID and returning-visitor analysis after consent.
@@ -49,7 +50,7 @@ All visitor analytics — page views, sessions, AI referrals, clicks, scroll, he
 - Page views, sessions, bounce rate, traffic sources
 - Click heatmaps with device segmentation (desktop / tablet / mobile), rendered as canvas overlays
 - Scroll-depth funnels (25 / 50 / 75 / 100% milestones)
-- Session recording (rrweb) with input & text masking on by default; AI-agent vs human filter; GDPR-safe visitor-hash search (no PII)
+- Cookieless per-link click counter — aggregate counts per link and button, per page and device type, no visitor ID
 - Form analytics — field-level funnel and drop-off
 
 ### Conversion & Attribution
@@ -58,13 +59,12 @@ Closes the GA4 ↔ Google Ads ↔ CRM attribution gap:
 
 - First-party click-ID capture (gclid, fbclid, msclkid, ttclid, li_fat_id) — consent-gated
 - Conversion-goal health monitor (flags goals that fire too often, went silent, or split Smart Bidding signal)
-- Form auto-discovery with HubSpot / Gravity Forms detection
-- HubSpot lead-quality → Google Ads Enhanced Conversions feedback loop (email SHA-256 hashed in the browser; raw PII never touches CortIQ)
+- Form auto-discovery: HubSpot form GUIDs (hs_context, data-form-id), Gravity Forms and Contact Form 7
+- HubSpot lead-quality → Google Ads Enhanced Conversions feedback loop (HMAC-validated webhook; email SHA-256 hashed, only the hash is stored; uploads only for sessions with marketing consent)
 - Attribution-gap dashboard: CortIQ conversions vs CRM-qualified leads vs upload status
 
-### A/B Testing & Optimisation
+### Optimisation
 
-- Two-variant (A/B) testing with built-in statistical significance
 - Conversion funnels, customizable KPI dashboards, segments and behavioral alerts
 
 ### Integrations
@@ -76,18 +76,19 @@ Configured in-app under Settings → Integrations — no code changes on the cus
 - **Google Ads** — Enhanced Conversions via the Conversion Adjustments API (consent-gated, hashed email)
 - **HubSpot** — CRM lead-quality webhook feeding the attribution loop
 - **Google Tag Manager & Consent Mode v2** — deploy via GTM and propagate consent to Google tags
-- **Data warehouse** — scheduled export to BigQuery, Snowflake, Redshift, PostgreSQL, MySQL, Databricks
-- **TikTok** and other paid-channel connectors
+- **Meta Conversions API** — server-side events, sent only with marketing consent
+- **GA4 Measurement Protocol** — server-side events, sent only with analytics consent
 
 ### GDPR & Consent (built-in CMP)
 
 The consent banner is required for visitor analytics in both modes:
 
-- Cookie consent management with behavioral nudging for higher opt-in rates
+- Cookie consent management (consent banner, Google Consent Mode v2, 12-month consent expiry)
 - Consent valid 12 months, then re-asked; closing the banner saves "necessary only"
 - Marketing click IDs captured only with marketing consent
 - Consent verified server-side (not just a client flag); authoritative server-side consent ledger for Art. 7(1) proof
-- Google Consent Mode v2 and TCF v2 compatible
+- Consent-check API (consent-check): your server asks whether a session has the required consent before forwarding an event; every decision is logged
+- Google Consent Mode v2; reads Cookiebot consent directly; the CortIQ banner steps aside when Cookiebot, OneTrust or a TCF v2 CMP is present
 - Configurable data retention with an automated retention job; data-subject-request path
 
 ### AI & Agent-Ready
@@ -102,7 +103,6 @@ The consent banner is required for visitor analytics in both modes:
 - **User LTV & cohort analysis** — lifetime value with cohort grouping by first-visit month
 - **Tag manager** — event, pixel, script and HTML tags without code deployment
 - **Web Vitals** — LCP, INP, CLS with historical trends
-- **White label** — custom branding for agency resellers
 - **WordPress plugin** (v5.4.0, same version as the tracking script) — download the zip from the dashboard; choose Cookieless or Full tracking mode
 
 ---
@@ -141,7 +141,7 @@ Installed on customer websites via a single `<script>` tag:
 <script src="https://cortiq.se/spa-tracking.js" data-site-id="YOUR_SITE_ID" defer></script>
 ```
 
-The script handles page views, click and scroll heatmaps, session events, AI-agent detection, UTM capture and consent integration (CortIQ banner, Cookiebot, TCF v2). All visitor analytics are consent-gated; only AI-agent detection runs without consent.
+The script handles page views, click and scroll heatmaps, session events, AI-agent detection, UTM capture and consent integration (CortIQ banner, Cookiebot). All visitor analytics are consent-gated; only AI-agent detection runs without consent.
 
 ### API
 
@@ -152,7 +152,9 @@ REST API documented at https://cortiq.se/api. Plus an MCP server so AI agents ca
 ## What CortIQ Does NOT Include
 
 - Spatial mouse-movement / attention overlay maps (click maps + scroll-depth funnels are supported)
-- Multivariate testing (A/B only, two variants)
+- Session recording / replay
+- A/B or multivariate testing on your live site (no variant-assignment script)
+- Data-warehouse export
 - Mobile app analytics
 
 ---
@@ -168,8 +170,8 @@ REST API documented at https://cortiq.se/api. Plus an MCP server so AI agents ca
 
 ## Competitive Position
 
-CortIQ is the only analytics platform with dedicated AI-traffic classification as a first-class feature. Traditional platforms (Google Analytics, Plausible, Fathom, Matomo) treat AI agents as bot noise and filter them out. CortIQ treats them as distinct categories — training, agentic and citation — each with its own funnel, attribution and behavior analysis. The combination of AI-traffic intelligence + consent-gated cookieless analytics + a paid-conversion attribution loop + a built-in CMP is unique in the European market.
+CortIQ treats AI-traffic classification as a first-class feature. Traditional platforms (Google Analytics, Plausible, Fathom, Matomo) generally treat AI agents as bot noise and filter them out. CortIQ treats them as distinct categories — training, agentic and citation — each with its own funnel, attribution and behavior analysis. It combines AI-traffic intelligence, consent-gated cookieless analytics, a paid-conversion attribution loop and a built-in CMP in one EU-hosted platform.
 
 ---
 
-*Last updated: 2026-09-23*
+*Last updated: 2026-09-24*

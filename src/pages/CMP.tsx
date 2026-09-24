@@ -34,13 +34,13 @@ export default function CMP() {
     },
     {
       icon: <Lock className="h-6 w-6" />,
-      title: "Server-Side Blocking",
-      description: "Block third-party calls automatically based on consent"
+      title: "Consent-Check API",
+      description: "Your server asks CortIQ whether a session has the required consent before forwarding an event"
     },
     {
       icon: <Zap className="h-6 w-6" />,
-      title: "Real-Time Monitoring",
-      description: "Live feed of blocked and allowed API calls"
+      title: "12-Month Consent Expiry",
+      description: "Consent expires after 12 months and the visitor is asked again"
     }
   ];
 
@@ -49,8 +49,8 @@ export default function CMP() {
     "Consent valid for 12 months",
     "Better user trust",
     "Professional cookie management",
-    "Real-time consent monitoring",
-    "Enterprise-grade security"
+    "Consent-check decisions logged server-side",
+    "Google Consent Mode v2 included"
   ];
 
   return (
@@ -69,14 +69,14 @@ export default function CMP() {
         </h1>
         
         <p className="text-xl text-muted-foreground mb-8 max-w-3xl mx-auto">
-          Built-in consent banner with automatic cookie management, server-side blocking
-          and real-time monitoring of user consent. Google Consent Mode v2 included.
+          Built-in consent banner with cookie detection, a server-side consent-check API
+          and consent logging. Google Consent Mode v2 included.
         </p>
         
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
           <Link to="/auth">
             <Button size="lg" className="bg-gradient-primary hover-scale hover-glow">
-              Get Started
+              Create free account
             </Button>
           </Link>
           <Link to="/features">
@@ -121,8 +121,8 @@ export default function CMP() {
                 Why Choose Our CMP Solution?
               </h2>
               <p className="text-muted-foreground mb-8">
-                Our CMP goes beyond traditional cookie banners. We also block server-side
-                API calls until consent is given. Only the AI-bot and security layer runs before consent,
+                Beyond the banner, CortIQ offers a consent-check API your server can call before
+                forwarding events to third parties. Only the AI-bot and security layer runs before consent,
                 designed as strictly necessary security processing; you make the final legal assessment.
               </p>
               
@@ -140,23 +140,24 @@ export default function CMP() {
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <Shield className="h-6 w-6 text-green-500" />
-                  <span>Server-Side Blocking</span>
+                  <span>Consent-Check API</span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground mb-4">
-                  Unlike other solutions, we actually block API calls to 
-                  Google Analytics, Meta Pixel and other third-party services until consent is given.
+                  Before your server forwards an event to GA4, Meta or Google Ads, it asks CortIQ whether
+                  the session has the required consent. Every decision is logged, so you can show why an
+                  event was or wasn't sent. Your server decides whether to forward; CortIQ returns the decision.
                 </p>
                 
                 <div className="space-y-2">
                   <div className="flex justify-between items-center p-2 bg-red-50 dark:bg-red-950/20 rounded">
-                    <span className="text-sm">Without consent</span>
-                    <Badge variant="destructive">Blocked</Badge>
+                    <span className="text-sm">Required consent missing</span>
+                    <Badge variant="destructive">allowed: false</Badge>
                   </div>
                   <div className="flex justify-between items-center p-2 bg-green-50 dark:bg-green-950/20 rounded">
-                    <span className="text-sm">With consent</span>
-                    <Badge variant="default">Allowed</Badge>
+                    <span className="text-sm">Consent given</span>
+                    <Badge variant="default">allowed: true</Badge>
                   </div>
                 </div>
               </CardContent>
@@ -178,7 +179,7 @@ export default function CMP() {
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link to="/auth">
             <Button size="lg" className="bg-gradient-primary hover-scale hover-glow">
-              Join Waitlist
+              Create free account
             </Button>
           </Link>
           <Link to="/pricing">

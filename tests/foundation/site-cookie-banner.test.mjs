@@ -48,7 +48,7 @@ test('valid saved choice restores all purposes and retains a settings button', (
   assert.equal(result.states[0], false);
   assert.equal(result.restored.length, 1);
   assert.equal(result.restored[0].analytics, false);
-  assert.equal(result.view.props.children, 'Cookieinställningar');
+  assert.equal(result.view.props.children, 'Cookie settings');
   result.view.props.onClick();
   assert.equal(result.states[0], true);
 });

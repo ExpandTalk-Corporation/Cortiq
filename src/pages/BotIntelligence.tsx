@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import PublicNavigation from "@/components/PublicNavigation";
 import { useSEO } from "@/hooks/useSEO";
+import { botsInCategory, type BotCategory } from "@/lib/aiBotRegistry";
 import {
   Bot,
   TrendingUp,
@@ -18,6 +19,9 @@ import {
   BarChart3,
 } from "lucide-react";
 
+// Examples come from the ingest registry so the page only names bots we classify.
+const examplesFor = (category: BotCategory) => botsInCategory(category).slice(0, 5).map((b) => b.name);
+
 const BOT_TYPES = [
   {
     type: "Training Crawlers",
@@ -28,19 +32,19 @@ const BOT_TYPES = [
     value: "Infrastructure cost",
     description:
       "Crawling your content to train AI models. Generates server load, zero referral traffic.",
-    examples: ["GPTBot", "ClaudeBot (crawl)", "Google-Extended", "BLEXBot"],
+    examples: examplesFor("training"),
     action: "Measure the cost. Decide if you want to allow or restrict.",
   },
   {
-    type: "Agentic Browsers",
+    type: "Agentic Fetches",
     color: "text-green-400",
     bg: "bg-green-500/10 border-green-500/20",
     badge: "bg-green-500/20 text-green-400",
     icon: <Zap className="h-6 w-6 text-green-400" />,
     value: "Real visitors with intent",
     description:
-      "AI agents acting on behalf of a real user. They read, navigate, and convert like humans.",
-    examples: ["ChatGPT Browser", "Perplexity Comet", "Claude Browser", "Copilot"],
+      "An AI assistant opening your page because a real user asked it to. The user has intent — the AI is their browser.",
+    examples: examplesFor("agentic"),
     action: "Track their journey. Attribute conversions. Optimize for them.",
   },
   {
@@ -52,7 +56,7 @@ const BOT_TYPES = [
     value: "AI visibility signal",
     description:
       "Indexing your content for AI-powered search results. Drives indirect discovery in ChatGPT, Perplexity, Gemini.",
-    examples: ["PerplexityBot", "YouBot", "Meta-ExternalAgent", "AI2Bot"],
+    examples: examplesFor("citation"),
     action: "Monitor access. Optimize for citability.",
   },
 ];
@@ -61,12 +65,12 @@ const STATS = [
   {
     value: "300%",
     label: "AI bot traffic growth in 12 months",
-    source: "Akamai, 2025",
+    source: "Akamai SOTI, 2025",
   },
   {
-    value: "1 in 31",
-    label: "Web visits is now an AI bot",
-    source: "TollBit Q4 2025",
+    value: "1 : 31",
+    label: "AI bot visits per human visits, up from 1 : 200 in Q1",
+    source: "TollBit, Q4 2025",
   },
   {
     value: "4.2%",
@@ -92,7 +96,7 @@ const COMPARISON = [
     cortiq: true,
   },
   {
-    capability: "Track agentic browser journeys",
+    capability: "Track agentic fetches separately from crawlers",
     blocker: false,
     cortiq: true,
   },
@@ -120,13 +124,9 @@ const COMPARISON = [
 
 export default function BotIntelligence() {
   useSEO({
-    title: 'Bot Intelligence — CortIQ',
-    description: 'Understand which bots visit your site, what they do, and how they affect your analytics. Training crawlers, citation bots and agentic browsers — all classified and tracked.',
-  });
-  useSEO({
     title: "AI Bot Intelligence — CortIQ",
     description:
-      "Not all AI traffic is equal. CortIQ classifies training crawlers, agentic browsers, and citation crawlers — so you know which bots are valuable and which are just infrastructure cost.",
+      "Not all AI traffic is equal. CortIQ classifies training crawlers, agentic fetches, and citation crawlers — so you know which bots are valuable and which are just infrastructure cost.",
   });
 
   return (
@@ -148,14 +148,14 @@ export default function BotIntelligence() {
           </h1>
 
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            1 in 31 web visits is now an AI bot. But lumping them all into "block or allow" ignores the
+            By late 2025 there was one AI bot visit for every 31 human visits (TollBit). But lumping them all into "block or allow" ignores the
             only question that matters for your business: which ones are actually valuable?
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
             <Button asChild size="lg">
               <Link to="/auth">
-                Start free <ArrowRight className="ml-2 h-4 w-4" />
+                Create free account <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
             <Button asChild variant="outline" size="lg">
@@ -187,9 +187,9 @@ export default function BotIntelligence() {
             framing misses the entire story.
           </p>
           <p className="text-muted-foreground leading-relaxed">
-            A GPTBot hammering your add-to-cart endpoint 3.75 million times in 24 hours is a different
-            problem than a ChatGPT Browser user navigating your product pages on behalf of a real
-            customer. Blocking both loses you the valuable traffic. Allowing both burns your server budget.
+            AI bots hitting WooCommerce cart pages 3.75 million times in a single day (Kinsta) is a
+            different problem than ChatGPT fetching your product page because a real customer asked
+            about it. Blocking both loses you the valuable traffic. Allowing both burns your server budget.
           </p>
           <p className="text-muted-foreground leading-relaxed">
             The question isn't "should I allow bots?" — it's "which bots, on which parts of my site,
@@ -312,22 +312,22 @@ export default function BotIntelligence() {
               {
                 icon: <Bot className="h-5 w-5 text-primary" />,
                 title: "Bot traffic classification",
-                desc: "Every AI visit labeled: training crawler, agentic browser, or citation indexer. See the split at a glance.",
+                desc: "Every AI request labeled at ingest: training crawler, agentic fetch, or citation crawler — from the JS tag and from Cloudflare logs.",
               },
               {
                 icon: <BarChart3 className="h-5 w-5 text-primary" />,
                 title: "% of total traffic that's AI",
-                desc: "Your site's personal version of the '1 in 31' stat. Know exactly how much of your traffic is non-human.",
+                desc: "Your site's own version of the TollBit ratio — how much of your traffic is AI.",
               },
               {
                 icon: <Zap className="h-5 w-5 text-primary" />,
-                title: "Agentic browser journeys",
-                desc: "Track ChatGPT Browser and Perplexity Comet through your site — page by page, just like a human session.",
+                title: "Agentic fetch tracking",
+                desc: "ChatGPT-User, Claude-User and Perplexity-User requests tracked per page, plus JS-signal heuristics for AI agents running inside a real browser.",
               },
               {
                 icon: <DollarSign className="h-5 w-5 text-primary" />,
-                title: "Conversion attribution",
-                desc: "When a user asks ChatGPT 'what's the best analytics tool?' and then visits you — that's attributable.",
+                title: "AI referral tracking",
+                desc: "Visitors arriving from ChatGPT, Perplexity, Claude, Gemini or Copilot are tagged by source (with analytics consent).",
               },
               {
                 icon: <Eye className="h-5 w-5 text-primary" />,
@@ -336,8 +336,8 @@ export default function BotIntelligence() {
               },
               {
                 icon: <Shield className="h-5 w-5 text-primary" />,
-                title: "Citation tracking",
-                desc: "When training crawlers index your pages, you know. Baseline data for your AI visibility strategy.",
+                title: "Citation crawler tracking",
+                desc: "When AI search crawlers like OAI-SearchBot and PerplexityBot fetch your pages, you know. Baseline data for your AI visibility strategy.",
               },
             ].map((item) => (
               <Card key={item.title} className="border-border/60">
@@ -360,7 +360,7 @@ export default function BotIntelligence() {
             "The sites that navigate bot traffic well won't be the ones that blocked the most. They'll be
             the ones whose operators understood what they were optimizing for."
           </blockquote>
-          <p className="text-sm text-muted-foreground">Kinsta, AI & Bot Traffic Reality Check 2026</p>
+          <p className="text-sm text-muted-foreground">Kinsta, The AI &amp; Bot Traffic Reality Check</p>
         </div>
       </section>
 
@@ -371,12 +371,12 @@ export default function BotIntelligence() {
             See what kind of AI traffic is actually hitting your site
           </h2>
           <p className="text-muted-foreground">
-            Free to start. No credit card. Works on any site in minutes.
+            Free during the beta. Add one script tag or the WordPress plugin.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Button asChild size="lg">
               <Link to="/auth">
-                Get started free <ArrowRight className="ml-2 h-4 w-4" />
+                Create free account <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
             <Button asChild variant="outline" size="lg">

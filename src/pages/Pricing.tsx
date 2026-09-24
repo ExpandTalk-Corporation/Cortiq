@@ -6,7 +6,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Link } from "react-router-dom";
 import { useState } from "react";
-import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import PublicNavigation from "@/components/PublicNavigation";
@@ -15,9 +14,7 @@ import {
   Check, 
   Crown, 
   Mail, 
-  Phone, 
   Building2, 
-  Zap,
   Shield,
   Headphones,
   Target,
@@ -27,9 +24,8 @@ import {
 export default function Pricing() {
   useSEO({
     title: 'Pricing — CortIQ Analytics',
-    description: 'Simple, transparent pricing for AI agent analytics, cookie-free tracking and GDPR CMP. Invite-only beta — request access today.',
+    description: 'CortIQ is free during beta: AI agent analytics, cookie-free tracking and a built-in consent banner. Create a free account, or contact us about Enterprise.',
   });
-  const { user } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [contactForm, setContactForm] = useState({
@@ -39,53 +35,6 @@ export default function Pricing() {
     phone: "",
     message: ""
   });
-
-  const handleWaitlistSignup = async () => {
-    if (!user) {
-      toast({
-        title: "Login required",
-        description: "You need to log in to request waitlist access.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const { error } = await supabase
-        .from('waitlist')
-        .insert({
-          email: user.email,
-          name: user.user_metadata?.full_name || null,
-          message: "Beta access request from pricing page"
-        });
-      
-      if (error) {
-        if (error.code === '23505') {
-          toast({
-            title: "Already on waitlist",
-            description: "You are already on our waitlist. We will contact you soon!",
-          });
-        } else {
-          throw error;
-        }
-      } else {
-        toast({
-          title: "🎉 Waitlist request received!",
-          description: "We will review your request and get back to you within 24 hours.",
-        });
-      }
-    } catch (error: any) {
-      console.error('Error submitting waitlist signup:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Could not submit waitlist request. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleEnterpriseContact = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,7 +63,7 @@ export default function Pricing() {
       } else {
         toast({
           title: "Request sent!",
-          description: "We will get back to you within 24 hours.",
+          description: "We will get back to you.",
         });
 
         // Reset form
@@ -138,30 +87,20 @@ export default function Pricing() {
     }
   };
 
-  const waitlistFeatures = [
-    "🧪 Early access to all features",
-    "📊 Heatmap analysis for all pages",
-    "🍪 Cookie detection and categorization", 
-    "✅ GDPR-compliant cookie banner",
-    "📝 Form analytics and conversion data",
-    "⚡ A/B testing and optimization",
-    "🔌 WordPress plugin included",
-    "💬 Direct support via Discord/Slack",
-    "🎯 Help us improve the product",
-    "⭐ Lifetime discount on future plans"
+  const betaFeatures = [
+    "All features included",
+    "AI bot classification (training / agentic / citation)",
+    "Click and scroll-depth heatmaps",
+    "Form analytics and form auto-discovery",
+    "Conversion & attribution loop (HubSpot → Google Ads)",
+    "Built-in consent banner with Google Consent Mode v2",
+    "WordPress plugin included",
+    "MCP server for AI agents"
   ];
 
   const enterpriseFeatures = [
-    "Everything in Waitlist +",
-    "🚀 Unlimited page views",
-    "👨‍💼 Dedicated account manager",
-    "🔗 Custom integrations",
-    "🏷️ White-label solution",
-    "📞 SLA with 99.9% uptime",
-    "☎️ Phone support",
-    "🏢 On-premise installation",
-    "⚙️ Custom development",
-    "🧠 Expert analysis and consulting"
+    "Everything in Beta",
+    "Custom onboarding — contact us"
   ];
 
   return (
@@ -179,13 +118,13 @@ export default function Pricing() {
             Choose the right plan for your needs
           </h1>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            From small websites to enterprise solutions. We have a plan that fits everyone.
+            Free during beta, with all features. Contact us for Enterprise onboarding.
           </p>
         </div>
 
         {/* Pricing Cards */}
         <div className="grid lg:grid-cols-2 gap-8 max-w-6xl mx-auto mb-16">
-          {/* Waitlist Plan */}
+          {/* Beta Plan */}
           <Card className="relative overflow-hidden border-2 border-primary hover:shadow-xl transition-shadow bg-gradient-to-br from-primary/5 to-accent/5">
             <div className="absolute top-0 right-0 bg-gradient-to-r from-primary to-accent text-white px-3 py-1 text-sm font-medium">
               🧪 Beta
@@ -194,44 +133,28 @@ export default function Pricing() {
               <div className="mx-auto w-16 h-16 bg-gradient-to-br from-primary to-accent rounded-2xl flex items-center justify-center mb-4">
                 <Users className="h-8 w-8 text-white" />
               </div>
-              <CardTitle className="text-2xl font-bold">Waitlist</CardTitle>
+              <CardTitle className="text-2xl font-bold">Beta</CardTitle>
               <CardDescription className="text-base">
-                Be one of the first to test our platform
+                Free during beta — all features
               </CardDescription>
               <div className="mt-4">
-                <span className="text-4xl font-bold text-primary">JOIN WAITLIST</span>
+                <span className="text-4xl font-bold text-primary">Free</span>
                 <br />
-                <span className="text-muted-foreground text-sm">limited spots available</span>
+                <span className="text-muted-foreground text-sm">during beta</span>
               </div>
             </CardHeader>
             <CardContent>
               <ul className="space-y-3 mb-8">
-                {waitlistFeatures.map((feature, index) => (
+                {betaFeatures.map((feature, index) => (
                   <li key={index} className="flex items-start gap-2">
                     <Check className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
                     <span className="text-sm">{feature}</span>
                   </li>
                 ))}
               </ul>
-              {user ? (
-                <Button 
-                  onClick={handleWaitlistSignup}
-                  disabled={isLoading}
-                  className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90"
-                  size="lg"
-                >
-                  {isLoading ? "Submitting..." : "🚀 Request Invitation"}
-                </Button>
-              ) : (
-                <Button asChild className="w-full bg-gradient-to-r from-primary to-accent" size="lg">
-                  <Link to="/auth">Sign in to join waitlist</Link>
-                </Button>
-              )}
-              <div className="mt-4 p-3 bg-accent/10 rounded-lg">
-                <p className="text-xs text-center text-muted-foreground">
-                  🎯 Waitlist members get lifetime discount when we launch
-                </p>
-              </div>
+              <Button asChild className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90" size="lg">
+                <Link to="/auth">Create free account</Link>
+              </Button>
             </CardContent>
           </Card>
 
@@ -284,7 +207,7 @@ export default function Pricing() {
                 Contact us for Enterprise Solution
               </CardTitle>
               <CardDescription>
-                Tell us about your needs and we will get back with a tailored quote within 24 hours.
+                Tell us about your needs and we will get back to you with a tailored quote.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -381,11 +304,11 @@ export default function Pricing() {
                 <div className="mx-auto w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
                   <Headphones className="h-6 w-6 text-primary" />
                 </div>
-                <CardTitle className="text-lg">Expert Support</CardTitle>
+                <CardTitle className="text-lg">Built in Sweden</CardTitle>
               </CardHeader>
               <CardContent>
                 <CardDescription>
-                  Professional support from Expandtalk Corporation AB with deep knowledge of EU regulations.
+                  Developed by Expandtalk Corporation AB in Sweden, EU-hosted.
                 </CardDescription>
               </CardContent>
             </Card>
@@ -399,7 +322,7 @@ export default function Pricing() {
               </CardHeader>
               <CardContent>
                 <CardDescription>
-                  Heatmap, cookie management, form analytics and A/B testing in a single platform.
+                  AI bot intelligence, heatmaps, form analytics, conversion attribution and consent management in a single platform.
                 </CardDescription>
               </CardContent>
             </Card>
