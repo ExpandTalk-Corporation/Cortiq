@@ -4,6 +4,7 @@ import { anonymizeIP } from "../_shared/jurisdiction.ts";
 // Canonical AI-bot classification — shared with cloudflare-ingest so both the JS-tag
 // and server-log paths classify identically. See _shared/ai-bot-registry.ts.
 import { classifyBot, type BotCategory } from "../_shared/ai-bot-registry.ts";
+import { resolveSite } from "../_shared/resolve-site.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -109,7 +110,8 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Rate limit exceeded' }),
         { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': '60' } });
     }
-    const { data: site } = await supabase.from('sites').select('id, is_active').eq('id', siteId).single();
+    // siteId may be an account id (WordPress plugin); resolveSite maps it via the page domain.
+    const site = await resolveSite(supabase, siteId, url);
     if (!site || !site.is_active) {
       return new Response(JSON.stringify({ error: 'Invalid or inactive site' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -142,7 +144,7 @@ serve(async (req) => {
     // Use the new upsert function for agent session tracking
     const { data: agentSessionId, error: sessionError } = await supabase
       .rpc('upsert_ai_agent_session', {
-        p_site_id: siteId,
+        p_site_id: site.id,
         p_session_id: sessionId || `bot_${Date.now()}`,
         p_bot_type: botType,
         p_bot_name: botName,
@@ -162,7 +164,7 @@ serve(async (req) => {
     const { data: trafficData, error: trafficError } = await supabase
       .from('ai_bot_traffic')
       .insert({
-        site_id: siteId,
+        site_id: site.id,
         bot_type: botType,
         bot_name: botName,
         user_agent: ua,
@@ -189,7 +191,7 @@ serve(async (req) => {
       const { error: probeError } = await supabase
         .from('ai_bot_probe_signals')
         .insert({
-          site_id: siteId,
+          site_id: site.id,
           traffic_id: trafficData.id,
           execution_time_ms: probeData.executionTime,
           webdriver_detected: probeData.signals?.webdriver || false,
@@ -208,7 +210,7 @@ serve(async (req) => {
       const { error: citationError } = await supabase
         .from('ai_citations')
         .insert({
-          site_id: siteId,
+          site_id: site.id,
           traffic_id: trafficData.id,
           cited_url: citationData.url || url,
           citation_context: citationData.context,

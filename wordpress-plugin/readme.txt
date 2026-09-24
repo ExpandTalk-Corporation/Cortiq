@@ -1,9 +1,9 @@
 === CortIQ Analytics ===
 Contributors: cortiq
-Tags: analytics, ai-tracking, heatmap, cookie-free, gdpr, chatgpt, session-recording
+Tags: analytics, ai-tracking, heatmap, cookie-free, gdpr, chatgpt, ai-bots
 Requires at least: 5.6
 Tested up to: 6.8
-Stable tag: 5.4.1
+Stable tag: 5.4.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -12,14 +12,14 @@ Analytics for the agentic web. Track AI agents, human visitors and Core Web Vita
 
 == Description ==
 
-CortIQ Analytics gives you a complete picture of who visits your site: human visitors and AI agents alike. AI-agent and bot detection runs as a strictly necessary security function; visitor analytics (page views, heatmaps, session recording) start only after the visitor gives analytics consent.
+CortIQ Analytics gives you a complete picture of who visits your site: human visitors and AI agents alike. AI-agent and bot detection runs as a strictly necessary security function; visitor analytics (page views, heatmaps, conversions) start only after the visitor gives analytics consent.
 
 = What you can measure =
 
 **AI agent traffic**
-* Which AI agents visit your site: ChatGPT Browser, Perplexity Comet, Claude Browser, Gemini and others
+* AI traffic split into training crawlers (GPTBot, ClaudeBot…), agentic fetches (ChatGPT-User, Claude-User, Perplexity-User) and citation crawlers (OAI-SearchBot, PerplexityBot…)
 * Which pages AI agents access and how often
-* Citation tracking — when an LLM references your content
+* AI referrals — visitors arriving from ChatGPT, Perplexity, Claude, Gemini (after consent)
 * AI agent conversion attribution — traffic and goals driven by AI referrals
 * Browser type classification: Visual / Headless / Text-based
 
@@ -29,18 +29,14 @@ CortIQ Analytics gives you a complete picture of who visits your site: human vis
 * Click heatmaps — exact click positions per page and device type
 * Scroll depth heatmaps — funnel showing how far visitors scroll (25 / 50 / 75 / 100%)
 * Form analytics — field-level drop-off analysis
-* Session recording — full replay of visitor interactions (with data masking for sensitive fields)
 * User journey and navigation flow
 
-**Conversion & testing**
+**Conversions**
 * Goal tracking and conversion funnels
-* A/B testing with statistical significance
 * UTM campaign tracking
 
 **Technical**
-* Core Web Vitals (LCP, INP, CLS)
 * Device, browser and geographic breakdown
-* Data Warehouse export (BigQuery, Snowflake, Redshift, PostgreSQL)
 
 = Privacy & GDPR =
 
@@ -89,11 +85,10 @@ All data is stored in the EU (AWS eu-north-1 via Supabase).
 
 The tracking script is loaded with `defer` so it does not block rendering.
 
-= Can I mask sensitive fields in session recordings? =
-
-Yes. Add `data-cortiq-mask` to any input or element. The field content is replaced with asterisks in the recording. See the [GDPR guide](https://github.com/expandtalk/cortiq/blob/main/GDPR.md) for details.
-
 == Changelog ==
+
+= 5.4.2 =
+* Fix: cookieless sites no longer log a visitor-identification error (the server skips profiling by design).
 
 = 5.4.1 =
 * Tracking script: AI-referral measurement (visitors arriving from ChatGPT, Perplexity, Claude, Gemini) now starts only after analytics consent. Only AI-bot and security detection runs without consent.

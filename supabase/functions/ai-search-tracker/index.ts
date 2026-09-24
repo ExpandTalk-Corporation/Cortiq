@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { resolveSite } from "../_shared/resolve-site.ts";
 
 // AI-referral measurement: a human visitor arriving from ChatGPT, Perplexity, Claude, …
 //
@@ -77,8 +78,10 @@ serve(async (req) => {
       return json({ error: 'Missing or invalid siteId/sessionId' }, 400);
     }
 
-    const { data: site } = await supabase.from('sites').select('id').eq('id', data.siteId).maybeSingle();
-    if (!site) return json({ success: true, skipped: 'unknown site' });
+    // siteId may be an account id (WordPress plugin); resolved via the page URL / Origin.
+    const site = await resolveSite(supabase, data.siteId, data.url ?? req.headers.get('origin'), 'id, is_active');
+    if (!site || !site.is_active) return json({ success: true, skipped: 'unknown site' });
+    const siteId = site.id;
 
     // Engagement update at page hide. Whitelisted columns only — the old code passed the
     // client object straight to .update(), which let a caller overwrite any column.
@@ -96,7 +99,7 @@ serve(async (req) => {
       if (Object.keys(patch).length === 0) return json({ success: true, action: 'noop' });
 
       const { error } = await supabase.from('ai_search_traffic').update(patch)
-        .eq('site_id', data.siteId).eq('session_id', sessionId);
+        .eq('site_id', siteId).eq('session_id', sessionId);
       if (error) throw error;
       return json({ success: true, action: 'updated' });
     }
@@ -105,7 +108,7 @@ serve(async (req) => {
     if (!PLATFORMS.has(platform)) return json({ error: 'Unknown aiPlatform' }, 400);
 
     const { data: existing, error: checkError } = await supabase.from('ai_search_traffic')
-      .select('id, pages_viewed').eq('site_id', data.siteId).eq('session_id', sessionId).maybeSingle();
+      .select('id, pages_viewed').eq('site_id', siteId).eq('session_id', sessionId).maybeSingle();
     if (checkError) throw checkError;
 
     if (existing) {
@@ -122,7 +125,7 @@ serve(async (req) => {
     const landedAt = data.landedAt && !Number.isNaN(Date.parse(data.landedAt)) ? data.landedAt : new Date().toISOString();
 
     const { error: insertError } = await supabase.from('ai_search_traffic').insert({
-      site_id: data.siteId,
+      site_id: siteId,
       session_id: sessionId,
       user_hash: null,
       ai_platform: platform,

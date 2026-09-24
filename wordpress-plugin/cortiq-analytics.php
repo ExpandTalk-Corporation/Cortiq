@@ -2,8 +2,8 @@
 /**
  * Plugin Name: CortIQ Analytics
  * Plugin URI: https://cortiq.se
- * Description: Analytics for the agentic web. Track AI agents (ChatGPT Browser, Perplexity, Claude, Gemini) and human visitors — cookie-free, GDPR-compliant, with heatmaps, session recording and A/B testing.
- * Version: 5.4.1
+ * Description: Analytics for the agentic web. Classifies AI crawlers and agent fetches (GPTBot, ClaudeBot, ChatGPT-User, PerplexityBot…) and measures human visitors after consent — cookieless mode, heatmaps, conversions and a built-in consent banner.
+ * Version: 5.4.2
  * Author: CortIQ
  * Author URI: https://cortiq.se
  * Requires at least: 5.6
@@ -21,7 +21,7 @@ if ( defined( 'CORTIQ_LOADED' ) ) return;
 define( 'CORTIQ_LOADED', true );
 
 // Shared with public/spa-tracking.js (CORTIQ_VERSION) — also the ?ver= cache-bust for it.
-define( 'CORTIQ_VERSION',    '5.4.1' );
+define( 'CORTIQ_VERSION',    '5.4.2' );
 define( 'CORTIQ_OPTION_KEY', 'cortiq_options' );
 define( 'CORTIQ_CDN',        'https://cortiq.se' );
 // Supabase Edge Functions base — used for the GDPR consent ledger (store-consent).

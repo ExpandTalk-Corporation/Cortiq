@@ -1,7 +1,7 @@
 /**
  * CortIQ Advanced Tracking Script
  * Unified visitor profiling with AI agent detection
- * Version: 5.4.1 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
+ * Version: 5.4.2 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
  *
  * Usage:
  * <script>
@@ -17,7 +17,7 @@
   'use strict';
 
   // Keep in sync with wordpress-plugin/cortiq-analytics.php (CORTIQ_VERSION).
-  const CORTIQ_VERSION = '5.4.1';
+  const CORTIQ_VERSION = '5.4.2';
 
   // Configuration
   const config = window.cortiqConfig || window.wfaConfig || {};
@@ -247,6 +247,11 @@
       if (response.ok) {
         const result = await response.json();
         if (generation !== consentGeneration || !hasStoredAnalyticsConsent()) return null;
+        // Cookieless sites: the server skips profiling by design and returns visitor: null.
+        if (result.success && !result.visitor) {
+          IDENTIFICATION_COMPLETE = true;
+          return null;
+        }
         if (result.success) {
           VISITOR_ID = result.visitor.visitorId;
           VISITOR_PROFILE = result.visitor;

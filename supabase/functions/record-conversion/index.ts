@@ -12,6 +12,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getSessionConsent } from '../_shared/session-consent.ts';
+import { resolveSite } from "../_shared/resolve-site.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -45,7 +46,8 @@ Deno.serve(async (req) => {
     if (hashedEmail && !HEX64.test(hashedEmail)) return json({ error: 'hashedEmail must be a SHA-256 hex digest' }, 400);
 
     // Verify the site exists and is active.
-    const { data: site } = await supabase.from('sites').select('id, is_active, tracking_mode').eq('id', siteId).single();
+    // siteId may be an account id (WordPress plugin); resolved via the browser Origin.
+    const site = await resolveSite(supabase, siteId, req.headers.get('origin'), 'id, is_active, tracking_mode');
     if (!site || !site.is_active) return json({ error: 'Invalid or inactive site' }, 403);
 
     // Cookieless sites do not enable this identity-bearing conversion endpoint.
@@ -54,12 +56,12 @@ Deno.serve(async (req) => {
       return json({ success: true, skipped: 'cookieless' });
     }
 
-    const currentConsent = await getSessionConsent(supabase, siteId, sessionId);
+    const currentConsent = await getSessionConsent(supabase, site.id, sessionId);
     if (!currentConsent.analytics) return json({ error: 'Analytics consent required' }, 403);
 
     // SECURITY: per-site rate limit to blunt anonymous conversion-injection / dashboard pollution.
     const { data: underLimit, error: rlErr } = await supabase.rpc('check_rate_limit', {
-      p_key: `conv:${siteId}`,
+      p_key: `conv:${site.id}`,
       p_max_count: 120,
       p_window_sec: 60,
     });
@@ -74,7 +76,7 @@ Deno.serve(async (req) => {
       const { data } = await supabase
         .from('unified_visitors')
         .select('gclid, click_id_consent_given')
-        .eq('site_id', siteId)
+        .eq('site_id', site.id)
         .eq('id', visitorId)
         .maybeSingle();
       visitor = data;
@@ -83,7 +85,7 @@ Deno.serve(async (req) => {
       const { data } = await supabase
         .from('unified_visitors')
         .select('gclid, click_id_consent_given, updated_at')
-        .eq('site_id', siteId)
+        .eq('site_id', site.id)
         .eq('first_session_id', sessionId)
         .order('updated_at', { ascending: false })
         .limit(1)
@@ -108,7 +110,7 @@ Deno.serve(async (req) => {
     const { data: ts } = await supabase
       .from('tracking_sessions')
       .select('id')
-      .eq('site_id', siteId)
+      .eq('site_id', site.id)
       .eq('session_id', sessionId)
       .order('started_at', { ascending: false })
       .limit(1)
@@ -118,7 +120,7 @@ Deno.serve(async (req) => {
     const { data: inserted, error } = await supabase
       .from('conversion_events')
       .insert({
-        site_id: siteId,
+        site_id: site.id,
         session_id: trackingSessionUuid,
         event_type: 'form_submission',
         event_name: eventName || 'Conversion',
