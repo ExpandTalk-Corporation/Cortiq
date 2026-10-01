@@ -104,7 +104,7 @@ Contact your hosting provider or check your hosting panel:
 
 ### Step 3: Add Secrets to GitHub
 
-1. Go to GitHub repository: https://github.com/expandtalk/cortiq
+1. Go to GitHub repository: https://github.com/ExpandTalk-Corporation/Cortiq
 2. Click: Settings (top menu)
 3. Click: Secrets and variables → Actions (left sidebar)
 4. Click: New repository secret (green button)
@@ -147,7 +147,7 @@ git push origin main
 
 ### Option 2: Manual Trigger
 
-1. Go to: https://github.com/expandtalk/cortiq/actions
+1. Go to: https://github.com/ExpandTalk-Corporation/Cortiq/actions
 2. Click: "Deploy to Production" workflow (left sidebar)
 3. Click: "Run workflow" (blue button)
 4. Select: Branch: `main`
@@ -159,7 +159,7 @@ git push origin main
 
 ### View Workflow Runs
 
-**URL**: https://github.com/expandtalk/cortiq/actions
+**URL**: https://github.com/ExpandTalk-Corporation/Cortiq/actions
 
 **What you'll see**:
 - ✅ Green checkmark: Deployment successful

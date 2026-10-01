@@ -95,7 +95,7 @@ export default function PublicNavigation() {
         {/* Desktop Actions */}
         <div className="hidden md:flex items-center space-x-4">
           <a
-            href="https://github.com/expandtalk/cortiq"
+            href="https://github.com/ExpandTalk-Corporation/Cortiq"
             target="_blank"
             rel="noopener noreferrer"
             className="text-foreground hover:text-primary transition-colors"
@@ -174,7 +174,7 @@ export default function PublicNavigation() {
 
                 <div className="flex flex-col space-y-3 pt-6 border-t">
                   <a
-                    href="https://github.com/expandtalk/cortiq"
+                    href="https://github.com/ExpandTalk-Corporation/Cortiq"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-center space-x-2 text-foreground hover:text-primary transition-colors py-2"

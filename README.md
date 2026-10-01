@@ -78,7 +78,7 @@ CortIQ is built as three clearly separated layers. This separation is deliberate
 ## Quick start
 
 ```bash
-git clone https://github.com/expandtalk/cortiq.git
+git clone https://github.com/ExpandTalk-Corporation/Cortiq.git
 cd cortiq
 cp .env.example .env        # add your Supabase keys
 npm install && npm run dev  # → http://localhost:8080
@@ -165,7 +165,7 @@ GA4 (server-side) · Google Search Console · Tag Manager · Data Warehouse conn
 ### 1. Clone and configure
 
 ```bash
-git clone https://github.com/expandtalk/cortiq.git
+git clone https://github.com/ExpandTalk-Corporation/Cortiq.git
 cd cortiq
 cp .env.example .env
 ```

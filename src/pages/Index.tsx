@@ -1269,7 +1269,7 @@ const Index = () => {
                 <li><Link to="/contact" className="hover:text-primary transition-colors hover:translate-x-1 transform duration-200 inline-block">Contact</Link></li>
                 <li><Link to="/privacy" className="hover:text-primary transition-colors hover:translate-x-1 transform duration-200 inline-block">Privacy Policy</Link></li>
                 <li>
-                  <a href="https://github.com/expandtalk/cortiq" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors hover:translate-x-1 transform duration-200 inline-block">GitHub</a>
+                  <a href="https://github.com/ExpandTalk-Corporation/Cortiq" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors hover:translate-x-1 transform duration-200 inline-block">GitHub</a>
                 </li>
               </ul>
             </div>

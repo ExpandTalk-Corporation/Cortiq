@@ -23,7 +23,7 @@
 
 1. **Clone the repository**:
 ```bash
-git clone https://github.com/expandtalk/cortiq.git
+git clone https://github.com/ExpandTalk-Corporation/Cortiq.git
 cd cortiq
 ```
 
@@ -111,7 +111,7 @@ npm run supabase:db:reset
 # On the server
 cd /var/www/cortiq.se
 git init
-git remote add origin https://github.com/expandtalk/cortiq.git
+git remote add origin https://github.com/ExpandTalk-Corporation/Cortiq.git
 ```
 
 Deploy script (`deploy.sh`):
