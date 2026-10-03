@@ -82,7 +82,7 @@ Because CortIQ stores visitor data under hashed identifiers (not names or email 
 - Restriction requests (Art. 18)
 - Data portability requests (Art. 20)
 
-Requests should be submitted to: [privacy@cortiq.se](mailto:privacy@cortiq.se)
+Requests should be submitted to: [info@expandtalk.se](mailto:info@expandtalk.se)
 
 ---
 
@@ -146,10 +146,10 @@ This DPA is governed by the laws of Sweden. Any disputes arising from this DPA s
 Expandtalk Corporation AB
 Parmmätaregatan 4B, 417 04 Göteborg, Sweden
 Org. nr. 559358-8824
-Email: [privacy@cortiq.se](mailto:privacy@cortiq.se)
+Email: [info@expandtalk.se](mailto:info@expandtalk.se)
 Website: [cortiq.se](https://cortiq.se)
 
-For all GDPR and data protection enquiries: [privacy@cortiq.se](mailto:privacy@cortiq.se)
+For all GDPR and data protection enquiries: [info@expandtalk.se](mailto:info@expandtalk.se)
 
 ---
 
@@ -158,4 +158,4 @@ For all GDPR and data protection enquiries: [privacy@cortiq.se](mailto:privacy@c
 
 ---
 
-> **For Customers:** You accept this DPA together with the Terms of Service when you create an account. If you require a countersigned copy for your compliance records, contact [privacy@cortiq.se](mailto:privacy@cortiq.se).
+> **For Customers:** You accept this DPA together with the Terms of Service when you create an account. If you require a countersigned copy for your compliance records, contact [info@expandtalk.se](mailto:info@expandtalk.se).

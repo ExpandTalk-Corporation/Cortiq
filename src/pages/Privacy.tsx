@@ -69,7 +69,7 @@ const Privacy = () => {
                 <p><strong>Product:</strong> CortIQ</p>
                 <p><strong>Company registration number:</strong> 559358-8824</p>
                 <p><strong>Registered address:</strong> Parmmätaregatan 4B, 417 04 Göteborg, Sweden</p>
-                <p><strong>Email:</strong> privacy@cortiq.se</p>
+                <p><strong>Email:</strong> info@expandtalk.se</p>
                 <p className="text-sm mt-3">
                   For analytics data collected on our customers' websites, CortIQ acts as a
                   <strong> processor</strong> on behalf of the site operator (the controller). For our own
@@ -443,7 +443,7 @@ const Privacy = () => {
                   <strong className="text-foreground">How to exercise your rights:</strong>
                 </p>
                 <ol className="text-sm text-muted-foreground space-y-1 ml-4">
-                  <li>1. Send an email to: privacy@cortiq.se</li>
+                  <li>1. Send an email to: info@expandtalk.se</li>
                   <li>2. Include: Your name, email, and which right you want to exercise</li>
                   <li>3. We will respond within 30 days</li>
                 </ol>
@@ -517,7 +517,7 @@ const Privacy = () => {
               </div>
 
               <p className="text-sm text-muted-foreground mt-4">
-                You can request earlier deletion at any time by contacting privacy@cortiq.se.
+                You can request earlier deletion at any time by contacting info@expandtalk.se.
               </p>
             </CardContent>
           </Card>
@@ -561,8 +561,8 @@ const Privacy = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2 text-muted-foreground">
-                <p><strong>Email:</strong> privacy@cortiq.se</p>
-                <p><strong>Support:</strong> support@cortiq.se</p>
+                <p><strong>Email:</strong> info@expandtalk.se</p>
+                <p><strong>Support:</strong> info@expandtalk.se</p>
               </div>
               <Link to="/auth">
                 <Button className="bg-gradient-primary hover-scale hover-glow">

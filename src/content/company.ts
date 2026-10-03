@@ -94,7 +94,7 @@ export const SECURITY: ContentPageData = {
       id: 'disclosure',
       heading: 'Report a vulnerability',
       blocks: [
-        { type: 'p', text: 'Email daniel.larsson@expandtalk.se with a description, steps to reproduce and the potential impact. Please do not open a public GitHub issue for security problems. We respond within 48 hours. Scope and details are in [SECURITY.md](' + REPO + '/blob/main/SECURITY.md).' },
+        { type: 'p', text: 'Email info@expandtalk.se with a description, steps to reproduce and the potential impact. Please do not open a public GitHub issue for security problems. We respond within 48 hours. Scope and details are in [SECURITY.md](' + REPO + '/blob/main/SECURITY.md).' },
         { type: 'p', text: 'Testing must not access other customers\' data or degrade the service for others.' },
       ],
     },
@@ -203,7 +203,7 @@ export const ABOUT: ContentPageData = {
           items: [
             'Company registration number: 559358-8824',
             'Address: Parmmätaregatan 4B, 417 04 Göteborg, Sweden',
-            'Email: support@cortiq.se',
+            'Email: info@expandtalk.se',
           ],
         },
       ],

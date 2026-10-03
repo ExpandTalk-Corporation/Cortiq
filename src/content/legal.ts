@@ -39,7 +39,7 @@ export const TERMS: ContentPageData = {
           items: [
             'Give accurate information when you register and keep it up to date.',
             'Keep your login details, tracking keys and API keys confidential. You are responsible for activity under your account and keys until you tell us that they have been compromised, or disable them in the dashboard.',
-            'Tell us without undue delay at privacy@cortiq.se if you suspect unauthorised access to your account.',
+            'Tell us without undue delay at info@expandtalk.se if you suspect unauthorised access to your account.',
           ],
         },
       ],
@@ -156,7 +156,7 @@ export const TERMS: ContentPageData = {
       id: 'contact',
       heading: '15. Contact',
       blocks: [
-        { type: 'p', text: 'Expandtalk Corporation AB, Parmmätaregatan 4B, 417 04 Göteborg, Sweden. Email: privacy@cortiq.se. You can also use the [contact page](/contact/).' },
+        { type: 'p', text: 'Expandtalk Corporation AB, Parmmätaregatan 4B, 417 04 Göteborg, Sweden. Email: info@expandtalk.se. You can also use the [contact page](/contact/).' },
       ],
     },
   ],
