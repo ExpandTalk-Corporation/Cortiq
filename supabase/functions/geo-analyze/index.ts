@@ -1,5 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.3';
+import { analyzeCitability as scorePageCitability } from '../_shared/geo/citability.ts';
+import {
+  AI_CRAWLERS, CITATION_CRAWLERS, parseRobots, checkLlmsTxt, checkRendering, checkSecurityHeaders,
+  type CrawlerAccess, type LlmsTxtCheck, type RenderingCheck, type SecurityHeaders,
+} from '../_shared/geo/site-checks.ts';
+
+// Score model version stored with each audit. v2 (2026-10) adds deterministic passage
+// citability, 14 AI crawlers with proper robots.txt groups, llms.txt validation,
+// JavaScript-rendering and security-header checks, and rebalances the weights.
+const SCORE_VERSION = 2;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -28,18 +38,6 @@ async function assertSafeUrl(raw: string): Promise<string> {
   } catch (_) { /* resolver unavailable — literal checks above still apply */ }
   return u.toString();
 }
-
-// AI crawlers to check in robots.txt
-const AI_CRAWLERS = [
-  'GPTBot',
-  'ChatGPT-User',
-  'ClaudeBot',
-  'anthropic-ai',
-  'PerplexityBot',
-  'Google-Extended',
-  'CCBot',
-  'Omgilibot',
-];
 
 // ── HTML helpers ──────────────────────────────────────────────────────────────
 
@@ -154,51 +152,6 @@ function extractLocalBusinessData(html: string): {
   return null;
 }
 
-// ── Robots.txt parser ─────────────────────────────────────────────────────────
-
-function parseCrawlerAccess(robotsTxt: string, crawlers: string[]): Record<string, string> {
-  const lines = robotsTxt.split('\n').map(l => l.trim());
-  const result: Record<string, string> = {};
-  let currentAgents: string[] = [];
-  let disallowAll = false;
-
-  for (const line of lines) {
-    if (line.startsWith('#') || !line) continue;
-    const [key, ...rest] = line.split(':');
-    const value = rest.join(':').trim();
-
-    if (key.toLowerCase() === 'user-agent') {
-      currentAgents = value === '*' ? ['*'] : [value];
-    } else if (key.toLowerCase() === 'disallow') {
-      if (currentAgents.includes('*') && value === '/') disallowAll = true;
-      for (const agent of currentAgents) {
-        for (const crawler of crawlers) {
-          if (agent.toLowerCase() === crawler.toLowerCase()) {
-            if (!result[crawler]) result[crawler] = value === '/' ? 'blocked' : 'allowed';
-          }
-        }
-      }
-    } else if (key.toLowerCase() === 'allow') {
-      for (const agent of currentAgents) {
-        for (const crawler of crawlers) {
-          if (agent.toLowerCase() === crawler.toLowerCase() && value === '/') {
-            result[crawler] = 'allowed';
-          }
-        }
-      }
-    }
-  }
-
-  // Fill missing crawlers: if * disallows all they're blocked, otherwise unknown
-  for (const crawler of crawlers) {
-    if (!result[crawler]) {
-      result[crawler] = disallowAll ? 'blocked' : 'allowed';
-    }
-  }
-
-  return result;
-}
-
 // ── Scoring ───────────────────────────────────────────────────────────────────
 
 function scoreContent(f: Record<string, unknown>): number {
@@ -212,13 +165,16 @@ function scoreContent(f: Record<string, unknown>): number {
   return Math.min(score, 100);
 }
 
-function scoreTechnical(f: Record<string, unknown>): number {
+function scoreTechnical(f: Record<string, unknown>, rendering: RenderingCheck, security: SecurityHeaders): number {
   let score = 0;
-  if (f.isHttps) score += 25;
-  if (f.hasCanonical) score += 20;
-  if (f.hasOgTitle) score += 20;
-  if (f.hasOgDescription) score += 20;
-  if (f.hasTitle) score += 15;
+  if (f.isHttps) score += 15;
+  if (f.hasCanonical) score += 10;
+  if (f.hasOgTitle) score += 10;
+  if (f.hasOgDescription) score += 10;
+  if (f.hasTitle) score += 10;
+  // AI crawlers rarely execute JavaScript: the content must be in the HTML.
+  score += rendering.verdict === 'server-rendered' ? 25 : rendering.verdict === 'partly' ? 10 : 0;
+  score += Object.values(security).filter(Boolean).length * 4;
   return Math.min(score, 100);
 }
 
@@ -243,10 +199,13 @@ function scoreSchema(
   return Math.min(score, 100);
 }
 
-function scoreCrawlers(access: Record<string, string>): number {
-  const priority = ['GPTBot', 'ClaudeBot', 'PerplexityBot', 'Google-Extended'];
-  const allowed = priority.filter(c => access[c] === 'allowed').length;
-  return Math.round((allowed / priority.length) * 100);
+// AI access: citation/search crawlers that can read the site (80) + a usable llms.txt (20).
+function scoreCrawlers(access: Record<string, CrawlerAccess>, llms: LlmsTxtCheck): number {
+  const reach = CITATION_CRAWLERS.reduce((sum, c) => sum + (access[c] === 'allowed' ? 1 : 0), 0);
+  let score = (reach / CITATION_CRAWLERS.length) * 80;
+  if (llms.present) score += 10;
+  if (llms.present && llms.issues.length === 0) score += 10;
+  return Math.round(score);
 }
 
 function scoreFreshness(modified: string | null, published: string | null): number {
@@ -263,8 +222,9 @@ function scoreFreshness(modified: string | null, published: string | null): numb
   return 10; // has a date but very old
 }
 
-function overallScore(c: number, t: number, s: number, cr: number, fr: number): number {
-  return Math.round(c * 0.28 + t * 0.22 + s * 0.22 + cr * 0.13 + fr * 0.15);
+// Weights follow the GEO audit toolkit, with citability as the largest single factor.
+function overallScore(cit: number, c: number, t: number, s: number, cr: number, fr: number): number {
+  return Math.round(cit * 0.25 + c * 0.20 + t * 0.20 + s * 0.15 + cr * 0.10 + fr * 0.10);
 }
 
 // ── Recommendations ───────────────────────────────────────────────────────────
@@ -272,16 +232,41 @@ function overallScore(c: number, t: number, s: number, cr: number, fr: number): 
 function buildRecommendations(
   f: Record<string, unknown>,
   schemaTypes: string[],
-  crawlerAccess: Record<string, string>,
-  hasLlmsTxt: boolean,
+  crawlerAccess: Record<string, CrawlerAccess>,
+  llms: LlmsTxtCheck,
+  rendering: RenderingCheck,
+  security: SecurityHeaders,
+  citability: ReturnType<typeof scorePageCitability>,
   localBusiness: { hasAddress: boolean; hasTelephone: boolean; hasOpeningHours: boolean; hasPriceRange: boolean } | null,
   freshnessScore: number,
   pageModified: string | null,
 ): Array<{ priority: string; category: string; issue: string; fix: string }> {
   const recs = [];
 
-  if (!hasLlmsTxt) {
-    recs.push({ priority: 'high', category: 'Technical', issue: 'No llms.txt file found', fix: 'Create /llms.txt in the site root with a structured description of your site for AI systems.' });
+  if (!llms.present) {
+    recs.push({ priority: 'medium', category: 'AI access', issue: 'No llms.txt file found', fix: 'Create /llms.txt in the site root: a "# Site name" heading, a "> one-line summary", and "## " sections linking to your key pages.' });
+  } else if (llms.issues.length > 0) {
+    recs.push({ priority: 'low', category: 'AI access', issue: `llms.txt structure: ${llms.issues.join('; ')}`, fix: 'Follow the llms.txt format (llmstxt.org): H1 name, blockquote summary, H2 sections with markdown links.' });
+  }
+  if (rendering.verdict === 'javascript-only') {
+    recs.push({ priority: 'high', category: 'Technical', issue: `Content is rendered by JavaScript only${rendering.framework ? ` (${rendering.framework})` : ''}: ${rendering.textWords} words in the raw HTML`, fix: 'Most AI crawlers do not run JavaScript. Use server-side rendering or prerendering so the text is in the HTML response.' });
+  } else if (rendering.verdict === 'partly') {
+    recs.push({ priority: 'medium', category: 'Technical', issue: `Little text in the raw HTML (${rendering.textWords} words)`, fix: 'Check that the main content is in the HTML response and not loaded later by JavaScript.' });
+  }
+  if (citability.passages === 0) {
+    recs.push({ priority: 'high', category: 'Citability', issue: 'No quotable text passages found in the HTML', fix: 'Add sections of 2–3 paragraphs under clear headings. AI answers quote self-contained passages of roughly 130–170 words.' });
+  } else if (citability.score < 50) {
+    recs.push({ priority: 'high', category: 'Citability', issue: `Low passage citability (${citability.score}/100 across ${citability.passages} passages)`, fix: 'Start sections with a direct answer ("X is …"), use concrete numbers and named sources, and write passages that make sense on their own without "this" or "it" pointing elsewhere.' });
+  }
+  const missingHeaders = [
+    !security.hsts && 'Strict-Transport-Security',
+    !security.csp && 'Content-Security-Policy',
+    !security.contentTypeOptions && 'X-Content-Type-Options',
+    !security.frameProtection && 'X-Frame-Options or frame-ancestors',
+    !security.referrerPolicy && 'Referrer-Policy',
+  ].filter(Boolean);
+  if (missingHeaders.length >= 3) {
+    recs.push({ priority: 'low', category: 'Technical', issue: `Missing security headers: ${missingHeaders.join(', ')}`, fix: 'Add the missing headers at your web server or CDN. They protect visitors and are a basic trust signal.' });
   }
   if ((f.h1Count as number) === 0) {
     recs.push({ priority: 'high', category: 'Content', issue: 'Missing H1 heading', fix: 'Add a clear H1 heading that describes the page topic.' });
@@ -311,7 +296,15 @@ function buildRecommendations(
     .filter(([, v]) => v === 'blocked')
     .map(([k]) => k);
   if (blockedCrawlers.length > 0) {
-    recs.push({ priority: 'high', category: 'Crawlers', issue: `${blockedCrawlers.join(', ')} blocked in robots.txt`, fix: 'Remove or adjust Disallow rules for AI crawlers to allow indexing.' });
+    const blockedCitation = blockedCrawlers.filter((c) => CITATION_CRAWLERS.includes(c));
+    recs.push({
+      priority: blockedCitation.length > 0 ? 'high' : 'low',
+      category: 'Crawlers',
+      issue: `${blockedCrawlers.join(', ')} blocked in robots.txt`,
+      fix: blockedCitation.length > 0
+        ? `${blockedCitation.join(', ')} feed AI search answers. Allow them if you want to be cited; blocking pure training crawlers (CCBot, Bytespider) is a separate choice.`
+        : 'These are training or general-purpose crawlers. Blocking them does not affect AI search citations; keep it if that is your policy.',
+    });
   }
 
   // Freshness
@@ -437,10 +430,11 @@ serve(async (req) => {
     const origin = new URL(targetUrl).origin;
 
     // Fetch page, robots.txt and llms.txt concurrently
-    const [pageRes, robotsRes, llmsRes] = await Promise.allSettled([
-      fetch(targetUrl, { headers: { 'User-Agent': 'CortIQ-GEO-Audit/1.0' }, signal: AbortSignal.timeout(10000) }),
+    const [pageRes, robotsRes, llmsRes, llmsFullRes] = await Promise.allSettled([
+      fetch(targetUrl, { headers: { 'User-Agent': 'CortIQ-GEO-Audit/2.0' }, signal: AbortSignal.timeout(10000) }),
       fetch(`${origin}/robots.txt`, { signal: AbortSignal.timeout(5000) }),
       fetch(`${origin}/llms.txt`, { signal: AbortSignal.timeout(5000) }),
+      fetch(`${origin}/llms-full.txt`, { method: 'HEAD', signal: AbortSignal.timeout(5000) }),
     ]);
 
     if (pageRes.status === 'rejected') throw new Error(`Could not fetch ${targetUrl}: ${pageRes.reason}`);
@@ -448,7 +442,17 @@ serve(async (req) => {
     const httpLastModified = pageRes.value.ok ? (pageRes.value.headers.get('last-modified') ?? null) : null;
     const html = pageRes.value.ok ? await pageRes.value.text() : '';
     const robotsTxt = (robotsRes.status === 'fulfilled' && robotsRes.value.ok) ? await robotsRes.value.text() : '';
-    const hasLlmsTxt = llmsRes.status === 'fulfilled' && llmsRes.value.ok;
+    // A soft 404 (an HTML page served at /llms.txt) is not an llms.txt file.
+    const isTextFile = (r: PromiseSettledResult<Response>) =>
+      r.status === 'fulfilled' && r.value.ok && !(r.value.headers.get('content-type') ?? '').includes('text/html');
+    const llms = checkLlmsTxt(
+      isTextFile(llmsRes) ? await (llmsRes as PromiseFulfilledResult<Response>).value.text() : null,
+      isTextFile(llmsFullRes),
+    );
+    const hasLlmsTxt = llms.present;
+    const rendering = checkRendering(html);
+    const security = checkSecurityHeaders(pageRes.value.headers);
+    const citability = scorePageCitability(html);
 
     // Parse HTML
     const title = extractTitle(html);
@@ -482,17 +486,20 @@ serve(async (req) => {
       localBusiness,
     };
 
-    const crawlerAccess = robotsTxt ? parseCrawlerAccess(robotsTxt, AI_CRAWLERS) : Object.fromEntries(AI_CRAWLERS.map(c => [c, 'unknown']));
+    // No robots.txt means no restrictions.
+    const crawlerAccess: Record<string, CrawlerAccess> = robotsTxt
+      ? parseRobots(robotsTxt)
+      : Object.fromEntries(AI_CRAWLERS.map(c => [c, 'allowed' as CrawlerAccess]));
 
     // Compute scores
     const contentScore   = scoreContent(findings);
-    const technicalScore = scoreTechnical(findings);
+    const technicalScore = scoreTechnical(findings, rendering, security);
     const schemaScore    = scoreSchema(schemaTypes, localBusiness);
-    const crawlerScore   = scoreCrawlers(crawlerAccess);
+    const crawlerScore   = scoreCrawlers(crawlerAccess, llms);
     const freshnessScore = scoreFreshness(pageModified, pagePublished);
-    const overall        = overallScore(contentScore, technicalScore, schemaScore, crawlerScore, freshnessScore);
+    const overall        = overallScore(citability.score, contentScore, technicalScore, schemaScore, crawlerScore, freshnessScore);
 
-    const recommendations = buildRecommendations(findings, schemaTypes, crawlerAccess, hasLlmsTxt, localBusiness, freshnessScore, pageModified);
+    const recommendations = buildRecommendations(findings, schemaTypes, crawlerAccess, llms, rendering, security, citability, localBusiness, freshnessScore, pageModified);
 
     // AI citability is BYOK-only — no platform ANTHROPIC_API_KEY fallback (consistent
     // with ai-assistant). A site without a company key still gets the full non-AI audit;
@@ -547,8 +554,11 @@ serve(async (req) => {
         crawler_score: crawlerScore,
         freshness_score: freshnessScore,
         page_last_modified: pageModified ?? null,
-        findings,
+        findings: { ...findings, rendering, security, llms },
         recommendations,
+        citability_score: citability.score,
+        citability_details: citability,
+        score_version: SCORE_VERSION,
         schema_types: schemaTypes,
         crawler_access: crawlerAccess,
         has_llms_txt: hasLlmsTxt,

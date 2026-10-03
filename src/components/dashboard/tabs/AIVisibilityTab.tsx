@@ -11,8 +11,16 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import {
   RefreshCw, Globe, FileText, Code2, Bot, AlertTriangle,
-  CheckCircle2, XCircle, Clock, ChevronDown, ChevronUp, Sparkles, CalendarClock, ExternalLink,
+  CheckCircle2, XCircle, Clock, ChevronDown, ChevronUp, Sparkles, CalendarClock, ExternalLink, Quote,
 } from 'lucide-react';
+
+interface PassageScore {
+  heading: string;
+  wordCount: number;
+  total: number;
+  grade: string;
+  preview: string;
+}
 
 interface GeoAudit {
   id: string;
@@ -30,6 +38,10 @@ interface GeoAudit {
   crawler_access: Record<string, string>;
   has_llms_txt: boolean;
   citability_analysis: string | null;
+  // Score model v2 (geo-analyze SCORE_VERSION); null/1 on older audits.
+  citability_score: number | null;
+  citability_details: { passages: number; optimalLengthPassages: number; top: PassageScore[]; bottom: PassageScore[] } | null;
+  score_version: number;
   audit_duration_ms: number;
   created_at: string;
 }
@@ -66,7 +78,8 @@ const CRAWLER_ICON = (status: string) =>
     ? <XCircle className="h-4 w-4 text-red-400" />
     : <Clock className="h-4 w-4 text-muted-foreground" />;
 
-const KEY_CRAWLERS = ['GPTBot', 'ClaudeBot', 'PerplexityBot', 'Google-Extended'];
+// The crawlers that feed AI search answers (geo-analyze CITATION_CRAWLERS).
+const KEY_CRAWLERS = ['OAI-SearchBot', 'ChatGPT-User', 'PerplexityBot', 'ClaudeBot', 'GPTBot', 'Google-Extended'];
 
 export function AIVisibilityTab({ siteId, onNavigateToIntegrations }: AIVisibilityTabProps) {
   const { selectedSite } = useSites();
@@ -192,7 +205,7 @@ export function AIVisibilityTab({ siteId, onNavigateToIntegrations }: AIVisibili
       ) : (
         <>
           {/* Score cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-7 gap-4">
             <Card className="col-span-2 lg:col-span-1 bg-card border-border">
               <CardContent className="pt-6 text-center">
                 <div className={`text-5xl font-bold ${SCORE_COLOR(audit.overall_score)}`}>
@@ -204,10 +217,13 @@ export function AIVisibilityTab({ siteId, onNavigateToIntegrations }: AIVisibili
             </Card>
 
             {[
+              ...(audit.citability_score != null
+                ? [{ label: 'Citability', score: audit.citability_score, icon: Quote, desc: `${audit.citability_details?.passages ?? 0} passages scored` }]
+                : []),
               { label: 'Content', score: audit.content_score, icon: FileText, desc: 'Headings, word count, structure' },
-              { label: 'Technical', score: audit.technical_score, icon: Code2, desc: 'Meta, canonical, HTTPS' },
+              { label: 'Technical', score: audit.technical_score, icon: Code2, desc: audit.score_version >= 2 ? 'Meta, HTML rendering, security headers' : 'Meta, canonical, HTTPS' },
               { label: 'Schema', score: audit.schema_score, icon: Globe, desc: 'JSON-LD structured data' },
-              { label: 'Crawlers', score: audit.crawler_score, icon: Bot, desc: 'Robots.txt AI access' },
+              { label: 'AI access', score: audit.crawler_score, icon: Bot, desc: audit.score_version >= 2 ? 'AI search crawlers and llms.txt' : 'Robots.txt AI access' },
               { label: 'Freshness', score: audit.freshness_score, icon: CalendarClock, desc: audit.page_last_modified ? `Updated ${new Date(audit.page_last_modified).toLocaleDateString('en-GB')}` : 'No date signal found' },
             ].map(({ label, score, icon: Icon, desc }) => (
               <Card key={label} className="bg-card border-border">
@@ -296,6 +312,33 @@ export function AIVisibilityTab({ siteId, onNavigateToIntegrations }: AIVisibili
               </CardContent>
             </Card>
           </div>
+
+          {/* Passage citability (score v2) */}
+          {audit.citability_details && audit.citability_details.top.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Quote className="h-4 w-4" /> Most citable passages
+                </CardTitle>
+                <CardDescription>
+                  How likely an AI answer is to quote each section: a direct answer early, concrete numbers and sources,
+                  and text that makes sense on its own. {audit.citability_details.optimalLengthPassages} of {audit.citability_details.passages} passages
+                  are in the 134–167 word range AI answers quote most. Scoring patterns are tuned for English text.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {audit.citability_details.top.slice(0, 3).map((p, i) => (
+                  <div key={i} className="rounded-md bg-muted/30 p-3">
+                    <div className="flex items-center justify-between gap-3 mb-1">
+                      <span className="text-sm font-medium truncate">{p.heading}</span>
+                      <span className={`text-sm font-semibold ${SCORE_COLOR(p.total)}`}>{p.total} · {p.grade}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{p.preview}</p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Claude citability analysis */}
           {audit.citability_analysis && (
