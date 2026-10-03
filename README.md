@@ -11,7 +11,7 @@
 
 **Bot blockers tell you what to stop. CortIQ tells you what matters.**
 
-[🌐 Live Demo](https://cortiq.se) · [🤖 Bot Intelligence](https://cortiq.se/bot-intelligence) · [🔒 Security](./SECURITY.md)
+[🌐 Live Demo](https://cortiq.se) · [🤖 AI Bot Analytics](https://cortiq.se/features/ai/) · [🔒 Security](./SECURITY.md)
 
 </div>
 
@@ -25,7 +25,7 @@
 
 1 in 31 web visits is now an AI bot — up from 1 in 200 at the start of 2025. Every other platform treats that traffic as noise to filter, or a binary block/allow decision.
 
-CortIQ is the **first open-source, EU-built analytics platform** that turns AI traffic into a signal instead of noise — and does it **cookie-free by default**, so the base layer needs no consent banner.
+CortIQ is the **first open-source, EU-built analytics platform** that turns AI traffic into a signal instead of noise — with consent-gated visitor analytics and a cookieless mode (no cookies, no fingerprint, no persistent IDs).
 
 It classifies every AI visit into three categories:
 
@@ -47,7 +47,7 @@ CortIQ is built as three clearly separated layers. This separation is deliberate
 ┌──────────────────────────────────────────────────────────────────────┐
 │  🧠  AGENTIC / INTELLIGENCE LAYER                                       │
 │      • AI Assistant (Claude) — grounded tool-use over YOUR data only   │
-│      • MCP Server — 23 tools, API-key auth, so external agents can      │
+│      • MCP Server — 22 tools, API-key auth, so external agents can      │
 │        query your analytics programmatically                           │
 │      • Bot classification engine (training / agentic / citation)       │
 │      • GEO audits + transparent AI insights (every claim shows source) │
@@ -61,7 +61,7 @@ CortIQ is built as three clearly separated layers. This separation is deliberate
 │      writes ▼                                                          │
 ├──────────────────────────────────────────────────────────────────────┤
 │  🔒  PRIVACY / COMPLIANCE LAYER  (cross-cutting, EU-first)             │
-│      • Cookie-free baseline · consent gating · IP anonymisation        │
+│      • Cookieless mode · consent gating · IP anonymisation             │
 │      • Server-side consent ledger · retention cron · DSAR path         │
 │      • Data residency in the EU · email hashing before any ad upload   │
 └──────────────────────────────────────────────────────────────────────┘
@@ -78,7 +78,7 @@ CortIQ is built as three clearly separated layers. This separation is deliberate
 ## Quick start
 
 ```bash
-git clone https://github.com/expandtalk/cortiq.git
+git clone https://github.com/ExpandTalk-Corporation/Cortiq.git
 cd cortiq
 cp .env.example .env        # add your Supabase keys
 npm install && npm run dev  # → http://localhost:8080
@@ -118,14 +118,15 @@ npm install && npm run dev  # → http://localhost:8080
 
 ### 🧠 AI & Agent-Ready
 - **AI Assistant** — ask questions in natural language; answers are grounded in your real data via tool-use, never hallucinated
-- **MCP Server** — external AI agents can query your analytics with a scoped API key (23 tools, rate-limited)
+- **MCP Server** — external AI agents can query your analytics with a site-scoped API key (22 read-only tools, rate-limited)
 - `llms.txt` published so AI systems can understand the product
 - **Transparent insights** — every AI recommendation shows tables queried, row counts, model, tokens, and duration
 
 ### 🔒 Privacy & GDPR — built in, not bolted on
 CortIQ is built by an EU company for EU-grade compliance:
-- **Cookie-free by default** — server-side tracking, no personal data in the browser, no consent banner for the base layer (GDPR Art. 6.1.f)
-- **Consent-gated everything else** — click IDs, fingerprinting and session replay only run after explicit consent, verified **server-side** (not just a client flag)
+- **AI-bot / security layer without consent** — AI bot & agent detection, crawler classification, bot probe, honeypot, canary and Cloudflare edge-log bot classification. Designed to run as strictly necessary security processing; the site operator makes the final legal assessment
+- **Consent-gated visitor analytics** — page views, sessions, AI referrals, clicks, scroll, heatmaps, forms, e-commerce, conversions, session recording and A/B tests start only after analytics consent (GDPR Art. 6.1.a / ePrivacy Art. 5.3), verified **server-side**. Consent is valid 12 months, then re-asked
+- **Cookieless or Full mode** — Cookieless: no cookies, no fingerprint, no cross-visit profile, no persistent IDs (still needs consent). Full: persistent visitor ID and returning-visitor analysis after consent. Marketing click IDs only with marketing consent
 - **Demonstrable consent** — the consent banner writes an authoritative server-side ledger (timestamp, version, GPC signal) for Art. 7(1) proof
 - **Data minimisation** — IP addresses anonymised at ingest; emails SHA-256 hashed before any third-party upload
 - **Retention & erasure** — automated retention cron across all sensitive tables + a data-subject-request path
@@ -133,7 +134,7 @@ CortIQ is built by an EU company for EU-grade compliance:
 - **Transparent transfers** — Google, HubSpot and Anthropic are named as recipients/processors in the privacy policy with SCC coverage
 
 ### ⚙️ Integrations & Advanced
-GA4 (server-side) · Google Search Console · Tag Manager · Data Warehouse connectors (BigQuery, Snowflake, Redshift, PostgreSQL) · Geolocation maps · User LTV & cohorts · Web Vitals (LCP, INP, CLS) · White-label · WordPress plugin (1-click) · REST + MCP API.
+GA4 (server-side) · Google Search Console · Tag Manager · Data Warehouse connectors (BigQuery, Snowflake, Redshift, PostgreSQL) · Geolocation maps · User LTV & cohorts · Web Vitals (LCP, INP, CLS) · White-label · WordPress plugin · REST + MCP API.
 
 ---
 
@@ -147,7 +148,7 @@ GA4 (server-side) · Google Search Console · Tag Manager · Data Warehouse conn
 | Backend | Supabase (PostgreSQL + Deno Edge Functions) |
 | Auth | Supabase Auth with Row-Level Security |
 | AI | Claude (Anthropic) — assistant, GEO audits; BYOK supported |
-| Tracking script | Vanilla JS, ~8 kB gzipped |
+| Tracking script | Vanilla JS, ~13 kB gzipped |
 
 **Scale:** ~66 core database tables · 76 Edge Functions · 144 migrations · 135 dashboard components · 28 dashboard tabs
 
@@ -164,7 +165,7 @@ GA4 (server-side) · Google Search Console · Tag Manager · Data Warehouse conn
 ### 1. Clone and configure
 
 ```bash
-git clone https://github.com/expandtalk/cortiq.git
+git clone https://github.com/ExpandTalk-Corporation/Cortiq.git
 cd cortiq
 cp .env.example .env
 ```
@@ -221,7 +222,7 @@ npm run build
 <script src="https://YOUR_DOMAIN/spa-tracking.js" data-site-id="YOUR_SITE_ID" defer></script>
 ```
 
-For WordPress, generate the 1-click plugin from the dashboard (Settings → Setup).
+For WordPress, download the plugin zip from the dashboard (Settings → Setup). The plugin (v5.4.0) shares its version with the tracking script (`window.CortIQ.version`).
 
 ---
 
@@ -265,7 +266,7 @@ Contributions welcome. Open an issue first to discuss substantial changes, then:
 - Row-Level Security on every table; company/tenant isolation enforced at the database layer
 - Public ingest endpoints validate the site and are rate-limited; service-role writes bypass RLS only from Edge Functions
 - Input sanitisation + SSRF guards on server-side fetches
-- Full details: [SECURITY.md](./SECURITY.md) · privacy policy: [cortiq.se/privacy](https://cortiq.se/privacy)
+- Full details: [SECURITY.md](./SECURITY.md) · privacy policy: [cortiq.se/privacy](https://cortiq.se/privacy/)
 
 ---
 
@@ -274,7 +275,7 @@ Contributions welcome. Open an issue first to discuss substantial changes, then:
 Built by **Expandtalk Corporation AB** · Göteborg, Sweden 🇪🇺
 
 - **Founder:** [Daniel Larsson](https://www.linkedin.com/in/larssondaniel)
-- **Website:** [cortiq.se](https://cortiq.se) · **Report:** [AI Bot Traffic Intelligence](https://cortiq.se/bot-intelligence)
+- **Website:** [cortiq.se](https://cortiq.se) · **AI bot analytics:** [How CortIQ classifies AI traffic](https://cortiq.se/features/ai/)
 
 ---
 

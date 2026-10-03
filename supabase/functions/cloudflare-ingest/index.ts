@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.3";
+// Canonical AI-bot classifier — shared with ai-bot-tracker so server-log hits are
+// classified identically to JS-tag hits and merge cleanly in the dashboard.
+import { classifyBot } from "../_shared/ai-bot-registry.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -237,21 +240,54 @@ serve(async (req) => {
       });
     }
 
+    // Server logs carry no consent signal. Automated traffic (bots, crawlers, scrapers,
+    // monitoring) is kept in full — that is the security/bot layer. Requests that look
+    // human, or can't be classified, are reduced to an anonymous count: no user agent,
+    // referrer, IP subnet, Ray ID or path, only type/country/status/asset flags so the
+    // bot-vs-human share in the dashboard still works. Query strings are never stored.
+    const ai = classifyBot(userAgent ?? '');
+    const automated = ai.registryMatch || (visitorType !== 'human' && visitorType !== 'unknown');
+    const path = String(urlPath).split('?')[0].slice(0, 500) || '/';
+
     await supabase.from('cloudflare_traffic').insert({
       site_id:      siteId,
-      url_path:     urlPath.slice(0, 500),
+      url_path:     automated ? path : '/',
       method:       method.toUpperCase(),
       status_code:  statusCode ?? null,
       country:      country ?? null,
-      user_agent:   (userAgent ?? '').slice(0, 500),
-      referrer:     (referrer ?? '').slice(0, 500),
+      user_agent:   automated ? (userAgent ?? '').slice(0, 500) : null,
+      referrer:     automated ? (referrer ?? '').slice(0, 500) : null,
       visitor_type: visitorType,
       bot_name:     botName,
       is_asset:     isAsset,
       asset_type:   assetType,
-      ip_subnet:    ipSubnet ?? null,
-      ray_id:       (rayId ?? '').slice(0, 50),
+      ip_subnet:    automated ? (ipSubnet ?? null) : null,
+      ray_id:       automated ? (rayId ?? '').slice(0, 50) : null,
     });
+
+    // Fork AI-vendor bot hits into the canonical AI-bot store (ai_bot_traffic) so they
+    // surface in the AI Bot Classification dashboard. get_ai_bot_tracking reads that
+    // table and is source-agnostic, so no RPC change is needed. This is the entire value
+    // of server-side capture: training + citation crawlers (GPTBot, PerplexityBot, ...)
+    // never execute the JS tag, so this is the only path that ever sees them.
+    // Registry hits only — generic scrapers/monitoring stay in cloudflare_traffic.
+    // Best-effort: a failure here must not fail the primary cloudflare_traffic write.
+    if (ai.registryMatch) {
+      const { error: aiErr } = await supabase.from('ai_bot_traffic').insert({
+        site_id:         siteId,
+        bot_type:        ai.botType,
+        bot_name:        ai.botName,
+        user_agent:      (userAgent ?? '').slice(0, 500),
+        url:             path,
+        referrer:        (referrer ?? '').slice(0, 500),
+        request_type:    ai.botCategory,
+        js_executed:     false,
+        probe_triggered: false,
+        ip_address:      ipSubnet ?? null,   // already /24-anonymised by the Worker
+        source:          'server_log',
+      });
+      if (aiErr) console.error('cloudflare-ingest ai_bot_traffic insert error:', aiErr);
+    }
 
     return new Response(JSON.stringify({ ok: true, visitorType, botName }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

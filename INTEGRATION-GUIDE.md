@@ -268,7 +268,7 @@ Beyond the tracking script, CortIQ connects to the measurement and attribution t
 Connect via Google OAuth to pull search visibility into CortIQ — impressions, clicks, average position and query-level data — plus an **AI-search view** that shows how your content performs for AI-driven queries. Powers the GSC visibility and AI-performance sections of the dashboard.
 
 ### Google Analytics 4 (server-side)
-A server-side GA4 connection for teams keeping GA4 alongside CortIQ. Imports traffic sources, search terms, segments and conversions, and can sync conversions back to GA4 — so you keep familiar GA4 reporting while adding cookie-free and AI-agent analytics on top. Google Site Kit data is also supported.
+A server-side GA4 connection for teams keeping GA4 alongside CortIQ. Imports traffic sources, search terms, segments and conversions, and can sync conversions back to GA4 — so you keep familiar GA4 reporting while adding consent-gated first-party and AI-agent analytics on top. Google Site Kit data is also supported.
 
 ### Google Tag Manager & Consent Mode v2
 Deploy the tracking script through GTM, and propagate consent state to Google via **Consent Mode v2** so Google tags respect the same consent signal as CortIQ.
@@ -289,23 +289,28 @@ TikTok and additional paid-channel connectors live under the same Integrations t
 
 ## Privacy & GDPR
 
-CortIQ is **cookie-free by default**. The base layer counts page views server-side with an in-memory session id — no cookies, no cross-visit fingerprint, no personal data in the browser — so it needs no consent banner (audience measurement, GDPR Art. 6.1.f).
+Without consent, only the **AI-bot / security layer** runs: AI bot & agent detection, crawler classification (training / agentic / citation), bot probe, honeypot, canary, and server-side bot classification from Cloudflare edge logs (`cloudflare-ingest`). It is designed to run as strictly necessary security processing; the site operator makes the final legal assessment.
 
-Everything richer is **consent-gated in every mode**:
+**All visitor analytics are consent-gated in both modes**:
 
 | Data | Default | Legal basis |
 |------|---------|-------------|
-| Aggregated page views | On, banner-free | Art. 6.1.f (legitimate interest) |
-| Clicks, scroll depth, heatmaps, session replay | Requires analytics consent | Art. 6.1.a (consent) |
-| Conversions & form analytics | Requires analytics consent | Art. 6.1.a |
+| AI-bot / security layer | On | Designed as strictly necessary security processing (operator's assessment) |
+| Page views, sessions, AI referrals | Requires analytics consent | Art. 6.1.a GDPR / ePrivacy Art. 5.3 (consent) |
+| Clicks, scroll depth, heatmaps, session replay, A/B tests | Requires analytics consent | Art. 6.1.a / ePrivacy Art. 5.3 |
+| Conversions, e-commerce & form analytics | Requires analytics consent | Art. 6.1.a / ePrivacy Art. 5.3 |
 | Marketing click IDs (gclid, fbclid, …) | Requires marketing consent | Art. 6.1.a |
+
+- **Cookieless mode** — no cookies, no fingerprint, no cross-visit profile, no persistent IDs. Still requires consent.
+- **Full mode** — persistent visitor ID and returning-visitor analysis after consent.
+- **Consent expiry** — each choice is stored with `expiresAt` and is valid 12 months, then re-asked.
 
 - **IP anonymisation** at ingest — raw IP addresses are never stored.
 - **Emails SHA-256 hashed** in the browser before any ad-platform upload — raw PII never reaches CortIQ.
 - **Configurable retention** with an automated retention job across sensitive tables.
 - **Consent verified server-side**, not just a client flag — the consent banner writes an authoritative server-side ledger for Art. 7(1) proof.
 
-See [consent-banner-strategy](./docs/consent-banner-strategy.md) for when a banner is and isn't required.
+See [consent-banner-strategy](./docs/consent-banner-strategy.md) for banner design and consent-rate guidance.
 
 ---
 

@@ -133,19 +133,33 @@ Deno.serve(async (req) => {
 
     const expiresAt = new Date(Date.now() + (expiresIn ?? 3600) * 1000);
 
-    const { error: upsertError } = await supabase
+    // Reconnecting must refresh tokens without un-selecting the property the owner
+    // already chose, so existing rows only get new tokens and new properties are
+    // inserted inactive (the column default is true, so it is set explicitly).
+    const tokens = {
+      refresh_token:    refreshToken,
+      access_token:     accessToken,
+      token_expires_at: expiresAt.toISOString(),
+    };
+    const { data: existing } = await supabase
       .from('site_google_credentials')
-      .upsert(
-        properties.map((p) => ({
-          site_id:         state,
-          property_url:    p.siteUrl,
-          refresh_token:   refreshToken,
-          access_token:    accessToken,
-          token_expires_at: expiresAt.toISOString(),
-          is_active:       false,
-        })),
-        { onConflict: 'site_id,property_url', ignoreDuplicates: false }
-      );
+      .select('property_url')
+      .eq('site_id', state);
+    const known = new Set((existing ?? []).map((r: { property_url: string }) => r.property_url));
+
+    let upsertError = null;
+    if (known.size > 0) {
+      ({ error: upsertError } = await supabase
+        .from('site_google_credentials')
+        .update(tokens)
+        .eq('site_id', state));
+    }
+    const fresh = properties.filter((p) => !known.has(p.siteUrl));
+    if (!upsertError && fresh.length > 0) {
+      ({ error: upsertError } = await supabase
+        .from('site_google_credentials')
+        .insert(fresh.map((p) => ({ site_id: state, property_url: p.siteUrl, is_active: false, ...tokens }))));
+    }
 
     if (upsertError) {
       console.error('Failed to store credentials:', upsertError);

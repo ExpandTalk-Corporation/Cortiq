@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "CortIQ Public REST API",
-    "description": "Public REST API for accessing CortIQ analytics data. First analytics platform with dedicated AI agent tracking!",
+    "description": "Read-only REST API for CortIQ analytics data. Served by the `public-api` Supabase Edge Function. Each API key is scoped to one site. All endpoints are GET. Responses are JSON by default or CSV with `format=csv`. List endpoints return at most 1,000 rows per request; use `offset` to page.",
     "version": "1.0.0",
     "contact": {
       "name": "CortIQ Support",
@@ -16,8 +16,8 @@
   },
   "servers": [
     {
-      "url": "https://cortiq.se/api/v1",
-      "description": "Production server"
+      "url": "https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1/public-api",
+      "description": "Production (Supabase Edge Function)"
     }
   ],
   "security": [
@@ -26,123 +26,66 @@
     }
   ],
   "tags": [
-    {
-      "name": "Sites",
-      "description": "Manage and list sites"
-    },
-    {
-      "name": "Visits",
-      "description": "Access visit and session data"
-    },
-    {
-      "name": "Pages",
-      "description": "Page view analytics"
-    },
-    {
-      "name": "Referrers",
-      "description": "Traffic source data"
-    },
-    {
-      "name": "Events",
-      "description": "Custom event tracking"
-    },
-    {
-      "name": "Agents",
-      "description": "AI agent traffic analytics (CortIQ Unique!)"
-    },
-    {
-      "name": "Conversions",
-      "description": "Conversion tracking"
-    },
-    {
-      "name": "Heatmaps",
-      "description": "Heatmap data"
-    }
+    { "name": "Sites", "description": "The site your API key is scoped to" },
+    { "name": "Visits", "description": "Session data" },
+    { "name": "Pages", "description": "Page views" },
+    { "name": "Referrers", "description": "Traffic sources aggregated by referrer hostname" },
+    { "name": "Agents", "description": "AI agent sessions (agentic browsers)" },
+    { "name": "Conversions", "description": "Conversion events" },
+    { "name": "Heatmaps", "description": "Click and scroll heatmap points" }
   ],
   "paths": {
     "/sites": {
       "get": {
         "tags": ["Sites"],
-        "summary": "List all sites",
-        "description": "Retrieve a list of all sites associated with your account",
+        "summary": "Get the site for this API key",
+        "description": "Returns an array containing the one site the API key is scoped to.",
         "operationId": "getSites",
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Site"
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "429": {
-            "$ref": "#/components/responses/RateLimitExceeded"
-          }
-        }
-      }
-    },
-    "/sites/{siteId}/visits": {
-      "get": {
-        "tags": ["Visits"],
-        "summary": "Get visits data",
-        "description": "Retrieve visit/session data for a specific site",
-        "operationId": "getVisits",
         "parameters": [
-          {
-            "$ref": "#/components/parameters/siteId"
-          },
-          {
-            "$ref": "#/components/parameters/dateFrom"
-          },
-          {
-            "$ref": "#/components/parameters/dateTo"
-          },
-          {
-            "$ref": "#/components/parameters/limit"
-          },
-          {
-            "$ref": "#/components/parameters/offset"
-          },
-          {
-            "$ref": "#/components/parameters/format"
-          }
+          { "$ref": "#/components/parameters/format" }
         ],
         "responses": {
           "200": {
             "description": "Successful response",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Visit"
-                  }
-                }
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Site" } }
               },
-              "text/csv": {
-                "schema": {
-                  "type": "string"
-                }
-              }
+              "text/csv": { "schema": { "type": "string" } }
             }
           },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "429": { "$ref": "#/components/responses/RateLimitExceeded" }
+        }
+      }
+    },
+    "/sites/{siteId}/visits": {
+      "get": {
+        "tags": ["Visits"],
+        "summary": "Get sessions",
+        "description": "Sessions filtered on `started_at`, newest first. IP address and raw user agent are not returned.",
+        "operationId": "getVisits",
+        "parameters": [
+          { "$ref": "#/components/parameters/siteId" },
+          { "$ref": "#/components/parameters/dateFrom" },
+          { "$ref": "#/components/parameters/dateTo" },
+          { "$ref": "#/components/parameters/limit" },
+          { "$ref": "#/components/parameters/offset" },
+          { "$ref": "#/components/parameters/format" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Visit" } }
+              },
+              "text/csv": { "schema": { "type": "string" } }
+            }
           },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          },
-          "429": {
-            "$ref": "#/components/responses/RateLimitExceeded"
-          }
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimitExceeded" }
         }
       }
     },
@@ -150,42 +93,29 @@
       "get": {
         "tags": ["Pages"],
         "summary": "Get page views",
-        "description": "Retrieve page view data for a specific site",
+        "description": "Page views filtered on `viewed_at`, newest first.",
         "operationId": "getPages",
         "parameters": [
-          {
-            "$ref": "#/components/parameters/siteId"
-          },
-          {
-            "$ref": "#/components/parameters/dateFrom"
-          },
-          {
-            "$ref": "#/components/parameters/dateTo"
-          },
-          {
-            "$ref": "#/components/parameters/limit"
-          },
-          {
-            "$ref": "#/components/parameters/offset"
-          },
-          {
-            "$ref": "#/components/parameters/format"
-          }
+          { "$ref": "#/components/parameters/siteId" },
+          { "$ref": "#/components/parameters/dateFrom" },
+          { "$ref": "#/components/parameters/dateTo" },
+          { "$ref": "#/components/parameters/limit" },
+          { "$ref": "#/components/parameters/offset" },
+          { "$ref": "#/components/parameters/format" }
         ],
         "responses": {
           "200": {
             "description": "Successful response",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/PageView"
-                  }
-                }
-              }
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/PageView" } }
+              },
+              "text/csv": { "schema": { "type": "string" } }
             }
-          }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimitExceeded" }
         }
       }
     },
@@ -193,116 +123,57 @@
       "get": {
         "tags": ["Referrers"],
         "summary": "Get traffic sources",
-        "description": "Retrieve referrer/traffic source data",
+        "description": "Counts sessions with a referrer, grouped by referrer hostname and sorted by count. Aggregates over the 1,000 most recent sessions with a referrer in the date range. No pagination.",
         "operationId": "getReferrers",
         "parameters": [
-          {
-            "$ref": "#/components/parameters/siteId"
-          },
-          {
-            "$ref": "#/components/parameters/dateFrom"
-          },
-          {
-            "$ref": "#/components/parameters/dateTo"
-          },
-          {
-            "$ref": "#/components/parameters/format"
-          }
+          { "$ref": "#/components/parameters/siteId" },
+          { "$ref": "#/components/parameters/dateFrom" },
+          { "$ref": "#/components/parameters/dateTo" },
+          { "$ref": "#/components/parameters/format" }
         ],
         "responses": {
           "200": {
             "description": "Successful response",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Referrer"
-                  }
-                }
-              }
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Referrer" } }
+              },
+              "text/csv": { "schema": { "type": "string" } }
             }
-          }
-        }
-      }
-    },
-    "/sites/{siteId}/events": {
-      "get": {
-        "tags": ["Events"],
-        "summary": "Get events",
-        "description": "Retrieve custom event data",
-        "operationId": "getEvents",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/siteId"
           },
-          {
-            "$ref": "#/components/parameters/dateFrom"
-          },
-          {
-            "$ref": "#/components/parameters/dateTo"
-          },
-          {
-            "$ref": "#/components/parameters/limit"
-          },
-          {
-            "$ref": "#/components/parameters/offset"
-          },
-          {
-            "$ref": "#/components/parameters/format"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Event"
-                  }
-                }
-              }
-            }
-          }
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimitExceeded" }
         }
       }
     },
     "/sites/{siteId}/agents": {
       "get": {
         "tags": ["Agents"],
-        "summary": "Get AI agent traffic",
-        "description": "Retrieve AI agent traffic data - ChatGPT Browser, Perplexity Comet, Claude Browser, etc. **This is unique to CortIQ!**",
+        "summary": "Get AI agent sessions",
+        "description": "AI agent sessions (e.g. ChatGPT agent, Perplexity Comet) filtered on `started_at`, newest first. Device fingerprint is not returned.",
         "operationId": "getAgents",
         "parameters": [
-          {
-            "$ref": "#/components/parameters/siteId"
-          },
-          {
-            "$ref": "#/components/parameters/dateFrom"
-          },
-          {
-            "$ref": "#/components/parameters/dateTo"
-          },
-          {
-            "$ref": "#/components/parameters/format"
-          }
+          { "$ref": "#/components/parameters/siteId" },
+          { "$ref": "#/components/parameters/dateFrom" },
+          { "$ref": "#/components/parameters/dateTo" },
+          { "$ref": "#/components/parameters/limit" },
+          { "$ref": "#/components/parameters/offset" },
+          { "$ref": "#/components/parameters/format" }
         ],
         "responses": {
           "200": {
             "description": "Successful response",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/AgentSession"
-                  }
-                }
-              }
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/AgentSession" } }
+              },
+              "text/csv": { "schema": { "type": "string" } }
             }
-          }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimitExceeded" }
         }
       }
     },
@@ -310,81 +181,65 @@
       "get": {
         "tags": ["Conversions"],
         "summary": "Get conversions",
-        "description": "Retrieve conversion event data",
+        "description": "Conversion events filtered on `created_at`, newest first. Form data and hashed email are not returned.",
         "operationId": "getConversions",
         "parameters": [
-          {
-            "$ref": "#/components/parameters/siteId"
-          },
-          {
-            "$ref": "#/components/parameters/dateFrom"
-          },
-          {
-            "$ref": "#/components/parameters/dateTo"
-          },
-          {
-            "$ref": "#/components/parameters/format"
-          }
+          { "$ref": "#/components/parameters/siteId" },
+          { "$ref": "#/components/parameters/dateFrom" },
+          { "$ref": "#/components/parameters/dateTo" },
+          { "$ref": "#/components/parameters/limit" },
+          { "$ref": "#/components/parameters/offset" },
+          { "$ref": "#/components/parameters/format" }
         ],
         "responses": {
           "200": {
             "description": "Successful response",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Conversion"
-                  }
-                }
-              }
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Conversion" } }
+              },
+              "text/csv": { "schema": { "type": "string" } }
             }
-          }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimitExceeded" }
         }
       }
     },
     "/sites/{siteId}/heatmaps": {
       "get": {
         "tags": ["Heatmaps"],
-        "summary": "Get heatmap data",
-        "description": "Retrieve click heatmap data",
+        "summary": "Get heatmap points",
+        "description": "Click and scroll heatmap points filtered on `created_at`, newest first.",
         "operationId": "getHeatmaps",
         "parameters": [
-          {
-            "$ref": "#/components/parameters/siteId"
-          },
-          {
-            "$ref": "#/components/parameters/dateFrom"
-          },
-          {
-            "$ref": "#/components/parameters/dateTo"
-          },
+          { "$ref": "#/components/parameters/siteId" },
+          { "$ref": "#/components/parameters/dateFrom" },
+          { "$ref": "#/components/parameters/dateTo" },
           {
             "name": "page_url",
             "in": "query",
-            "description": "Filter by specific page URL",
-            "schema": {
-              "type": "string"
-            }
+            "description": "Only return points for this exact page URL",
+            "schema": { "type": "string" }
           },
-          {
-            "$ref": "#/components/parameters/format"
-          }
+          { "$ref": "#/components/parameters/limit" },
+          { "$ref": "#/components/parameters/offset" },
+          { "$ref": "#/components/parameters/format" }
         ],
         "responses": {
           "200": {
             "description": "Successful response",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/HeatmapClick"
-                  }
-                }
-              }
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/HeatmapPoint" } }
+              },
+              "text/csv": { "schema": { "type": "string" } }
             }
-          }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimitExceeded" }
         }
       }
     }
@@ -395,7 +250,7 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "API Key",
-        "description": "Enter your API key in the format: `ck_live_your_api_key_here`"
+        "description": "Send `Authorization: Bearer ck_live_...`. Create keys in the dashboard under Settings → API Keys. Each key is scoped to one site."
       }
     },
     "parameters": {
@@ -403,291 +258,161 @@
         "name": "siteId",
         "in": "path",
         "required": true,
-        "description": "Site UUID",
-        "schema": {
-          "type": "string",
-          "format": "uuid"
-        }
+        "description": "Site UUID. Must be the site the API key is scoped to, otherwise 404.",
+        "schema": { "type": "string", "format": "uuid" }
       },
       "dateFrom": {
         "name": "date_from",
         "in": "query",
-        "description": "Start date (ISO 8601 format). Defaults to 30 days ago.",
-        "schema": {
-          "type": "string",
-          "format": "date-time",
-          "example": "2024-01-01T00:00:00Z"
-        }
+        "description": "Start of range (ISO 8601 date or date-time, inclusive). Defaults to 30 days ago.",
+        "schema": { "type": "string", "example": "2026-01-01T00:00:00Z" }
       },
       "dateTo": {
         "name": "date_to",
         "in": "query",
-        "description": "End date (ISO 8601 format). Defaults to now.",
-        "schema": {
-          "type": "string",
-          "format": "date-time",
-          "example": "2024-01-31T23:59:59Z"
-        }
+        "description": "End of range (ISO 8601 date or date-time, inclusive). Defaults to now.",
+        "schema": { "type": "string", "example": "2026-01-31T23:59:59Z" }
       },
       "limit": {
         "name": "limit",
         "in": "query",
-        "description": "Maximum number of results to return",
-        "schema": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 10000,
-          "default": 1000
-        }
+        "description": "Maximum number of rows to return. Clamped to 1–1000.",
+        "schema": { "type": "integer", "minimum": 1, "maximum": 1000, "default": 1000 }
       },
       "offset": {
         "name": "offset",
         "in": "query",
-        "description": "Number of results to skip (for pagination)",
-        "schema": {
-          "type": "integer",
-          "minimum": 0,
-          "default": 0
-        }
+        "description": "Number of rows to skip (pagination)",
+        "schema": { "type": "integer", "minimum": 0, "default": 0 }
       },
       "format": {
         "name": "format",
         "in": "query",
         "description": "Response format",
-        "schema": {
-          "type": "string",
-          "enum": ["json", "csv"],
-          "default": "json"
-        }
+        "schema": { "type": "string", "enum": ["json", "csv"], "default": "json" }
       }
     },
     "schemas": {
       "Site": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "domain": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "is_active": {
-            "type": "boolean"
-          }
+          "id": { "type": "string", "format": "uuid" },
+          "domain": { "type": "string" },
+          "name": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "is_active": { "type": "boolean" }
         }
       },
       "Visit": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "site_id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "visitor_hash": {
-            "type": "string"
-          },
-          "started_at": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "duration_seconds": {
-            "type": "integer"
-          },
-          "page_views": {
-            "type": "integer"
-          },
-          "device_type": {
-            "type": "string"
-          },
-          "browser": {
-            "type": "string"
-          },
-          "os": {
-            "type": "string"
-          },
-          "referrer_url": {
-            "type": "string"
-          },
-          "referrer_domain": {
-            "type": "string"
-          }
+          "id": { "type": "string", "format": "uuid" },
+          "session_id": { "type": "string" },
+          "site_id": { "type": "string", "format": "uuid" },
+          "started_at": { "type": "string", "format": "date-time" },
+          "last_activity": { "type": "string", "format": "date-time" },
+          "duration_seconds": { "type": "integer", "nullable": true },
+          "page_views": { "type": "integer", "nullable": true },
+          "device_type": { "type": "string", "nullable": true },
+          "browser": { "type": "string", "nullable": true },
+          "os": { "type": "string", "nullable": true },
+          "referrer": { "type": "string", "nullable": true },
+          "referrer_url": { "type": "string", "nullable": true },
+          "utm_source": { "type": "string", "nullable": true },
+          "utm_medium": { "type": "string", "nullable": true },
+          "utm_campaign": { "type": "string", "nullable": true },
+          "utm_term": { "type": "string", "nullable": true },
+          "utm_content": { "type": "string", "nullable": true },
+          "screen_width": { "type": "integer", "nullable": true },
+          "screen_height": { "type": "integer", "nullable": true },
+          "viewport_width": { "type": "integer", "nullable": true },
+          "viewport_height": { "type": "integer", "nullable": true }
         }
       },
       "PageView": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "site_id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "session_id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "page_url": {
-            "type": "string"
-          },
-          "page_title": {
-            "type": "string"
-          },
-          "viewed_at": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "time_on_page_seconds": {
-            "type": "integer"
-          }
+          "id": { "type": "string", "format": "uuid" },
+          "site_id": { "type": "string", "format": "uuid" },
+          "session_id": { "type": "string" },
+          "url": { "type": "string" },
+          "title": { "type": "string", "nullable": true },
+          "referrer": { "type": "string", "nullable": true },
+          "time_on_page": { "type": "integer", "nullable": true },
+          "scroll_depth": { "type": "number", "nullable": true },
+          "exit_page": { "type": "boolean", "nullable": true },
+          "is_conversion_page": { "type": "boolean", "nullable": true },
+          "viewed_at": { "type": "string", "format": "date-time" }
         }
       },
       "Referrer": {
         "type": "object",
         "properties": {
-          "domain": {
-            "type": "string"
-          },
-          "visits": {
-            "type": "integer"
-          }
-        }
-      },
-      "Event": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "site_id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "event_name": {
-            "type": "string"
-          },
-          "event_category": {
-            "type": "string"
-          },
-          "event_data": {
-            "type": "object"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time"
-          }
+          "domain": { "type": "string", "description": "Referrer hostname, or \"unknown\" if the referrer is not a valid URL" },
+          "visits": { "type": "integer", "description": "Number of sessions" }
         }
       },
       "AgentSession": {
         "type": "object",
-        "description": "AI agent session data - unique to CortIQ!",
         "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "site_id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "agent_type": {
-            "type": "string",
-            "enum": ["chatgpt_browser", "perplexity_comet", "claude_browser", "other"],
-            "description": "Type of AI agent"
-          },
-          "started_at": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "page_views": {
-            "type": "integer"
-          },
-          "query_intent": {
-            "type": "string"
-          }
+          "id": { "type": "string", "format": "uuid" },
+          "site_id": { "type": "string", "format": "uuid" },
+          "session_id": { "type": "string" },
+          "bot_type": { "type": "string" },
+          "bot_name": { "type": "string", "nullable": true },
+          "browser_type": { "type": "string", "nullable": true },
+          "is_visual_browser": { "type": "boolean", "nullable": true },
+          "started_at": { "type": "string", "format": "date-time", "nullable": true },
+          "last_activity_at": { "type": "string", "format": "date-time", "nullable": true },
+          "total_requests": { "type": "integer", "nullable": true },
+          "total_pages_viewed": { "type": "integer", "nullable": true },
+          "total_assets_loaded": { "type": "integer", "nullable": true },
+          "reached_conversion": { "type": "boolean", "nullable": true },
+          "conversion_page": { "type": "string", "nullable": true },
+          "conversion_at": { "type": "string", "format": "date-time", "nullable": true },
+          "exit_page": { "type": "string", "nullable": true }
         }
       },
       "Conversion": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "site_id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "conversion_name": {
-            "type": "string"
-          },
-          "conversion_value": {
-            "type": "number"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time"
-          }
+          "id": { "type": "string", "format": "uuid" },
+          "site_id": { "type": "string", "format": "uuid" },
+          "session_id": { "type": "string", "nullable": true },
+          "page_view_id": { "type": "string", "nullable": true },
+          "event_type": { "type": "string" },
+          "event_name": { "type": "string" },
+          "event_value": { "type": "number", "nullable": true },
+          "element_selector": { "type": "string", "nullable": true },
+          "lead_quality": { "type": "string", "nullable": true },
+          "quality_value": { "type": "number", "nullable": true },
+          "upload_status": { "type": "string", "nullable": true },
+          "created_at": { "type": "string", "format": "date-time", "nullable": true }
         }
       },
-      "HeatmapClick": {
+      "HeatmapPoint": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "site_id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "page_url": {
-            "type": "string"
-          },
-          "x_position": {
-            "type": "integer"
-          },
-          "y_position": {
-            "type": "integer"
-          },
-          "viewport_width": {
-            "type": "integer"
-          },
-          "viewport_height": {
-            "type": "integer"
-          },
-          "device_type": {
-            "type": "string"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time"
-          }
+          "id": { "type": "string", "format": "uuid" },
+          "site_id": { "type": "string", "format": "uuid" },
+          "url": { "type": "string" },
+          "interaction_type": { "type": "string", "description": "e.g. click or scroll" },
+          "device_type": { "type": "string", "nullable": true },
+          "x_coordinate": { "type": "integer", "nullable": true },
+          "y_coordinate": { "type": "integer", "nullable": true },
+          "grid_x": { "type": "integer", "nullable": true },
+          "grid_y": { "type": "integer", "nullable": true },
+          "viewport_width": { "type": "integer", "nullable": true },
+          "viewport_height": { "type": "integer", "nullable": true },
+          "element_selector": { "type": "string", "nullable": true },
+          "created_at": { "type": "string", "format": "date-time" }
         }
       },
       "Error": {
         "type": "object",
         "properties": {
-          "error": {
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
-          }
+          "error": { "type": "string" },
+          "message": { "type": "string" }
         }
       }
     },
@@ -696,53 +421,36 @@
         "description": "Invalid or missing API key",
         "content": {
           "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/Error"
-            },
-            "example": {
-              "error": "Invalid or missing API key"
-            }
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": { "error": "Invalid or missing API key" }
           }
         }
       },
       "NotFound": {
-        "description": "Resource not found",
+        "description": "Site not accessible with this key, unknown resource, or unknown path",
         "content": {
           "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/Error"
-            },
-            "example": {
-              "error": "Site not found or access denied"
-            }
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": { "error": "Site not found or access denied" }
           }
         }
       },
       "RateLimitExceeded": {
-        "description": "Rate limit exceeded",
+        "description": "Rate limit exceeded (default 1,000 successful requests per rolling hour per key)",
         "content": {
           "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/Error"
-            },
-            "example": {
-              "error": "Rate limit exceeded",
-              "retry_after": 3600
-            }
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": { "error": "Rate limit exceeded", "retry_after": 3600 }
           }
         },
         "headers": {
           "X-RateLimit-Limit": {
-            "schema": {
-              "type": "integer"
-            },
-            "description": "Rate limit (requests per hour)"
+            "schema": { "type": "integer" },
+            "description": "Requests allowed per hour for this key"
           },
           "Retry-After": {
-            "schema": {
-              "type": "integer"
-            },
-            "description": "Seconds until rate limit resets"
+            "schema": { "type": "integer" },
+            "description": "Always 3600"
           }
         }
       }

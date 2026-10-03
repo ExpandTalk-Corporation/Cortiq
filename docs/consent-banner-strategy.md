@@ -1,8 +1,10 @@
 # Consent & Cookie Banner Strategy
 
-Status: **DRAFT for approval** · Owner: Daniel · Last updated: 2026-07-07
+Status: **DRAFT for approval — superseded in part (see below)** · Owner: Daniel · Last updated: 2026-09-23
 
-Goal: raise banner acceptance and reduce how often the banner is even needed, strictly within GDPR / ePrivacy. The single biggest lever is making CortIQ's own analytics **consent-exempt**, which removes the "Statistics" toggle from the banner entirely. Everything else (copy, UX nudging, Consent Mode v2, platform features) sits on top of that.
+> **Current product position (2026-09):** Cookieless mode shipped, but it is **not** treated as consent-exempt. All visitor analytics — page views, sessions, clicks, scroll, heatmaps, forms, e-commerce, conversions, session recording, A/B tests, AI-referral measurement — start only after analytics consent, in both Cookieless and Full mode (GDPR Art. 6.1.a / ePrivacy Art. 5.3). The banner always shows the Statistics toggle; consent is valid 12 months, then re-asked; a closed banner saves "necessary only". Without consent only the AI-bot / security layer runs (bot & agent detection, crawler classification, bot probe, honeypot, canary, Cloudflare edge-log bot classification), designed as strictly necessary security processing — the site operator makes the final legal assessment. Sections below that describe Cookieless as consent-exempt or banner-free are historical.
+
+Goal: raise banner acceptance strictly within GDPR / ePrivacy. The original proposal was to make CortIQ's own analytics consent-exempt and remove the "Statistics" toggle; that was **not adopted** — Cookieless mode reduces data collected but still requires consent. Copy, UX nudging, Consent Mode v2 and platform features are the levers.
 
 This doc covers five areas. Each ends with a **Decision** to approve or change.
 
@@ -28,17 +30,17 @@ Fingerprinting + cross-visit identity are exactly what the exemption forbids. So
 
 ---
 
-## 1. Cookieless / consent-exempt mode  (the lever)
+## 1. Cookieless mode  (shipped — consent still required)
 
 Introduce **two explicit modes**, selectable per site in the WP plugin and in the CortIQ API (`sites` row):
 
-### Mode A — Cookieless (consent-exempt)  ← recommended default
+### Mode A — Cookieless (consent-gated, data-minimised)
 - **No device fingerprint.** Skip canvas/WebGL/UA fingerprinting.
 - **No cross-visit identity.** No `unified_visitors` recognition across visits.
 - **Daily-rotating salt** (Plausible/Fathom model): the server derives a per-day visitor hash = `SHA-256(daily_salt || truncated_IP || UA)` used only to count **unique visitors within that day**. The salt rotates at midnight and old salts are discarded, so the same person cannot be linked across days. Raw IP never stored.
 - **No persistent client storage.** Session grouping uses an in-memory, per-tab id (lost on tab close). No localStorage, no cookie.
-- Result: heatmaps (grid-snapped), scroll depth, pageviews, sessions-within-a-visit, AI-bot detection (UA-based, not personal) all still work in aggregate.
-- **The "Statistics" category disappears from the banner.** Only GA4 + Marketing remain consent-gated.
+- Result: after analytics consent, heatmaps (grid-snapped), scroll depth, pageviews and sessions-within-a-visit work in aggregate. AI-bot detection runs without consent as part of the security layer.
+- ~~The "Statistics" category disappears from the banner.~~ **Not adopted:** the banner always shows the Statistics toggle, and no visitor analytics run before consent in this mode.
 
 ### Mode B — Full (consent-gated)
 - Current behaviour: fingerprint + returning-visitor identity + engagement-over-time. Requires the Statistics consent toggle. For customers who explicitly want visitor-level analytics and accept the banner cost.
@@ -53,7 +55,7 @@ We describe the **technical basis** ("no device storage, no fingerprint, daily-r
 ### Touch points
 `spa-tracking.js` (skip identify + no client storage in Mode A), `visitor-identification` (stripped/daily-hash path), `track-event`/`ingest_pageview` (daily unique key), `sites` schema (`tracking_mode` column + `daily_salt` rotation), banner category rendering.
 
-**Decision 1:** Approve two modes with **Cookieless as the default**? Or default Full and offer Cookieless as opt-in?
+**Decision 1 (resolved):** Two modes shipped (Cookieless / Full, selectable as Tracking mode in the WP plugin). Both require analytics consent.
 
 ---
 
@@ -96,11 +98,11 @@ Allowed and effective:
 
 ## 5. CortIQ platform features (build after 1–4)
 
-- **Geo-gating:** show the banner only in EEA/UK/CH via `CF-IPCountry` (already read in `_shared/jurisdiction.ts`) + a server-side API flag; implied/no banner elsewhere. Legitimate. Low impact on primarily-Swedish traffic, but valuable for international customers — build as a platform feature, don't expect movement on itsäkerhet.com.
+- **Geo-gating:** show the banner only in EEA/UK/CH via `CF-IPCountry` (already read in `_shared/jurisdiction.ts`) + a server-side API flag; implied/no banner elsewhere — whether that is acceptable outside the EEA is the operator's legal call. Low impact on primarily-Swedish traffic, but valuable for international customers — build as a platform feature, don't expect movement on itsäkerhet.com.
 - **Integration risk badges** (Low/Medium/High) by out-of-EU transfer, cookie lifetime, sensitivity. GA4 = Medium (US transfer), CortIQ own = Low/None. Turns the hub into a compliance tool.
 - **Live "Cookie banner preview"** in the Integration Hub — toggling an integration shows the banner change. Visually ties "fewer tools = simpler banner = higher acceptance".
 - **Dashboard "Setup health check"** (top of Overview): script active ✓ / GDPR mode ✓ / consent log ✓ / GA4 with Consent Mode ✓, green-yellow-red.
-- **Consent Impact view** (the killer feature): banner acceptance rate + CortIQ (all visitors) vs GA4 (consented only) gap — *"GA4 misses X% of your traffic"*. **Only legitimate once Mode A ships** (otherwise we'd be measuring fingerprinted visitors without consent). Also enables real A/B testing of banner colour/copy.
+- **Consent Impact view:** banner acceptance rate and consent-level breakdown. ~~CortIQ (all visitors) vs GA4 (consented only) gap~~ — not applicable: CortIQ visitor analytics are consent-gated too, so there is no "all visitors" measurement to compare against. Also enables A/B testing of banner colour/copy.
 
 **Decision 5:** Build order within #5 — start with risk badges + health check (fast, high trust), then Consent Impact (after Mode A), then geo + preview?
 
@@ -116,7 +118,7 @@ Allowed and effective:
 
 ## Recommended sequence
 
-1. **Cookieless mode** (unlocks the banner simplification, the Consent Impact view, and "measure without a banner").
+1. **Cookieless mode** (shipped; data minimisation — consent still required).
 2. **i18n + copy** (parallel, cheap).
 3. **Banner UX nudge** (modal, prominent accept).
 4. **Consent Mode v2** for GA4.

@@ -34,15 +34,15 @@ export default function Installation() {
           <div className="rounded-lg border bg-muted/30 p-4">
             <p className="text-sm font-medium mb-1">🗄️ Data layer</p>
             <p className="text-xs text-muted-foreground">
-              The ~8&nbsp;kB snippet sends page views, clicks and (with consent) heatmaps to your
+              The ~13&nbsp;kB (gzipped) script sends page views, clicks and (with consent) heatmaps to your
               CortIQ project. It also detects AI bots. Cookie-free by default.
             </p>
           </div>
           <div className="rounded-lg border bg-muted/30 p-4">
             <p className="text-sm font-medium mb-1">🔒 Privacy built in</p>
             <p className="text-xs text-muted-foreground">
-              No consent banner needed for the base layer. Click IDs, fingerprinting and session
-              replay only run after explicit consent, verified server-side. IPs anonymised at ingest.
+              Visitor analytics start only after analytics consent; click IDs, fingerprinting and session
+              replay need explicit consent too, verified server-side. AI-bot detection runs without consent. IPs anonymised at ingest.
             </p>
           </div>
           <div className="rounded-lg border bg-muted/30 p-4">

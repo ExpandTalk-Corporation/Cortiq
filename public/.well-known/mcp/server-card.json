@@ -1,45 +1,45 @@
 {
   "schema_version": "0.1",
   "name": "CortIQ Analytics",
-  "description": "MCP server for CortIQ — query web analytics data, AI agent traffic, heatmaps, and run AI-visibility audits. The first analytics platform with dedicated tracking for AI agents on the web.",
+  "description": "Read-only MCP server for CortIQ web analytics: traffic, engagement, heatmaps, forms, Core Web Vitals and AI agent traffic for one site per API key.",
   "url": "https://cortiq.se",
   "provider": {
-    "organization": "Expandtalk Corporation",
+    "organization": "Expandtalk Corporation AB",
     "url": "https://cortiq.se"
   },
+  "endpoint": "https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1/mcp-server",
+  "transport": "http",
+  "protocol_version": "2024-11-05",
   "tools": [
-    {
-      "name": "track_event",
-      "description": "Send a tracking event (page view, click, custom event) for a registered site",
-      "endpoint": "https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1/track-event"
-    },
-    {
-      "name": "get_analytics",
-      "description": "Retrieve aggregated analytics for a site: sessions, page views, traffic sources, device breakdown, top pages",
-      "endpoint": "https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1/analytics-query"
-    },
-    {
-      "name": "get_ai_agent_sessions",
-      "description": "Query AI agent sessions for a site — which agents visited, journey paths, conversion attribution",
-      "endpoint": "https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1/ai-bot-tracker"
-    },
-    {
-      "name": "get_heatmap",
-      "description": "Retrieve click heatmap data for a specific page URL and device type",
-      "endpoint": "https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1/heatmap-data"
-    },
-    {
-      "name": "run_geo_audit",
-      "description": "Run an AI-visibility (GEO) audit on any URL — returns GEO score, llms.txt presence, crawler access, schema markup",
-      "endpoint": "https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1/geo-analyze"
-    }
+    "cortiq_list_sites",
+    "cortiq_describe_schema",
+    "cortiq_sessions_summary",
+    "cortiq_daily_visitors",
+    "cortiq_bounce_rate",
+    "cortiq_top_pages",
+    "cortiq_top_sources",
+    "cortiq_top_entry_pages",
+    "cortiq_top_exit_pages",
+    "cortiq_pageviews_by_device",
+    "cortiq_avg_engagement_time",
+    "cortiq_click_counts",
+    "cortiq_heatmap_grid",
+    "cortiq_top_rage_clicks",
+    "cortiq_top_outbound",
+    "cortiq_web_vitals",
+    "cortiq_form_analytics",
+    "cortiq_funnel_completion",
+    "cortiq_ai_agent_traffic",
+    "cortiq_ai_bot_analysis",
+    "cortiq_ai_agent_journey",
+    "cortiq_ai_vs_human"
   ],
   "authentication": {
-    "type": "api_key",
-    "description": "API key required. Obtain from Settings → API Keys in the CortIQ dashboard.",
-    "docs": "https://cortiq.se/api"
+    "type": "bearer",
+    "description": "CortIQ API key (ck_live_…) in the Authorization header. Create one under CortIQ API & MCP in the dashboard. Each key reads one site.",
+    "docs": "https://cortiq.se/integrations/mcp/"
   },
   "openapi": "https://cortiq.se/api-docs/swagger.json",
-  "documentation": "https://cortiq.se/api",
-  "privacy": "https://cortiq.se/privacy"
+  "documentation": "https://cortiq.se/integrations/mcp/",
+  "privacy": "https://cortiq.se/privacy/"
 }

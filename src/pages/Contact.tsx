@@ -2,14 +2,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import PublicNavigation from "@/components/PublicNavigation";
+import PublicFooter from "@/components/PublicFooter";
 import { useSEO } from "@/hooks/useSEO";
-import { Mail, ArrowRight, MapPin, Phone, Globe } from "lucide-react";
+import { seoFor } from "@/marketing-routes";
+import { Mail, ArrowRight, MapPin, Globe, Sparkles } from "lucide-react";
 
 const Contact = () => {
-  useSEO({
-    title: 'Contact — CortIQ',
-    description: 'Get in touch with the CortIQ team. Request an invitation to our analytics platform or ask about AI agent tracking and cookie-free analytics.',
-  });
+  useSEO(seoFor("/contact/"));
   return (
     <div className="min-h-screen bg-background">
       <PublicNavigation />
@@ -106,11 +105,11 @@ const Contact = () => {
 
                   <div className="flex items-start space-x-4 p-4 rounded-lg hover:bg-primary/5 transition-colors">
                     <div className="w-12 h-12 bg-gradient-accent rounded-full flex items-center justify-center flex-shrink-0">
-                      <Phone className="h-6 w-6 text-white" />
+                      <Sparkles className="h-6 w-6 text-white" />
                     </div>
                     <div>
-                      <h4 className="font-semibold mb-2">Response Time</h4>
-                      <p className="text-muted-foreground text-sm">Within 24 hours</p>
+                      <h4 className="font-semibold mb-2">Access</h4>
+                      <p className="text-muted-foreground text-sm">Free during beta — create an account at cortiq.se/auth</p>
                     </div>
                   </div>
                 </div>
@@ -130,7 +129,7 @@ const Contact = () => {
                   </a>
 
                   <p className="mt-6 text-sm text-muted-foreground">
-                    For inquiries about CortIQ and invite-only access,<br />
+                    For inquiries about CortIQ,<br />
                     please reach out through our contact page.
                   </p>
                 </div>
@@ -146,33 +145,34 @@ const Contact = () => {
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-3xl font-bold mb-6">About CortIQ</h2>
             <p className="text-lg text-muted-foreground leading-relaxed mb-8">
-              CortIQ is the world's first analytics platform with dedicated AI agent tracking.
-              We help businesses understand and optimize for the new agentic web, where AI agents
-              like ChatGPT Browser, Perplexity, and Claude are becoming a significant part of web traffic.
+              CortIQ is an analytics platform with dedicated AI-traffic classification.
+              We help businesses understand and optimize for the agentic web, where AI agents and
+              crawlers from ChatGPT, Perplexity, Claude and others are a growing part of web traffic.
             </p>
             <div className="grid md:grid-cols-3 gap-6 mt-12">
               <div className="p-6 rounded-lg bg-primary/5">
                 <h3 className="font-semibold mb-2">🤖 AI-First</h3>
                 <p className="text-sm text-muted-foreground">
-                  First on the market with AI agent analytics
+                  Training, agentic and citation AI traffic, classified
                 </p>
               </div>
               <div className="p-6 rounded-lg bg-primary/5">
-                <h3 className="font-semibold mb-2">🔒 GDPR Ready</h3>
+                <h3 className="font-semibold mb-2">🔒 Privacy-first</h3>
                 <p className="text-sm text-muted-foreground">
-                  100% compliant cookie-free tracking
+                  Cookieless mode; all visitor analytics start after consent
                 </p>
               </div>
               <div className="p-6 rounded-lg bg-primary/5">
                 <h3 className="font-semibold mb-2">⚡ Easy Setup</h3>
                 <p className="text-sm text-muted-foreground">
-                  1-click WordPress plugin installation
+                  WordPress plugin — paste your Site ID and Tracking ID
                 </p>
               </div>
             </div>
           </div>
         </div>
       </section>
+      <PublicFooter />
     </div>
   );
 };

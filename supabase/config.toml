@@ -1,8 +1,5 @@
 project_id = "cxmkdtgfocgbfizawlwa"
 
-[functions.server-log-import]
-verify_jwt = false
-
 [functions.ai-bot-tracker]
 verify_jwt = false
 
@@ -73,6 +70,9 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.ai-assistant]
+verify_jwt = true
+
+[functions.generate-dashboard-insights]
 verify_jwt = true
 
 [functions.anthropic-key]

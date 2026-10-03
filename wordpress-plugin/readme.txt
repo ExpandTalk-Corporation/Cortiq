@@ -1,9 +1,9 @@
 === CortIQ Analytics ===
 Contributors: cortiq
-Tags: analytics, ai-tracking, heatmap, cookie-free, gdpr, chatgpt, session-recording
+Tags: analytics, ai-tracking, heatmap, cookie-free, gdpr, chatgpt, ai-bots
 Requires at least: 5.6
 Tested up to: 6.8
-Stable tag: 5.3.5
+Stable tag: 5.4.3
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -12,14 +12,14 @@ Analytics for the agentic web. Track AI agents, human visitors and Core Web Vita
 
 == Description ==
 
-CortIQ Analytics gives you a complete picture of who visits your site: human visitors and AI agents alike. It combines cookie-free server-side analytics (no consent required) with optional enhanced tracking (heatmaps, session recording) that activates only after the visitor gives consent.
+CortIQ Analytics gives you a complete picture of who visits your site: human visitors and AI agents alike. AI-agent and bot detection runs as a strictly necessary security function; visitor analytics (page views, heatmaps, conversions) start only after the visitor gives analytics consent.
 
 = What you can measure =
 
 **AI agent traffic**
-* Which AI agents visit your site: ChatGPT Browser, Perplexity Comet, Claude Browser, Gemini and others
+* AI traffic split into training crawlers (GPTBot, ClaudeBot…), agentic fetches (ChatGPT-User, Claude-User, Perplexity-User) and citation crawlers (OAI-SearchBot, PerplexityBot…)
 * Which pages AI agents access and how often
-* Citation tracking — when an LLM references your content
+* AI referrals — visitors arriving from ChatGPT, Perplexity, Claude, Gemini (after consent)
 * AI agent conversion attribution — traffic and goals driven by AI referrals
 * Browser type classification: Visual / Headless / Text-based
 
@@ -29,24 +29,18 @@ CortIQ Analytics gives you a complete picture of who visits your site: human vis
 * Click heatmaps — exact click positions per page and device type
 * Scroll depth heatmaps — funnel showing how far visitors scroll (25 / 50 / 75 / 100%)
 * Form analytics — field-level drop-off analysis
-* Session recording — full replay of visitor interactions (with data masking for sensitive fields)
 * User journey and navigation flow
 
-**Conversion & testing**
+**Conversions**
 * Goal tracking and conversion funnels
-* A/B testing with statistical significance
 * UTM campaign tracking
 
 **Technical**
-* Core Web Vitals (LCP, INP, CLS)
 * Device, browser and geographic breakdown
-* Data Warehouse export (BigQuery, Snowflake, Redshift, PostgreSQL)
 
 = Privacy & GDPR =
 
-Cookie-free tracking runs by default with no cookies and no personal data stored in the browser. This is legal under GDPR legitimate interest (Art. 6.1.f) — no cookie banner required for this layer.
-
-Enhanced tracking (heatmaps, sessions) activates only after the visitor consents via the built-in cookie banner. The banner implements:
+AI-agent and bot detection runs without consent as a strictly necessary security function. Visitor analytics — in both Cookieless and Full mode — start only after the visitor grants Statistics consent via the built-in cookie banner. Cookieless mode additionally avoids fingerprinting and cross-visit profiles. You decide the legal basis for your site. The banner implements:
 * Granular categories (Necessary / Preferences / Statistics / Marketing)
 * No pre-ticked boxes for non-essential categories
 * Consent ID and timestamp logging
@@ -77,7 +71,7 @@ The plugin loads the CortIQ tracking script in `<head>` and shows the cookie con
 
 = Do I need a cookie banner? =
 
-Not for the cookie-free layer. CortIQ's server-side analytics collect no personal data and require no consent. The built-in cookie banner is only needed if you want enhanced tracking (heatmaps, sessions) or Google Analytics.
+Yes, for visitor analytics. CortIQ's page views, heatmaps and sessions start only after Statistics consent, also in Cookieless mode. Without a banner only AI-agent and bot detection runs. The built-in banner handles this, including Google Consent Mode v2 for GA4.
 
 = Does this work alongside Google Analytics? =
 
@@ -89,13 +83,23 @@ All data is stored in the EU (AWS eu-north-1 via Supabase).
 
 = Does the plugin slow down my site? =
 
-The tracking script is loaded with `defer` so it does not block rendering. Cookie-free tracking is server-side and adds no client-side weight beyond the script tag.
-
-= Can I mask sensitive fields in session recordings? =
-
-Yes. Add `data-cortiq-mask` to any input or element. The field content is replaced with asterisks in the recording. See the [GDPR guide](https://github.com/expandtalk/cortiq/blob/main/GDPR.md) for details.
+The tracking script is loaded with `defer` so it does not block rendering.
 
 == Changelog ==
+
+= 5.4.3 =
+* Tracking script: reads Google Consent Mode v2 from the dataLayer when no CortIQ banner or Cookiebot choice exists, so CMPs wired to Google Tag Manager (OneTrust, Usercentrics, CookieYes and others) work without extra code. Click and scroll heatmap points are stored again.
+
+= 5.4.2 =
+* Fix: cookieless sites no longer log a visitor-identification error (the server skips profiling by design).
+
+= 5.4.1 =
+* Tracking script: AI-referral measurement (visitors arriving from ChatGPT, Perplexity, Claude, Gemini) now starts only after analytics consent. Only AI-bot and security detection runs without consent.
+
+= 5.4.0 =
+* Plugin and tracking script now share one version number; `spa-tracking.js` exposes it as `window.CortIQ.version`.
+* Fix: consent choices now include `expiresAt`, which the current tracking script requires. Before this, a saved choice was ignored on the next page load and analytics stopped after the first page. Existing choices are upgraded automatically — visitors are not re-prompted. The tracking script also accepts choices saved by 5.3.x, so sites that have not updated yet keep working.
+* The Statistics toggle is always shown: Cookieless mode now requires analytics consent too. Settings and readme text updated to match.
 
 = 5.3.5 =
 * Cache-bust: bumped version so browsers re-fetch the latest `spa-tracking.js` from the CDN. Ensures the updated consent behaviour (clicks, scroll, heatmaps and conversion capture now require analytics consent even in cookieless mode; aggregate page-view measurement stays banner-free) reaches installed sites. No settings change required.

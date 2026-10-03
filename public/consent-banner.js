@@ -32,7 +32,9 @@
   function consentAlreadyGiven() {
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
-      return raw !== null;
+      var saved = raw ? JSON.parse(raw) : null;
+      return !!saved && Date.parse(saved.expiresAt) > Date.now() &&
+        ['analytics', 'marketing', 'preferences'].every(function (key) { return typeof saved[key] === 'boolean'; });
     } catch (e) { return false; }
   }
 
@@ -52,7 +54,7 @@
 
   // Reuse the same session id the tracking script uses, so the server-side consent
   // record can be joined to the visitor/conversion for this session.
-  function getSessionId() {
+  function getSessionId(types) {
     try {
       var existing = sessionStorage.getItem('cortiq_session_id');
       if (existing) return existing;
@@ -60,7 +62,10 @@
     var id;
     try { id = 'sess_' + crypto.randomUUID(); }
     catch (e) { id = 'sess_' + Math.random().toString(36).slice(2) + Date.now().toString(36); }
-    try { sessionStorage.setItem('cortiq_session_id', id); } catch (e) {}
+    var trackingConfig = window.cortiqConfig || window.wfaConfig || {};
+    if (types.analytics === true && trackingConfig.cookieless !== true) {
+      try { sessionStorage.setItem('cortiq_session_id', id); } catch (e) {}
+    }
     return id;
   }
 
@@ -70,7 +75,7 @@
     if (!cfg.siteId) return;
     try {
       var body = {
-        session_id: getSessionId(),
+        session_id: getSessionId(types),
         consent_types: {
           necessary: true,
           analytics: !!types.analytics,
@@ -168,7 +173,8 @@
       necessary   : true,
       analytics   : types.analytics,
       marketing   : types.marketing,
-      preferences : types.preferences
+      preferences : types.preferences,
+      expiresAt   : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
     };
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(payload)); } catch (e) {}
     try {
@@ -195,6 +201,7 @@
 
   // ── Build and inject banner ────────────────────────────────────────────
   function buildBanner() {
+    if (document.getElementById(BANNER_ID)) return;
     var dark = isDark();
 
     // Colours
@@ -350,6 +357,22 @@
   // ── Entry point ────────────────────────────────────────────────────────
   function init() {
     if (otherCMPDetected())    return;
+    // Keep a visible way to revisit the choice after the banner has closed.
+    // Merely remembering consent must never remove the withdrawal control.
+    if (!document.getElementById('crtq-consent-settings')) {
+      var settingsButton = document.createElement('button');
+      settingsButton.id = 'crtq-consent-settings';
+      settingsButton.type = 'button';
+      settingsButton.textContent = cfg.lang === 'sv' ? 'Cookieinställningar' : 'Cookie settings';
+      settingsButton.style.cssText = 'position:fixed;bottom:12px;right:12px;z-index:9998;padding:8px 12px;border:1px solid #64748b;border-radius:6px;background:#fff;color:#0f172a;cursor:pointer;font:14px system-ui;';
+      settingsButton.addEventListener('click', function () {
+        buildBanner();
+        wireToggles();
+        var accept = document.getElementById('crtq-cb-accept');
+        if (accept) accept.focus();
+      });
+      document.body.appendChild(settingsButton);
+    }
     if (consentAlreadyGiven()) return;
 
     // Small delay avoids flash on fast-loading pages

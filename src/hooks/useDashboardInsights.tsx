@@ -8,7 +8,7 @@ export interface DashboardInsight {
   description: string;
   action_items: any;
   priority: string;
-  confidence_score: number;
+  confidence_score: number | null;
   created_at: string;
   expires_at: string;
   run_id?: string | null;

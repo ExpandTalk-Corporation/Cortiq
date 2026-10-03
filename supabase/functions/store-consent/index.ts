@@ -33,6 +33,10 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+  const json = (error: string, status: number) => new Response(JSON.stringify({ success: false, error }), {
+    status, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+  if (req.method !== 'POST') return json('Method not allowed', 405);
 
   try {
     // Service role: this public endpoint must read `sites` (RLS-restricted to owners)
@@ -47,26 +51,38 @@ serve(async (req) => {
     // site — blocks cross-site junk POSTed to the consent ledger. A missing Origin
     // (server-to-server) is allowed and still guarded by the site check + rate limit below.
     const origin = req.headers.get('Origin');
+    let originSiteId: string | null = null;
     if (origin) {
       let ourl = origin;
       try { ourl = new URL(origin).href; } catch { /* keep raw */ }
-      const { data: originSite } = await supabase.rpc('resolve_site_by_domain', { p_url: ourl });
+      const { data: originSite, error: originError } = await supabase.rpc('resolve_site_by_domain', { p_url: ourl });
+      if (originError) return json('Unable to verify origin', 503);
       if (!originSite) {
         return new Response(JSON.stringify({ success: false, error: 'Origin not a registered site' }),
           { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
+      originSiteId = originSite as string;
     }
 
-    const requestData: ConsentRequest = await req.json();
-    console.log('Received consent request:', JSON.stringify(requestData, null, 2));
+    let requestData: ConsentRequest;
+    try { requestData = await req.json(); }
+    catch { return json('Invalid JSON', 400); }
+    if (!requestData || typeof requestData !== 'object') return json('Invalid request', 400);
 
     // Normalize session_id from either session_id or uuid field
     const session_id = requestData.session_id || requestData.uuid;
     
     // Validate required fields
-    if (!session_id || !requestData.consent_types) {
-      throw new Error('Missing required fields: session_id (or uuid) and consent_types are required');
+    if (typeof session_id !== 'string' || !session_id.trim() || session_id.length > 255 ||
+        !requestData.consent_types || typeof requestData.consent_types !== 'object' ||
+        (['analytics', 'marketing'] as const).some(key => typeof requestData.consent_types[key] !== 'boolean') ||
+        (requestData.consent_types.preferences !== undefined && typeof requestData.consent_types.preferences !== 'boolean')) {
+      return json('A session ID and boolean consent choices are required', 400);
     }
+    requestData.consent_types = {
+      necessary: true, analytics: requestData.consent_types.analytics,
+      marketing: requestData.consent_types.marketing, preferences: requestData.consent_types.preferences === true,
+    };
 
     // tracking_id is an OPTIONAL legacy site hint. If it isn't a tk_ key (e.g. an
     // account/API key was pasted into the tracking field), ignore it rather than
@@ -124,6 +140,7 @@ serve(async (req) => {
     if (!uuidRegex.test(site_id)) {
       throw new Error(`Invalid site_id format: ${site_id}. Must be a valid UUID.`);
     }
+    if (originSiteId && originSiteId !== site_id) return json('Origin does not match site', 403);
 
     // SECURITY: the consent ledger is compliance evidence — never write a record for a
     // site that doesn't exist. Rejects fabricated/overwritten consent for arbitrary sites.
@@ -150,7 +167,7 @@ serve(async (req) => {
     const consentData = {
       site_id,
       session_id: session_id.substring(0, 255), // Limit length to prevent overflow
-      consent_given: !!(requestData.consent_types.analytics || requestData.consent_types.marketing),
+      consent_given: !!(requestData.consent_types.analytics || requestData.consent_types.marketing || requestData.consent_types.preferences),
       consent_types: requestData.consent_types,
       ip_address: anonymizeIP(requestData.ip_address ?? null), // host portion zeroed — matches "IP anonymized" claim
       user_agent: requestData.user_agent ? requestData.user_agent.substring(0, 500) : null, // Reasonable limit
@@ -161,15 +178,14 @@ serve(async (req) => {
       expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year
     };
 
-    console.log('Storing consent data:', JSON.stringify(consentData, null, 2));
-
     // Check for existing consent for this session
-    const { data: existingConsent } = await supabase
+    const { data: existingConsent, error: lookupError } = await supabase
       .from('cookie_consents')
       .select('id')
       .eq('session_id', session_id)
       .eq('site_id', site_id)
       .maybeSingle();
+    if (lookupError) return json('Unable to read consent state', 503);
 
     let result;
     if (existingConsent) {
@@ -177,9 +193,14 @@ serve(async (req) => {
       const { data, error } = await supabase
         .from('cookie_consents')
         .update({
+          consent_given: consentData.consent_given,
           consent_types: requestData.consent_types,
           updated_at: new Date().toISOString(),
           policy_version: consentData.policy_version,
+          expires_at: consentData.expires_at,
+          gpc_signal: consentData.gpc_signal,
+          source: consentData.source,
+          locale: consentData.locale,
         })
         .eq('id', existingConsent.id)
         .select()
@@ -210,7 +231,7 @@ serve(async (req) => {
     }
 
     // Also validate the consent for compliance tracking
-    if (requestData.consent_types.analytics || requestData.consent_types.marketing) {
+    {
       console.log('Creating consent validation record');
       
         const { error: validationError } = await supabase

@@ -6,16 +6,17 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 const FEATURES_LINKS = [
-  { to: "/features/ai", label: "AI Agent Analytics" },
-  { to: "/features/analytics", label: "Analytics & Heatmaps" },
-  { to: "/features/cyber", label: "Cyber & Bot Security" },
-  { to: "/cmp", label: "CMP Solution" },
+  { to: "/features/ai/", label: "AI Agent Analytics" },
+  { to: "/features/analytics/", label: "Analytics & Heatmaps" },
+  { to: "/features/cyber/", label: "Cyber & Bot Security" },
+  { to: "/cmp/", label: "CMP Solution" },
 ];
 
 const TOP_NAV = [
-  { to: "/bot-intelligence", label: "Bot Intelligence" },
-  { to: "/pricing", label: "Pricing" },
-  { to: "/contact", label: "Contact" },
+  { to: "/integrations/", label: "Integrations" },
+  { to: "/docs/", label: "Docs" },
+  { to: "/pricing/", label: "Pricing" },
+  { to: "/contact/", label: "Contact" },
 ];
 
 export default function PublicNavigation() {
@@ -55,26 +56,25 @@ export default function PublicNavigation() {
             <button className="flex items-center gap-1 text-foreground hover:text-primary transition-colors font-medium">
               Features <ChevronDown className="h-4 w-4" />
             </button>
-            {featuresOpen && (
-              <div className="absolute top-full left-0 mt-1 w-52 rounded-lg border border-border bg-background shadow-lg py-1 z-50">
+            {/* Always rendered (hidden via CSS) so the links exist in the prerendered HTML for crawlers. */}
+            <div className={`${featuresOpen ? "block" : "hidden"} absolute top-full left-0 mt-1 w-52 rounded-lg border border-border bg-background shadow-lg py-1 z-50`}>
+              <Link
+                to="/features/"
+                className="block px-4 py-2 text-sm text-muted-foreground hover:text-primary hover:bg-muted/50 transition-colors font-medium"
+              >
+                All Features
+              </Link>
+              <div className="my-1 border-t border-border/50" />
+              {FEATURES_LINKS.map((link) => (
                 <Link
-                  to="/features"
-                  className="block px-4 py-2 text-sm text-muted-foreground hover:text-primary hover:bg-muted/50 transition-colors font-medium"
+                  key={link.to}
+                  to={link.to}
+                  className="block px-4 py-2 text-sm text-foreground hover:text-primary hover:bg-muted/50 transition-colors"
                 >
-                  All Features
+                  {link.label}
                 </Link>
-                <div className="my-1 border-t border-border/50" />
-                {FEATURES_LINKS.map((link) => (
-                  <Link
-                    key={link.to}
-                    to={link.to}
-                    className="block px-4 py-2 text-sm text-foreground hover:text-primary hover:bg-muted/50 transition-colors"
-                  >
-                    {link.label}
-                  </Link>
-                ))}
-              </div>
-            )}
+              ))}
+            </div>
           </div>
 
           {TOP_NAV.map((link) => (
@@ -95,7 +95,7 @@ export default function PublicNavigation() {
         {/* Desktop Actions */}
         <div className="hidden md:flex items-center space-x-4">
           <a
-            href="https://github.com/expandtalk/cortiq"
+            href="https://github.com/ExpandTalk-Corporation/Cortiq"
             target="_blank"
             rel="noopener noreferrer"
             className="text-foreground hover:text-primary transition-colors"
@@ -141,7 +141,7 @@ export default function PublicNavigation() {
                     <p className="text-lg font-medium text-foreground mb-1">Features</p>
                     <div className="pl-4 flex flex-col space-y-1">
                       <Link
-                        to="/features"
+                        to="/features/"
                         className="text-sm text-muted-foreground hover:text-primary transition-colors py-1"
                         onClick={() => setMobileMenuOpen(false)}
                       >
@@ -174,7 +174,7 @@ export default function PublicNavigation() {
 
                 <div className="flex flex-col space-y-3 pt-6 border-t">
                   <a
-                    href="https://github.com/expandtalk/cortiq"
+                    href="https://github.com/ExpandTalk-Corporation/Cortiq"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-center space-x-2 text-foreground hover:text-primary transition-colors py-2"

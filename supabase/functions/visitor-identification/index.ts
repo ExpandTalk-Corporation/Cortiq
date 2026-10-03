@@ -8,6 +8,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.3";
+import { resolveSite } from "../_shared/resolve-site.ts";
 
 // DB-backed rate limiter — works across all function instances (no cold-start reset)
 async function checkRateLimit(supabase: ReturnType<typeof createClient>, siteId: string): Promise<boolean> {
@@ -324,13 +325,11 @@ serve(async (req) => {
     }
 
     // SECURITY: Verify site_id exists and is active
-    const { data: site, error: siteError } = await supabase
-      .from('sites')
-      .select('id, is_active, fingerprint_salt, tracking_mode')
-      .eq('id', requestData.siteId)
-      .single();
+    // siteId may be an account id (WordPress plugin); resolveSite maps it via the page domain.
+    const site = await resolveSite(supabase, requestData.siteId, requestData.currentUrl,
+      'id, is_active, fingerprint_salt, tracking_mode');
 
-    if (siteError || !site || !site.is_active) {
+    if (!site || !site.is_active) {
       return new Response(
         JSON.stringify({ error: 'Invalid or inactive site' }),
         {
@@ -380,7 +379,7 @@ serve(async (req) => {
 
     // Upsert visitor profile (with sanitized inputs)
     const { data: visitorId, error: upsertError } = await supabase.rpc('upsert_unified_visitor', {
-      p_site_id: requestData.siteId,
+      p_site_id: site.id,
       p_visitor_fingerprint: fingerprint,
       p_session_id: sanitizeString(requestData.sessionId, 255),
       p_visitor_type: visitorType,
@@ -409,7 +408,7 @@ serve(async (req) => {
       const { data: consentRow } = await supabase
         .from('cookie_consents')
         .select('consent_types')
-        .eq('site_id', requestData.siteId)
+        .eq('site_id', site.id)
         .eq('session_id', requestData.sessionId)
         .order('updated_at', { ascending: false })
         .limit(1)

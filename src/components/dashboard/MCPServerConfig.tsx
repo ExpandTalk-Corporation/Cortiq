@@ -26,7 +26,7 @@ interface ApiKey {
 
 interface Site {
   id: string;
-  name: string;
+  site_name: string | null;
   domain: string;
 }
 
@@ -143,7 +143,7 @@ export function MCPServerConfig() {
   async function loadData() {
     const [keysResult, sitesResult] = await Promise.all([
       supabase.from('api_keys').select('id, name, key_prefix, site_id, is_active').eq('is_active', true).order('created_at', { ascending: false }),
-      supabase.from('sites').select('id, name, domain').order('name'),
+      supabase.from('sites').select('id, site_name, domain').order('domain'),
     ]);
     const keys = keysResult.data ?? [];
     setApiKeys(keys);
@@ -258,7 +258,7 @@ Auth header: Authorization: Bearer ${selectedKey?.key_prefix ?? 'YOUR_API_KEY'}.
         <Alert>
           <AlertDescription>
             No API keys found. Create one in{' '}
-            <strong>Settings → API Keys</strong> first, then return here.
+            <strong>API Keys</strong> above first.
           </AlertDescription>
         </Alert>
       ) : (
@@ -364,7 +364,7 @@ Auth header: Authorization: Bearer ${selectedKey?.key_prefix ?? 'YOUR_API_KEY'}.
               </p>
               <CodeBlock code={chatGptCommand} language="json" />
               <p className="text-xs text-muted-foreground">
-                Replace <code className="font-mono">YOUR_API_KEY...</code> with your full API key (available in Settings → API Keys when first created).
+                Replace <code className="font-mono">YOUR_API_KEY...</code> with your full API key (shown once when you create it above).
               </p>
             </TabsContent>
 

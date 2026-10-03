@@ -1,8 +1,9 @@
 /**
  * API Key Manager Component
- * Task #5: Publikt REST API med dokumentation
  *
- * Allows users to create, view, and manage API keys for the Public REST API
+ * Create, view, disable and delete CortIQ API keys. A key is scoped to one site and
+ * works for both the Public REST API (public-api) and the MCP server (mcp-server).
+ * Only the SHA-256 hash is stored; the plaintext key is shown once at creation.
  */
 
 import { useState, useEffect } from 'react';
@@ -43,14 +44,16 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Copy, Eye, EyeOff, Key, Trash2, Plus, ExternalLink } from 'lucide-react';
+import { Copy, Key, Trash2, Plus, ExternalLink } from 'lucide-react';
 import { ApiKey, generateApiKey, getKeyPrefix, hashApiKey } from '@/types/apiKeys';
 
 interface Site {
   id: string;
-  name: string;
+  site_name: string | null;
   domain: string;
 }
+
+const API_BASE = 'https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1/public-api';
 
 export default function ApiKeyManager() {
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
@@ -59,7 +62,6 @@ export default function ApiKeyManager() {
   const [creating, setCreating] = useState(false);
   const [showNewKeyDialog, setShowNewKeyDialog] = useState(false);
   const [newApiKey, setNewApiKey] = useState<string | null>(null);
-  const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
 
   // Form state
   const [newKeyName, setNewKeyName] = useState('');
@@ -76,10 +78,12 @@ export default function ApiKeyManager() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Only sites the user owns — the api_keys RLS policies require site ownership.
       const { data, error } = await supabase
         .from('sites')
-        .select('id, name, domain')
-        .order('name');
+        .select('id, site_name, domain')
+        .eq('user_id', user.id)
+        .order('domain');
 
       if (error) throw error;
       setSites(data || []);
@@ -108,8 +112,13 @@ export default function ApiKeyManager() {
   }
 
   async function createApiKey() {
-    if (!newKeyName.trim()) {
-      toast.error('Please enter a name for the API key');
+    const name = newKeyName.trim();
+    if (name.length < 3 || name.length > 100) {
+      toast.error('Key name must be 3–100 characters');
+      return;
+    }
+    if (!Number.isFinite(rateLimit) || rateLimit < 1 || rateLimit > 100000) {
+      toast.error('Rate limit must be between 1 and 100,000 requests/hour');
       return;
     }
 
@@ -123,15 +132,6 @@ export default function ApiKeyManager() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Get company_id from site
-      const { data: site } = await supabase
-        .from('sites')
-        .select('company_id')
-        .eq('id', selectedSiteId)
-        .single();
-
-      if (!site) throw new Error('Site not found');
-
       // Generate new API key
       const apiKey = generateApiKey();
       const keyHash = await hashApiKey(apiKey);
@@ -141,11 +141,10 @@ export default function ApiKeyManager() {
       const { data, error } = await supabase
         .from('api_keys')
         .insert({
-          company_id: site.company_id,
           site_id: selectedSiteId,
           key_hash: keyHash,
           key_prefix: keyPrefix,
-          name: newKeyName,
+          name,
           permissions: ['read'],
           rate_limit: rateLimit,
           created_by: user.id,
@@ -220,19 +219,9 @@ export default function ApiKeyManager() {
     toast.success('Copied to clipboard');
   }
 
-  function toggleKeyVisibility(keyId: string) {
-    const newVisible = new Set(visibleKeys);
-    if (newVisible.has(keyId)) {
-      newVisible.delete(keyId);
-    } else {
-      newVisible.add(keyId);
-    }
-    setVisibleKeys(newVisible);
-  }
-
   const getSiteName = (siteId: string) => {
     const site = sites.find(s => s.id === siteId);
-    return site ? `${site.name} (${site.domain})` : siteId;
+    return site ? (site.site_name ? `${site.site_name} (${site.domain})` : site.domain) : siteId;
   };
 
   return (
@@ -280,14 +269,14 @@ export default function ApiKeyManager() {
             <div>
               <CardTitle>API Keys</CardTitle>
               <CardDescription>
-                Manage API keys for accessing the CortIQ Public REST API
+                Keys for the CortIQ REST API and MCP server. Each key reads one site's data.
               </CardDescription>
             </div>
             <div className="flex gap-2">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => window.open('/api/docs', '_blank')}
+                onClick={() => window.open('/api/', '_blank')}
               >
                 <ExternalLink className="h-4 w-4 mr-2" />
                 API Documentation
@@ -326,7 +315,7 @@ export default function ApiKeyManager() {
                         <SelectContent>
                           {sites.map((site) => (
                             <SelectItem key={site.id} value={site.id}>
-                              {site.name} ({site.domain})
+                              {site.site_name ? `${site.site_name} (${site.domain})` : site.domain}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -400,15 +389,8 @@ export default function ApiKeyManager() {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <code className="text-sm font-mono">
-                          {visibleKeys.has(key.id) ? key.key_prefix : key.key_prefix}
+                          {key.key_prefix}
                         </code>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => copyToClipboard(key.key_prefix)}
-                        >
-                          <Copy className="h-3 w-3" />
-                        </Button>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -472,27 +454,26 @@ export default function ApiKeyManager() {
 
           <div>
             <h4 className="font-semibold mb-2">Example Request</h4>
-            <code className="block p-3 bg-muted rounded text-sm">
-              curl https://cortiq.se/api/v1/sites \{'\n'}
-              {'  '}-H "Authorization: Bearer ck_live_your_api_key_here"
-            </code>
+            <pre className="block p-3 bg-muted rounded text-sm whitespace-pre-wrap break-all">
+{`curl ${API_BASE}/sites \
+  -H "Authorization: Bearer ck_live_your_api_key_here"`}
+            </pre>
           </div>
 
           <div>
             <h4 className="font-semibold mb-2">Available Endpoints</h4>
             <ul className="text-sm text-muted-foreground space-y-1">
-              <li>• GET /api/v1/sites - List all sites</li>
-              <li>• GET /api/v1/sites/{'{id}'}/visits - Get visits data</li>
-              <li>• GET /api/v1/sites/{'{id}'}/pages - Get page views</li>
-              <li>• GET /api/v1/sites/{'{id}'}/referrers - Get traffic sources</li>
-              <li>• GET /api/v1/sites/{'{id}'}/events - Get events</li>
-              <li>• GET /api/v1/sites/{'{id}'}/agents - Get AI agent traffic</li>
-              <li>• GET /api/v1/sites/{'{id}'}/conversions - Get conversions</li>
-              <li>• GET /api/v1/sites/{'{id}'}/heatmaps - Get heatmap data</li>
+              <li>• GET /sites — the site this key belongs to</li>
+              <li>• GET /sites/{'{id}'}/visits — sessions</li>
+              <li>• GET /sites/{'{id}'}/pages — page views</li>
+              <li>• GET /sites/{'{id}'}/referrers — traffic sources</li>
+              <li>• GET /sites/{'{id}'}/agents — AI bot traffic</li>
+              <li>• GET /sites/{'{id}'}/conversions — conversions</li>
+              <li>• GET /sites/{'{id}'}/heatmaps — click and scroll data</li>
             </ul>
           </div>
 
-          <Button variant="outline" className="w-full" onClick={() => window.open('/api/docs', '_blank')}>
+          <Button variant="outline" className="w-full" onClick={() => window.open('/api/', '_blank')}>
             <ExternalLink className="h-4 w-4 mr-2" />
             View Full API Documentation
           </Button>

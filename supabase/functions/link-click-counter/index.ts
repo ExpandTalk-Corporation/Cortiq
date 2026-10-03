@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { sanitize } from './sanitize.ts';
+import { resolveSite } from "../_shared/resolve-site.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,17 +32,15 @@ Deno.serve(async (req) => {
 
     // Authorize the site against the key. Accept either the site's own tracking_id
     // or the owning company's api_key (same model as track-event).
-    const { data: siteByKey } = await supabase
-      .from('sites').select('id, is_active').eq('id', siteId).eq('tracking_id', apiKey).maybeSingle();
-
-    let authorized = !!(siteByKey && siteByKey.is_active);
-    if (!authorized) {
-      const { data: company } = await supabase
-        .from('companies').select('id').eq('api_key', apiKey).maybeSingle();
-      if (company) {
-        const { data: ownedSite } = await supabase
-          .from('sites').select('id, is_active').eq('id', siteId).eq('user_id', company.id).maybeSingle();
-        authorized = !!(ownedSite && ownedSite.is_active);
+    // siteId may be an account id (WordPress plugin); resolveSite maps it via the Origin.
+    const site = await resolveSite(supabase, siteId, req.headers.get('origin'), 'id, is_active, tracking_id, user_id');
+    let authorized = false;
+    if (site && site.is_active) {
+      authorized = site.tracking_id === apiKey;
+      if (!authorized) {
+        const { data: company } = await supabase
+          .from('companies').select('id').eq('api_key', apiKey).maybeSingle();
+        authorized = !!company && site.user_id === company.id;
       }
     }
     if (!authorized) {
@@ -60,7 +59,7 @@ Deno.serve(async (req) => {
     const day = new Date().toISOString().slice(0, 10); // UTC date
     // Atomic upsert-increment. Requires the unique index from Task 1.
     const { error } = await supabase.rpc('increment_link_click', {
-      p_site_id: siteId,
+      p_site_id: site!.id,
       p_page_path: clean.pagePath,
       p_link_kind: clean.linkKind,
       p_link_key: clean.linkKey,

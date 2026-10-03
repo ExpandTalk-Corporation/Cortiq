@@ -3,7 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import PublicNavigation from "@/components/PublicNavigation";
+import PublicFooter from "@/components/PublicFooter";
 import { useSEO } from "@/hooks/useSEO";
+import { seoFor } from "@/marketing-routes";
 import {
   Shield,
   AlertTriangle,
@@ -13,6 +15,8 @@ import {
   Lock,
   Bot,
   Radar,
+  MousePointerClick,
+  Server,
   CheckCircle,
   ArrowRight,
 } from "lucide-react";
@@ -53,13 +57,35 @@ const features = [
   },
   {
     icon: <Eye className="h-7 w-7" />,
-    title: "Session-Level Behavior Analysis",
-    description: "Review recorded sessions flagged as suspicious — see exactly what an automated visitor did.",
+    title: "Honeypot & Canary Traps",
+    description: "Hidden traps that only automated visitors trigger — proof of scraping instead of a guess.",
     items: [
-      "Session recording with bot/human filter",
-      "Headless & AI agent session replay",
-      "Navigation pattern comparison",
-      "Interaction timing analysis",
+      "Invisible honeypot link (click/focus = bot)",
+      "Canary pixel: fetched from a server IP = scraper",
+      "Canary link followed by link-traversal bots",
+      "IP anonymized, raw user agent never stored",
+    ],
+  },
+  {
+    icon: <MousePointerClick className="h-7 w-7" />,
+    title: "Click-Fraud Detection",
+    description: "Score paid-ad sessions for fraud signals so you know how much ad spend goes to non-human clicks.",
+    items: [
+      "Paid sessions (cpc, ppc, paid social, display) scored 0–100",
+      "Confirmed bots, webdriver & headless signals",
+      "Zero-engagement sessions (< 5 s, one page)",
+      "Suspicious-hour sessions (01–05 UTC), per campaign",
+    ],
+  },
+  {
+    icon: <Server className="h-7 w-7" />,
+    title: "Server-Side Bot Ingestion",
+    description: "A Cloudflare Worker reports crawlers that never execute JavaScript.",
+    items: [
+      "Cloudflare Worker",
+      "Same bot registry as the JS tag",
+      "Training & citation crawlers",
+      "Scrapers & monitoring bots bucketed separately",
     ],
   },
   {
@@ -90,15 +116,15 @@ const features = [
     description: "Security intelligence without compromising visitor privacy — all data is anonymized and EU-hosted.",
     items: [
       "Hashed visitor IDs (no PII)",
-      "Cookie-free tracking mode",
+      "Cookieless tracking mode",
       "EU data hosting",
-      "GDPR-compliant by design",
+      "Built for GDPR, privacy by design",
     ],
   },
   {
     icon: <Shield className="h-7 w-7" />,
-    title: "GDPR & Compliance",
-    description: "Built-in compliance tools so you meet legal requirements without separate software.",
+    title: "GDPR & Consent",
+    description: "Built-in consent and data-protection tools, no separate CMP required. You make the final legal assessment for your site.",
     items: [
       "Cookie consent management (CMP)",
       "Configurable data retention",
@@ -110,9 +136,9 @@ const features = [
 
 const botTypes = [
   { name: "Googlebot", verdict: "Legitimate", color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" },
-  { name: "Bingbot / AdIdxBot", verdict: "Legitimate", color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" },
+  { name: "Bingbot", verdict: "Legitimate", color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" },
   { name: "GPTBot / ClaudeBot", verdict: "Legitimate", color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" },
-  { name: "MicrosoftPreview", verdict: "Legitimate", color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" },
+  { name: "BingPreview", verdict: "Legitimate", color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" },
   { name: "Headless Chrome (unidentified)", verdict: "Suspicious", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300" },
   { name: "Unknown scrapers", verdict: "Suspicious", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300" },
   { name: "High-frequency crawlers", verdict: "Suspicious", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300" },
@@ -120,10 +146,7 @@ const botTypes = [
 ];
 
 export default function FeaturesCyber() {
-  useSEO({
-    title: 'Cyber Security & Bot Detection — CortIQ',
-    description: 'Detect click fraud, bot traffic and suspicious sessions in real time. Protect paid ad spend and identify malicious bots alongside genuine AI agent traffic.',
-  });
+  useSEO(seoFor("/features/cyber/"));
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
       <PublicNavigation />
@@ -220,12 +243,13 @@ export default function FeaturesCyber() {
               </Link>
             </Button>
             <Button variant="outline" size="lg" asChild>
-              <Link to="/features">See All Features</Link>
+              <Link to="/features/">See All Features</Link>
             </Button>
           </div>
         </div>
 
       </div>
+      <PublicFooter />
     </div>
   );
 }

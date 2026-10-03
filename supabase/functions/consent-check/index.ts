@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getSessionConsent } from '../_shared/session-consent.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -41,7 +42,9 @@ serve(async (req) => {
       console.log('Consent check request:', { site_id, session_id, consent_types, integration_type });
 
       // Validate required fields
-      if (!site_id || !session_id || !consent_types || consent_types.length === 0) {
+      if (typeof site_id !== 'string' || !site_id || typeof session_id !== 'string' || !session_id ||
+          !Array.isArray(consent_types) || consent_types.length === 0 ||
+          consent_types.some(type => !['necessary', 'analytics', 'marketing', 'preferences'].includes(type))) {
         return new Response(JSON.stringify({ 
           error: 'Missing required fields: site_id, session_id, consent_types' 
         }), {
@@ -66,17 +69,7 @@ serve(async (req) => {
         });
       }
 
-      const config = site.server_side_tracking_config || {};
-      
-      // Get latest consent for this session
-      const { data: latestConsent } = await supabase
-        .from('cookie_consents')
-        .select('*')
-        .eq('site_id', site_id)
-        .eq('session_id', session_id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+      const currentConsent = await getSessionConsent(supabase, site_id, session_id);
 
       let allowedTypes: string[] = [];
       let blockedTypes: string[] = [];
@@ -87,22 +80,12 @@ serve(async (req) => {
       for (const consentType of consent_types) {
         let isAllowed = false;
 
-        // Check site configuration first
-        if (consentType === 'analytics' && !config.block_analytics_without_consent) {
-          isAllowed = true;
-        } else if (consentType === 'marketing' && !config.block_marketing_without_consent) {
-          isAllowed = true;
-        } else if (consentType === 'necessary') {
+        // Operator configuration cannot manufacture a visitor's consent.
+        if (consentType === 'necessary') {
           isAllowed = true; // Always allow necessary
         } else {
-          // Check actual consent
-          if (latestConsent && latestConsent.consent_types) {
-            const consentData = latestConsent.consent_types as any;
-            isAllowed = consentData[consentType] === true;
-          } else {
-            isAllowed = false;
-            reason = 'No consent found for session';
-          }
+          isAllowed = currentConsent[consentType as keyof typeof currentConsent] === true;
+          if (!isAllowed) reason = 'Current consent required for the requested purpose';
         }
 
         if (isAllowed) {
@@ -111,14 +94,6 @@ serve(async (req) => {
           blockedTypes.push(consentType);
           overallAllowed = false;
         }
-      }
-
-      // If require_explicit_consent is true and no consent found, block everything except necessary
-      if (config.require_explicit_consent && !latestConsent && consent_types.some(t => t !== 'necessary')) {
-        overallAllowed = false;
-        reason = 'Explicit consent required but not found';
-        blockedTypes = consent_types.filter(t => t !== 'necessary');
-        allowedTypes = consent_types.filter(t => t === 'necessary');
       }
 
       // Log validation
@@ -144,8 +119,9 @@ serve(async (req) => {
             integration: integration_type,
             timestamp: new Date().toISOString()
           })),
-          ip_address,
-          user_agent
+          // Purpose decisions do not need caller-supplied IP addresses or UA.
+          ip_address: null,
+          user_agent: null
         })
         .select()
         .single();

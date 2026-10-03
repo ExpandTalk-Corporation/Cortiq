@@ -4,7 +4,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { Site } from '@/types/dashboard';
 
 export type IntegrationConfig = {
-  // Tracking mode: cookieless (consent-exempt) vs full (fingerprint + returning-visitor)
+  // Tracking mode: cookieless (no fingerprint/profile, still consent-gated) vs full (fingerprint + returning-visitor)
   tracking_mode?: 'cookieless' | 'full';
 
   // Cloudflare edge analytics (pull model)

@@ -62,10 +62,14 @@ export interface ApiResponse<T = any> {
 export function generateApiKey(): string {
   const prefix = 'ck_live_';
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  // CSPRNG, not Math.random: the key is a bearer credential. 248 = 62 * 4, so
+  // rejecting bytes >= 248 keeps every character equally likely.
   let key = prefix;
-
-  for (let i = 0; i < 32; i++) {
-    key += chars.charAt(Math.floor(Math.random() * chars.length));
+  while (key.length < prefix.length + 32) {
+    const bytes = crypto.getRandomValues(new Uint8Array(48));
+    for (const b of bytes) {
+      if (b < 248 && key.length < prefix.length + 32) key += chars[b % chars.length];
+    }
   }
 
   return key;

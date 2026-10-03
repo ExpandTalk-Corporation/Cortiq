@@ -60,11 +60,11 @@ CortIQ shall:
 
 The Customer shall:
 
-**4.1** Ensure a lawful basis exists for each category of personal data processed via CortIQ (e.g. legitimate interest for cookie-free analytics, consent for enhanced tracking).
+**4.1** Ensure a lawful basis exists for each category of personal data processed via CortIQ (e.g. consent for visitor analytics in both Cookieless and Full mode; the Customer's own assessment for the AI-bot / security layer, which is designed to run as strictly necessary security processing).
 
 **4.2** Provide data subjects with adequate privacy information, including disclosure of CortIQ as a data processor. CortIQ provides a [Privacy Policy template](./GDPR.md) for this purpose.
 
-**4.3** Configure the CortIQ cookie banner (or an equivalent CMP) to obtain and record valid consent before enhanced tracking is activated.
+**4.3** Configure the CortIQ cookie banner (or an equivalent CMP) to obtain and record valid consent before visitor analytics are activated.
 
 **4.4** Not instruct CortIQ to process personal data in a manner that would violate the GDPR or other applicable data protection law.
 
@@ -93,7 +93,7 @@ Requests should be submitted to: [daniel@expandtalk.se](mailto:daniel@expandtalk
 | Supabase, Inc. | Database hosting, edge functions | EU (AWS eu-north-1, Stockholm) | [Supabase DPA](https://supabase.com/privacy) |
 | Google LLC | GA4 server-side (optional, only if Customer configures GA4) | EU/US (SCCs in place) | [Google DPA](https://business.safety.google/adsprocessorterms/) |
 | Amazon Web Services, Inc. | Cloud infrastructure (via Supabase) | EU (eu-north-1) | [AWS DPA](https://aws.amazon.com/agreement/) |
-| Cloudflare, Inc. | Edge web analytics (aggregate, cookie-free) and geo lookup for consent-banner gating — optional, only if the Customer enables the Cloudflare integration | US (EU-US Data Privacy Framework certified; SCCs) | [Cloudflare DPA](https://www.cloudflare.com/cloudflare-customer-dpa/) |
+| Cloudflare, Inc. | Server-side bot classification from edge logs, edge web analytics (aggregate) and geo lookup for consent-banner gating — optional, only if the Customer enables the Cloudflare integration | US (EU-US Data Privacy Framework certified; SCCs) | [Cloudflare DPA](https://www.cloudflare.com/cloudflare-customer-dpa/) |
 
 CortIQ will notify the Customer at least 30 days in advance of any intended change to the sub-processor list. The Customer may object to a new sub-processor within 14 days of notification; if no resolution is reached, either party may terminate the service agreement.
 

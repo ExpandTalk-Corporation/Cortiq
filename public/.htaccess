@@ -2,13 +2,22 @@
 # Host: Loopia (nginx terminates TLS and forwards to Apache over plain http).
 #
 # Why this file matters for SEO:
-#   The prerenderer writes dist/<route>/index.html (a directory per route),
-#   but the sitemap, internal links and <link rel="canonical"> all use the
-#   NO-slash form (https://cortiq.se/features). Apache's mod_dir would 301
-#   /features -> /features/ and, because it sees http from the proxy, build
-#   that redirect as http:// — so the canonical URL never returned 200.
-#   We instead rewrite internally (no redirect), so /features serves
-#   /features/index.html as 200 and matches the canonical exactly.
+#   The prerenderer writes dist/<route>/index.html (a directory per route) and the
+#   canonical form of every marketing URL is the directory WITH a trailing slash
+#   (https://cortiq.se/features/) — canonical tags, sitemap and internal links all
+#   use it (src/marketing-routes.ts), and Apache serves it directly as 200.
+#   The no-slash form gets one explicit 301 to https + slash. Without rule 3,
+#   mod_dir would do that redirect itself but build it as http:// (it only sees
+#   the proxy's plain http), producing a two-hop http -> https chain.
+
+# Security headers. No Content-Security-Policy yet: the site loads its own tracker,
+# Supabase and fonts, and a wrong CSP silently breaks them, so it needs its own pass.
+<IfModule mod_headers.c>
+  Header always set Strict-Transport-Security "max-age=31536000"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
@@ -20,14 +29,15 @@
   RewriteCond %{HTTP:X-Forwarded-Proto} =http
   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
-  # 2) Serve prerendered /route/index.html for /route WITHOUT an external
-  #    redirect. This keeps the URL no-slash (matching the canonical) and
-  #    preempts mod_dir's scheme-downgrading DirectorySlash redirect.
-  RewriteCond %{REQUEST_FILENAME} -d
-  RewriteCond %{REQUEST_FILENAME}/index.html -f
-  RewriteRule ^(.*[^/])/?$ /$1/index.html [L]
+  # 2) Retired marketing URLs (keep in sync with MARKETING_REDIRECTS).
+  RewriteRule ^bot-intelligence/?$ https://%{HTTP_HOST}/features/ai/ [L,R=301]
 
-  # 3) SPA fallback for client-only routes (dashboard, auth, navigation …).
+  # 3) Prerendered directory requested without the trailing slash: one 301,
+  #    straight to the https canonical form.
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^(.*[^/])$ https://%{HTTP_HOST}/$1/ [L,R=301]
+
+  # 4) SPA fallback for client-only routes (dashboard, auth, navigation …).
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule ^ /index.html [L]

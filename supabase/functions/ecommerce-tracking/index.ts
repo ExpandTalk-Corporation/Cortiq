@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { resolveSite } from "../_shared/resolve-site.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -131,11 +132,8 @@ serve(async (req) => {
     }
 
     // Verify site exists
-    const { data: site } = await supabase
-      .from('sites')
-      .select('id')
-      .eq('id', siteId)
-      .single();
+    // siteId may be an account id (WordPress plugin); resolved via the browser Origin.
+    const site = await resolveSite(supabase, siteId, req.headers.get('origin'), 'id');
 
     if (!site) {
       return new Response(JSON.stringify({ error: 'Site not found' }), {
@@ -167,7 +165,7 @@ serve(async (req) => {
     const { data: event, error } = await supabase
       .from('ecommerce_events')
       .insert({
-        site_id: siteId,
+        site_id: site.id,
         session_id: sessionId.substring(0, 200),
         user_id: userId || null,
         event_type: eventType,
@@ -198,7 +196,7 @@ serve(async (req) => {
       const userHash = await hashUserId(userId);
       
       await supabase.rpc('upsert_user_identity', {
-        p_site_id: siteId,
+        p_site_id: site.id,
         p_user_hash: userHash,
         p_session_id: sessionId,
         p_revenue: sanitizedTransactionData.revenue

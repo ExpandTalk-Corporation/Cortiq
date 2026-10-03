@@ -1,12 +1,13 @@
-import type { AgentConcept, AnyConcept, ConceptId, Ontology } from './types';
-import { agents } from './agents';
+import type { AnyConcept, ConceptId, Ontology } from './types';
+import { agents, agentIdFor, CATEGORY_CLASS } from './agents';
+import { classifyBot } from '@/lib/aiBotRegistry';
 import { events } from './events';
 import { traffic } from './traffic';
 import { integrations } from './integrations';
 
 export * from './types';
 export * from './integrations';
-export { agents } from './agents';
+export { agents, agentIdFor, CATEGORY_CLASS } from './agents';
 export { events } from './events';
 export { traffic } from './traffic';
 export { integrations } from './integrations';
@@ -14,7 +15,7 @@ export { integrations } from './integrations';
 /* ── Combined ontology object ────────────────────────────────────── */
 
 export const ontology: Ontology = {
-  version: '1.1.0',
+  version: '2.0.0',
   description: 'CortIQ analytics ontology — agents, events, traffic sources, and integration providers for the agentic web.',
   agents,
   events,
@@ -65,39 +66,27 @@ function conceptsOf(domain: Record<string, AnyConcept>) {
 export const agentOntology = conceptsOf(agents as Record<string, AnyConcept>);
 export const eventOntology = conceptsOf(events as Record<string, AnyConcept>);
 export const trafficOntology = conceptsOf(traffic as Record<string, AnyConcept>);
-export const integrationOntology = conceptsOf(integrations as Record<string, AnyConcept>);
+export const integrationOntology = conceptsOf(integrations as unknown as Record<string, AnyConcept>);
 
 /* ── Utility: agent detection ───────────────────────────────────── */
 
 /**
- * Match a User-Agent string against the ontology and return the most
- * specific matching agent concept ID, or null if no match.
+ * Match a User-Agent string against the canonical bot registry and return the
+ * agent concept ID (e.g. "gptbot"), or null if no named AI bot matched.
  */
 export function detectAgent(userAgent: string): ConceptId | null {
-  // Only leaf instances carry uaPatterns
-  for (const [id, concept] of Object.entries(agents)) {
-    if (concept.kind !== 'agent-instance') continue;
-    const patterns = (concept as AgentConcept).uaPatterns;
-    if (!patterns?.length) continue;
-    const regex = new RegExp(patterns.join('|'), 'i');
-    if (regex.test(userAgent)) return id;
-  }
-  return null;
+  const result = classifyBot(userAgent);
+  return result.registryMatch ? agentIdFor(result.botName) : null;
 }
 
-/**
- * Return true if the given agent ID is any kind of AI agent
- * (browser, text-based, or unspecified).
- */
+/** Return true if the given agent ID is any kind of AI agent. */
 export function isAIAgent(agentId: ConceptId): boolean {
   return agentOntology.isA(agentId, 'ai_agent');
 }
 
-/**
- * Return true if the agent is a visual (full-browser) AI agent.
- */
-export function isBrowserAIAgent(agentId: ConceptId): boolean {
-  return agentOntology.isA(agentId, 'browser_ai_agent');
+/** Return true if the agent fetches on behalf of a real user (agentic category). */
+export function isAgenticAgent(agentId: ConceptId): boolean {
+  return agentOntology.isA(agentId, CATEGORY_CLASS.agentic);
 }
 
 /* ── Utility: serialisation ─────────────────────────────────────── */

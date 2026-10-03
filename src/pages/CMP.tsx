@@ -4,13 +4,12 @@ import { Badge } from "@/components/ui/badge";
 import { Check, Shield, Eye, Cookie, Users, Lock, Zap, Globe } from "lucide-react";
 import { Link } from "react-router-dom";
 import PublicNavigation from "@/components/PublicNavigation";
+import PublicFooter from "@/components/PublicFooter";
 import { useSEO } from "@/hooks/useSEO";
+import { seoFor } from "@/marketing-routes";
 
 export default function CMP() {
-  useSEO({
-    title: 'Consent Management Platform (CMP) — CortIQ',
-    description: 'GDPR-compliant cookie consent with smart nudging to increase opt-in rates. Google Consent Mode v2 built in. No cookie banner required for server-side analytics.',
-  });
+  useSEO(seoFor("/cmp/"));
   const features = [
     {
       icon: <Cookie className="h-6 w-6" />,
@@ -19,8 +18,8 @@ export default function CMP() {
     },
     {
       icon: <Shield className="h-6 w-6" />,
-      title: "GDPR Compliance",
-      description: "Full compliance with GDPR and other privacy regulations"
+      title: "Built for GDPR",
+      description: "Consent-first by design: visitor analytics and third-party tags wait for consent"
     },
     {
       icon: <Users className="h-6 w-6" />,
@@ -34,23 +33,23 @@ export default function CMP() {
     },
     {
       icon: <Lock className="h-6 w-6" />,
-      title: "Server-Side Blocking",
-      description: "Block third-party calls automatically based on consent"
+      title: "Consent-Check API",
+      description: "Your server asks CortIQ whether a session has the required consent before forwarding an event"
     },
     {
       icon: <Zap className="h-6 w-6" />,
-      title: "Real-Time Monitoring",
-      description: "Live feed of blocked and allowed API calls"
+      title: "12-Month Consent Expiry",
+      description: "Consent expires after 12 months and the visitor is asked again"
     }
   ];
 
   const benefits = [
-    "Automatic GDPR compliance",
-    "Reduced legal risk",
+    "Consent-first by design",
+    "Consent valid for 12 months",
     "Better user trust",
     "Professional cookie management",
-    "Real-time consent monitoring",
-    "Enterprise-grade security"
+    "Consent-check decisions logged server-side",
+    "Google Consent Mode v2 included"
   ];
 
   return (
@@ -61,7 +60,7 @@ export default function CMP() {
       <section className="container mx-auto px-4 py-16 text-center">
         <Badge variant="secondary" className="mb-4">
           <Globe className="h-4 w-4 mr-2" />
-          GDPR-Compliant CMP Solution
+          Consent-First CMP, Built for GDPR
         </Badge>
         
         <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-primary bg-clip-text text-transparent">
@@ -69,17 +68,17 @@ export default function CMP() {
         </h1>
         
         <p className="text-xl text-muted-foreground mb-8 max-w-3xl mx-auto">
-          Full GDPR compliance with automatic cookie management, server-side blocking 
-          and real-time monitoring of user consent.
+          Built-in consent banner with cookie detection, a server-side consent-check API
+          and consent logging. Google Consent Mode v2 included.
         </p>
         
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
           <Link to="/auth">
             <Button size="lg" className="bg-gradient-primary hover-scale hover-glow">
-              Get Started
+              Create free account
             </Button>
           </Link>
-          <Link to="/features">
+          <Link to="/features/">
             <Button size="lg" variant="outline" className="hover-lift">
               See All Features
             </Button>
@@ -121,8 +120,9 @@ export default function CMP() {
                 Why Choose Our CMP Solution?
               </h2>
               <p className="text-muted-foreground mb-8">
-                Our CMP goes beyond traditional cookie banners. We actually block 
-                server-side API calls based on user consent, providing true GDPR compliance.
+                Beyond the banner, CortIQ offers a consent-check API your server can call before
+                forwarding events to third parties. Only the AI-bot and security layer runs before consent,
+                designed as strictly necessary security processing; you make the final legal assessment.
               </p>
               
               <div className="space-y-4">
@@ -139,23 +139,24 @@ export default function CMP() {
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <Shield className="h-6 w-6 text-green-500" />
-                  <span>Server-Side Blocking</span>
+                  <span>Consent-Check API</span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground mb-4">
-                  Unlike other solutions, we actually block API calls to 
-                  Google Analytics, Meta Pixel and other third-party services until consent is given.
+                  Before your server forwards an event to GA4, Meta or Google Ads, it asks CortIQ whether
+                  the session has the required consent. Every decision is logged, so you can show why an
+                  event was or wasn't sent. Your server decides whether to forward; CortIQ returns the decision.
                 </p>
                 
                 <div className="space-y-2">
                   <div className="flex justify-between items-center p-2 bg-red-50 dark:bg-red-950/20 rounded">
-                    <span className="text-sm">Without consent</span>
-                    <Badge variant="destructive">Blocked</Badge>
+                    <span className="text-sm">Required consent missing</span>
+                    <Badge variant="destructive">allowed: false</Badge>
                   </div>
                   <div className="flex justify-between items-center p-2 bg-green-50 dark:bg-green-950/20 rounded">
-                    <span className="text-sm">With consent</span>
-                    <Badge variant="default">Allowed</Badge>
+                    <span className="text-sm">Consent given</span>
+                    <Badge variant="default">allowed: true</Badge>
                   </div>
                 </div>
               </CardContent>
@@ -167,7 +168,7 @@ export default function CMP() {
       {/* CTA Section */}
       <section className="container mx-auto px-4 py-16 text-center">
         <h2 className="text-3xl font-bold mb-6">
-          Make Your Website GDPR-Compliant Today
+          Put Consent First on Your Website
         </h2>
         <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
           Get started with our CMP solution and gain full control over user consent 
@@ -177,16 +178,17 @@ export default function CMP() {
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link to="/auth">
             <Button size="lg" className="bg-gradient-primary hover-scale hover-glow">
-              Join Waitlist
+              Create free account
             </Button>
           </Link>
-          <Link to="/pricing">
+          <Link to="/pricing/">
             <Button size="lg" variant="outline" className="hover-lift">
               See Pricing
             </Button>
           </Link>
         </div>
       </section>
+      <PublicFooter />
     </div>
   );
 }

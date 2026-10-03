@@ -2,24 +2,22 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
-import { useEffect } from "react";
 import { useSEO } from "@/hooks/useSEO";
+import { seoFor } from "@/marketing-routes";
 import PublicNavigation from "@/components/PublicNavigation";
+import PublicFooter from "@/components/PublicFooter";
 import heroImage from "@/assets/analytics-dashboard-hero.jpg";
 import analyticsIllustration from "@/assets/analytics-illustration.jpg";
 import {
   Shield,
   BarChart3,
   MousePointer,
-  FormInput,
-  TestTube,
   Globe,
   Cookie,
   Users,
   TrendingUp,
   CheckCircle,
   ArrowRight,
-  Play,
   Bot,
   Sparkles,
   Zap,
@@ -30,33 +28,14 @@ import {
   Mail
 } from "lucide-react";
 
-// Declare WFATracker on window
-declare global {
-  interface Window {
-    WFATracker?: {
-      trackView: (contentId: string) => void;
-    };
-  }
-}
-
 const Index = () => {
-  useSEO({
-    title: 'CortIQ — AI Agent Analytics & Cookie-Free Tracking',
-    description: 'First-to-market analytics for the Agentic Web. Track ChatGPT Browser, Perplexity & Claude Browser. Cookie-free, GDPR-compliant. Heatmaps, A/B testing, form analytics.',
-    canonical: 'https://cortiq.se/',
-  });
-
-  useEffect(() => {
-    if (window.WFATracker) {
-      window.WFATracker.trackView('homepage');
-    }
-  }, []);
+  useSEO(seoFor("/"));
 
   const features = [
     {
       icon: Bot,
-      title: "Agentic Browser Analytics",
-      description: "Track and analyze AI agents like ChatGPT Browser, Perplexity Comet, and Claude Browser. First on the market with dedicated agent tracking."
+      title: "AI Agent Analytics",
+      description: "Detect agent fetches via ChatGPT-User, Claude-User and Perplexity-User, plus JS-signal heuristics for in-browser AI agents."
     },
     {
       icon: BarChart3,
@@ -66,34 +45,34 @@ const Index = () => {
     {
       icon: MousePointer,
       title: "Visual Analytics (Heatmaps)",
-      description: "Click heatmaps and scroll depth tracking on every page — for both human visitors and AI agents. Desktop, tablet and mobile views."
+      description: "Click heatmaps and scroll-depth tracking on every page, after analytics consent. Desktop, tablet and mobile views."
     },
     {
-      icon: TestTube,
-      title: "A/B Testing & Optimization",
-      description: "Built-in A/B testing with statistical significance calculations to optimize conversion in the agentic web era."
+      icon: TrendingUp,
+      title: "Conversion & Attribution",
+      description: "First-party click-ID capture (marketing consent only), conversion goal health monitor and form auto-discovery. A HubSpot lead-quality loop to Google Ads is in development."
     },
     {
       icon: Cookie,
-      title: "Nudging Cookie Banners & 1st Party Data",
-      description: "Smart nudging technology in cookie banners for higher consent rates plus accurate data with 1st party cookies."
+      title: "Built-in Consent Banner",
+      description: "Consent banner with Google Consent Mode v2. Choose Cookieless mode (no cookies, no fingerprint) or Full mode with first-party cookies — both start only after analytics consent."
     },
     {
       icon: Globe,
       title: "Universal Tracking Script",
-      description: "One script works on any CMS or custom site. Deep WordPress integration in early access for invited users."
+      description: "One script works on any CMS or custom site. WordPress plugin with built-in consent banner."
     }
   ];
 
   const benefits = [
-    "First on the market with agentic browser analytics",
-    "Track ChatGPT Browser, Perplexity Comet, and Claude Browser",
-    "Agent-specific dashboards and insights",
-    "Nudging cookie banners for higher consent rates", 
-    "Accurate data with 1st party cookies",
+    "AI traffic classified as training, agentic or citation",
+    "Agent fetches via ChatGPT-User, Claude-User and Perplexity-User",
+    "Server-side bot ingestion through a Cloudflare Worker — catches crawlers that never run JavaScript",
+    "Built-in consent banner with Google Consent Mode v2",
+    "Cookieless mode: no cookies, no fingerprinting, no cross-visit profile",
     "Universal tracking script for any CMS or custom site",
-    "Real-time analytics for both humans and AI agents",
-    "Ready for the future web before competitors understand it"
+    "MCP server so AI agents can query your analytics (22 read-only tools)",
+    "Free during beta — create an account and start"
   ];
 
   return (
@@ -136,23 +115,26 @@ const Index = () => {
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div className="text-center lg:text-left">
               <Badge className="mb-8 animate-fade-in bg-gradient-primary hover-scale hover-glow text-white border-0">
-                🤖 World's First AI Bot Intelligence Platform
+                🤖 AI Bot Intelligence · Free during beta
               </Badge>
-              <h1 className="text-4xl md:text-6xl font-black mb-8 animate-slide-up text-gradient-primary leading-tight">
-                1 in 31 web visits is now an AI bot. Do you know which ones matter?
+              <h1 className="text-4xl md:text-6xl font-black mb-4 animate-slide-up text-gradient-primary leading-tight">
+                One AI bot visit for every 31 human visits. Do you know which ones matter?
               </h1>
+              <p className="text-sm text-muted-foreground mb-8 animate-fade-in">
+                Source: TollBit, State of the Bots, Q4 2025 (up from 1 in 200 in Q1 2025).
+              </p>
               <p className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-2xl mx-auto lg:mx-0 animate-fade-in leading-relaxed">
                 Not all AI traffic is equal. CortIQ classifies every AI visit — training crawlers, agentic browsers, and citation bots — so you know what to optimize, what to ignore, and what's costing you infrastructure budget.
-                Plus cookie-free analytics, heatmaps, A/B testing, and GDPR compliance.
+                Plus consent-first, cookieless visitor analytics, heatmaps and form analytics — EU-hosted and built for GDPR.
               </p>
               <div className="flex flex-col sm:flex-row gap-6 justify-center lg:justify-start items-center animate-scale-in">
                 <Link to="/auth">
                   <Button size="lg" className="group bg-gradient-primary hover-scale hover-glow text-lg px-8 py-4 h-auto">
-                    Request Invitation
+                    Create free account
                     <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-2 transition-transform duration-300" />
                   </Button>
                 </Link>
-                <Link to="/features">
+                <Link to="/features/">
                   <Button variant="outline" size="lg" className="group glass hover-lift text-lg px-8 py-4 h-auto">
                     <BarChart3 className="mr-3 h-5 w-5 group-hover:scale-110 transition-transform" />
                     See All Features
@@ -202,15 +184,14 @@ const Index = () => {
             <div className="animate-fade-in">
               <Badge className="mb-6 bg-gradient-primary text-white hover-scale">
                 <Shield className="h-4 w-4 mr-2 inline" />
-                100% Banner-Free
+                Consent-first by design
               </Badge>
               <h2 className="text-4xl md:text-5xl font-black mb-8 text-gradient-primary">
-                True banner-free analytics - legally compliant
+                AI-agent intelligence without consent friction
               </h2>
               <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
-                Server-side analytics with ONLY aggregated data. No cookies, no IP storage, no fingerprinting. 
-                Works with server logs for complete banner-free tracking. Plus heatmaps and advanced tracking via hybrid solution with smart nudging. 
-                100% compliant with Swedish PTS and EU ePrivacy.
+                AI-bot and agent detection is designed to run as strictly necessary security processing — the site operator makes the final legal assessment.
+                All visitor analytics — page views, sessions, clicks, heatmaps, conversions — start only after the visitor grants analytics consent. Consent is valid for 12 months.
               </p>
 
               <div className="space-y-6 mb-12">
@@ -221,9 +202,9 @@ const Index = () => {
                         <Shield className="h-6 w-6 text-white" />
                       </div>
                       <div>
-                        <h3 className="font-bold text-lg mb-2">True Banner-Free Analytics</h3>
+                        <h3 className="font-bold text-lg mb-2">AI-Agent &amp; Bot Layer</h3>
                         <p className="text-muted-foreground">
-                          Only aggregated, anonymous server data. NO cookies, IP storage, or fingerprinting. 100% banner-free per PTS/ePrivacy.
+                          AI bot and agent detection, crawler classification (training / agentic / citation), honeypots and server-side bot classification from edge logs. Designed to run as strictly necessary security processing, based on ePrivacy guidance — the site operator makes the final legal assessment.
                         </p>
                       </div>
                     </div>
@@ -237,9 +218,9 @@ const Index = () => {
                         <Zap className="h-6 w-6 text-white" />
                       </div>
                       <div>
-                        <h3 className="font-bold text-lg mb-2">Hybrid Solution</h3>
+                        <h3 className="font-bold text-lg mb-2">Cookieless or Full Mode</h3>
                         <p className="text-muted-foreground">
-                          Banner-free base analytics + smart nudging for opt-in advanced tracking. Best of both worlds.
+                          Cookieless mode: no cookies, no device fingerprint, no cross-visit profile. Full mode adds first-party cookies. Both start only after analytics consent.
                         </p>
                       </div>
                     </div>
@@ -255,7 +236,7 @@ const Index = () => {
                       <div>
                         <h3 className="font-bold text-lg mb-2">Privacy-First Solution</h3>
                         <p className="text-muted-foreground">
-                          Same privacy-first principles - aggregated data, no user tracking, EU hosting, fully GDPR compliant.
+                          Privacy by design: EU hosting, no persistent IDs in Cookieless mode, built-in consent banner. Built for GDPR.
                         </p>
                       </div>
                     </div>
@@ -266,7 +247,7 @@ const Index = () => {
               <Link to="/auth">
                 <Button size="lg" className="group bg-gradient-primary hover-scale hover-glow text-lg px-8 py-4 h-auto">
                   <Shield className="mr-2 h-5 w-5" />
-                  Try banner-free analytics
+                  Try consent-first analytics
                   <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-2 transition-transform duration-300" />
                 </Button>
               </Link>
@@ -278,59 +259,59 @@ const Index = () => {
                   <Badge className="mb-4 bg-gradient-accent text-white mx-auto">
                     Comparison
                   </Badge>
-                  <CardTitle className="text-2xl">Traditional vs Banner-Free Server-Side</CardTitle>
+                  <CardTitle className="text-2xl">Traditional analytics vs CortIQ</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <span className="font-semibold">Cookie Banner</span>
+                      <span className="font-semibold">Cookies</span>
                       <div className="flex items-center space-x-3">
                         <Badge variant="destructive">Required</Badge>
-                        <Badge className="bg-primary text-primary-foreground">Not needed ✓</Badge>
+                        <Badge className="bg-primary text-primary-foreground">Optional (Cookieless mode) ✓</Badge>
                       </div>
                     </div>
                     <div className="flex items-center justify-between mb-3">
-                      <span className="font-semibold">GDPR Compliance</span>
+                      <span className="font-semibold">Device fingerprinting</span>
                       <div className="flex items-center space-x-3">
-                        <Badge variant="outline">Complex</Badge>
-                        <Badge className="bg-primary text-primary-foreground">Simpler ✓</Badge>
+                        <Badge variant="outline">Common</Badge>
+                        <Badge className="bg-primary text-primary-foreground">None ✓</Badge>
                       </div>
                     </div>
                     <div className="flex items-center justify-between mb-3">
-                      <span className="font-semibold">User Experience</span>
+                      <span className="font-semibold">Cross-visit profiling</span>
                       <div className="flex items-center space-x-3">
-                        <Badge variant="outline">Disruptive</Badge>
-                        <Badge className="bg-primary text-primary-foreground">Smoother ✓</Badge>
+                        <Badge variant="outline">Yes</Badge>
+                        <Badge className="bg-primary text-primary-foreground">No (Cookieless mode) ✓</Badge>
                       </div>
                     </div>
                     <div className="flex items-center justify-between mb-3">
-                      <span className="font-semibold">User Tracking</span>
+                      <span className="font-semibold">AI-agent visibility</span>
                       <div className="flex items-center space-x-3">
-                        <Badge variant="outline">Yes (cookies)</Badge>
-                        <Badge className="bg-primary text-primary-foreground">No (aggregated) ✓</Badge>
+                        <Badge variant="destructive">None</Badge>
+                        <Badge className="bg-primary text-primary-foreground">Classified ✓</Badge>
                       </div>
                     </div>
                     <div className="flex items-center justify-between mb-3">
-                      <span className="font-semibold">Conversion</span>
+                      <span className="font-semibold">Hosting</span>
                       <div className="flex items-center space-x-3">
-                        <Badge variant="destructive">Lower</Badge>
-                        <Badge className="bg-primary text-primary-foreground">Higher ✓</Badge>
+                        <Badge variant="outline">Often US</Badge>
+                        <Badge className="bg-primary text-primary-foreground">EU ✓</Badge>
                       </div>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold">Setup Time</span>
+                      <span className="font-semibold">Consent handling</span>
                       <div className="flex items-center space-x-3">
-                        <Badge variant="outline">Days</Badge>
-                        <Badge className="bg-primary text-primary-foreground">5 min ✓</Badge>
+                        <Badge variant="outline">Separate CMP</Badge>
+                        <Badge className="bg-primary text-primary-foreground">Built-in banner ✓</Badge>
                       </div>
                     </div>
                   </div>
 
                   <div className="pt-6 border-t">
                     <div className="bg-gradient-primary/10 rounded-xl p-4 text-center">
-                      <p className="font-bold text-lg mb-2">Want advanced tracking?</p>
+                      <p className="font-bold text-lg mb-2">What needs consent?</p>
                       <p className="text-sm text-muted-foreground">
-                        Add opt-in banner with smart nudging for sessions, heatmaps, and conversions. Banner-free base + advanced tracking = hybrid solution.
+                        All visitor analytics — sessions, heatmaps, forms, conversions — start only after analytics consent, in both Cookieless and Full mode. Only the AI-bot and security layer runs before consent.
                       </p>
                     </div>
                   </div>
@@ -356,10 +337,10 @@ const Index = () => {
               Security & Compliance
             </Badge>
             <h2 className="text-4xl md:text-5xl font-black mb-6 text-gradient-primary">
-              Bot security requires NO cookie banner
+              Bot security as strictly necessary processing
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-              According to ePrivacy Art. 5.3, security measures are "strictly necessary" - DDoS protection, spy bots, and scrapers can be measured without consent.
+              Under ePrivacy Art. 5.3, security measures can qualify as "strictly necessary" - DDoS protection, spy bots, and scrapers, subject to your own legal assessment.
             </p>
           </div>
 
@@ -374,8 +355,8 @@ const Index = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Identify and block malicious bots attempting to overload your website. 
-                  Legal without consent under ePrivacy Art. 5.3 (strictly necessary).
+                  Identify malicious bots attempting to overload your website.
+                  Can qualify as strictly necessary under ePrivacy Art. 5.3.
                 </p>
               </CardContent>
             </Card>
@@ -391,7 +372,7 @@ const Index = () => {
               <CardContent>
                 <p className="text-muted-foreground">
                   Detect competitor scrapers and spy tools attempting to steal your content or pricing. 
-                  Security-necessary under GDPR Art. 6.1.f.
+                  Designed to rely on legitimate interest under GDPR Art. 6.1.f — subject to your own assessment.
                 </p>
               </CardContent>
             </Card>
@@ -402,12 +383,12 @@ const Index = () => {
                 <div className="w-12 h-12 bg-gradient-primary rounded-xl flex items-center justify-center mb-4">
                   <Lock className="h-6 w-6 text-white" />
                 </div>
-                <CardTitle className="text-xl">Fraud Prevention</CardTitle>
+                <CardTitle className="text-xl">Click-Fraud Detection</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Prevent click-fraud, fake registrations, and fraudulent transactions. 
-                  PTS and Swedish law allow this without cookie banners.
+                  Detect click fraud on paid ad traffic — confirmed bots, headless browsers and zero-engagement sessions. 
+                  Designed to run as strictly necessary security processing; the site operator makes the final legal assessment.
                 </p>
               </CardContent>
             </Card>
@@ -419,7 +400,7 @@ const Index = () => {
               <Badge className="mb-4 bg-gradient-primary text-white mx-auto">
                 Legal Framework
               </Badge>
-              <CardTitle className="text-2xl">Why bot security is legal without consent</CardTitle>
+              <CardTitle className="text-2xl">The legal basis for security measurement</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid md:grid-cols-2 gap-6">
@@ -429,8 +410,8 @@ const Index = () => {
                     ePrivacy Art. 5.3
                   </h4>
                   <p className="text-sm text-muted-foreground">
-                    EU ePrivacy Directive states that techniques "strictly necessary" for security do not require consent. 
-                    Bot detection, DDoS protection, and fraud prevention qualify.
+                    The EU ePrivacy Directive provides a consent exemption for processing that is "strictly necessary".
+                    Bot detection, DDoS protection, and fraud prevention may qualify, subject to your own assessment.
                   </p>
                 </div>
                 <div className="space-y-3">
@@ -439,8 +420,8 @@ const Index = () => {
                     GDPR Art. 6.1.f
                   </h4>
                   <p className="text-sm text-muted-foreground">
-                    Legitimate interest to protect your website and users from threats and fraud. 
-                    Proportionate and minimal according to Swedish PTS.
+                    Legitimate interest can support protecting your website and users from threats and fraud,
+                    provided processing is proportionate and minimal. The site operator makes the final assessment.
                   </p>
                 </div>
               </div>
@@ -448,7 +429,7 @@ const Index = () => {
               <div className="bg-primary/5 p-6 rounded-lg">
                 <h4 className="font-bold mb-3 flex items-center">
                   <Bot className="h-5 w-5 text-primary mr-2" />
-                  What we measure for security (WITHOUT cookie banner)
+                  What we measure for security (before consent)
                 </h4>
                 <ul className="grid md:grid-cols-2 gap-3 text-sm text-muted-foreground">
                   <li className="flex items-start">
@@ -508,7 +489,7 @@ const Index = () => {
               Not all AI traffic is equal
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-              A GPTBot crawling for training data is not the same as a ChatGPT Browser user navigating your site for a real customer. CortIQ is the first platform that classifies the difference.
+              A GPTBot crawling for training data is not the same as ChatGPT fetching your page for a real user. CortIQ classifies the difference.
             </p>
           </div>
 
@@ -521,7 +502,7 @@ const Index = () => {
                   <Badge className="text-xs bg-red-500/20 text-red-400 border-0">Infrastructure cost</Badge>
                 </div>
                 <p className="font-semibold text-red-400">Training Crawlers</p>
-                <p className="text-sm text-muted-foreground">GPTBot, ClaudeBot, BLEXBot — crawl for model training, zero referral value.</p>
+                <p className="text-sm text-muted-foreground">GPTBot, ClaudeBot, Google-Extended, Meta-ExternalAgent — crawl for model training, zero referral value.</p>
               </CardContent>
             </Card>
             <Card className="border-green-500/20 bg-green-500/5">
@@ -531,7 +512,7 @@ const Index = () => {
                   <Badge className="text-xs bg-green-500/20 text-green-400 border-0">Real user intent</Badge>
                 </div>
                 <p className="font-semibold text-green-400">Agentic Browsers</p>
-                <p className="text-sm text-muted-foreground">ChatGPT Browser, Perplexity Comet — act on behalf of users, convert like humans.</p>
+                <p className="text-sm text-muted-foreground">Agent fetches via ChatGPT-User, Claude-User and Perplexity-User, plus JS-signal heuristics for in-browser AI agents — act on behalf of real users.</p>
               </CardContent>
             </Card>
             <Card className="border-blue-500/20 bg-blue-500/5">
@@ -541,7 +522,7 @@ const Index = () => {
                   <Badge className="text-xs bg-blue-500/20 text-blue-400 border-0">Visibility signal</Badge>
                 </div>
                 <p className="font-semibold text-blue-400">Citation Crawlers</p>
-                <p className="text-sm text-muted-foreground">PerplexityBot, Google-Extended — index your content for AI search results.</p>
+                <p className="text-sm text-muted-foreground">PerplexityBot, OAI-SearchBot, Claude-SearchBot — index your content for AI search results.</p>
               </CardContent>
             </Card>
           </div>
@@ -552,9 +533,9 @@ const Index = () => {
                 <div className="w-16 h-16 bg-gradient-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
                   <Bot className="h-8 w-8 text-white" />
                 </div>
-                <h3 className="font-bold text-lg mb-2">ChatGPT Browser</h3>
+                <h3 className="font-bold text-lg mb-2">ChatGPT</h3>
                 <p className="text-sm text-muted-foreground">
-                  Track how OpenAI's browser agent crawls and cites your content
+                  ChatGPT-User fetches for real users, OAI-SearchBot indexing and GPTBot training crawls
                 </p>
               </CardContent>
             </Card>
@@ -566,7 +547,7 @@ const Index = () => {
                 </div>
                 <h3 className="font-bold text-lg mb-2">Perplexity</h3>
                 <p className="text-sm text-muted-foreground">
-                  Analyze traffic from Perplexity AI and its citation behavior
+                  Perplexity-User fetches and PerplexityBot citation crawling
                 </p>
               </CardContent>
             </Card>
@@ -576,9 +557,9 @@ const Index = () => {
                 <div className="w-16 h-16 bg-gradient-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
                   <Brain className="h-8 w-8 text-white" />
                 </div>
-                <h3 className="font-bold text-lg mb-2">Claude Browser</h3>
+                <h3 className="font-bold text-lg mb-2">Claude</h3>
                 <p className="text-sm text-muted-foreground">
-                  Follow Anthropic's Claude agent and its interactions
+                  Claude-User fetches, Claude-SearchBot indexing and ClaudeBot training crawls
                 </p>
               </CardContent>
             </Card>
@@ -640,7 +621,7 @@ const Index = () => {
                     <CheckCircle className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
                     <div>
                       <h4 className="font-semibold">Custom Agent Registry</h4>
-                      <p className="text-sm text-muted-foreground">Register Copilot, Google AI Studio and custom bots</p>
+                      <p className="text-sm text-muted-foreground">Register your own AI agents and custom bots</p>
                     </div>
                   </div>
                   <div className="flex items-start space-x-3">
@@ -655,7 +636,7 @@ const Index = () => {
 
               <div className="bg-primary/5 p-6 rounded-lg text-center">
                 <p className="text-muted-foreground mb-4">
-                  <strong className="text-foreground">Why is this important?</strong> AI agents account for a growing portion of web traffic.
+                  <strong className="text-foreground">Why is this important?</strong> AI bots made up 4.2% of HTML requests in 2025, and training accounted for about 80% of AI crawling (Cloudflare Radar 2025 Year in Review).
                   Without dedicated measurement, you're missing critical data about how AI interacts with your content.
                 </p>
                 <Link to="/auth">
@@ -682,15 +663,15 @@ const Index = () => {
               Analytics Your Way
             </Badge>
             <h2 className="text-4xl md:text-5xl font-black mb-6 text-gradient-primary">
-              Banner-free or hybrid with GA4
+              CortIQ, GA4, or both
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-              Choose our 100% banner-free server-side analytics, or hybrid solution with GA4 server-side + smart consent management.
+              Use CortIQ's consent-first analytics, GA4 under Consent Mode v2, or both — all behind the same built-in consent banner.
             </p>
           </div>
 
           <div className="grid lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
-            {/* Our Bannerfri Server-Side Analytics */}
+            {/* CortIQ Cookieless Analytics */}
             <Card className="group border-2 border-primary/20 shadow-elegant hover-lift bg-gradient-card relative overflow-hidden">
               <div className="absolute inset-0 bg-gradient-primary opacity-0 group-hover:opacity-5 transition-opacity duration-500"></div>
               
@@ -709,27 +690,27 @@ const Index = () => {
               <CardContent className="space-y-4 relative z-10">
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
-                  <span className="text-foreground">Track AI agents (ChatGPT, Perplexity, Claude Browser)</span>
+                  <span className="text-foreground">Track AI agents and crawlers (ChatGPT, Perplexity, Claude and more)</span>
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
-                  <span className="text-foreground">Zero cookies - no banner needed</span>
+                  <span className="text-foreground">Cookieless mode: no cookies, no fingerprint, no persistent IDs</span>
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
-                  <span className="text-foreground">100% GDPR compliant automatically</span>
+                  <span className="text-foreground">Visitor analytics start only after consent (valid 12 months)</span>
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
-                  <span className="text-foreground">Better data quality (100% vs ~60%)</span>
+                  <span className="text-foreground">EU-hosted, built for GDPR</span>
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
-                  <span className="text-foreground">Built-in heatmaps and A/B testing</span>
+                  <span className="text-foreground">Built-in heatmaps and form analytics</span>
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
-                  <span className="text-foreground">WordPress plugin for easy setup</span>
+                  <span className="text-foreground">WordPress plugin with built-in consent banner</span>
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
@@ -740,7 +721,7 @@ const Index = () => {
               <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-primary opacity-10 rounded-tr-full"></div>
             </Card>
 
-            {/* GA4 Server-Side */}
+            {/* GA4 with Consent Mode v2 */}
             <Card className="group border-2 border-accent/20 shadow-elegant hover-lift bg-gradient-card relative overflow-hidden">
               <div className="absolute inset-0 bg-gradient-accent opacity-0 group-hover:opacity-5 transition-opacity duration-500"></div>
               
@@ -751,9 +732,9 @@ const Index = () => {
                 <Badge className="mb-4 bg-gradient-accent text-white mx-auto">
                   Also Available
                 </Badge>
-                <CardTitle className="text-2xl font-bold">GA4 Server-Side</CardTitle>
+                <CardTitle className="text-2xl font-bold">GA4 with Consent Mode v2</CardTitle>
                 <CardDescription className="text-base mt-2">
-                  Keep Google Analytics without cookies
+                  Keep Google Analytics, consent-gated
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 relative z-10">
@@ -763,11 +744,11 @@ const Index = () => {
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-accent flex-shrink-0 mt-1" />
-                  <span className="text-foreground">We run it server-side for you</span>
+                  <span className="text-foreground">Google Consent Mode v2 (basic mode)</span>
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-accent flex-shrink-0 mt-1" />
-                  <span className="text-foreground">No cookies, no banner needed</span>
+                  <span className="text-foreground">GA4 fires only after analytics consent</span>
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-accent flex-shrink-0 mt-1" />
@@ -775,11 +756,11 @@ const Index = () => {
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-accent flex-shrink-0 mt-1" />
-                  <span className="text-foreground">GDPR compliant tracking</span>
+                  <span className="text-foreground">Same consent banner as CortIQ analytics</span>
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-accent flex-shrink-0 mt-1" />
-                  <span className="text-foreground">Easy migration from client-side GA4</span>
+                  <span className="text-foreground">Connect your GA4 property in minutes</span>
                 </div>
                 <div className="space-y-2 pt-4">
                   <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground">
@@ -797,12 +778,12 @@ const Index = () => {
               <CardContent className="p-8">
                 <h3 className="text-2xl font-bold mb-4 text-gradient-primary">Use both together</h3>
                 <p className="text-lg text-muted-foreground mb-6 leading-relaxed">
-                  Many of our customers run both solutions simultaneously. Get the best of both worlds - 
-                  our agentic analytics for future-proof insights, plus GA4 server-side for familiar reporting.
+                  Run both behind the same consent banner: CortIQ for AI-traffic and consent-first visitor analytics,
+                  GA4 for familiar reporting.
                 </p>
                 <Link to="/auth">
                   <Button size="lg" className="group bg-gradient-primary hover-scale hover-glow text-lg px-8 py-4 h-auto">
-                    Get Started
+                    Create free account
                     <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-2 transition-transform duration-300" />
                   </Button>
                 </Link>
@@ -812,21 +793,21 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Remarketing Solution Section */}
+      {/* Server-Side Conversion Signals Section */}
       <section className="py-32 px-4 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-muted/20 via-background to-primary/5"></div>
-        
+
         <div className="container mx-auto relative z-10">
           <div className="text-center mb-16 animate-fade-in">
             <Badge className="mb-6 bg-gradient-primary text-white">
               <Zap className="h-4 w-4 mr-2 inline" />
-              Smart Remarketing
+              In development: Server-Side Conversion Signals
             </Badge>
             <h2 className="text-4xl md:text-5xl font-black mb-6 text-gradient-primary">
-              Cookiefree remarketing that actually works
+              Feed ad platforms without third-party cookies
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-              Run Google Ads, Facebook, and TikTok remarketing without cookies - using server-side conversion APIs and privacy-safe user matching.
+              We are building server-side conversion signals to Google Ads, Meta and GA4 — sent only for visitors who gave the matching consent. Not available yet.
             </p>
           </div>
 
@@ -836,24 +817,24 @@ const Index = () => {
                 <div className="mx-auto w-16 h-16 bg-gradient-primary rounded-2xl flex items-center justify-center mb-6 hover:scale-110 transition-transform duration-300 shadow-lg">
                   <Globe className="h-8 w-8 text-white" />
                 </div>
-                <CardTitle className="text-xl font-bold">Google Ads Remarketing</CardTitle>
+                <CardTitle className="text-xl font-bold">Google Ads Enhanced Conversions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
-                  <span className="text-foreground">Server-side conversion tracking via Google Ads API</span>
+                  <span className="text-foreground">HubSpot lead quality uploaded via the Conversion Adjustments API</span>
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
-                  <span className="text-foreground">Enhanced conversions with hashed email matching</span>
+                  <span className="text-foreground">Matched on gclid and SHA-256 hashed email</span>
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
-                  <span className="text-foreground">Customer Match lists for precise targeting</span>
+                  <span className="text-foreground">Daily batch upload</span>
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
-                  <span className="text-foreground">No cookies needed on the website</span>
+                  <span className="text-foreground">Only sessions with marketing consent</span>
                 </div>
               </CardContent>
             </Card>
@@ -863,24 +844,20 @@ const Index = () => {
                 <div className="mx-auto w-16 h-16 bg-gradient-accent rounded-2xl flex items-center justify-center mb-6 hover:scale-110 transition-transform duration-300 shadow-lg">
                   <Users className="h-8 w-8 text-white" />
                 </div>
-                <CardTitle className="text-xl font-bold">Meta (Facebook/Instagram)</CardTitle>
+                <CardTitle className="text-xl font-bold">Meta Conversions API</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-accent flex-shrink-0 mt-1" />
-                  <span className="text-foreground">Facebook Conversions API integration</span>
+                  <span className="text-foreground">Server-side events to your Meta pixel ID</span>
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-accent flex-shrink-0 mt-1" />
-                  <span className="text-foreground">Server-side event tracking without pixel</span>
+                  <span className="text-foreground">No browser pixel required on the site</span>
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-accent flex-shrink-0 mt-1" />
-                  <span className="text-foreground">Custom Audiences with privacy-safe matching</span>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <CheckCircle className="h-5 w-5 text-accent flex-shrink-0 mt-1" />
-                  <span className="text-foreground">Higher attribution accuracy than cookies</span>
+                  <span className="text-foreground">Sent only with marketing consent</span>
                 </div>
               </CardContent>
             </Card>
@@ -890,24 +867,20 @@ const Index = () => {
                 <div className="mx-auto w-16 h-16 bg-gradient-primary rounded-2xl flex items-center justify-center mb-6 hover:scale-110 transition-transform duration-300 shadow-lg">
                   <TrendingUp className="h-8 w-8 text-white" />
                 </div>
-                <CardTitle className="text-xl font-bold">TikTok & Other Platforms</CardTitle>
+                <CardTitle className="text-xl font-bold">GA4 Measurement Protocol</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
-                  <span className="text-foreground">TikTok Events API for cookiefree tracking</span>
+                  <span className="text-foreground">Server-side events to your GA4 property</span>
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
-                  <span className="text-foreground">LinkedIn, Pinterest, Snapchat support</span>
+                  <span className="text-foreground">Sent only with analytics consent</span>
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
-                  <span className="text-foreground">Universal server-side architecture</span>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
-                  <span className="text-foreground">One integration for all platforms</span>
+                  <span className="text-foreground">Same consent banner as CortIQ analytics</span>
                 </div>
               </CardContent>
             </Card>
@@ -915,15 +888,15 @@ const Index = () => {
 
           <Card className="max-w-4xl mx-auto border-2 border-primary/20 bg-gradient-card shadow-elegant">
             <CardContent className="p-8">
-              <h3 className="text-2xl font-bold mb-4 text-gradient-primary">Why server-side remarketing is better</h3>
+              <h3 className="text-2xl font-bold mb-4 text-gradient-primary">Why server-side</h3>
               <div className="grid md:grid-cols-2 gap-6 mb-6">
                 <div>
                   <h4 className="font-bold text-lg mb-3 flex items-center">
                     <CheckCircle className="h-5 w-5 text-primary mr-2" />
-                    Privacy-First
+                    No third-party ad cookies
                   </h4>
                   <p className="text-muted-foreground">
-                    No cookies on user devices. Data processing happens server-side with proper consent and encryption.
+                    Signals are sent from the server, not from ad pixels in the visitor's browser — and only with consent.
                   </p>
                 </div>
                 <div>
@@ -932,25 +905,25 @@ const Index = () => {
                     Better Attribution
                   </h4>
                   <p className="text-muted-foreground">
-                    Server-side APIs aren't blocked by ad blockers, giving you 100% accurate conversion tracking instead of ~60%.
+                    Server-side conversion APIs aren't affected by ad blockers, so consented conversions are reported more reliably than with browser pixels.
                   </p>
                 </div>
                 <div>
                   <h4 className="font-bold text-lg mb-3 flex items-center">
                     <CheckCircle className="h-5 w-5 text-primary mr-2" />
-                    Higher Match Rates
+                    Hashed, not raw
                   </h4>
                   <p className="text-muted-foreground">
-                    Using hashed emails and phone numbers provides better audience matching than cookie-based tracking.
+                    Emails are SHA-256 hashed and only the hash is stored and uploaded to Google Ads.
                   </p>
                 </div>
                 <div>
                   <h4 className="font-bold text-lg mb-3 flex items-center">
                     <CheckCircle className="h-5 w-5 text-primary mr-2" />
-                    Future-Proof
+                    Quality, not volume
                   </h4>
                   <p className="text-muted-foreground">
-                    Works today and will keep working when third-party cookies are completely gone.
+                    CRM-qualified lead quality teaches Smart Bidding which leads matter, not just which forms were submitted.
                   </p>
                 </div>
               </div>
@@ -958,7 +931,7 @@ const Index = () => {
                 <Link to="/auth">
                   <Button size="lg" className="group bg-gradient-primary hover-scale hover-glow text-lg px-8 py-4 h-auto">
                     <Zap className="mr-2 h-5 w-5" />
-                    Set up cookiefree remarketing
+                    Create free account
                     <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-2 transition-transform duration-300" />
                   </Button>
                 </Link>
@@ -967,7 +940,6 @@ const Index = () => {
           </Card>
         </div>
       </section>
-
       {/* Features Section */}
 
       <section className="py-32 px-4 relative">
@@ -988,8 +960,8 @@ const Index = () => {
               Analytics for the agentic web
             </h2>
             <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-              When AI agents start browsing the web for users, you need to know what's happening. 
-              We're first on the market with dedicated agentic browser tracking.
+              When AI agents start browsing the web for users, you need to know what's happening —
+              and which AI traffic is worth your attention.
             </p>
           </div>
           
@@ -1038,15 +1010,15 @@ const Index = () => {
               </CardHeader>
               <CardContent className="relative z-10 text-center">
                 <CardDescription className="leading-relaxed text-lg mb-6">
-                  When ChatGPT Browser, Perplexity Comet, and Claude Browser start browsing your website 
-                  for users, you want to know what's happening. We track everything - from bot behavior to 
-                  structured data readiness and agent conversion attribution.
+                  When ChatGPT, Claude and Perplexity fetch your pages for users, you want to know what's happening.
+                  CortIQ detects agent fetches via ChatGPT-User, Claude-User and Perplexity-User, plus JS-signal
+                  heuristics for in-browser AI agents — and attributes their conversions.
                 </CardDescription>
                 <div className="flex justify-center">
                   <Link to="/auth">
                     <Button className="group bg-gradient-primary hover-scale hover-glow text-lg px-8 py-3 h-auto">
                       <Zap className="mr-2 h-5 w-5" />
-                      Stay ahead of your competitors
+                      Create free account
                       <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-2 transition-transform duration-300" />
                     </Button>
                   </Link>
@@ -1076,12 +1048,12 @@ const Index = () => {
                 Agent-Ready Analytics
               </Badge>
               <h2 className="text-4xl md:text-5xl font-black mb-8 text-gradient-primary">
-                First tool for the agentic web
+                Built for the agentic web
               </h2>
               <p className="text-xl text-muted-foreground mb-12 leading-relaxed">
                 History shows that every major browser shift comes with a new promise. 
                 Agentic browsers promise speed and automation - but only if they can trust your data. 
-                We help you become visible to AI agents before your competitors even understand what's happening.
+                CortIQ shows you which AI agents and crawlers visit, what they read, and which visits turn into business.
               </p>
               
               <div className="space-y-6 mb-12">
@@ -1097,7 +1069,7 @@ const Index = () => {
 
               <Link to="/auth">
                 <Button size="lg" className="group bg-gradient-primary hover-scale hover-glow text-lg px-8 py-4 h-auto">
-                  Request Invitation
+                  Create free account
                   <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-2 transition-transform duration-300" />
                 </Button>
               </Link>
@@ -1124,6 +1096,7 @@ const Index = () => {
                     <div>
                       <div className="text-3xl font-black text-gradient-primary">12,847</div>
                       <div className="text-sm text-muted-foreground font-medium">Visitors this month</div>
+                      <div className="text-xs text-muted-foreground/70 uppercase tracking-wide mt-1">Example data</div>
                     </div>
                   </div>
                 </CardContent>
@@ -1138,6 +1111,7 @@ const Index = () => {
                     <div>
                       <div className="text-3xl font-black text-gradient-accent">+23%</div>
                       <div className="text-sm text-muted-foreground font-medium">Conversion</div>
+                      <div className="text-xs text-muted-foreground/70 uppercase tracking-wide mt-1">Example data</div>
                     </div>
                   </div>
                 </CardContent>
@@ -1171,8 +1145,9 @@ const Index = () => {
               Build for tomorrow's web, today
             </h2>
             <p className="text-xl md:text-2xl mb-12 opacity-95 max-w-4xl mx-auto leading-relaxed">
-              AI bot traffic grew 300% last year. 1 in 31 web visits is already an AI bot — up from 1 in 200 at the start of 2025.
-              The platforms that understand what kind of AI traffic they have will win. Everyone else is flying blind.
+              AI bot traffic grew 300% year over year (Akamai SOTI Digital Fraud &amp; Abuse Report 2025). By Q4 2025 there was one AI bot visit
+              for every 31 human visits, up from one in 200 in Q1 2025 (TollBit, State of the Bots, Q4 2025).
+              Know what kind of AI traffic you have.
             </p>
           </div>
           
@@ -1180,72 +1155,19 @@ const Index = () => {
             <Link to="/auth">
               <Button size="lg" variant="secondary" className="group glass hover-scale hover-glow text-lg px-10 py-5 h-auto font-bold">
                 <Bot className="mr-3 h-6 w-6" />
-                Get Started Now
+                Create free account
                 <ArrowRight className="ml-3 h-6 w-6 group-hover:translate-x-2 transition-transform duration-300" />
               </Button>
             </Link>
-            <Link to="/bot-intelligence">
+            <Link to="/features/ai/">
               <Button size="lg" variant="outline" className="group glass hover-scale text-lg px-10 py-5 h-auto font-bold border-white/30 text-white hover:text-white">
-                AI Bot Intelligence Report
+                How AI traffic is classified
                 <ArrowRight className="ml-3 h-6 w-6 group-hover:translate-x-2 transition-transform duration-300" />
               </Button>
             </Link>
           </div>
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="relative border-t bg-gradient-card backdrop-blur-sm py-16 px-4">
-        <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_48%,hsl(var(--primary)/0.02)_49%,hsl(var(--primary)/0.02)_51%,transparent_52%)]"></div>
-        
-        <div className="container mx-auto relative z-10">
-          <div className="grid md:grid-cols-4 gap-12">
-            <div className="md:col-span-2">
-              <div className="flex items-center space-x-3 mb-6">
-                <div className="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center">
-                  <BarChart3 className="h-6 w-6 text-white" />
-                </div>
-                <span className="font-black text-xl text-gradient-primary">CortIQ</span>
-              </div>
-              <p className="text-muted-foreground leading-relaxed mb-6 max-w-md">
-                GDPR-compliant analytics that helps you understand your users without compromising privacy.
-              </p>
-              <div className="flex space-x-4">
-                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center hover-scale cursor-pointer">
-                  <Globe className="h-5 w-5 text-primary" />
-                </div>
-                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center hover-scale cursor-pointer">
-                  <Users className="h-5 w-5 text-primary" />
-                </div>
-                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center hover-scale cursor-pointer">
-                  <Cookie className="h-5 w-5 text-primary" />
-                </div>
-              </div>
-            </div>
-            
-            <div>
-              <h4 className="font-bold mb-6 text-gradient-primary">Product</h4>
-              <ul className="space-y-3 text-muted-foreground">
-                <li><Link to="/features" className="hover:text-primary transition-colors hover:translate-x-1 transform duration-200 inline-block">Features</Link></li>
-                <li><Link to="/bot-intelligence" className="hover:text-primary transition-colors hover:translate-x-1 transform duration-200 inline-block">Bot Intelligence</Link></li>
-                <li><Link to="/pricing" className="hover:text-primary transition-colors hover:translate-x-1 transform duration-200 inline-block">Pricing</Link></li>
-                <li><Link to="/api" className="hover:text-primary transition-colors hover:translate-x-1 transform duration-200 inline-block">API</Link></li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-bold mb-6 text-gradient-primary">Support</h4>
-              <ul className="space-y-3 text-muted-foreground">
-                <li><Link to="/contact" className="hover:text-primary transition-colors hover:translate-x-1 transform duration-200 inline-block">Contact</Link></li>
-                <li><Link to="/privacy" className="hover:text-primary transition-colors hover:translate-x-1 transform duration-200 inline-block">Privacy Policy</Link></li>
-                <li>
-                  <a href="https://github.com/expandtalk/cortiq" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors hover:translate-x-1 transform duration-200 inline-block">GitHub</a>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </footer>
 
       {/* Contact Section */}
       <section id="contact" className="py-24 px-4 bg-gradient-subtle">
@@ -1258,7 +1180,7 @@ const Index = () => {
               Ready to get started?
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Get in touch with us at Expandtalk Corporation AB for information about invite-only access.
+              CortIQ is free during beta — create an account to start, or get in touch with Expandtalk Corporation AB with questions.
             </p>
           </div>
 
@@ -1292,7 +1214,7 @@ const Index = () => {
                 </div>
 
                 <div className="pt-4 text-sm text-muted-foreground">
-                  <p>For inquiries about CortIQ and invite-only access,</p>
+                  <p>For inquiries about CortIQ,</p>
                   <p>please reach out through our contact page.</p>
                 </div>
               </div>
@@ -1300,6 +1222,8 @@ const Index = () => {
           </Card>
         </div>
       </section>
+      <PublicFooter />
+
     </div>
   );
 };

@@ -1,6 +1,6 @@
 /**
  * Minifies public/spa-tracking.js → public/cortiq.js
- * Runs as part of `npm run build` (via prebuild) and `npm run build:tracker`.
+ * Runs as the first step of `npm run build`.
  */
 
 import { build } from 'esbuild';

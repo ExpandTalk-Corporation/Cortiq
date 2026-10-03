@@ -3,13 +3,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import PublicNavigation from "@/components/PublicNavigation";
+import PublicFooter from "@/components/PublicFooter";
 import { useSEO } from "@/hooks/useSEO";
+import { seoFor } from "@/marketing-routes";
 import {
   BarChart3,
   MousePointer,
   FormInput,
-  TestTube,
-  Video,
+  Link2,
+  Search,
   Map,
   Users,
   Target,
@@ -17,8 +19,6 @@ import {
   AlertTriangle,
   TrendingUp,
   Monitor,
-  Database,
-  Settings,
   Globe,
   CheckCircle,
   ArrowRight,
@@ -34,10 +34,10 @@ const features = [
     items: ["Click heatmaps", "Scroll depth heatmaps", "Device-specific views", "Mobile insights"],
   },
   {
-    icon: <TestTube className="h-7 w-7" />,
-    title: "A/B Testing",
-    description: "Test two variants of your site and get statistically significant results.",
-    items: ["2-variant A/B testing", "Statistical significance", "Audience segmentation", "ROI measurement"],
+    icon: <Link2 className="h-7 w-7" />,
+    title: "Link Click Counter",
+    description: "Cookieless, aggregate click counts per link and button — no visitor ID attached.",
+    items: ["Counts per link and button", "Per page and device type", "No cookies or visitor IDs", "Starts after analytics consent"],
   },
   {
     icon: <FormInput className="h-7 w-7" />,
@@ -46,10 +46,16 @@ const features = [
     items: ["Funnel visualization", "Drop-off analysis", "Field-level metrics", "Completion rate"],
   },
   {
-    icon: <Video className="h-7 w-7" />,
-    title: "Session Recording",
-    description: "Record and replay real user sessions to understand actual behavior.",
-    items: ["Full session recordings", "Bot vs human filter", "Device & URL filters", "Search & playback"],
+    icon: <Search className="h-7 w-7" />,
+    title: "Form Auto-Discovery",
+    description: "Find every form on your site and identify it by provider — so conversions map to the right form.",
+    items: ["HubSpot form GUIDs (hs_context, data-form-id)", "Gravity Forms & Contact Form 7", "Forms found vs. unidentified", "Label forms to track them as goals"],
+  },
+  {
+    icon: <Link2 className="h-7 w-7" />,
+    title: "First-Party Click ID Capture",
+    description: "Capture ad click IDs from landing URLs and keep them first-party — only with marketing consent.",
+    items: ["gclid, fbclid, msclkid", "ttclid, li_fat_id", "Marketing consent required", "Feeds Enhanced Conversions upload"],
   },
   {
     icon: <Target className="h-7 w-7" />,
@@ -73,7 +79,7 @@ const features = [
     icon: <Monitor className="h-7 w-7" />,
     title: "Segmentation",
     description: "Slice your audience any way you need for deeper insights.",
-    items: ["Demographics", "Behavior segments", "Traffic source groups", "Conversion cohorts"],
+    items: ["Behavior segments", "Traffic source groups", "Device segments", "Conversion cohorts"],
   },
   {
     icon: <AlertTriangle className="h-7 w-7" />,
@@ -95,20 +101,20 @@ const features = [
   },
   {
     icon: <Zap className="h-7 w-7" />,
-    title: "Cookie-Free Analytics",
-    description: "Full analytics without cookies — 100% GDPR-safe, no consent needed.",
-    items: ["Privacy-first tracking", "Cookie-free sessions", "Unique visitor estimation", "Zero data loss"],
+    title: "Cookieless Mode",
+    description: "Privacy-minimised analytics with no cookies, no device fingerprint and no cross-visit profile. Starts only after analytics consent, like all visitor analytics.",
+    items: ["No cookies or persistent IDs", "No device fingerprinting", "No cross-visit profiling", "Consent valid 12 months"],
   },
   {
     icon: <AlertTriangle className="h-7 w-7" />,
     title: "Goal Health Monitor",
     description: "Automatically flags misconfigured conversion goals — fires-too-often, silent tags, and duplicate Primary goals that corrupt Smart Bidding.",
-    items: ["Firing rate alerts (>30% = misconfigured)", "Silent goal detection", "Primary / Observation toggle", "Inline fix suggestions"],
+    items: ["Firing rate alerts (>30% = misconfigured)", "Silent goal detection (7 days)", "Duplicate Primary warning", "Primary / Observation toggle"],
   },
   {
     icon: <Target className="h-7 w-7" />,
-    title: "Attribution Gap Dashboard",
-    description: "Compare what CortIQ tracks, what Google Ads claims, and what your CRM classifies as quality — side by side.",
+    title: "Attribution Gap Dashboard (in development)",
+    description: "Compare CortIQ conversions with HubSpot quality leads and Enhanced Conversions upload status — side by side.",
     items: ["CortIQ vs. HubSpot MQL comparison", "Gap % with diagnosis", "Enhanced Conversions upload status", "30-day rolling view, no PII"],
   },
 ];
@@ -117,7 +123,7 @@ const integrations = [
   {
     icon: <Globe className="h-7 w-7" />,
     title: "Google Analytics 4",
-    items: ["Server-side GA4", "Two-way conversion sync", "Traffic sources & segments"],
+    items: ["Consent Mode v2 (WordPress plugin)", "Read-only report import", "Traffic sources & segments"],
   },
   {
     icon: <TrendingUp className="h-7 w-7" />,
@@ -126,31 +132,18 @@ const integrations = [
   },
   {
     icon: <Target className="h-7 w-7" />,
-    title: "Google Ads",
+    title: "Google Ads (in development)",
     items: ["Enhanced Conversions", "Consent-gated upload", "Lead-quality scoring"],
   },
   {
     icon: <Zap className="h-7 w-7" />,
-    title: "HubSpot",
+    title: "HubSpot (in development)",
     items: ["Lead-quality webhook", "SHA-256 email matching", "Attribution-gap dashboard"],
-  },
-  {
-    icon: <Settings className="h-7 w-7" />,
-    title: "Tag Manager",
-    items: ["Event & pixel tags", "Consent Mode v2", "Data layer variables"],
-  },
-  {
-    icon: <Database className="h-7 w-7" />,
-    title: "Data Warehouse",
-    items: ["BigQuery", "Snowflake", "Redshift", "PostgreSQL, MySQL & Databricks"],
   },
 ];
 
 export default function FeaturesAnalytics() {
-  useSEO({
-    title: 'Web Analytics — CortIQ',
-    description: 'Cookie-free server-side analytics, click heatmaps, form analytics, session recording and A/B testing — all GDPR-compliant and without a cookie banner.',
-  });
+  useSEO(seoFor("/features/analytics/"));
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
       <PublicNavigation />
@@ -163,11 +156,11 @@ export default function FeaturesAnalytics() {
             Marketing & Analytics
           </Badge>
           <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-            Understand every visitor. Optimize everything.
+            Understand your visitors. Optimize everything.
           </h1>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            From heatmaps and session recordings to A/B tests and lifetime value — all the tools
-            marketing and product teams need in one platform.
+            From heatmaps and form analytics to conversion attribution and lifetime value — analytics
+            for marketing and product teams in one platform. Every visitor-analytics feature starts only after analytics consent.
           </p>
         </div>
 
@@ -203,7 +196,7 @@ export default function FeaturesAnalytics() {
         {/* Integrations */}
         <section className="mb-20">
           <div className="text-center mb-10">
-            <h2 className="text-2xl font-bold mb-2">Integrations & Data Export</h2>
+            <h2 className="text-2xl font-bold mb-2">Integrations</h2>
             <p className="text-muted-foreground">Connect to your existing stack</p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -232,21 +225,22 @@ export default function FeaturesAnalytics() {
         <div className="text-center bg-primary/5 rounded-lg p-8">
           <h2 className="text-2xl font-bold mb-3">Ready to optimize your website?</h2>
           <p className="text-muted-foreground mb-6 max-w-xl mx-auto">
-            Start free and get access to all analytics features from day one.
+            CortIQ is free during beta. Create an account and get access to all analytics features.
           </p>
           <div className="flex gap-4 justify-center flex-wrap">
             <Button asChild size="lg">
               <Link to="/auth">
-                Start Free <ArrowRight className="ml-2 h-4 w-4" />
+                Create free account <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
             <Button variant="outline" size="lg" asChild>
-              <Link to="/features">See All Features</Link>
+              <Link to="/features/">See All Features</Link>
             </Button>
           </div>
         </div>
 
       </div>
+      <PublicFooter />
     </div>
   );
 }

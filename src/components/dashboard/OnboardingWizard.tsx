@@ -25,6 +25,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   const [domain, setDomain] = useState('');
   const [loading, setLoading] = useState(false);
   const [newSiteId, setNewSiteId] = useState<string | null>(null);
+  const [newTrackingId, setNewTrackingId] = useState('');
   const { user } = useAuth();
 
   const supabaseUrl = 'https://cxmkdtgfocgbfizawlwa.supabase.co';
@@ -64,6 +65,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
       if (!data) throw new Error('Site creation failed.');
 
       setNewSiteId(data.id);
+      setNewTrackingId(data.tracking_id ?? '');
       toast.success(`"${siteName}" added!`);
       setStep(2);
     } catch (err) {
@@ -73,8 +75,18 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
     }
   };
 
+  // Same snippet as InstallationGuide: the tracker reads window.cortiqConfig only
+  // (it ignores data-* attributes on its script tag).
   const scriptTag = newSiteId
-    ? `<script\n  src="https://cortiq.se/spa-tracking.js"\n  data-site-id="${newSiteId}"\n  defer>\n</script>`
+    ? `<script>
+  window.cortiqConfig = {
+    apiUrl: '${import.meta.env.VITE_SUPABASE_URL}/functions/v1',
+    siteId: '${newSiteId}',
+    apiKey: '${newTrackingId}',
+    cookieless: true
+  };
+</script>
+<script src="https://cortiq.se/spa-tracking.js" defer></script>`
     : '';
 
   return (
