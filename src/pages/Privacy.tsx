@@ -8,7 +8,7 @@ import { useSEO } from "@/hooks/useSEO";
 import { seoFor } from "@/marketing-routes";
 import { Shield, CheckCircle, Mail, FileText, Database, Users, BarChart3, Megaphone } from "lucide-react";
 
-const LAST_UPDATED = "September 24, 2026";
+const LAST_UPDATED = "October 3, 2026";
 
 const Privacy = () => {
   useSEO(seoFor("/privacy/"));
@@ -338,7 +338,8 @@ const Privacy = () => {
               </p>
               <ul className="space-y-3 text-muted-foreground text-sm ml-4">
                 <li>• <strong>Supabase</strong> (infrastructure / database hosting, EU region) — processor for all analytics data.</li>
-                <li>• <strong>Anthropic</strong> (AI assistant &amp; GEO analysis, USA) — when you use AI features, relevant analytics results are sent to the Claude API to generate answers.</li>
+                <li>• <strong>Anthropic</strong> (AI assistant &amp; GEO analysis, USA) — when the operator uses AI features with their own Anthropic API key, relevant analytics results are sent to the Claude API on the operator's instruction. Anthropic then acts under the operator's own agreement with Anthropic, not as CortIQ's subprocessor.</li>
+                <li>• <strong>Resend</strong> (email delivery, USA) — only when the operator sends a report export by email; the report and the recipient address are passed to Resend for delivery.</li>
                 <li>• <strong>Google Ads</strong> (Enhanced Conversions for Leads, USA) — when the operator enables conversion feedback and marketing consent was given, a SHA-256 hash of the email plus the ad click ID (gclid) and conversion value are uploaded. The raw email never leaves the browser.</li>
                 <li>• <strong>HubSpot</strong> (CRM lead-quality feedback, USA/EU) — when the operator connects HubSpot, lead-quality signals are exchanged to enrich conversion measurement.</li>
                 <li>• <strong>Cloudflare</strong> (edge logs &amp; geo lookup, USA — EU-US DPF certified) — when the operator enables the Cloudflare integration, Cloudflare processes visitor IP addresses at its edge; CortIQ receives the country and a truncated IP address for security and bot classification (section 3B).</li>
