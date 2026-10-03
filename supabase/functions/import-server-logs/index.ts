@@ -152,12 +152,35 @@ Deno.serve(async (req) => {
     )
 
     const { site_id, log_content, log_format } = await req.json()
-    
+
     if (!site_id || !log_content || !log_format) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields: site_id, log_content, log_format' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
+    }
+
+    // AuthZ: verify_jwt only proves *someone* is logged in. Confirm the caller owns
+    // this site via an RLS-scoped read before the service-role client writes into it
+    // (otherwise any account could inject log aggregates into another tenant's site).
+    const userClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } }
+    )
+    const { data: { user } } = await userClient.auth.getUser()
+    if (!user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+    const { data: ownedSite } = await userClient
+      .from('sites')
+      .select('id')
+      .eq('id', site_id)
+      .maybeSingle()
+    if (!ownedSite) {
+      return new Response(JSON.stringify({ error: 'Site not found or access denied' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
     // Validate log format

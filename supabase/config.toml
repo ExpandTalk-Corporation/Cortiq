@@ -1,8 +1,5 @@
 project_id = "cxmkdtgfocgbfizawlwa"
 
-[functions.server-log-import]
-verify_jwt = false
-
 [functions.ai-bot-tracker]
 verify_jwt = false
 
