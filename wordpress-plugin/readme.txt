@@ -3,7 +3,7 @@ Contributors: cortiq
 Tags: analytics, ai-tracking, heatmap, cookie-free, gdpr, chatgpt, ai-bots
 Requires at least: 5.6
 Tested up to: 6.8
-Stable tag: 5.4.2
+Stable tag: 5.4.3
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -86,6 +86,9 @@ All data is stored in the EU (AWS eu-north-1 via Supabase).
 The tracking script is loaded with `defer` so it does not block rendering.
 
 == Changelog ==
+
+= 5.4.3 =
+* Tracking script: reads Google Consent Mode v2 from the dataLayer when no CortIQ banner or Cookiebot choice exists, so CMPs wired to Google Tag Manager (OneTrust, Usercentrics, CookieYes and others) work without extra code. Click and scroll heatmap points are stored again.
 
 = 5.4.2 =
 * Fix: cookieless sites no longer log a visitor-identification error (the server skips profiling by design).

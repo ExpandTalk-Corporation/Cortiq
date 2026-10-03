@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
 
     // Check consent settings
     const consentSettings = company.consent_settings || {};
-    const allowedEventTypes = consentSettings.gdpr_settings?.allowed_event_types || ['view', 'click', 'conversion', 'submission'];
+    const allowedEventTypes = consentSettings.gdpr_settings?.allowed_event_types || ['view', 'click', 'conversion', 'submission', 'heatmap'];
     
     if (!allowedEventTypes.includes(body.event_type)) {
       console.log('Event type not allowed by consent settings:', body.event_type);
@@ -130,6 +130,47 @@ Deno.serve(async (req) => {
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Click/scroll heatmap points go to heatmap_data, which the dashboard, REST API and
+    // MCP server read. Until 2026-10 this event type fell through the allow-list above
+    // and was silently dropped, so heatmaps stopped receiving data after June 2026.
+    // The tracker only sends these after analytics consent. Stored minimally: no IP,
+    // no user agent, and the URL without query string or fragment.
+    if (body.event_type === 'heatmap') {
+      const m = body.metadata || {};
+      const siteId = (body as { site_id?: string }).site_id;
+      const { data: site } = siteId
+        ? await supabase.from('sites').select('id').eq('id', siteId).eq('user_id', company.id).maybeSingle()
+        : { data: null };
+      const interaction = m.interaction_type === 'scroll' ? 'scroll' : m.interaction_type === 'click' ? 'click' : null;
+      let url: string | null = null;
+      try { const u = new URL(String(m.url)); url = u.origin + u.pathname; } catch { /* invalid URL */ }
+      const int = (v: unknown) => (Number.isFinite(Number(v)) ? Math.round(Number(v)) : null);
+      if (!site || !interaction || !url || int(m.x_coordinate) === null || int(m.y_coordinate) === null) {
+        return new Response(JSON.stringify({ success: false, error: 'Invalid heatmap event' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      const { error: heatmapError } = await supabase.from('heatmap_data').insert({
+        site_id: site.id,
+        url,
+        device_type: ['mobile', 'tablet', 'desktop'].includes(m.device_type) ? m.device_type : 'desktop',
+        interaction_type: interaction,
+        x_coordinate: int(m.x_coordinate),
+        y_coordinate: int(m.y_coordinate),
+        grid_x: int(m.grid_x),
+        grid_y: int(m.grid_y),
+        viewport_width: int(m.viewport_width),
+        viewport_height: int(m.viewport_height),
+        is_touch_device: m.is_touch_device === true,
+      });
+      if (heatmapError) {
+        console.error('Failed to insert heatmap point:', heatmapError);
+        return new Response(JSON.stringify({ success: false, error: 'Failed to store heatmap point' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      return new Response(JSON.stringify({ success: true }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     // Generate UUID from content_id if it's not already a UUID

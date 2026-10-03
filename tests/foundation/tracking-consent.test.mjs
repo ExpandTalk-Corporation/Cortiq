@@ -24,6 +24,7 @@ function browser(config = {}, storedConsent = null, identifyResponse = null, pag
     cortiqConfig: { siteId: 'site-1', apiKey: 'tracking-key', ...config },
     location: { href: 'https://site.test/start', origin: 'https://site.test', pathname: '/start', search: page.search || '' },
     innerWidth: 1200, innerHeight: 800, scrollY: 0,
+    ...(page.dataLayer && { dataLayer: page.dataLayer }),
   });
   let canvasReads = 0;
   const document = Object.assign(surface(), {
@@ -45,7 +46,7 @@ function browser(config = {}, storedConsent = null, identifyResponse = null, pag
     },
     CustomEvent: class { constructor(type, options) { this.type = type; this.detail = options.detail; } },
     console: { log() {}, warn() {}, error() {} },
-    setTimeout, requestAnimationFrame: fn => fn(),
+    setTimeout, setInterval: () => 0, clearInterval() {}, requestAnimationFrame: fn => fn(),
     fetch: async (url, options) => {
       calls.push({ url, body: JSON.parse(options.body) });
       if (url.endsWith('/visitor-identification') && identifyResponse) return identifyResponse;
@@ -231,3 +232,45 @@ for (const cookieless of [false, true]) {
     assert.equal(b.calls.length, count);
   });
 }
+
+// Google Consent Mode v2 fallback: CMPs wired to gtag/GTM (OneTrust, Usercentrics …)
+const gtagArgs = (...a) => { const args = (function () { return arguments; })(...a); return args; };
+const pageViews = calls => calls.filter(c => c.url.endsWith('/track-event') && c.body.event_type === 'view');
+
+test('Consent Mode grant on the dataLayer starts analytics when no CortIQ or Cookiebot record exists', async () => {
+  const dataLayer = [gtagArgs('consent', 'default', { analytics_storage: 'denied', ad_storage: 'denied' })];
+  const page = browser({}, null, null, { dataLayer });
+  await settle();
+  assert.equal(pageViews(page.calls).length, 0, 'denied default must not track');
+  page.window.dataLayer.push(gtagArgs('consent', 'update', { analytics_storage: 'granted' }));
+  await settle();
+  assert.equal(pageViews(page.calls).length, 1);
+});
+
+test('Consent Mode withdrawal on the dataLayer stops analytics', async () => {
+  const dataLayer = [gtagArgs('consent', 'update', { analytics_storage: 'granted' })];
+  const page = browser({}, null, null, { dataLayer });
+  await settle();
+  assert.equal(pageViews(page.calls).length, 1);
+  page.window.dataLayer.push(gtagArgs('consent', 'update', { analytics_storage: 'denied' }));
+  page.history.pushState({}, '', '/next');
+  await settle();
+  assert.equal(pageViews(page.calls).length, 1, 'no page view after withdrawal');
+});
+
+test('region-scoped Consent Mode defaults are not treated as the visitor choice', async () => {
+  const dataLayer = [gtagArgs('consent', 'default', { analytics_storage: 'granted', region: ['US'] })];
+  const page = browser({}, null, null, { dataLayer });
+  await settle();
+  assert.equal(pageViews(page.calls).length, 0);
+});
+
+test('a stored CortIQ choice wins over Consent Mode (WordPress plugin re-sends only analytics_storage)', async () => {
+  const dataLayer = [gtagArgs('consent', 'default', { analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied' }),
+    gtagArgs('consent', 'update', { analytics_storage: 'granted' })];
+  const page = browser({}, { analytics: true, marketing: true }, null, { dataLayer, search: '?gclid=abc' });
+  await settle();
+  const view = pageViews(page.calls)[0];
+  assert.ok(view, 'tracks with stored analytics consent');
+  assert.ok(page.session.get('cortiq_click_ids'), 'stored marketing grant still captures click IDs');
+});

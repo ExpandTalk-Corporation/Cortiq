@@ -1,7 +1,7 @@
 /**
  * CortIQ Advanced Tracking Script
  * Unified visitor profiling with AI agent detection
- * Version: 5.4.2 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
+ * Version: 5.4.3 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
  *
  * Usage:
  * <script>
@@ -17,7 +17,7 @@
   'use strict';
 
   // Keep in sync with wordpress-plugin/cortiq-analytics.php (CORTIQ_VERSION).
-  const CORTIQ_VERSION = '5.4.2';
+  const CORTIQ_VERSION = '5.4.3';
 
   // Configuration
   const config = window.cortiqConfig || window.wfaConfig || {};
@@ -155,6 +155,7 @@
       const saved = stored ? JSON.parse(stored) : null;
       if (saved?.marketing === true && consentUnexpired(saved)) return true;
     } catch (_) { /* Storage or browser capability unavailable. */ }
+    if (!hasCortiqOrCookiebotConsent()) return readGoogleConsent()?.marketing === true;
     return false;
   }
 
@@ -464,7 +465,63 @@
       const saved = stored ? JSON.parse(stored) : null;
       if (saved?.analytics === true && consentUnexpired(saved)) return true;
     } catch (_) { /* Storage or browser capability unavailable. */ }
+    if (!hasCortiqOrCookiebotConsent()) return readGoogleConsent()?.analytics === true;
     return false;
+  }
+
+  // Google Consent Mode v2 fallback (gtag / Google Tag Manager). Most CMPs (OneTrust,
+  // Usercentrics, CookieYes, Didomi …) publish the visitor's choice as
+  // gtag('consent', 'default' | 'update', {...}) on window.dataLayer. Used only when
+  // neither Cookiebot nor a CortIQ banner record exists: the WordPress plugin also
+  // writes Consent Mode but only re-sends analytics_storage on page load, so letting
+  // it win would drop a stored marketing grant.
+  function hasCortiqOrCookiebotConsent() {
+    if (window.Cookiebot) return true;
+    try { return localStorage.getItem('site_cookie_consent') !== null; } catch (_) { return false; }
+  }
+  function readGoogleConsent() {
+    const dl = window.dataLayer;
+    if (!Array.isArray(dl)) return null;
+    const state = {};
+    let updated = false;
+    for (const entry of dl) {
+      if (!entry || entry[0] !== 'consent' || !entry[2] || typeof entry[2] !== 'object') continue;
+      if (entry[1] === 'update') { Object.assign(state, entry[2]); updated = true; }
+      // Region-scoped defaults may not apply to this visitor, and a default never
+      // overrides an earlier update.
+      else if (entry[1] === 'default' && !updated && !entry[2].region) Object.assign(state, entry[2]);
+    }
+    if (!state.analytics_storage) return null;
+    return {
+      analytics: state.analytics_storage === 'granted',
+      marketing: state.ad_storage === 'granted' && state.ad_user_data === 'granted',
+    };
+  }
+  // Follow later consent updates pushed to the dataLayer (grant and withdrawal).
+  function watchGoogleConsent() {
+    window.dataLayer = window.dataLayer || [];
+    const wrap = () => {
+      const dl = window.dataLayer;
+      if (!Array.isArray(dl) || dl.push.__cortiq) return;
+      const push = dl.push;
+      const wrapped = function () {
+        const result = push.apply(dl, arguments);
+        for (const entry of arguments) {
+          if (entry && entry[0] === 'consent' && entry[1] === 'update' && !hasCortiqOrCookiebotConsent()) {
+            const g = readGoogleConsent();
+            if (g) updateConsent(g);
+          }
+        }
+        return result;
+      };
+      wrapped.__cortiq = true;
+      dl.push = wrapped;
+    };
+    wrap();
+    // GTM replaces dataLayer.push when gtm.js loads; if that happens after this
+    // script, re-wrap on top of it (checked for the first minute only).
+    let checks = 0;
+    const timer = setInterval(() => { wrap(); if (++checks >= 30) clearInterval(timer); }, 2000);
   }
 
   // Neither cookieless nor an operator flag substitutes for the visitor's choice.
@@ -1140,6 +1197,7 @@
     window.addEventListener('CookiebotOnConsentReady', updateCookiebot);
     window.addEventListener('CookiebotOnAccept', updateCookiebot);
     window.addEventListener('CookiebotOnDecline', updateCookiebot);
+    watchGoogleConsent();
     if (hasAnalyticsConsent()) startAnalytics();
   }
 
