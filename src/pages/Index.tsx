@@ -3,7 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import { useSEO } from "@/hooks/useSEO";
+import { seoFor } from "@/marketing-routes";
 import PublicNavigation from "@/components/PublicNavigation";
+import PublicFooter from "@/components/PublicFooter";
 import heroImage from "@/assets/analytics-dashboard-hero.jpg";
 import analyticsIllustration from "@/assets/analytics-illustration.jpg";
 import {
@@ -27,11 +29,7 @@ import {
 } from "lucide-react";
 
 const Index = () => {
-  useSEO({
-    title: 'CortIQ — AI Agent Analytics & Cookie-Free Tracking',
-    description: 'Analytics for the Agentic Web: classify AI training crawlers, agent fetches and citation crawlers. Consent-first, cookieless visitor analytics, heatmaps, form analytics. EU-hosted. Free during beta.',
-    canonical: 'https://cortiq.se/',
-  });
+  useSEO(seoFor("/"));
 
   const features = [
     {
@@ -52,7 +50,7 @@ const Index = () => {
     {
       icon: TrendingUp,
       title: "Conversion & Attribution",
-      description: "First-party click-ID capture (marketing consent only), conversion goal health monitor, form auto-discovery and a HubSpot lead-quality loop to Google Ads Enhanced Conversions."
+      description: "First-party click-ID capture (marketing consent only), conversion goal health monitor and form auto-discovery. A HubSpot lead-quality loop to Google Ads is in development."
     },
     {
       icon: Cookie,
@@ -69,11 +67,11 @@ const Index = () => {
   const benefits = [
     "AI traffic classified as training, agentic or citation",
     "Agent fetches via ChatGPT-User, Claude-User and Perplexity-User",
-    "Server-side bot ingestion from Cloudflare logs — catches crawlers that never run JavaScript",
+    "Server-side bot ingestion through a Cloudflare Worker — catches crawlers that never run JavaScript",
     "Built-in consent banner with Google Consent Mode v2",
     "Cookieless mode: no cookies, no fingerprinting, no cross-visit profile",
     "Universal tracking script for any CMS or custom site",
-    "MCP server so AI agents can query your analytics (23 tools)",
+    "MCP server so AI agents can query your analytics (22 read-only tools)",
     "Free during beta — create an account and start"
   ];
 
@@ -136,7 +134,7 @@ const Index = () => {
                     <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-2 transition-transform duration-300" />
                   </Button>
                 </Link>
-                <Link to="/features">
+                <Link to="/features/">
                   <Button variant="outline" size="lg" className="group glass hover-lift text-lg px-8 py-4 h-auto">
                     <BarChart3 className="mr-3 h-5 w-5 group-hover:scale-110 transition-transform" />
                     See All Features
@@ -803,13 +801,13 @@ const Index = () => {
           <div className="text-center mb-16 animate-fade-in">
             <Badge className="mb-6 bg-gradient-primary text-white">
               <Zap className="h-4 w-4 mr-2 inline" />
-              Server-Side Conversion Signals
+              In development: Server-Side Conversion Signals
             </Badge>
             <h2 className="text-4xl md:text-5xl font-black mb-6 text-gradient-primary">
               Feed ad platforms without third-party cookies
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-              Send conversion signals server-side to Google Ads, Meta and GA4 — only for visitors who gave the matching consent.
+              We are building server-side conversion signals to Google Ads, Meta and GA4 — sent only for visitors who gave the matching consent. Not available yet.
             </p>
           </div>
 
@@ -1161,9 +1159,9 @@ const Index = () => {
                 <ArrowRight className="ml-3 h-6 w-6 group-hover:translate-x-2 transition-transform duration-300" />
               </Button>
             </Link>
-            <Link to="/bot-intelligence">
+            <Link to="/features/ai/">
               <Button size="lg" variant="outline" className="group glass hover-scale text-lg px-10 py-5 h-auto font-bold border-white/30 text-white hover:text-white">
-                AI Bot Intelligence Report
+                How AI traffic is classified
                 <ArrowRight className="ml-3 h-6 w-6 group-hover:translate-x-2 transition-transform duration-300" />
               </Button>
             </Link>
@@ -1224,58 +1222,7 @@ const Index = () => {
           </Card>
         </div>
       </section>
-      {/* Footer */}
-      <footer className="relative border-t bg-gradient-card backdrop-blur-sm py-16 px-4">
-        <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_48%,hsl(var(--primary)/0.02)_49%,hsl(var(--primary)/0.02)_51%,transparent_52%)]"></div>
-        
-        <div className="container mx-auto relative z-10">
-          <div className="grid md:grid-cols-4 gap-12">
-            <div className="md:col-span-2">
-              <div className="flex items-center space-x-3 mb-6">
-                <div className="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center">
-                  <BarChart3 className="h-6 w-6 text-white" />
-                </div>
-                <span className="font-black text-xl text-gradient-primary">CortIQ</span>
-              </div>
-              <p className="text-muted-foreground leading-relaxed mb-6 max-w-md">
-                AI-agent intelligence without consent friction; visitor analytics that are consent-first and cookieless.
-              </p>
-              <div className="flex space-x-4">
-                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center hover-scale cursor-pointer">
-                  <Globe className="h-5 w-5 text-primary" />
-                </div>
-                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center hover-scale cursor-pointer">
-                  <Users className="h-5 w-5 text-primary" />
-                </div>
-                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center hover-scale cursor-pointer">
-                  <Cookie className="h-5 w-5 text-primary" />
-                </div>
-              </div>
-            </div>
-            
-            <div>
-              <h4 className="font-bold mb-6 text-gradient-primary">Product</h4>
-              <ul className="space-y-3 text-muted-foreground">
-                <li><Link to="/features" className="hover:text-primary transition-colors hover:translate-x-1 transform duration-200 inline-block">Features</Link></li>
-                <li><Link to="/bot-intelligence" className="hover:text-primary transition-colors hover:translate-x-1 transform duration-200 inline-block">Bot Intelligence</Link></li>
-                <li><Link to="/pricing" className="hover:text-primary transition-colors hover:translate-x-1 transform duration-200 inline-block">Pricing</Link></li>
-                <li><Link to="/api" className="hover:text-primary transition-colors hover:translate-x-1 transform duration-200 inline-block">API</Link></li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-bold mb-6 text-gradient-primary">Support</h4>
-              <ul className="space-y-3 text-muted-foreground">
-                <li><Link to="/contact" className="hover:text-primary transition-colors hover:translate-x-1 transform duration-200 inline-block">Contact</Link></li>
-                <li><Link to="/privacy" className="hover:text-primary transition-colors hover:translate-x-1 transform duration-200 inline-block">Privacy Policy</Link></li>
-                <li>
-                  <a href="https://github.com/ExpandTalk-Corporation/Cortiq" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors hover:translate-x-1 transform duration-200 inline-block">GitHub</a>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <PublicFooter />
 
     </div>
   );

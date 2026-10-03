@@ -4,13 +4,12 @@ import { Badge } from "@/components/ui/badge";
 import { Check, Shield, Eye, Cookie, Users, Lock, Zap, Globe } from "lucide-react";
 import { Link } from "react-router-dom";
 import PublicNavigation from "@/components/PublicNavigation";
+import PublicFooter from "@/components/PublicFooter";
 import { useSEO } from "@/hooks/useSEO";
+import { seoFor } from "@/marketing-routes";
 
 export default function CMP() {
-  useSEO({
-    title: 'Consent Management Platform (CMP) — CortIQ',
-    description: 'Built-in consent banner with Google Consent Mode v2. Visitor analytics and GA4 start only after analytics consent, valid for 12 months. EU-hosted, privacy by design.',
-  });
+  useSEO(seoFor("/cmp/"));
   const features = [
     {
       icon: <Cookie className="h-6 w-6" />,
@@ -79,7 +78,7 @@ export default function CMP() {
               Create free account
             </Button>
           </Link>
-          <Link to="/features">
+          <Link to="/features/">
             <Button size="lg" variant="outline" className="hover-lift">
               See All Features
             </Button>
@@ -182,13 +181,14 @@ export default function CMP() {
               Create free account
             </Button>
           </Link>
-          <Link to="/pricing">
+          <Link to="/pricing/">
             <Button size="lg" variant="outline" className="hover-lift">
               See Pricing
             </Button>
           </Link>
         </div>
       </section>
+      <PublicFooter />
     </div>
   );
 }

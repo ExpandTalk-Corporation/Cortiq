@@ -3,7 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import PublicNavigation from "@/components/PublicNavigation";
+import PublicFooter from "@/components/PublicFooter";
 import { useSEO } from "@/hooks/useSEO";
+import { seoFor } from "@/marketing-routes";
 import {
   BarChart3,
   MousePointer,
@@ -17,7 +19,6 @@ import {
   AlertTriangle,
   TrendingUp,
   Monitor,
-  Settings,
   Globe,
   CheckCircle,
   ArrowRight,
@@ -112,7 +113,7 @@ const features = [
   },
   {
     icon: <Target className="h-7 w-7" />,
-    title: "Attribution Gap Dashboard",
+    title: "Attribution Gap Dashboard (in development)",
     description: "Compare CortIQ conversions with HubSpot quality leads and Enhanced Conversions upload status — side by side.",
     items: ["CortIQ vs. HubSpot MQL comparison", "Gap % with diagnosis", "Enhanced Conversions upload status", "30-day rolling view, no PII"],
   },
@@ -122,7 +123,7 @@ const integrations = [
   {
     icon: <Globe className="h-7 w-7" />,
     title: "Google Analytics 4",
-    items: ["Consent Mode v2 (fires after consent)", "Two-way conversion sync", "Traffic sources & segments"],
+    items: ["Consent Mode v2 (WordPress plugin)", "Read-only report import", "Traffic sources & segments"],
   },
   {
     icon: <TrendingUp className="h-7 w-7" />,
@@ -131,26 +132,18 @@ const integrations = [
   },
   {
     icon: <Target className="h-7 w-7" />,
-    title: "Google Ads",
+    title: "Google Ads (in development)",
     items: ["Enhanced Conversions", "Consent-gated upload", "Lead-quality scoring"],
   },
   {
     icon: <Zap className="h-7 w-7" />,
-    title: "HubSpot",
+    title: "HubSpot (in development)",
     items: ["Lead-quality webhook", "SHA-256 email matching", "Attribution-gap dashboard"],
-  },
-  {
-    icon: <Settings className="h-7 w-7" />,
-    title: "Tag Manager",
-    items: ["Event & pixel tags", "Consent Mode v2", "Data layer variables"],
   },
 ];
 
 export default function FeaturesAnalytics() {
-  useSEO({
-    title: 'Web Analytics — CortIQ',
-    description: 'Consent-first web analytics: cookieless mode, click and scroll heatmaps, form analytics, link click counts and conversion attribution. EU-hosted and built for GDPR.',
-  });
+  useSEO(seoFor("/features/analytics/"));
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
       <PublicNavigation />
@@ -241,12 +234,13 @@ export default function FeaturesAnalytics() {
               </Link>
             </Button>
             <Button variant="outline" size="lg" asChild>
-              <Link to="/features">See All Features</Link>
+              <Link to="/features/">See All Features</Link>
             </Button>
           </div>
         </div>
 
       </div>
+      <PublicFooter />
     </div>
   );
 }

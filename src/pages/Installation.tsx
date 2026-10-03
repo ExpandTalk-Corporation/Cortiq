@@ -34,7 +34,7 @@ export default function Installation() {
           <div className="rounded-lg border bg-muted/30 p-4">
             <p className="text-sm font-medium mb-1">🗄️ Data layer</p>
             <p className="text-xs text-muted-foreground">
-              The ~8&nbsp;kB snippet sends page views, clicks and (with consent) heatmaps to your
+              The ~13&nbsp;kB (gzipped) script sends page views, clicks and (with consent) heatmaps to your
               CortIQ project. It also detects AI bots. Cookie-free by default.
             </p>
           </div>

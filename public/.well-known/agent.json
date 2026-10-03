@@ -1,49 +1,59 @@
 {
   "schema_version": "0.1",
   "name": "CortIQ",
-  "description": "CortIQ is the first web analytics platform with dedicated tracking for AI agents — ChatGPT Browser, Perplexity Comet, and Claude Browser. Provides cookie-free server-side analytics, GDPR-compliant CMP, heatmaps, A/B testing, and form analytics.",
+  "description": "CortIQ is a web analytics platform that classifies AI traffic into training crawlers, agentic fetches and citation crawlers, alongside consent-first visitor analytics, heatmaps, form analytics and a built-in consent banner. EU-hosted.",
   "url": "https://cortiq.se",
   "provider": {
-    "organization": "Expandtalk Corporation",
+    "organization": "Expandtalk Corporation AB",
     "url": "https://cortiq.se"
   },
   "capabilities": [
     {
       "id": "track-events",
       "description": "Ingest page views, clicks, custom events, and form interactions from any website",
-      "input_modes": ["application/json"],
-      "output_modes": ["application/json"]
+      "input_modes": [
+        "application/json"
+      ],
+      "output_modes": [
+        "application/json"
+      ]
     },
     {
       "id": "ai-agent-detection",
-      "description": "Detect and classify AI agents (ChatGPT Browser, Perplexity Comet, Claude Browser) visiting a website, including journey funnel and conversion attribution",
-      "input_modes": ["application/json"],
-      "output_modes": ["application/json"]
+      "description": "Detect and classify AI crawlers and agents visiting a website (by user agent, plus browser signals for in-browser agents), including agent journeys",
+      "input_modes": [
+        "application/json"
+      ],
+      "output_modes": [
+        "application/json"
+      ]
     },
     {
       "id": "analytics-query",
-      "description": "Query aggregated analytics data: traffic sources, device breakdown, top pages, AI agent sessions, heatmap data",
-      "input_modes": ["application/json"],
-      "output_modes": ["application/json"]
+      "description": "Query aggregated analytics read-only via the REST API or the MCP server: traffic sources, device breakdown, top pages, AI agent sessions, heatmap data",
+      "input_modes": [
+        "application/json"
+      ],
+      "output_modes": [
+        "application/json"
+      ]
     },
     {
       "id": "heatmap-data",
       "description": "Retrieve click heatmap data for any tracked page, segmented by device type",
-      "input_modes": ["application/json"],
-      "output_modes": ["application/json"]
-    },
-    {
-      "id": "geo-audit",
-      "description": "Run an AI-visibility audit on any URL: GEO score, llms.txt presence, AI crawler access, schema markup detection",
-      "input_modes": ["application/json"],
-      "output_modes": ["application/json"]
+      "input_modes": [
+        "application/json"
+      ],
+      "output_modes": [
+        "application/json"
+      ]
     }
   ],
   "api": {
     "type": "openapi",
     "url": "https://cortiq.se/api-docs/swagger.json"
   },
-  "documentation": "https://cortiq.se/api",
-  "contact": "https://cortiq.se/contact",
-  "privacy": "https://cortiq.se/privacy"
+  "documentation": "https://cortiq.se/api/",
+  "contact": "https://cortiq.se/contact/",
+  "privacy": "https://cortiq.se/privacy/"
 }

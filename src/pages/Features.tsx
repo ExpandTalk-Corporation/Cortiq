@@ -3,7 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import PublicNavigation from "@/components/PublicNavigation";
+import PublicFooter from "@/components/PublicFooter";
 import { useSEO } from "@/hooks/useSEO";
+import { seoFor } from "@/marketing-routes";
 import { 
   MousePointer,
   BarChart3,
@@ -33,10 +35,7 @@ import {
 } from "lucide-react";
 
 export default function Features() {
-  useSEO({
-    title: 'Features — CortIQ Analytics Platform',
-    description: 'Full feature overview: AI bot classification, server-side bot ingestion, click and scroll heatmaps, form analytics, conversion attribution, an MCP server and a built-in consent banner (CMP).',
-  });
+  useSEO(seoFor("/features/"));
   const coreFeatures = [
     {
       icon: <MousePointer className="h-8 w-8" />,
@@ -96,7 +95,7 @@ export default function Features() {
       icon: <Globe className="h-8 w-8" />,
       title: "Google Analytics 4",
       description: "Keep the GA4 reporting you know — GA4 fires only after analytics consent (Consent Mode v2, basic mode) — and add cookieless and AI-agent analytics on top",
-      features: ["GA4 data import", "Two-way conversion sync", "Traffic sources & segments", "Search-term data"]
+      features: ["GA4 data import", "AI-assistant referrals", "Traffic sources & segments", "Search-term data"]
     },
     {
       icon: <Search className="h-8 w-8" />,
@@ -106,21 +105,21 @@ export default function Features() {
     },
     {
       icon: <Target className="h-8 w-8" />,
-      title: "Google Ads — Enhanced Conversions",
+      title: "Google Ads — Enhanced Conversions (in development)",
       description: "Send CRM-qualified lead quality back to Google Ads to sharpen Smart Bidding — emails hashed, consent-gated",
       features: ["Conversion Adjustments API", "SHA-256 hashed email", "Consent-gated upload", "Lead-quality scoring"]
     },
     {
       icon: <Zap className="h-8 w-8" />,
-      title: "HubSpot CRM",
+      title: "HubSpot CRM (in development)",
       description: "Connect HubSpot so lead quality flows into your attribution — closing the ad-spend-to-revenue loop",
       features: ["Lead-quality webhook (HMAC)", "Attribution-gap dashboard", "Enhanced Conversions feed", "Form GUID detection"]
     },
     {
       icon: <Layers className="h-8 w-8" />,
       title: "Tag Manager & Consent Mode v2",
-      description: "Deploy via Google Tag Manager and propagate consent to Google tags — reads Cookiebot consent directly",
-      features: ["GTM compatibility", "Consent Mode v2", "Cookiebot consent", "Custom triggers"]
+      description: "Load the script through Google Tag Manager. It reads Google Consent Mode v2, so CMPs like OneTrust, Usercentrics and Cookiebot work without extra code",
+      features: ["GTM Custom HTML tag", "Reads Consent Mode v2", "Cookiebot consent", "Instant withdrawal"]
     },
     {
       icon: <Settings className="h-8 w-8" />,
@@ -173,8 +172,8 @@ export default function Features() {
     {
       icon: <Upload className="h-8 w-8" />,
       title: "Server-Side Bot Ingestion",
-      description: "Ingest Cloudflare logs to catch training and citation crawlers that never execute JavaScript",
-      features: ["Cloudflare log ingest", "Same bot registry as the JS tag", "Training & citation crawlers", "No tracking script required"]
+      description: "A Cloudflare Worker reports training and citation crawlers that never execute JavaScript",
+      features: ["Cloudflare Worker", "Same bot registry as the JS tag", "Training & citation crawlers", "No tracking script required"]
     },
     {
       icon: <Layers className="h-8 w-8" />,
@@ -793,7 +792,7 @@ export default function Features() {
               },
               {
                 icon: <Upload className="h-8 w-8" />,
-                title: "HubSpot → Google Ads Quality Loop",
+                title: "HubSpot → Google Ads Quality Loop (in development)",
                 description: "When your SDR classifies a lead in HubSpot, CortIQ automatically uploads the quality signal to Google Ads as a conversion value — so Smart Bidding learns to find Priority leads, not just any form submissions.",
                 features: [
                   "HubSpot webhook with HMAC signature validation",
@@ -805,7 +804,7 @@ export default function Features() {
               },
               {
                 icon: <ArrowUpDown className="h-8 w-8" />,
-                title: "Attribution Gap Dashboard",
+                title: "Attribution Gap Dashboard (in development)",
                 description: "See the gap between CortIQ conversions and HubSpot quality leads, plus Enhanced Conversions upload status — in a single view.",
                 features: [
                   "CortIQ conversions vs. HubSpot MQLs comparison",
@@ -853,11 +852,12 @@ export default function Features() {
               <Link to="/auth">Create free account</Link>
             </Button>
             <Button variant="outline" size="lg" asChild>
-              <Link to="/cmp">Learn More About CMP</Link>
+              <Link to="/cmp/">Learn More About CMP</Link>
             </Button>
           </div>
         </div>
       </div>
+      <PublicFooter />
     </div>
   );
 }

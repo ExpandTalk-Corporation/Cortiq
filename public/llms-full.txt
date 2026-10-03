@@ -23,7 +23,7 @@ CortIQ classifies every AI visit into three categories — this is the core diff
 - **Agentic** (agent fetches via ChatGPT-User, Claude-User, Perplexity-User, plus JS-signal heuristics for in-browser AI agents) — real users acting through an AI; track and convert them. AI browsers such as Perplexity Comet or Claude for Chrome send a stock Chrome user agent and are not identified by name.
 - **Citation crawlers** (PerplexityBot, OAI-SearchBot, Claude-SearchBot, YouBot, DuckAssistBot) — AI search indexing, your visibility signal
 
-Detection combines user-agent parsing with browser-type classification (visual / headless / text-based). Server-side ingest from Cloudflare logs (cloudflare-ingest) counts training and citation crawlers that never execute JavaScript. Agentic-browser journeys are reconstructed page-by-page with conversion attribution.
+Detection combines user-agent parsing with browser-type classification (visual / headless / text-based). Server-side ingest through a Cloudflare Worker (cloudflare-ingest) counts training and citation crawlers that never execute JavaScript. Agentic-browser journeys are reconstructed page-by-page with conversion attribution.
 
 ### AI-Bot & Security Layer (runs without consent)
 
@@ -32,7 +32,7 @@ Without consent, only the AI-bot / security layer runs:
 - AI bot & agent detection and crawler classification (training / agentic / citation)
 - Bot probe, invisible honeypot link, and canary pixel/link traps
 - Click-fraud scoring of paid-ad sessions (confirmed bots, webdriver/headless signals, zero-engagement sessions)
-- Server-side bot classification from Cloudflare logs (cloudflare-ingest)
+- Server-side bot classification through a Cloudflare Worker (cloudflare-ingest)
 
 This layer is designed to run as strictly necessary security processing. The site operator makes the final legal assessment.
 
@@ -60,8 +60,7 @@ Closes the GA4 ↔ Google Ads ↔ CRM attribution gap:
 - First-party click-ID capture (gclid, fbclid, msclkid, ttclid, li_fat_id) — consent-gated
 - Conversion-goal health monitor (flags goals that fire too often, went silent, or split Smart Bidding signal)
 - Form auto-discovery: HubSpot form GUIDs (hs_context, data-form-id), Gravity Forms and Contact Form 7
-- HubSpot lead-quality → Google Ads Enhanced Conversions feedback loop (HMAC-validated webhook; email SHA-256 hashed, only the hash is stored; uploads only for sessions with marketing consent)
-- Attribution-gap dashboard: CortIQ conversions vs CRM-qualified leads vs upload status
+- In development: a HubSpot lead-quality → Google Ads Enhanced Conversions feedback loop and an attribution-gap dashboard
 
 ### Optimisation
 
@@ -72,12 +71,11 @@ Closes the GA4 ↔ Google Ads ↔ CRM attribution gap:
 Configured in-app under Settings → Integrations — no code changes on the customer site:
 
 - **Google Search Console** — search visibility (impressions, clicks, position, queries) plus an AI-search performance view
-- **Google Analytics 4 (server-side)** — import traffic sources, search terms, segments and conversions; sync conversions back to GA4
-- **Google Ads** — Enhanced Conversions via the Conversion Adjustments API (consent-gated, hashed email)
-- **HubSpot** — CRM lead-quality webhook feeding the attribution loop
-- **Google Tag Manager & Consent Mode v2** — deploy via GTM and propagate consent to Google tags
-- **Meta Conversions API** — server-side events, sent only with marketing consent
-- **GA4 Measurement Protocol** — server-side events, sent only with analytics consent
+- **Google Analytics 4** — read-only import of traffic sources, segments, KPIs and AI-assistant referrals
+- **Google Tag Manager & Consent Mode v2** — load the script via a GTM Custom HTML tag; it reads Google Consent Mode v2 set by your CMP
+- **WordPress plugin** — script, consent banner and Google Consent Mode v2 for GA4
+- **Cloudflare Worker** — server-side AI crawler classification
+- **In development:** Google Ads Enhanced Conversions, HubSpot lead-quality loop, Meta Conversions API and GA4 Measurement Protocol (server-side conversion signals)
 
 ### GDPR & Consent (built-in CMP)
 
@@ -94,7 +92,7 @@ The consent banner is required for visitor analytics in both modes:
 ### AI & Agent-Ready
 
 - **AI Assistant** — ask questions in natural language; answers are grounded in the customer's real data via tool-use, never hallucinated. Every insight shows the tables queried, row counts, model, tokens and duration.
-- **MCP Server** — external AI agents can query analytics with a scoped, rate-limited API key (23 tools). Reads are tenant-scoped and never bypass ownership.
+- **MCP Server** — external AI agents can query analytics with a site-scoped, rate-limited API key (22 read-only tools). Reads are tenant-scoped and never bypass ownership.
 - **llms.txt / llms-full.txt** published so AI systems can understand the product.
 
 ### Advanced Features
@@ -145,7 +143,7 @@ The script handles page views, click and scroll heatmaps, session events, AI-age
 
 ### API
 
-REST API documented at https://cortiq.se/api. Plus an MCP server so AI agents can query analytics programmatically with a scoped API key.
+REST API documented at https://cortiq.se/api/. Plus an MCP server so AI agents can query analytics programmatically with a site-scoped API key.
 
 ---
 

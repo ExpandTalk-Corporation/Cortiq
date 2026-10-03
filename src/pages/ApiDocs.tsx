@@ -5,7 +5,9 @@
 
 import { Link } from 'react-router-dom';
 import PublicNavigation from '@/components/PublicNavigation';
+import PublicFooter from "@/components/PublicFooter";
 import { useSEO } from '@/hooks/useSEO';
+import { seoFor } from "@/marketing-routes";
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -30,10 +32,7 @@ import {
 } from 'lucide-react';
 
 export default function ApiDocs() {
-  useSEO({
-    title: 'API Documentation — CortIQ',
-    description: 'CortIQ read-only REST API: sessions, page views, referrers, AI agent sessions, conversions and heatmaps as JSON or CSV. OpenAPI spec, API key authentication.',
-  });
+  useSEO(seoFor("/api/"));
   const features = [
     {
       icon: <Zap className="h-6 w-6" />,
@@ -120,8 +119,8 @@ export default function ApiDocs() {
             <h2 className="text-3xl md:text-4xl font-bold mb-4">Two ways to access CortIQ</h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
               CortIQ separates the <strong>Data Layer</strong> (your analytics) from the
-              <strong> Agentic Layer</strong> (AI access). Each has its own API and its own key —
-              so you can give an AI agent read access without exposing anything else.
+              <strong> Agentic Layer</strong> (AI access). One read-only API key per site works for both, so an AI agent can read that
+              site's analytics and nothing else.
             </p>
           </div>
           <div className="grid lg:grid-cols-2 gap-8">
@@ -152,7 +151,7 @@ export default function ApiDocs() {
                 <CardDescription>Let AI agents query your analytics with tool-use</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3 text-sm text-muted-foreground">
-                <p>A Model Context Protocol server exposing 23 read tools, so Claude, ChatGPT or
+                <p>A Model Context Protocol server exposing 22 read-only tools, so Claude, ChatGPT or
                 your own agent can answer questions grounded in your real data.</p>
                 <code className="block p-3 bg-muted rounded font-mono text-xs overflow-x-auto">
                   POST /functions/v1/mcp-server
@@ -404,6 +403,7 @@ export default function ApiDocs() {
           </div>
         </div>
       </section>
+      <PublicFooter />
     </div>
   );
 }

@@ -276,7 +276,7 @@ export default function ApiKeyManager() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => window.open('/api', '_blank')}
+                onClick={() => window.open('/api/', '_blank')}
               >
                 <ExternalLink className="h-4 w-4 mr-2" />
                 API Documentation
@@ -473,7 +473,7 @@ export default function ApiKeyManager() {
             </ul>
           </div>
 
-          <Button variant="outline" className="w-full" onClick={() => window.open('/api', '_blank')}>
+          <Button variant="outline" className="w-full" onClick={() => window.open('/api/', '_blank')}>
             <ExternalLink className="h-4 w-4 mr-2" />
             View Full API Documentation
           </Button>

@@ -11,7 +11,7 @@
 
 **Bot blockers tell you what to stop. CortIQ tells you what matters.**
 
-[🌐 Live Demo](https://cortiq.se) · [🤖 Bot Intelligence](https://cortiq.se/bot-intelligence) · [🔒 Security](./SECURITY.md)
+[🌐 Live Demo](https://cortiq.se) · [🤖 AI Bot Analytics](https://cortiq.se/features/ai/) · [🔒 Security](./SECURITY.md)
 
 </div>
 
@@ -47,7 +47,7 @@ CortIQ is built as three clearly separated layers. This separation is deliberate
 ┌──────────────────────────────────────────────────────────────────────┐
 │  🧠  AGENTIC / INTELLIGENCE LAYER                                       │
 │      • AI Assistant (Claude) — grounded tool-use over YOUR data only   │
-│      • MCP Server — 23 tools, API-key auth, so external agents can      │
+│      • MCP Server — 22 tools, API-key auth, so external agents can      │
 │        query your analytics programmatically                           │
 │      • Bot classification engine (training / agentic / citation)       │
 │      • GEO audits + transparent AI insights (every claim shows source) │
@@ -118,7 +118,7 @@ npm install && npm run dev  # → http://localhost:8080
 
 ### 🧠 AI & Agent-Ready
 - **AI Assistant** — ask questions in natural language; answers are grounded in your real data via tool-use, never hallucinated
-- **MCP Server** — external AI agents can query your analytics with a scoped API key (23 tools, rate-limited)
+- **MCP Server** — external AI agents can query your analytics with a site-scoped API key (22 read-only tools, rate-limited)
 - `llms.txt` published so AI systems can understand the product
 - **Transparent insights** — every AI recommendation shows tables queried, row counts, model, tokens, and duration
 
@@ -148,7 +148,7 @@ GA4 (server-side) · Google Search Console · Tag Manager · Data Warehouse conn
 | Backend | Supabase (PostgreSQL + Deno Edge Functions) |
 | Auth | Supabase Auth with Row-Level Security |
 | AI | Claude (Anthropic) — assistant, GEO audits; BYOK supported |
-| Tracking script | Vanilla JS, ~8 kB gzipped |
+| Tracking script | Vanilla JS, ~13 kB gzipped |
 
 **Scale:** ~66 core database tables · 76 Edge Functions · 144 migrations · 135 dashboard components · 28 dashboard tabs
 
@@ -266,7 +266,7 @@ Contributions welcome. Open an issue first to discuss substantial changes, then:
 - Row-Level Security on every table; company/tenant isolation enforced at the database layer
 - Public ingest endpoints validate the site and are rate-limited; service-role writes bypass RLS only from Edge Functions
 - Input sanitisation + SSRF guards on server-side fetches
-- Full details: [SECURITY.md](./SECURITY.md) · privacy policy: [cortiq.se/privacy](https://cortiq.se/privacy)
+- Full details: [SECURITY.md](./SECURITY.md) · privacy policy: [cortiq.se/privacy](https://cortiq.se/privacy/)
 
 ---
 
@@ -275,7 +275,7 @@ Contributions welcome. Open an issue first to discuss substantial changes, then:
 Built by **Expandtalk Corporation AB** · Göteborg, Sweden 🇪🇺
 
 - **Founder:** [Daniel Larsson](https://www.linkedin.com/in/larssondaniel)
-- **Website:** [cortiq.se](https://cortiq.se) · **Report:** [AI Bot Traffic Intelligence](https://cortiq.se/bot-intelligence)
+- **Website:** [cortiq.se](https://cortiq.se) · **AI bot analytics:** [How CortIQ classifies AI traffic](https://cortiq.se/features/ai/)
 
 ---
 

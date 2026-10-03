@@ -2,14 +2,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import PublicNavigation from "@/components/PublicNavigation";
+import PublicFooter from "@/components/PublicFooter";
 import { useSEO } from "@/hooks/useSEO";
+import { seoFor } from "@/marketing-routes";
 import { Mail, ArrowRight, MapPin, Globe, Sparkles } from "lucide-react";
 
 const Contact = () => {
-  useSEO({
-    title: 'Contact — CortIQ',
-    description: 'Get in touch with the CortIQ team. CortIQ is free during beta — ask about AI agent tracking, cookie-free analytics or Enterprise onboarding.',
-  });
+  useSEO(seoFor("/contact/"));
   return (
     <div className="min-h-screen bg-background">
       <PublicNavigation />
@@ -173,6 +172,7 @@ const Contact = () => {
           </div>
         </div>
       </section>
+      <PublicFooter />
     </div>
   );
 };

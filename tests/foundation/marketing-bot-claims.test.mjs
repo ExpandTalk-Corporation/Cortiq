@@ -9,6 +9,7 @@ import { AI_BOT_REGISTRY } from '../../supabase/functions/_shared/ai-bot-registr
 const root = new URL('../../', import.meta.url);
 const files = [
   ...readdirSync(new URL('src/pages/', root)).filter(f => f.endsWith('.tsx')).map(f => `src/pages/${f}`),
+  ...readdirSync(new URL('src/content/', root)).filter(f => f.endsWith('.ts')).map(f => `src/content/${f}`),
   'public/llms.txt',
   'public/llms-full.txt',
 ];

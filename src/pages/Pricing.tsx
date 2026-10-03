@@ -9,7 +9,9 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import PublicNavigation from "@/components/PublicNavigation";
+import PublicFooter from "@/components/PublicFooter";
 import { useSEO } from "@/hooks/useSEO";
+import { seoFor } from "@/marketing-routes";
 import { 
   Check, 
   Crown, 
@@ -22,10 +24,7 @@ import {
 } from "lucide-react";
 
 export default function Pricing() {
-  useSEO({
-    title: 'Pricing — CortIQ Analytics',
-    description: 'CortIQ is free during beta: AI agent analytics, cookie-free tracking and a built-in consent banner. Create a free account, or contact us about Enterprise.',
-  });
+  useSEO(seoFor("/pricing/"));
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [contactForm, setContactForm] = useState({
@@ -88,11 +87,10 @@ export default function Pricing() {
   };
 
   const betaFeatures = [
-    "All features included",
+    "All released features included",
     "AI bot classification (training / agentic / citation)",
     "Click and scroll-depth heatmaps",
     "Form analytics and form auto-discovery",
-    "Conversion & attribution loop (HubSpot → Google Ads)",
     "Built-in consent banner with Google Consent Mode v2",
     "WordPress plugin included",
     "MCP server for AI agents"
@@ -347,6 +345,7 @@ export default function Pricing() {
           </div>
         </div>
       </div>
+      <PublicFooter />
     </div>
   );
 }

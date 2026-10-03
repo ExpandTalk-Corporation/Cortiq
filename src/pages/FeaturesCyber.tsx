@@ -3,7 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import PublicNavigation from "@/components/PublicNavigation";
+import PublicFooter from "@/components/PublicFooter";
 import { useSEO } from "@/hooks/useSEO";
+import { seoFor } from "@/marketing-routes";
 import {
   Shield,
   AlertTriangle,
@@ -78,9 +80,9 @@ const features = [
   {
     icon: <Server className="h-7 w-7" />,
     title: "Server-Side Bot Ingestion",
-    description: "Ingest Cloudflare logs to see crawlers that never execute JavaScript.",
+    description: "A Cloudflare Worker reports crawlers that never execute JavaScript.",
     items: [
-      "Cloudflare log ingest",
+      "Cloudflare Worker",
       "Same bot registry as the JS tag",
       "Training & citation crawlers",
       "Scrapers & monitoring bots bucketed separately",
@@ -144,10 +146,7 @@ const botTypes = [
 ];
 
 export default function FeaturesCyber() {
-  useSEO({
-    title: 'Cyber Security & Bot Detection — CortIQ',
-    description: 'Detect click fraud, bot traffic and suspicious sessions in real time. Protect paid ad spend and identify malicious bots alongside genuine AI agent traffic.',
-  });
+  useSEO(seoFor("/features/cyber/"));
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
       <PublicNavigation />
@@ -244,12 +243,13 @@ export default function FeaturesCyber() {
               </Link>
             </Button>
             <Button variant="outline" size="lg" asChild>
-              <Link to="/features">See All Features</Link>
+              <Link to="/features/">See All Features</Link>
             </Button>
           </div>
         </div>
 
       </div>
+      <PublicFooter />
     </div>
   );
 }

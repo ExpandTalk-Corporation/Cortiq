@@ -3,7 +3,7 @@
 Read-only REST API for CortIQ analytics data, served by the `public-api` Supabase Edge Function
 (`supabase/functions/public-api/index.ts`). The OpenAPI spec is in
 [`public/api-docs/swagger.json`](./public/api-docs/swagger.json) and rendered at
-[https://cortiq.se/api-docs/](https://cortiq.se/api-docs/). Landing page: [https://cortiq.se/api](https://cortiq.se/api).
+[https://cortiq.se/api-docs/](https://cortiq.se/api-docs/). Landing page: [https://cortiq.se/api/](https://cortiq.se/api/).
 
 ## Base URL
 

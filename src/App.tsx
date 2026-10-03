@@ -14,7 +14,6 @@ import Features from "./pages/Features";
 import FeaturesAI from "./pages/FeaturesAI";
 import FeaturesAnalytics from "./pages/FeaturesAnalytics";
 import FeaturesCyber from "./pages/FeaturesCyber";
-import BotIntelligence from "./pages/BotIntelligence";
 import Pricing from "./pages/Pricing";
 import Privacy from "./pages/Privacy";
 import Contact from "./pages/Contact";
@@ -22,9 +21,12 @@ import ApiDocs from "./pages/ApiDocs";
 import Dashboard from "./pages/Dashboard";
 import Installation from "./pages/Installation";
 import Auth from "./pages/Auth";
+import GSCCallbackPage from "./pages/auth/GSCCallbackPage";
 import Navigation from "./pages/Navigation";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ContentPage from "./components/ContentPage";
+import { CONTENT_PAGES } from "./content/docs";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -61,12 +63,17 @@ const App = () => (
               <Route path="/features/ai" element={<FeaturesAI />} />
               <Route path="/features/analytics" element={<FeaturesAnalytics />} />
               <Route path="/features/cyber" element={<FeaturesCyber />} />
-              <Route path="/bot-intelligence" element={<BotIntelligence />} />
+              {/* Merged into /features/ai/ — Apache 301s this path; this covers client-side navigation. */}
+              <Route path="/bot-intelligence" element={<Navigate to="/features/ai/" replace />} />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/api" element={<ApiDocs />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/contact" element={<Contact />} />
+              {CONTENT_PAGES.map((page) => (
+                <Route key={page.path} path={page.path} element={<ContentPage page={page} />} />
+              ))}
               <Route path="/auth" element={<Auth />} />
+              <Route path="/auth/gsc-callback" element={<GSCCallbackPage />} />
               <Route path="/dashboard" element={
                 <ProtectedRoute>
                   <Dashboard />

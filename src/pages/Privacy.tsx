@@ -3,16 +3,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import PublicNavigation from "@/components/PublicNavigation";
+import PublicFooter from "@/components/PublicFooter";
 import { useSEO } from "@/hooks/useSEO";
+import { seoFor } from "@/marketing-routes";
 import { Shield, CheckCircle, Mail, FileText, Database, Users, BarChart3, Megaphone } from "lucide-react";
 
 const LAST_UPDATED = "September 24, 2026";
 
 const Privacy = () => {
-  useSEO({
-    title: 'Privacy Policy — CortIQ',
-    description: 'CortIQ privacy policy: what is processed without consent (security and bot detection), what requires analytics or marketing consent, EU data storage, retention periods and your rights.',
-  });
+  useSEO(seoFor("/privacy/"));
   return (
     <div className="min-h-screen bg-background">
       <PublicNavigation />
@@ -626,6 +625,7 @@ const Privacy = () => {
           </Link>
         </div>
       </div>
+      <PublicFooter />
     </div>
   );
 };
