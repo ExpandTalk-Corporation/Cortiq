@@ -8,7 +8,7 @@ If you discover a security vulnerability in CortIQ, please report it responsibly
 
 Contact:
 
-- **Email:** daniel.larsson@expandtalk.se
+- **Email:** info@expandtalk.se
 - **LinkedIn:** https://www.linkedin.com/in/larssondaniel
 
 Include a description of the vulnerability, steps to reproduce, and potential impact. You will receive a response within 48 hours.

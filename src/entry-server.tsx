@@ -18,7 +18,7 @@ import ApiDocs from './pages/ApiDocs';
 import Privacy from './pages/Privacy';
 import Contact from './pages/Contact';
 import ContentPage from './components/ContentPage';
-import { CONTENT_PAGES } from './content/docs';
+import { CONTENT_PAGES } from './content/pages';
 
 // Re-exported so scripts/prerender.mjs reads the same registry the pages use.
 export { MARKETING_ROUTES, MARKETING_REDIRECTS, SITE_ORIGIN } from './marketing-routes';

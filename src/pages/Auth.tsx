@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { TERMS_VERSION } from '@/content/legal';
 
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
@@ -17,6 +18,7 @@ export default function Auth() {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [showResetForm, setShowResetForm] = useState(false);
   const [newPassword, setNewPassword] = useState('');
@@ -78,19 +80,29 @@ export default function Auth() {
       });
       return;
     }
+    if (!acceptedTerms) {
+      toast({
+        title: "Error",
+        description: "Please accept the Terms of Service to create an account",
+        variant: "destructive"
+      });
+      return;
+    }
 
     setIsLoading(true);
-    
+
     try {
       const redirectUrl = `${window.location.origin}/dashboard`;
-      
+
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           emailRedirectTo: redirectUrl,
           data: {
-            full_name: fullName
+            full_name: fullName,
+            terms_version: TERMS_VERSION,
+            terms_accepted_at: new Date().toISOString(),
           }
         }
       });
@@ -482,10 +494,25 @@ export default function Auth() {
                     </div>
                   </div>
 
-                  <Button 
-                    type="submit" 
-                    className="w-full" 
-                    disabled={isLoading}
+                  {/* Explicit, unticked acceptance: the accepted TERMS_VERSION and time are
+                      stored in the account's metadata as proof of agreement. */}
+                  <div className="flex items-start space-x-2">
+                    <Checkbox
+                      id="accept-terms"
+                      checked={acceptedTerms}
+                      onCheckedChange={(checked) => setAcceptedTerms(checked === true)}
+                    />
+                    <Label htmlFor="accept-terms" className="text-sm font-normal leading-snug cursor-pointer">
+                      I accept the <a href="/terms/" target="_blank" rel="noopener noreferrer" className="text-primary underline">Terms of Service</a>, including
+                      the <a href="https://github.com/ExpandTalk-Corporation/Cortiq/blob/main/DPA.md" target="_blank" rel="noopener noreferrer" className="text-primary underline">Data Processing Agreement</a>,
+                      on behalf of my business or organisation.
+                    </Label>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={isLoading || !acceptedTerms}
                   >
                     {isLoading ? 'Creating account...' : 'Create Account'}
                   </Button>

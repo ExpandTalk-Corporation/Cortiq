@@ -26,7 +26,7 @@ import Navigation from "./pages/Navigation";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ContentPage from "./components/ContentPage";
-import { CONTENT_PAGES } from "./content/docs";
+import { CONTENT_PAGES } from "./content/pages";
 
 const queryClient = new QueryClient({
   defaultOptions: {

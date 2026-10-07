@@ -137,4 +137,4 @@ There are no official SDKs. Use plain HTTP.
 
 ## Support
 
-support@cortiq.se
+info@expandtalk.se

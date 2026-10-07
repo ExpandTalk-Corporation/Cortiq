@@ -5,7 +5,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { MARKETING_ROUTES, MARKETING_REDIRECTS } from '../../src/marketing-routes.ts';
-import { CONTENT_PAGES } from '../../src/content/docs.ts';
+import { DOCS_PAGES } from '../../src/content/docs.ts';
+import { COMPANY_PAGES } from '../../src/content/company.ts';
+import { TERMS } from '../../src/content/legal.ts';
+
+const CONTENT_PAGES = [...DOCS_PAGES, ...COMPANY_PAGES, TERMS];
 
 const root = new URL('../../', import.meta.url);
 const read = (p) => readFileSync(new URL(p, root), 'utf8');

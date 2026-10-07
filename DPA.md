@@ -4,9 +4,9 @@
 
 - **Data Controller:** The legal entity or individual ("Customer") who has registered an account with CortIQ and embeds the CortIQ tracking script on their website(s).
 
-- **Data Processor:** Expandtalk Corporation AB, org. nr. 559358-8824, Stenkolsgatan 5, 417 07 Göteborg, Sweden ("CortIQ").
+- **Data Processor:** Expandtalk Corporation AB, org. nr. 559358-8824, Parmmätaregatan 4B, 417 04 Göteborg, Sweden ("CortIQ").
 
-This Data Processing Agreement ("DPA") is a standalone agreement that governs the processing of personal data by CortIQ on behalf of the Customer, in accordance with Article 28 of the General Data Protection Regulation (EU) 2016/679 ("GDPR"). It takes effect upon the Customer creating an account with CortIQ or embedding the CortIQ tracking script on their website, whichever occurs first.
+This Data Processing Agreement ("DPA") governs the processing of personal data by CortIQ on behalf of the Customer, in accordance with Article 28 of the General Data Protection Regulation (EU) 2016/679 ("GDPR"). It forms part of the CortIQ Terms of Service (https://cortiq.se/terms/) and is accepted together with them when the Customer creates an account. Installing the tracking script, plugin or Worker with the Customer's keys also confirms acceptance of the version then in force. In case of conflict regarding personal data, this DPA prevails over the Terms of Service.
 
 ---
 
@@ -14,7 +14,7 @@ This Data Processing Agreement ("DPA") is a standalone agreement that governs th
 
 CortIQ processes personal data on behalf of the Customer for the purpose of providing web analytics services, including visitor behaviour tracking, AI agent detection, heatmap generation, session recording, and conversion analysis.
 
-This DPA enters into force when the Customer creates an account with CortIQ and remains in effect for the duration of the service agreement.
+This DPA enters into force when the Customer accepts the Terms of Service and remains in effect for as long as CortIQ processes personal data on the Customer's behalf.
 
 ---
 
@@ -24,9 +24,9 @@ This DPA enters into force when the Customer creates an account with CortIQ and 
 |--|--|
 | **Purpose** | Web analytics — measuring visitor behaviour to improve the Customer's website |
 | **Nature** | Collection, storage, aggregation, analysis, and deletion of visitor data |
-| **Categories of data** | Anonymised visitor identifiers, page URLs, device type, browser family, geographic region, interaction events (clicks, scrolls, form activity), session recordings |
+| **Categories of data** | Pseudonymised visitor and session identifiers, truncated IP addresses, page URLs, device type, browser family, geographic region, interaction events (clicks, scrolls, form activity), session recordings, hashed email addresses and advertising click IDs (marketing consent only) |
 | **Categories of data subjects** | Visitors to the Customer's website(s) |
-| **Retention period** | 730 days by default; configurable per site in the CortIQ dashboard |
+| **Retention period** | Per-site retention period set in the dashboard (default 365 days; 730 days for sites without GDPR settings). Security-layer retention as stated in the Privacy Policy, section 9 |
 
 ---
 
@@ -41,7 +41,7 @@ CortIQ shall:
 **3.3** Implement appropriate technical and organisational measures to ensure a level of security appropriate to the risk, including:
 - Encryption of data in transit (HTTPS/TLS) and at rest
 - Row-Level Security (RLS) on all database tables ensuring per-Customer data isolation
-- IP address anonymisation (last octet masked) by default
+- IP addresses truncated or not stored, depending on the data type (see the Privacy Policy)
 - Access controls limiting staff access to personal data
 
 **3.4** Not engage another processor (sub-processor) without prior written authorisation from the Customer. Current authorised sub-processors are listed in Section 6. CortIQ will inform the Customer of any intended changes to sub-processors, giving the Customer the opportunity to object.
@@ -52,7 +52,7 @@ CortIQ shall:
 
 **3.7** At the Customer's choice, delete or return all personal data upon termination of the service, and delete existing copies unless Union or Member State law requires storage of the personal data. Data deletion upon account closure is completed within 30 days.
 
-**3.8** Make available to the Customer all information necessary to demonstrate compliance with the obligations laid down in Article 28 of the GDPR, and allow for and contribute to audits and inspections conducted by the Customer or a mandated auditor.
+**3.8** Make available to the Customer all information necessary to demonstrate compliance with the obligations laid down in Article 28 of the GDPR, and allow for and contribute to audits and inspections conducted by the Customer or a mandated auditor. Audits are primarily carried out through written documentation; on-site audits may take place at most once a year, with at least 30 days' notice, at the Customer's expense, unless a personal data breach or a supervisory authority requires otherwise.
 
 ---
 
@@ -82,7 +82,7 @@ Because CortIQ stores visitor data under hashed identifiers (not names or email 
 - Restriction requests (Art. 18)
 - Data portability requests (Art. 20)
 
-Requests should be submitted to: [daniel@expandtalk.se](mailto:daniel@expandtalk.se)
+Requests should be submitted to: [info@expandtalk.se](mailto:info@expandtalk.se)
 
 ---
 
@@ -93,6 +93,7 @@ Requests should be submitted to: [daniel@expandtalk.se](mailto:daniel@expandtalk
 | Supabase, Inc. | Database hosting, edge functions | EU (AWS eu-north-1, Stockholm) | [Supabase DPA](https://supabase.com/privacy) |
 | Google LLC | GA4 server-side (optional, only if Customer configures GA4) | EU/US (SCCs in place) | [Google DPA](https://business.safety.google/adsprocessorterms/) |
 | Amazon Web Services, Inc. | Cloud infrastructure (via Supabase) | EU (eu-north-1) | [AWS DPA](https://aws.amazon.com/agreement/) |
+| Resend, Inc. | Sending report exports by email — optional, only when the Customer emails an export | US (SCCs) | [Resend DPA](https://resend.com/legal/dpa) |
 | Cloudflare, Inc. | Server-side bot classification from edge logs, edge web analytics (aggregate) and geo lookup for consent-banner gating — optional, only if the Customer enables the Cloudflare integration | US (EU-US Data Privacy Framework certified; SCCs) | [Cloudflare DPA](https://www.cloudflare.com/cloudflare-customer-dpa/) |
 
 CortIQ will notify the Customer at least 30 days in advance of any intended change to the sub-processor list. The Customer may object to a new sub-processor within 14 days of notification; if no resolution is reached, either party may terminate the service agreement.
@@ -105,7 +106,7 @@ All personal data is stored and processed within the European Economic Area (EEA
 
 - **Google Analytics** — Google Standard Contractual Clauses (SCCs) apply.
 - **Cloudflare edge analytics / geo lookup** — Cloudflare processes visitor IP addresses at its edge to derive country and aggregate traffic statistics. Transfers rely on Cloudflare's EU-US Data Privacy Framework certification and SCCs (Art. 46 GDPR). Cloudflare's EU data-localization options may be configured to keep processing within the EEA.
-- **AI features (Anthropic) and advertising uploads (Google Ads, HubSpot)** — SCCs and, where applicable, EU-US DPF, together with pseudonymisation and data minimisation.
+- **Customer-connected providers** — where the Customer connects its own account with a third-party provider (Anthropic with the Customer's own API key, Google Analytics, Google Ads, HubSpot), CortIQ transfers data to that provider on the Customer's documented instruction. That provider acts under the Customer's own agreement with it and is not a sub-processor of CortIQ.
 
 ---
 
@@ -129,9 +130,7 @@ To the maximum extent permitted by applicable law, CortIQ's total liability to t
 - (a) the total fees paid by the Customer to CortIQ in the **12 months preceding the event** giving rise to the claim; or
 - (b) **EUR 500**.
 
-This limitation applies regardless of the form of action (contract, tort, or otherwise) and even if CortIQ has been advised of the possibility of such damages. It does not limit liability for death or personal injury caused by negligence, fraud, or any other liability that cannot be excluded under applicable law.
-
-The Customer acknowledges that CortIQ's pricing reflects this allocation of risk.
+This limitation does not apply to damage caused intentionally or through gross negligence, or to liability that cannot be limited under applicable law, and does not affect data subjects' rights under Article 82 GDPR. Liability under this DPA and the Terms of Service is subject to one aggregate cap, set out in section 9 of the Terms of Service.
 
 ---
 
@@ -145,18 +144,18 @@ This DPA is governed by the laws of Sweden. Any disputes arising from this DPA s
 
 **Data Processor:**
 Expandtalk Corporation AB
-Stenkolsgatan 5, 417 07 Göteborg, Sweden
+Parmmätaregatan 4B, 417 04 Göteborg, Sweden
 Org. nr. 559358-8824
-Email: [daniel@expandtalk.se](mailto:daniel@expandtalk.se)
+Email: [info@expandtalk.se](mailto:info@expandtalk.se)
 Website: [cortiq.se](https://cortiq.se)
 
-For all GDPR and data protection enquiries: [daniel@expandtalk.se](mailto:daniel@expandtalk.se)
+For all GDPR and data protection enquiries: [info@expandtalk.se](mailto:info@expandtalk.se)
 
 ---
 
-*This DPA was last updated: 2026-06-03*
-*Version: 1.0*
+*This DPA was last updated: 2026-10-03*
+*Version: 1.1 — changes to this DPA follow the change procedure in section 12 of the Terms of Service.*
 
 ---
 
-> **For Customers:** By creating an account with CortIQ or embedding the tracking script on your website, you agree to the terms of this DPA. If you require a countersigned copy for your compliance records, contact [daniel@expandtalk.se](mailto:daniel@expandtalk.se).
+> **For Customers:** You accept this DPA together with the Terms of Service when you create an account. If you require a countersigned copy for your compliance records, contact [info@expandtalk.se](mailto:info@expandtalk.se).

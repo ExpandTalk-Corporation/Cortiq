@@ -379,4 +379,4 @@ Ready to track your AI agents properly?
 - [AI Agent Behavior Patterns](/blog/ai-agent-behavior)
 - [Optimizing Content for AI Discovery](/blog/agentic-seo)
 
-**Still have questions?** [Email our support team](mailto:support@cortiq.se)
+**Still have questions?** [Email our support team](mailto:info@expandtalk.se)

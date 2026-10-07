@@ -8,7 +8,7 @@ import { useSEO } from "@/hooks/useSEO";
 import { seoFor } from "@/marketing-routes";
 import { Shield, CheckCircle, Mail, FileText, Database, Users, BarChart3, Megaphone } from "lucide-react";
 
-const LAST_UPDATED = "September 24, 2026";
+const LAST_UPDATED = "October 3, 2026";
 
 const Privacy = () => {
   useSEO(seoFor("/privacy/"));
@@ -69,7 +69,7 @@ const Privacy = () => {
                 <p><strong>Product:</strong> CortIQ</p>
                 <p><strong>Company registration number:</strong> 559358-8824</p>
                 <p><strong>Registered address:</strong> Parmmätaregatan 4B, 417 04 Göteborg, Sweden</p>
-                <p><strong>Email:</strong> privacy@cortiq.se</p>
+                <p><strong>Email:</strong> info@expandtalk.se</p>
                 <p className="text-sm mt-3">
                   For analytics data collected on our customers' websites, CortIQ acts as a
                   <strong> processor</strong> on behalf of the site operator (the controller). For our own
@@ -338,7 +338,8 @@ const Privacy = () => {
               </p>
               <ul className="space-y-3 text-muted-foreground text-sm ml-4">
                 <li>• <strong>Supabase</strong> (infrastructure / database hosting, EU region) — processor for all analytics data.</li>
-                <li>• <strong>Anthropic</strong> (AI assistant &amp; GEO analysis, USA) — when you use AI features, relevant analytics results are sent to the Claude API to generate answers.</li>
+                <li>• <strong>Anthropic</strong> (AI assistant &amp; GEO analysis, USA) — when the operator uses AI features with their own Anthropic API key, relevant analytics results are sent to the Claude API on the operator's instruction. Anthropic then acts under the operator's own agreement with Anthropic, not as CortIQ's subprocessor.</li>
+                <li>• <strong>Resend</strong> (email delivery, USA) — only when the operator sends a report export by email; the report and the recipient address are passed to Resend for delivery.</li>
                 <li>• <strong>Google Ads</strong> (Enhanced Conversions for Leads, USA) — when the operator enables conversion feedback and marketing consent was given, a SHA-256 hash of the email plus the ad click ID (gclid) and conversion value are uploaded. The raw email never leaves the browser.</li>
                 <li>• <strong>HubSpot</strong> (CRM lead-quality feedback, USA/EU) — when the operator connects HubSpot, lead-quality signals are exchanged to enrich conversion measurement.</li>
                 <li>• <strong>Cloudflare</strong> (edge logs &amp; geo lookup, USA — EU-US DPF certified) — when the operator enables the Cloudflare integration, Cloudflare processes visitor IP addresses at its edge; CortIQ receives the country and a truncated IP address for security and bot classification (section 3B).</li>
@@ -442,7 +443,7 @@ const Privacy = () => {
                   <strong className="text-foreground">How to exercise your rights:</strong>
                 </p>
                 <ol className="text-sm text-muted-foreground space-y-1 ml-4">
-                  <li>1. Send an email to: privacy@cortiq.se</li>
+                  <li>1. Send an email to: info@expandtalk.se</li>
                   <li>2. Include: Your name, email, and which right you want to exercise</li>
                   <li>3. We will respond within 30 days</li>
                 </ol>
@@ -516,7 +517,7 @@ const Privacy = () => {
               </div>
 
               <p className="text-sm text-muted-foreground mt-4">
-                You can request earlier deletion at any time by contacting privacy@cortiq.se.
+                You can request earlier deletion at any time by contacting info@expandtalk.se.
               </p>
             </CardContent>
           </Card>
@@ -560,8 +561,8 @@ const Privacy = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2 text-muted-foreground">
-                <p><strong>Email:</strong> privacy@cortiq.se</p>
-                <p><strong>Support:</strong> support@cortiq.se</p>
+                <p><strong>Email:</strong> info@expandtalk.se</p>
+                <p><strong>Support:</strong> info@expandtalk.se</p>
               </div>
               <Link to="/auth">
                 <Button className="bg-gradient-primary hover-scale hover-glow">
