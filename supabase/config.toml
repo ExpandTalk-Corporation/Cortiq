@@ -100,3 +100,12 @@ verify_jwt = false
 
 [functions.public-api]
 verify_jwt = false
+
+[functions.tracking-check-start]
+verify_jwt = true
+
+[functions.tracking-check-worker]
+verify_jwt = false
+
+[functions.tracking-check-report]
+verify_jwt = false
