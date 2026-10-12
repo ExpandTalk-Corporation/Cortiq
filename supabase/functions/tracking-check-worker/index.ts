@@ -36,7 +36,10 @@ Deno.serve(async (req) => {
         total = { processed: total.processed + r.processed, finalized: [...total.finalized, ...r.finalized], more: r.more };
         if (!r.processed && !r.finalized.length) break;   // nothing claimable right now (e.g. tasks running elsewhere)
       } while (total.more && Date.now() - started < BATCH_WINDOW_MS);
-      if (total.more) kickWorker();
+      // Only re-kick if this invocation actually did something: `more` also counts tasks
+      // `running` elsewhere (e.g. a crashed worker's task waiting out recoverStale), which
+      // would otherwise chain invocations back-to-back for no reason.
+      if (total.more && (total.processed > 0 || total.finalized.length > 0)) kickWorker();
     } catch (e) {
       console.error('tracking-check-worker', e);
     }

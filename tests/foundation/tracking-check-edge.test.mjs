@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadEdge } from './edge-harness.mjs';
+import { loadEdge, compileEdgeSource } from './edge-harness.mjs';
 
 const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const ENV = {
@@ -9,7 +9,7 @@ const ENV = {
   TRACKING_CHECK_AUTH_KEY: Buffer.alloc(32, 7).toString('base64'), BROWSERLESS_API_KEY: 'bl', BROWSERLESS_URL: 'https://bl.example',
 };
 
-function mockClient({ user = { id: A, email: 'daniel@expandtalk.se' }, runsToday = 0, run = null, tasks = [], findings = [] } = {}) {
+function mockClient({ user = { id: A, email: 'daniel@expandtalk.se' }, runsToday = 0, run = null, tasks = [], findings = [], pendingCount = 0 } = {}) {
   const calls = { inserts: [], updates: [], rpc: [] };
   const client = {
     auth: { getUser: async () => ({ data: { user }, error: null }) },
@@ -17,7 +17,7 @@ function mockClient({ user = { id: A, email: 'daniel@expandtalk.se' }, runsToday
     from(table) {
       const op = { table, type: 'select', head: false, filters: [] };
       const result = () => {
-        if (op.head) return { count: table === 'tracking_check_runs' ? runsToday : 0, error: null };
+        if (op.head) return { count: table === 'tracking_check_runs' ? runsToday : table === 'tracking_check_tasks' ? pendingCount : 0, error: null };
         if (op.type !== 'select') return { data: op.returning ? [{ id: 'x' }] : null, error: null };
         if (table === 'tracking_check_tasks') return { data: tasks, error: null };
         if (table === 'tracking_check_findings') return { data: findings, error: null };
@@ -58,6 +58,7 @@ test('start: requires a user and the allowlist', async () => {
 
 test('start: validates URLs, page caps and the daily limit', async () => {
   const { handler } = edge('tracking-check-start', mockClient());
+  assert.equal((await post(handler, null)).status, 400);
   const blocked = await post(handler, createBody({ targetUrl: 'http://169.254.169.254' }));
   assert.equal(blocked.status, 400);
   assert.match((await blocked.json()).error, /Blocked host/);
@@ -88,11 +89,21 @@ test('start: create stores the run, one task per page/site/kind plus legacy, sea
 test('start: status hides other users runs and re-kicks a stalled worker', async () => {
   const foreign = edge('tracking-check-start', mockClient({ run: { id: 'r', status: 'running', user_id: 'someone-else' } }));
   assert.equal((await post(foreign.handler, { action: 'status', runId: 'r' })).status, 404);
-  const stalled = edge('tracking-check-start', mockClient({ run: { id: 'r', status: 'running', user_id: A },
+  const stalled = edge('tracking-check-start', mockClient({
+    run: { id: 'r', status: 'running', user_id: A, created_at: new Date(Date.now() - 600000).toISOString() },
     tasks: [{ status: 'pending', claimed_at: null }, { status: 'done', claimed_at: new Date(Date.now() - 600000).toISOString() }] }));
   const body = await (await post(stalled.handler, { action: 'status', runId: 'r' })).json();
   assert.deepEqual(body, { status: 'running', progress: { total: 2, done: 1, failed: 0, running: 0, pending: 1 } });
   assert.equal(stalled.fetches.length, 1);
+});
+
+test('start: status does not kick a fresh run before its first claim, and ignores unknown task statuses', async () => {
+  const fresh = edge('tracking-check-start', mockClient({
+    run: { id: 'r', status: 'running', user_id: A, created_at: new Date().toISOString() },
+    tasks: [{ status: 'pending', claimed_at: null }, { status: 'pending', claimed_at: null }, { status: 'weird', claimed_at: null }] }));
+  const body = await (await post(fresh.handler, { action: 'status', runId: 'r' })).json();
+  assert.deepEqual(body, { status: 'running', progress: { total: 3, done: 0, failed: 0, running: 0, pending: 2 } });
+  assert.equal(fresh.fetches.length, 0);
 });
 
 test('worker: rejects calls without the secret and processes an empty queue', async () => {
@@ -105,6 +116,19 @@ test('worker: rejects calls without the secret and processes an empty queue', as
   assert.equal(ok.status, 200);
   assert.equal((await ok.json()).processed, 0);
   assert.ok(db.calls.rpc.some(([name]) => name === 'tracking_check_claim_tasks'));
+  // Confirms processBatch ran to completion (not thrown-and-swallowed partway through,
+  // which would also leave processed at 0 but never reach the finalise step).
+  assert.ok(db.calls.rpc.some(([name]) => name === 'tracking_check_runs_to_finalize'));
+});
+
+test('worker: does not re-kick itself when this invocation claimed nothing, even if other tasks are still running', async () => {
+  const db = mockClient({ pendingCount: 1 });
+  const { handler, fetches } = edge('tracking-check-worker', db);
+  const res = await handler(new Request('https://x.example/', { method: 'POST', headers: { 'x-worker-secret': 's3cret' } }));
+  const body = await res.json();
+  assert.equal(body.processed, 0);
+  assert.equal(body.more, true);
+  assert.equal(fetches.length, 0);
 });
 
 test('report: 404 for malformed, unknown or expired tokens; shared findings omit who verified them', async () => {
@@ -123,4 +147,9 @@ test('report: 404 for malformed, unknown or expired tokens; shared findings omit
   assert.equal(body.findings[0].verified, true);
   assert.equal(body.findings[0].checkKey, 'manual.x');
   assert.ok(!JSON.stringify(body).includes('daniel@'));
+});
+
+test('harness: globalThis.fetch hits the sandboxed stub, not real Node fetch', async () => {
+  const { run } = compileEdgeSource('exports.run = () => globalThis.fetch("https://example.com");');
+  await assert.rejects(() => run(), /Unexpected outbound request/);
 });

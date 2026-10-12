@@ -36,7 +36,8 @@ Deno.serve(async (req) => {
 
   let body: Body;
   try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
-  if (body?.action === 'access') return json({ allowed });
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return json({ error: 'Invalid request body' }, 400);
+  if (body.action === 'access') return json({ allowed });
   if (!allowed) return json({ error: 'Forbidden' }, 403);
 
   const service: Db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
@@ -130,7 +131,7 @@ async function create(body: Body, userId: string, service: Db) {
 
 async function ownRun(runId: unknown, userId: string, service: Db) {
   if (typeof runId !== 'string') return null;
-  const { data } = await service.from('tracking_check_runs').select('id, status, user_id').eq('id', runId).maybeSingle();
+  const { data } = await service.from('tracking_check_runs').select('id, status, user_id, created_at').eq('id', runId).maybeSingle();
   return data && data.user_id === userId ? data : null;
 }
 
@@ -140,9 +141,12 @@ async function status(body: Body, userId: string, service: Db) {
   const { data: tasks } = await service.from('tracking_check_tasks').select('status, claimed_at').eq('run_id', run.id);
   const list: { status: string; claimed_at: string | null }[] = tasks ?? [];
   const progress = { total: list.length, done: 0, failed: 0, running: 0, pending: 0 };
-  for (const t of list) progress[t.status as 'done' | 'failed' | 'running' | 'pending']++;
+  for (const t of list) if (t.status in progress) progress[t.status as 'done' | 'failed' | 'running' | 'pending']++;
   if (run.status === 'running') {
-    const lastClaim = Math.max(0, ...list.map((t) => (t.claimed_at ? Date.parse(t.claimed_at) : 0)));
+    // Before the first claim no task has a claimed_at yet; fall back to the run's own
+    // creation time so a freshly-created run isn't treated as stalled on every poll.
+    const created = Date.parse(run.created_at);
+    const lastClaim = Math.max(Number.isFinite(created) ? created : 0, ...list.map((t) => (t.claimed_at ? Date.parse(t.claimed_at) : 0)));
     if (Date.now() - lastClaim > 120_000) kickWorker();
   }
   return json({ status: run.status, progress });
