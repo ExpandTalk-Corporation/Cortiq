@@ -74,7 +74,7 @@ Each unit has one purpose and a typed input/output contract.
 3. **`vendor-registry`** (`supabase/functions/_shared/tracking-vendors.ts`)
    - Per vendor: id, display name, consent category (`necessary | analytics | marketing | preferences`), script/request host patterns, cookie patterns, global variable names, ID extraction regex (e.g. HubSpot portal from `js.hs-scripts.com/{id}.js`, GTM container, GA4 `G-…`, Ads `AW-…`), required CSP domains per directive.
    - v1 vendors: Google Tag Manager, GA4, Google Ads, HubSpot (tracking + forms), Meta Pixel, LinkedIn Insight, Reddit Pixel, Microsoft Ads/Clarity, Extellio, CortIQ, CookieYes, Cookiebot, OneTrust, Complianz.
-   - Seeds cookie patterns from the existing `cookie-scanner` database (move the shared part out of `cookie-scanner/index.ts`; `cookie-scanner` imports it).
+   - Seeds cookie patterns from the existing `cookie-scanner` database by copying its 15 entries (WordPress, PHP, consent cookies) into a fallback list. `cookie-scanner` itself is left unchanged; switching it to the registry is a separate change.
    - Single canonical list, same principle as `_shared/ai-bot-registry.ts`.
 
 4. **`assess`** (`supabase/functions/_shared/tracking-check/assess.ts`)
@@ -111,8 +111,8 @@ New tables, all with RLS enabled. Runs are **not** tied to `sites` — the clien
 | `target_url` | text | |
 | `policy` | jsonb | Policy template selections + expected IDs |
 | `pages` | jsonb | Selected paths + legacy redirect paths |
-| `status` | text | `queued` \| `running` \| `assessing` \| `done` \| `failed` |
-| `progress` | jsonb | `{ total, done, failed, current_step }` |
+| `status` | text | `running` \| `assessing` \| `done` \| `failed` (progress is computed from task counts, not stored) |
+| `error` | text null | Why a run failed |
 | `summary` | jsonb | Computed headline counts + summary lines |
 | `auth_ciphertext` | text null | AES-GCM encrypted basic auth, see §6.3 |
 | `auth_expires_at` | timestamptz null | |
@@ -122,7 +122,7 @@ New tables, all with RLS enabled. Runs are **not** tied to `sites` — the clien
 
 **`tracking_check_tasks`**: `id`, `run_id` fk, `site_role` (`baseline` \| `target`), `path`, `kind` (`fetch` \| `browser`), `status`, `attempts`, `error`, `claimed_at`.
 
-**`tracking_check_observations`**: `id`, `task_id` fk, `run_id` fk, `consent_state` (`none` \| `reject` \| `accept` \| `analytics_only` \| `marketing_only` \| null for fetch), `data` jsonb, `created_at`. Raw evidence.
+**`tracking_check_observations`**: `id`, `task_id` fk, `run_id` fk, `data` jsonb (one fetch observation, or one browser observation holding all consent states), `created_at`. Raw evidence. A task that failed all attempts has no observation; its error on the task row makes the page `untestable`.
 
 **`tracking_check_findings`**: `id`, `run_id` fk, `scope`, `check_key`, `title`, `status` (`pass` \| `fail` \| `warning` \| `manual` \| `untestable`), `priority` (`high` \| `medium` \| `low` \| null), `explanation` (plain language), `fix` (text, may contain copyable snippet), `typical_owner` (`developer` \| `gtm` \| `cmp` \| `marketing` \| `legal`), `evidence` jsonb (refs to observations + sanitised excerpts), `verified_by`, `verified_at` (manual rows), `sort_order`.
 
@@ -239,7 +239,7 @@ Wording rules: plain language ("HubSpot cannot link leads to their source"), fac
 
 ### 7.4 CSV export
 
-Columns match the Paligo migration tracker so rows paste straight in: `Scope, Details, Deliverable, Owner, Status, Priority, Double Check / Blocker, Notes`. Mapping: Scope = scope; Details = short check name (e.g. "HubSpot tag"); Deliverable = finding title + fix summary; Owner = empty (client fills in); Status = `Completed` for pass, `Not Started` for fail/manual/untestable; Priority = High/Medium/Low; Double Check / Blocker = `Yes` for high-priority fails; Notes = explanation + evidence summary.
+Columns match the Paligo migration tracker so rows paste straight in: `Scope, Details, Deliverable, Owner, Status, Priority, Double Check / Blocker, Notes`. Mapping: Scope = scope; Details = finding title; Deliverable = first sentence of the fix ("No action needed" for pass); Owner = empty (client fills in); Status = `Completed` for pass, `Pending Review` for warning, `Not Started` for fail/manual/untestable; Priority = High/Medium/Low; Double Check / Blocker = `Yes` for high-priority fails; Notes = explanation + affected pages. Cells starting with `=`, `+`, `-` or `@` are prefixed with `'` (spreadsheet formula injection), and the file starts with a UTF-8 BOM so Excel reads it correctly.
 
 ### 7.5 UI location
 
