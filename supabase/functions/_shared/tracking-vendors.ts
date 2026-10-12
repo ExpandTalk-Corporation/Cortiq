@@ -199,6 +199,19 @@ export function vendorForUrl(raw: string): Vendor | null {
   return null;
 }
 
+const GOOGLE_HOST = /(^|\.)(google\.([a-z]{2,3}|com?\.[a-z]{2})|doubleclick\.net|googlesyndication\.com|googleadservices\.com|google-analytics\.com|googletagmanager\.com)$/;
+/** Exempt from "nothing is sent to Google": they carry no advertising or analytics data. */
+export const GOOGLE_EXEMPT_VENDORS = ['google-fonts', 'recaptcha'];
+
+/** True for requests to Google-owned advertising/analytics endpoints (google.<tld>, doubleclick, GTM, ...). Google Fonts and reCAPTCHA are exempt. */
+export function isGoogleHost(raw: string): boolean {
+  let u: URL;
+  try { u = new URL(raw); } catch { return false; }
+  const v = vendorForUrl(raw);
+  if (v && GOOGLE_EXEMPT_VENDORS.includes(v.id)) return false;
+  return GOOGLE_HOST.test(u.hostname) || !!v?.googleTag;
+}
+
 export function vendorForName(name: string): Vendor | null {
   return TRACKING_VENDORS.find((v) => v.cookies.some((re) => re.test(name))) ?? null;
 }

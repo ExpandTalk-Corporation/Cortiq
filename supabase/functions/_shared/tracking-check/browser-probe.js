@@ -17,8 +17,13 @@ export function inPageDetectCmp() {
 /** in-page: apply a consent choice through a known CMP. Returns true when the choice was made. */
 export function inPageApplyAdapter(cmp, action) {
   const w = window;
+  // Only visible, enabled elements count: CMPs often keep hidden copies of their buttons.
+  const usable = (selector) => Array.from(document.querySelectorAll(selector)).find((el) => {
+    const r = el.getBoundingClientRect();
+    return r.width > 0 && r.height > 0 && !el.disabled;
+  });
   const click = (selector) => {
-    const el = document.querySelector(selector);
+    const el = usable(selector);
     if (!el) return false;
     el.click();
     return true;
@@ -50,6 +55,7 @@ export function inPageApplyAdapter(cmp, action) {
     const marketing = document.getElementById('crtq-toggle-marketing');
     const preferences = document.getElementById('crtq-toggle-preferences');
     if (!analytics || !marketing || !document.getElementById('crtq-cb-save')) return false;
+    if (!usable('#crtq-cb-save')) click('#crtq-cb-settings');   // the save button sits in a collapsed settings panel
     analytics.checked = action === 'analytics_only';
     marketing.checked = action === 'marketing_only';
     if (preferences) preferences.checked = false;
@@ -84,6 +90,54 @@ export function inPageBannerVisible() {
     });
 }
 
+/**
+ * Signs of a consent platform that inPageBannerVisible cannot see: the TCF API, known CMP
+ * globals, shadow DOM hosts and CMP iframes. Self-contained (runs in-page via window.__tc).
+ * shadowHosts: "id class" of every element with an open shadowRoot. iframeSrcs: iframe src values.
+ */
+export function cmpSignal(win, shadowHosts, iframeSrcs) {
+  const globals = ['__tcfapi', 'UC_UI', 'usercentrics', '__cmp', '_sp_', 'truste', 'Didomi', 'OneTrust', 'Cookiebot'];
+  if (globals.some((g) => win[g] !== undefined && win[g] !== null)) return true;
+  if (shadowHosts.some((h) => /cookie|consent|usercentrics|cmp/i.test(h))) return true;
+  return iframeSrcs.some((src) => {
+    let host = '';
+    try { host = new URL(src).hostname; } catch (e) { return false; }
+    return /consent|sourcepoint|privacy-mgmt|trustarc|usercentrics|didomi/i.test(host);
+  });
+}
+
+/** in-page: is a consent platform present even though no banner is visible? */
+export function inPageCmpPresent() {
+  const hosts = Array.from(document.querySelectorAll('*')).filter((el) => el.shadowRoot)
+    .map((el) => `${el.id || ''} ${el.getAttribute('class') || ''}`);
+  const srcs = Array.from(document.querySelectorAll('iframe')).map((f) => f.getAttribute('src') || '');
+  return window.__tc.cmpSignal(window, hosts, srcs);
+}
+
+/**
+ * Was a consent choice stored? Self-contained (runs in-page via window.__tc).
+ * cookieString: document.cookie; storageKeys: localStorage keys; cookiebotResponded: Cookiebot.hasResponse.
+ */
+export function consentSignal(cookieString, storageKeys, cookiebotResponded) {
+  if (cookiebotResponded) return true;
+  const cookies = cookieString.split(';').map((c) => {
+    const t = c.trim();
+    try { return decodeURIComponent(t); } catch (e) { return t; }
+  });
+  if (cookies.some((c) => /^OptanonAlertBoxClosed=/.test(c))) return true;
+  if (cookies.some((c) => /^cookieyes-consent=/.test(c) && /[=,]action:yes(,|$)/.test(c))) return true;
+  if (cookies.some((c) => /^cmplz_/.test(c))) return true;
+  return storageKeys.includes('site_cookie_consent');   // CortIQ consent banner
+}
+
+/** in-page: does the page show a stored consent choice? */
+export function inPageConsentSignal() {
+  const keys = [];
+  try { for (let i = 0; i < window.localStorage.length; i++) keys.push(window.localStorage.key(i)); } catch (e) { /* storage blocked */ }
+  const cb = window.Cookiebot;
+  return window.__tc.consentSignal(document.cookie || '', keys, !!(cb && cb.hasResponse));
+}
+
 /** Text-based fallback: index of the best matching consent button, or null. Self-contained (runs in-page). */
 export function pickConsentButton(candidates, action) {
   const labels = {
@@ -115,10 +169,24 @@ export function inPageCollect(withHtml) {
   try { for (let i = 0; i < window.localStorage.length; i++) keys.push(window.localStorage.key(i)); } catch (e) { /* storage blocked */ }
   try { for (let i = 0; i < window.sessionStorage.length; i++) keys.push(window.sessionStorage.key(i)); } catch (e) { /* storage blocked */ }
   const consentCommands = [];
+  // The Google tag's own consent state also covers defaults set by a CMP template in GTM,
+  // which never reach window.dataLayer. Prefer it when present.
+  const entries = window.google_tag_data && window.google_tag_data.ics && window.google_tag_data.ics.entries;
+  const icsDefault = {};
+  if (entries && typeof entries === 'object') {
+    for (const k of Object.keys(entries)) {
+      const d = entries[k] && entries[k].default;
+      if (d === true || d === 'granted') icsDefault[k] = 'granted';
+      else if (d === false || d === 'denied') icsDefault[k] = 'denied';
+    }
+  }
+  const fromIcs = Object.keys(icsDefault).length > 0;
+  if (fromIcs) consentCommands.push({ kind: 'default', params: icsDefault });
   let ec = false;
   for (const entry of (window.dataLayer || [])) {
     if (!entry || typeof entry !== 'object' || typeof entry.length !== 'number') continue;   // gtag pushes Arguments objects
     const a = Array.prototype.slice.call(entry);
+    if (fromIcs && a[0] === 'consent' && a[1] === 'default') continue;
     if (a[0] === 'consent' && (a[1] === 'default' || a[1] === 'update') && a[2] && typeof a[2] === 'object') {
       const params = {};
       for (const k of Object.keys(a[2])) params[k] = String(a[2][k]);
@@ -142,11 +210,15 @@ async function observeState(browser, state, context, inPageSource) {
   let cmp = null;
   let html = '';
   const userData = /[?&;]em=|"em"\s*:|user_data/;
+  // Enhanced Conversions data only counts on requests to Google (inlined: this function is serialised).
+  const googleHost = /(^|\.)(google\.([a-z]{2,3}|com?\.[a-z]{2})|doubleclick\.net|googlesyndication\.com|googleadservices\.com|google-analytics\.com|googletagmanager\.com)$/;
   const cookieKey = (c) => `${c.name}|${c.domain}|${c.value}`;
   p.on('request', (r) => {
     const url = r.url();
     if (out.requests.length >= 2000 || !/^https?:/.test(url)) return;
-    if (userData.test(url) || userData.test(r.postData() || '')) out.enhancedConversions = true;
+    let host = '';
+    try { host = new URL(url).hostname; } catch (e) { /* not a URL */ }
+    if (googleHost.test(host) && (userData.test(url) || userData.test(r.postData() || ''))) out.enhancedConversions = true;
     out.requests.push({ url, type: r.resourceType() });
   });
   try {
@@ -170,15 +242,16 @@ async function observeState(browser, state, context, inPageSource) {
     const cdp = await p.createCDPSession();
     let before = new Set();
     let beforeKeys = new Set();
+    let done = false;
     if (state !== 'none') {
       before = new Set((await cdp.send('Network.getAllCookies')).cookies.map(cookieKey));
       beforeKeys = new Set((await p.evaluate(() => window.__tc.collect(false))).storageKeys);
-      let done = cmp ? await p.evaluate((c, a) => window.__tc.apply(c, a), cmp, state) : false;
+      done = cmp ? await p.evaluate((c, a) => window.__tc.apply(c, a), cmp, state) : false;
       if (done) out.method = 'adapter';
       else if (state === 'accept' || state === 'reject') {
         const idx = await p.evaluate((a) => window.__tc.pick(window.__tc.candidates(), a), state);
         if (idx !== null && await p.evaluate((i) => window.__tc.click(i), idx)) { done = true; out.method = 'text'; }
-        else if (!cmp && !(await p.evaluate(() => window.__tc.bannerVisible()))) out.method = 'not_needed';
+        else if (!cmp && !(await p.evaluate(() => window.__tc.bannerVisible())) && !(await p.evaluate(() => window.__tc.cmpPresent()))) out.method = 'not_needed';
       }
       if (done) {
         await p.waitForNetworkIdle({ idleTime: 1000, timeout: 8000 }).catch(() => {});
@@ -198,6 +271,12 @@ async function observeState(browser, state, context, inPageSource) {
     out.consentCommands = collected.consentCommands;
     out.enhancedConversions = out.enhancedConversions || collected.ec;
     html = collected.html;
+    if (done) {
+      // A click or API call is not proof: keep the state only if the choice visibly took effect.
+      const bannerGone = !(await p.evaluate(() => window.__tc.bannerVisible()));
+      const stored = bannerGone || await p.evaluate(() => window.__tc.storedConsent());
+      if (!stored && !out.cookies.length && !out.storageKeys.length) out.method = 'not_automated';
+    }
   } catch (e) {
     out.error = (e && e.message) || String(e);
   } finally {
@@ -221,7 +300,7 @@ async function probeMain({ page, context, inPageSource }) {
 }
 
 export function buildProbeSource() {
-  const inPage = `window.__tc = { detect: ${inPageDetectCmp}, apply: ${inPageApplyAdapter}, candidates: ${inPageCandidates}, click: ${inPageClickCandidate}, bannerVisible: ${inPageBannerVisible}, pick: ${pickConsentButton}, collect: ${inPageCollect} };`;
+  const inPage = `window.__tc = { detect: ${inPageDetectCmp}, apply: ${inPageApplyAdapter}, candidates: ${inPageCandidates}, click: ${inPageClickCandidate}, bannerVisible: ${inPageBannerVisible}, pick: ${pickConsentButton}, collect: ${inPageCollect}, cmpSignal: ${cmpSignal}, cmpPresent: ${inPageCmpPresent}, consentSignal: ${consentSignal}, storedConsent: ${inPageConsentSignal} };`;
   return [
     `const IN_PAGE = ${JSON.stringify(inPage)};`,
     observeState.toString(),

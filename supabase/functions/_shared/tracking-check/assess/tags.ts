@@ -125,7 +125,8 @@ export function assessCsp({ target }: AssessInput): Finding[] {
       for (const v of st.cspViolations) {
         if (!/^https?:/.test(v.blockedUrl)) continue;          // inline/eval violations are not tracking requests
         const directive = v.directive.replace(/-(elem|attr)$/, '');
-        const host = new URL(v.blockedUrl).hostname;
+        let host = '';
+        try { host = new URL(v.blockedUrl).hostname; } catch { continue; }   // malformed report
         const vendor = vendorForUrl(v.blockedUrl);
         if (vendor) {
           const e = byVendor.get(vendor.id) ?? { vendor, pages: new Set(), count: 0, extra: new Map() };
@@ -159,7 +160,13 @@ export function assessCsp({ target }: AssessInput): Finding[] {
       fix: `If ${host} is intended, add it to ${e.directive}.`, typicalOwner: 'developer', evidence: { pages: [...e.pages] },
     }));
   }
-  if (!out.length) out.push(finding({
+  if (!out.length && !fullLoadReliable(target)) out.push(finding({
+    scope: 'CSP', checkKey: 'csp.ok', status: 'manual', priority: 'medium',
+    title: 'Check manually that the Content-Security-Policy allows tags after consent',
+    explanation: 'No CSP violations were reported. Consented tags were not observed, so CSP could only be checked for tags that load without consent.',
+    fix: MANUAL_STEPS.generic, typicalOwner: 'developer', evidence: { pages: pages.map((p) => p.path) },
+  }));
+  else if (!out.length) out.push(finding({
     scope: 'CSP', checkKey: 'csp.ok', status: 'pass', priority: null,
     title: 'No requests are blocked by the Content-Security-Policy', explanation: 'No CSP violations were reported in any consent state.',
     fix: '', typicalOwner: null, evidence: { pages: pages.map((p) => p.path) },

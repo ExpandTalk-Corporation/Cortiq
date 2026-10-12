@@ -1,5 +1,5 @@
 import type { AssessInput, Finding, PageObservation, StateObservation } from '../types.ts';
-import { vendorForName, vendorForUrl, type Vendor } from '../../tracking-vendors.ts';
+import { isGoogleHost, vendorForName, vendorForUrl, type Vendor } from '../../tracking-vendors.ts';
 import { MANUAL_STEPS } from '../instructions.ts';
 import { finding, plural, requestVendors, siteKey, stateOf, testablePages } from './util.ts';
 
@@ -8,6 +8,11 @@ const needsConsent = (v: Vendor) => v.category === 'analytics' || v.category ===
 const automated = (st?: StateObservation) => !!st && st.method !== 'not_automated';
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const paths = (pages: Iterable<PageObservation | string>) => [...pages].map((p) => (typeof p === 'string' ? p : p.path));
+const GOOGLE_EXEMPTION = 'Google Fonts and reCAPTCHA were exempted.';
+/** Google endpoints that are not one of the registry's Google tags (strict "nothing to Google" policy only). */
+const GOOGLE_OTHER: Vendor = {
+  id: 'google', name: 'Google', category: 'necessary', googleTag: true, requests: [], cookies: [], csp: {}, impact: '',
+};
 
 function pass(checkKey: string, title: string, explanation: string, pages: PageObservation[]): Finding {
   return finding({ scope: checkKey.startsWith('ads.') ? 'Ads/GA4' : 'Consent', checkKey, status: 'pass', priority: null,
@@ -36,7 +41,9 @@ function consentDefaults({ mode, policy }: AssessInput, pages: PageObservation[]
   for (const p of pages) {
     const none = stateOf(p, 'none');
     if (!none) continue;
-    const def = none.consentCommands.find((c) => c.kind === 'default');
+    // Region-specific defaults (e.g. granted outside the EEA) are not the default this visitor gets.
+    const defaults = none.consentCommands.filter((c) => c.kind === 'default');
+    const def = defaults.find((c) => !('region' in c.params)) ?? defaults[0];
     if (!def) { details.push(`${p.path}: no consent default is set`); affected.push(p.path); continue; }
     const wrong = REQUIRED_DEFAULTS.filter((k) => def.params[k] !== 'denied');
     if (wrong.length) {
@@ -75,8 +82,10 @@ function choiceCheck({ mode, policy }: AssessInput, pages: PageObservation[], st
   for (const p of evaluated) {
     const st = stateOf(p, state)!;
     for (const r of st.requests) {
-      const v = vendorForUrl(r.url);
-      if (!v || !(needsConsent(v) || (strictGoogle && v.googleTag))) continue;
+      const known = vendorForUrl(r.url);
+      const v = known && (needsConsent(known) || (strictGoogle && known.googleTag)) ? known
+        : strictGoogle && isGoogleHost(r.url) ? GOOGLE_OTHER : null;
+      if (!v) continue;
       let host = '';
       try { host = new URL(r.url).hostname; } catch { continue; }
       const h = hit(v); h.pages.add(p.path); h.hosts.add(host);
@@ -98,18 +107,20 @@ function choiceCheck({ mode, policy }: AssessInput, pages: PageObservation[], st
       out.push(finding({
         scope: 'Consent', checkKey: `${key}.${id}`, status: 'fail', priority: 'high',
         title: `${v.name} stores data on the device ${label}`,
-        explanation: `${v.name} set ${[...h.stored].join(', ')} ${label} on ${where}. ${cap(v.category)} tools need consent before they store or read data on the visitor's device.`,
+        explanation: `${v.name} set ${[...h.stored].join(', ')} ${label} on ${where}. Storing or reading data on the device for analytics or marketing may require consent under ePrivacy rules (in Sweden: LEK 9 kap. 28 §); this is assessed by the controller.`,
         fix: `Load ${v.name} only after consent for the "${v.category}" category: block it in the cookie banner, or give its GTM tag a consent requirement.`,
         typicalOwner: 'cmp', evidence,
       }));
     } else if (v.googleTag && strictGoogle) {
       out.push(finding({
         scope: 'Consent', checkKey: `${key}.${id}`, status: 'fail', priority: 'high',
-        title: `${v.name} sends requests to Google ${label}`,
-        explanation: `${v.name} contacted ${hosts} ${label} on ${where}, without setting cookies. The agreed setup is that nothing is sent to Google before consent (Consent Mode basic).`,
+        title: id === 'google' ? `Requests are sent to Google ${label}` : `${v.name} sends requests to Google ${label}`,
+        explanation: `${id === 'google' ? 'The page' : v.name} contacted ${hosts} ${label} on ${where}, without setting cookies. The agreed setup is that nothing is sent to Google before consent (Consent Mode basic). ${GOOGLE_EXEMPTION}`,
         fix: id === 'gtm'
           ? 'Load the GTM container only after consent, or record the container request as an accepted exception (the container itself sets no cookies).'
-          : `Block ${v.name} until consent (Consent Mode basic) instead of letting it send cookieless pings (Consent Mode advanced).`,
+          : id === 'google'
+            ? 'Find the tag that calls these Google endpoints (DevTools → Network → Initiator, or Tag Assistant) and block it until consent.'
+            : `Block ${v.name} until consent (Consent Mode basic) instead of letting it send cookieless pings (Consent Mode advanced).`,
         typicalOwner: 'gtm', evidence,
       }));
     } else {
@@ -129,12 +140,20 @@ function choiceCheck({ mode, policy }: AssessInput, pages: PageObservation[], st
       explanation: `The automated browser could not find or click the cookie banner's reject option on ${paths(notAutomated).join(', ')}.`,
       fix: MANUAL_STEPS.reject, typicalOwner: 'cmp', evidence: { pages: paths(notAutomated) },
     }));
+  } else if (state === 'reject' && mode === 'policy' && !evaluated.length) {
+    // Policy runs commit to "nothing after reject": without any banner to reject, that was not tested.
+    out.push(finding({
+      scope: 'Consent', checkKey: `${key}.manual`, status: 'manual', priority: 'high',
+      title: 'Check manually that nothing is tracked after "Reject all"',
+      explanation: `No cookie banner was detected on ${paths(pages).join(', ')}, so "Reject all" could not be tested.`,
+      fix: MANUAL_STEPS.reject, typicalOwner: 'cmp', evidence: { pages: paths(pages) },
+    }));
   }
   if (!out.length && evaluated.length) {
     const title = state === 'none'
       ? (strictGoogle ? 'Nothing is tracked or sent to Google before the visitor chooses' : 'No analytics or marketing tools run before the visitor chooses')
       : (strictGoogle ? 'Nothing is tracked or sent to Google after "Reject all"' : 'Nothing is tracked after "Reject all"');
-    out.push(pass(key, title, `Checked on ${plural(evaluated.length, 'page', 'pages')}: no analytics or marketing requests, cookies or local storage${strictGoogle ? ', and no requests from Google tags' : ''}.`, evaluated));
+    out.push(pass(key, title, `Checked on ${plural(evaluated.length, 'page', 'pages')}: no analytics or marketing requests, cookies or local storage${strictGoogle ? `, and no requests to Google. ${GOOGLE_EXEMPTION}` : '.'}`, evaluated));
   }
   return out;
 }
@@ -167,8 +186,13 @@ function categoryCheck({ mode, policy }: AssessInput, pages: PageObservation[]):
     for (const c of checks) {
       const st = stateOf(p, c.state as any);
       if (!automated(st)) continue;
-      for (const v of requestVendors(st!).values()) {
-        if (v.category !== c.forbidden) continue;
+      for (const r of st!.requests) {
+        let u: URL;
+        try { u = new URL(r.url); } catch { continue; }
+        // The shared gtag.js library loads for every Google tag and sends no data; only hits count.
+        if (/(^|\.)googletagmanager\.com$/.test(u.hostname) && u.pathname.startsWith('/gtag/js')) continue;
+        const v = vendorForUrl(r.url);
+        if (!v || v.category !== c.forbidden) continue;
         if (!wrong.has(v.id)) wrong.set(v.id, { vendor: v, only: c.only, pages: new Set() });
         wrong.get(v.id)!.pages.add(p.path);
       }
@@ -193,8 +217,11 @@ function categoryCheck({ mode, policy }: AssessInput, pages: PageObservation[]):
       fix: MANUAL_STEPS.granular, typicalOwner: 'cmp', evidence: { pages: paths(unsupported) },
     }));
   } else if (!out.length) {
-    out.push(pass('consent.category', 'Each tool only runs when its own consent category is accepted',
-      'With only Statistics accepted no marketing tools ran, and with only Marketing accepted no analytics tools ran.', pages));
+    const ran = checks.map((c) => c.forbidden);
+    const title = ran.length === 2 ? 'Each tool only runs when its own consent category is accepted'
+      : ran[0] === 'marketing' ? 'Marketing tools do not run with only Statistics accepted' : 'Analytics tools do not run with only Marketing accepted';
+    const sentences = ran.map((f) => (f === 'marketing' ? 'With only Statistics accepted, no marketing tools sent data.' : 'With only Marketing accepted, no analytics tools sent data.'));
+    out.push(pass('consent.category', title, sentences.join(' '), pages));
   }
   return out;
 }
@@ -219,7 +246,7 @@ function unknownAfterReject({ mode, policy, target }: AssessInput, pages: PageOb
   if (!evaluated.length) return [];
   if (!hosts.size) {
     return [pass('consent.unknown_after_reject', 'No unknown third parties are contacted after "Reject all"',
-      'Every third-party request after rejection went to a tool CortIQ recognises as necessary.', evaluated)];
+      'Every third-party request after rejection went to a tool CortIQ recognises.', evaluated)];
   }
   return [finding({
     scope: 'Consent', checkKey: 'consent.unknown_after_reject', status: 'warning', priority: 'medium',

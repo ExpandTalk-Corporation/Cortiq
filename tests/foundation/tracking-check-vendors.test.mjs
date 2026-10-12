@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { TRACKING_VENDORS, vendorForUrl, vendorForName, cookieCategory, extractVendorIds } from '../../supabase/functions/_shared/tracking-vendors.ts';
+import { TRACKING_VENDORS, vendorForUrl, vendorForName, cookieCategory, extractVendorIds, isGoogleHost } from '../../supabase/functions/_shared/tracking-vendors.ts';
 
 test('every vendor is complete and ids are unique', () => {
   const ids = new Set();
@@ -50,4 +50,16 @@ test('extracts account and container IDs', () => {
   assert.deepEqual([...ids.get('gtm')], ['GTM-ABC123']);
   assert.deepEqual([...ids.get('ga4')], ['G-6J9DFZLXNL']);
   assert.deepEqual([...ids.get('google-ads')], ['AW-18424645060']);
+});
+
+test('isGoogleHost covers Google-owned endpoints and exempts Google Fonts and reCAPTCHA', () => {
+  for (const url of ['https://stats.g.doubleclick.net/g/collect', 'https://www.google.se/pagead/1p-user-list/1/', 'https://www.google.co.uk/ads/ga-audiences',
+    'https://adservice.google.com/ddm/fls/z', 'https://pagead2.googlesyndication.com/x', 'https://www.googleadservices.com/pagead/conversion.js',
+    'https://region1.google-analytics.com/g/collect', 'https://analytics.google.com/g/collect', 'https://www.googletagmanager.com/gtm.js?id=GTM-1']) {
+    assert.equal(isGoogleHost(url), true, url);
+  }
+  for (const url of ['https://fonts.googleapis.com/css2', 'https://fonts.gstatic.com/s/x.woff2', 'https://www.google.com/recaptcha/api.js',
+    'https://notgoogle.com/x', 'https://google.example.com/x', 'not a url']) {
+    assert.equal(isGoogleHost(url), false, url);
+  }
 });

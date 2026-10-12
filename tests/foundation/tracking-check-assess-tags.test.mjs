@@ -110,3 +110,17 @@ test('a form on a page whose target counterpart is untestable is not reported mi
   assert.equal(byKey(findings, 'forms.missing').length, 0);
   assert.equal(byKey(findings, 'tags.present')[0].status, 'pass');
 });
+
+test('CSP is only partly verified when consented tags were not observed', () => {
+  const states = [st('none'), st('reject', { method: 'not_automated' }), st('accept', { method: 'not_automated' })];
+  const findings = assess({ mode: 'policy', baseline: null, policy: POLICY, target: site('target', [page('/', { states })]) });
+  const [f] = byKey(findings, 'csp.ok');
+  assert.equal(f.status, 'manual');
+  assert.match(f.explanation, /Consented tags were not observed, so CSP could only be checked for tags that load without consent/);
+});
+
+test('a malformed blocked URL in a CSP report is skipped', () => {
+  const states = [st('none'), st('reject'), st('accept', { cspViolations: [{ blockedUrl: 'https://[broken', directive: 'script-src' }] })];
+  const findings = assess({ mode: 'policy', baseline: null, policy: POLICY, target: site('target', [page('/', { states })]) });
+  assert.equal(byKey(findings, 'csp.ok')[0].status, 'pass');
+});
