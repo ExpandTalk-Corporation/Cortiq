@@ -8,11 +8,12 @@ export function summarize(findings: Finding[], mode: Mode): ReportSummary {
   const counts: Record<FindingStatus, number> = { pass: 0, fail: 0, warning: 0, manual: 0, untestable: 0 };
   for (const f of findings) counts[f.status]++;
   const blocking = findings.filter((f) => f.status === 'fail' && f.priority === 'high').length;
-  const lead = mode === 'comparison'
+  const nothingTested = counts.pass + counts.fail + counts.warning === 0;
+  const lead = nothingTested ? 'The site could not be tested automatically' : mode === 'comparison'
     ? (blocking ? `${blocking} ${blocking === 1 ? 'problem blocks' : 'problems block'} go-live`
       : counts.fail ? `${counts.fail} ${counts.fail === 1 ? 'problem' : 'problems'} to fix` : 'No blocking problems')
     : (counts.fail ? `${counts.fail} ${counts.fail === 1 ? 'commitment is' : 'commitments are'} not met` : 'All tested commitments are met');
-  const parts = [lead, `${counts.pass} OK`];
+  const parts = nothingTested ? [lead] : [lead, `${counts.pass} OK`];
   if (counts.warning) parts.push(`${counts.warning} to review`);
   const manual = counts.manual + counts.untestable;
   if (manual) parts.push(`${manual} to test manually`);

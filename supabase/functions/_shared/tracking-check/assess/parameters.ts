@@ -1,6 +1,6 @@
 import type { AssessInput, Finding, PageObservation, SiteObservation } from '../types.ts';
 import { MANUAL_STEPS } from '../instructions.ts';
-import { errorStatus, finding, isTestable, plural, stripQueryValues } from './util.ts';
+import { displayPath, errorStatus, finding, isTestable, plural, stripQueryValues } from './util.ts';
 
 function untestableReason(p: PageObservation): string {
   if (p.failed) return p.failed;
@@ -23,8 +23,8 @@ export function assessCoverage({ target, baseline }: AssessInput): Finding[] {
     explanation: 'These pages blocked the automated browser (bot protection or a login), timed out or returned an error. They are left out of every other check in this report.',
     fix: MANUAL_STEPS.generic, typicalOwner: 'developer',
     evidence: {
-      pages: bad.map(({ s, p }) => `${s.role === 'baseline' ? 'current' : 'new'} ${p.path}`),
-      details: bad.map(({ p }) => `${p.path}: ${untestableReason(p)}`),
+      pages: bad.map(({ s, p }) => `${s.role === 'baseline' ? 'current' : 'new'} ${displayPath(p.path)}`),
+      details: bad.map(({ p }) => `${displayPath(p.path)}: ${stripQueryValues(untestableReason(p))}`),
     },
   })];
 }
@@ -41,13 +41,13 @@ export function assessParameters({ mode, target }: AssessInput): Finding[] {
         explanation: 'UTM parameters and click IDs (gclid, gbraid, wbraid, fbclid, msclkid) are removed before the page loads. Analytics and ad platforms then cannot attribute the visit to the campaign or ad click.',
         fix: 'Keep the query string on every redirect, and remove tracking parameters from any URL-cleaning or "noise parameter" list.',
         typicalOwner: 'developer',
-        evidence: { pages: lost.map((p) => p.path), details: lost.map((p) => `${p.path}: lost ${p.fetch!.paramsLost.join(', ')}`) },
+        evidence: { pages: lost.map((p) => displayPath(p.path)), details: lost.map((p) => `${displayPath(p.path)}: lost ${p.fetch!.paramsLost.join(', ')}`) },
       })
       : finding({
         scope: 'Parameters', checkKey: 'params.survive', status: 'pass', priority: null,
         title: `Ad and campaign parameters survive on all ${plural(probed.length, 'tested page', 'tested pages')}`,
         explanation: 'UTM parameters and click IDs stay in the URL, including through redirects.',
-        fix: '', typicalOwner: null, evidence: { pages: probed.map((p) => p.path) },
+        fix: '', typicalOwner: null, evidence: { pages: probed.map((p) => displayPath(p.path)) },
       }));
   }
   if (mode === 'comparison') out.push(...assessLegacyRedirects(target));
@@ -70,20 +70,20 @@ function assessLegacyRedirects(target: SiteObservation): Finding[] {
     title: `${plural(broken.length, 'old URL returns', 'old URLs return')} an error on the new site`,
     explanation: 'Visitors and ads that use these old URLs land on an error page, and search engines drop them.',
     fix: 'Add a permanent (301) redirect from each old URL to its new equivalent, keeping the query string.',
-    typicalOwner: 'developer', evidence: { pages: broken.map((p) => p.path), details: broken.map((p) => `${p.path}: ${chain(p)}`) },
+    typicalOwner: 'developer', evidence: { pages: broken.map((p) => displayPath(p.path)), details: broken.map((p) => `${displayPath(p.path)}: ${chain(p)}`) },
   }));
   if (weak.length) out.push(finding({
     scope: 'Parameters', checkKey: 'redirects.legacy_quality', status: 'warning', priority: 'medium',
     title: `${plural(weak.length, 'old URL does', 'old URLs do')} not use a single permanent redirect`,
     explanation: 'Temporary redirects (302/307), chains of several redirects or old URLs that no longer redirect weaken search signals and slow the first page view.',
     fix: 'Use one permanent (301 or 308) redirect straight to the final URL.',
-    typicalOwner: 'developer', evidence: { pages: weak.map((p) => p.path), details: weak.map((p) => `${p.path}: ${chain(p)}`) },
+    typicalOwner: 'developer', evidence: { pages: weak.map((p) => displayPath(p.path)), details: weak.map((p) => `${displayPath(p.path)}: ${chain(p)}`) },
   }));
   if (!out.length) out.push(finding({
     scope: 'Parameters', checkKey: 'redirects.legacy', status: 'pass', priority: null,
     title: `All ${plural(legacy.length, 'old URL redirects', 'old URLs redirect')} permanently to a working page`,
     explanation: 'Each old URL uses one permanent redirect to a page that loads.', fix: '', typicalOwner: null,
-    evidence: { pages: legacy.map((p) => p.path) },
+    evidence: { pages: legacy.map((p) => displayPath(p.path)) },
   }));
   return out;
 }

@@ -9,8 +9,9 @@ const ENV = {
   TRACKING_CHECK_AUTH_KEY: Buffer.alloc(32, 7).toString('base64'), BROWSERLESS_API_KEY: 'bl', BROWSERLESS_URL: 'https://bl.example',
 };
 
-function mockClient({ user = { id: A, email: 'daniel@expandtalk.se' }, runsToday = 0, run = null, tasks = [], findings = [], pendingCount = 0 } = {}) {
-  const calls = { inserts: [], updates: [], rpc: [] };
+function mockClient({ user = { id: A, email: 'daniel@expandtalk.se', email_confirmed_at: '2026-01-01T00:00:00Z' }, runsToday = 0, run = null, tasks = [], findings = [], pendingCount = 0,
+  taskInsertError = null, runError = null, findingsError = null } = {}) {
+  const calls = { inserts: [], updates: [], deletes: [], rpc: [] };
   const client = {
     auth: { getUser: async () => ({ data: { user }, error: null }) },
     rpc: async (name, args) => { calls.rpc.push([name, args]); return { data: [], error: null }; },
@@ -18,9 +19,10 @@ function mockClient({ user = { id: A, email: 'daniel@expandtalk.se' }, runsToday
       const op = { table, type: 'select', head: false, filters: [] };
       const result = () => {
         if (op.head) return { count: table === 'tracking_check_runs' ? runsToday : table === 'tracking_check_tasks' ? pendingCount : 0, error: null };
+        if (op.type === 'insert' && table === 'tracking_check_tasks' && taskInsertError) return { data: null, error: taskInsertError };
         if (op.type !== 'select') return { data: op.returning ? [{ id: 'x' }] : null, error: null };
         if (table === 'tracking_check_tasks') return { data: tasks, error: null };
-        if (table === 'tracking_check_findings') return { data: findings, error: null };
+        if (table === 'tracking_check_findings') return findingsError ? { data: null, error: findingsError } : { data: findings, error: null };
         return { data: [], error: null };
       };
       const q = {
@@ -28,10 +30,11 @@ function mockClient({ user = { id: A, email: 'daniel@expandtalk.se' }, runsToday
         insert(payload) { op.type = 'insert'; calls.inserts.push({ table, payload }); return q; },
         update(payload) { op.type = 'update'; calls.updates.push({ table, payload, filters: op.filters }); return q; },
         upsert(payload) { op.type = 'upsert'; calls.inserts.push({ table, payload }); return q; },
+        delete() { op.type = 'delete'; calls.deletes.push({ table, filters: op.filters }); return q; },
         eq(k, v) { op.filters.push([k, v]); return q; },
         gte() { return q; }, in() { return q; }, order() { return q; }, limit() { return q; },
         single: async () => ({ data: op.type === 'insert' ? { id: 'run-1' } : run, error: null }),
-        maybeSingle: async () => ({ data: run, error: null }),
+        maybeSingle: async () => (runError ? { data: null, error: runError } : { data: run, error: null }),
         then(resolve, reject) { return Promise.resolve(result()).then(resolve, reject); },
       };
       return q;
@@ -152,4 +155,38 @@ test('report: 404 for malformed, unknown or expired tokens; shared findings omit
 test('harness: globalThis.fetch hits the sandboxed stub, not real Node fetch', async () => {
   const { run } = compileEdgeSource('exports.run = () => globalThis.fetch("https://example.com");');
   await assert.rejects(() => run(), /Unexpected outbound request/);
+});
+
+test('start: the allowlist also requires a confirmed email address', async () => {
+  const unconfirmed = mockClient({ user: { id: A, email: 'daniel@expandtalk.se', email_confirmed_at: null } });
+  assert.deepEqual(await (await post(edge('tracking-check-start', unconfirmed).handler, { action: 'access' })).json(), { allowed: false });
+  assert.equal((await post(edge('tracking-check-start', unconfirmed).handler, createBody())).status, 403);
+});
+
+test('start: pages must not carry query strings; legacy URLs may', async () => {
+  const { handler } = edge('tracking-check-start', mockClient());
+  for (const bad of ['/x?token=1', '/x#section']) {
+    const res = await post(handler, createBody({ pages: [bad] }));
+    assert.equal(res.status, 400, bad);
+    assert.equal((await res.json()).error, 'Pages must not contain query strings');
+  }
+  const db = mockClient();
+  assert.equal((await post(edge('tracking-check-start', db).handler, createBody({ legacyPaths: ['/index.php?page_id=42'] }))).status, 200);
+  assert.deepEqual(db.calls.inserts.find((i) => i.table === 'tracking_check_runs').payload.pages.legacy, ['/index.php?page_id=42']);
+});
+
+test('start: a failed task insert deletes the run instead of leaving an orphan', async () => {
+  const db = mockClient({ taskInsertError: { message: 'insert failed' } });
+  const { handler, fetches } = edge('tracking-check-start', db);
+  assert.equal((await post(handler, createBody())).status, 500);
+  assert.deepEqual(db.calls.deletes, [{ table: 'tracking_check_runs', filters: [['id', 'run-1']] }]);
+  assert.equal(fetches.length, 0, 'worker is not kicked');
+});
+
+test('report: database errors are a 500, not a missing report or an empty findings list', async () => {
+  const token = 'A'.repeat(43);
+  const get = (h) => h(new Request(`https://x.example/?token=${token}`));
+  assert.equal((await get(edge('tracking-check-report', mockClient({ runError: { message: 'db down' } })).handler)).status, 500);
+  const run = { id: 'r', mode: 'policy', baseline_url: null, target_url: 'https://new.example', status: 'done', summary: {}, finished_at: null, share_expires_at: null };
+  assert.equal((await get(edge('tracking-check-report', mockClient({ run, findingsError: { message: 'db down' } })).handler)).status, 500);
 });

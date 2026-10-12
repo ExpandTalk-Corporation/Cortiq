@@ -37,3 +37,12 @@ test('CSV matches the tracker columns, maps statuses and escapes safely', () => 
   assert.match(csv, /"Says ""hello""\nline two/);
   assert.match(csv, /"'=HYPERLINK\(""x""\)","No action needed","","Completed"/);
 });
+
+test('a run where nothing could be tested says so instead of claiming no problems', () => {
+  const s = summarize([f('untestable', 'medium', 'Coverage', '2 pages could not be tested'), f('manual', 'high', 'Consent', 'Check reject')], 'comparison');
+  assert.match(s.headline, /^The site could not be tested automatically/);
+  assert.doesNotMatch(s.headline, /No blocking problems/);
+  const p = summarize([f('manual', 'high', 'Consent', 'Check reject')], 'policy');
+  assert.match(p.headline, /^The site could not be tested automatically/);
+  assert.doesNotMatch(p.headline, /commitments are met/);
+});

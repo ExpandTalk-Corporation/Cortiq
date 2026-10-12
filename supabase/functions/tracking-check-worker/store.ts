@@ -27,7 +27,7 @@ export function createStore(db: Db): TrackingCheckStore {
       return rows.map((r) => (typeof r === 'string' ? r : (r as Record<string, string>).tracking_check_runs_to_finalize));
     },
     async beginAssessing(runId) {
-      const rows = check(await db.from('tracking_check_runs').update({ status: 'assessing' }).eq('id', runId).eq('status', 'running').select('id'));
+      const rows = check(await db.from('tracking_check_runs').update({ status: 'assessing', assessing_at: new Date().toISOString() }).eq('id', runId).eq('status', 'running').select('id'));
       return (rows ?? []).length === 1;
     },
     async loadResults(runId) {
@@ -38,6 +38,8 @@ export function createStore(db: Db): TrackingCheckStore {
       return tasks.map((task) => ({ task, data: task.status === 'done' ? (byTask.get(task.id) as any) ?? null : null }));
     },
     async saveResults(runId, findings, summary) {
+      // A retried finalisation (run recovered from 'assessing') must not duplicate findings.
+      check(await db.from('tracking_check_findings').delete().eq('run_id', runId));
       if (findings.length) {
         check(await db.from('tracking_check_findings').insert(findings.map((f, i) => ({
           run_id: runId, sort_order: i, scope: f.scope, check_key: f.checkKey, title: f.title, status: f.status, priority: f.priority,

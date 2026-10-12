@@ -79,3 +79,13 @@ test('a legacy URL that ends in an error is still assessed as a broken redirect,
   assert.equal(byKey(findings, 'redirects.legacy')[0].status, 'fail');
   assert.equal(byKey(findings, 'coverage.untestable').length, 0);
 });
+
+test('legacy URLs with query strings show parameter names only, never values', () => {
+  const legacy = page('/index.php?page_id=42', { legacy: true, fetch: fetchOk('/x', { hops: [{ url: 'https://new.example/index.php?page_id=42', status: 404 }], finalStatus: 404 }) });
+  const untestable = page('/old.php?token=abc', { legacy: true, failed: 'timeout' });
+  const findings = run([page('/'), legacy, untestable]);
+  const text = JSON.stringify(findings);
+  assert.ok(!text.includes('42') && !text.includes('abc'), text);
+  assert.deepEqual(byKey(findings, 'redirects.legacy')[0].evidence.pages, ['/index.php?page_id']);
+  assert.deepEqual(byKey(findings, 'coverage.untestable')[0].evidence.pages, ['new /old.php?token']);
+});

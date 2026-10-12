@@ -6,13 +6,14 @@ import { PGlite } from '@electric-sql/pglite';
 // Executes the real migration in PGlite with the Supabase roles and auth.uid() stubbed.
 const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
-const migration = readFileSync(new URL('../../supabase/migrations/20261012000001_tracking_check.sql', import.meta.url), 'utf8');
+const migrations = ['20261012000001_tracking_check.sql', '20261013000001_tracking_check_liveness.sql']
+  .map((f) => readFileSync(new URL(`../../supabase/migrations/${f}`, import.meta.url), 'utf8'));
 
 async function setup() {
   const db = new PGlite();
   await db.exec(`CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role; CREATE SCHEMA auth;
     CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;`);
-  await db.exec(migration);
+  for (const m of migrations) await db.exec(m);
   return db;
 }
 async function as(db, role, user, fn) {
@@ -91,4 +92,17 @@ test('owners can only mark findings as verified; other users cannot touch them',
 test('the queue functions are not executable by clients', async () => {
   const db = await setup();
   await assert.rejects(as(db, 'authenticated', A, () => db.query(`SELECT * FROM tracking_check_claim_tasks('fetch', 1)`)), /permission denied/);
+});
+
+test('retention puts runs stuck in assessing for over 10 minutes back to running', async () => {
+  const db = await setup();
+  const stuck = await newRun(db, A, 'assessing');
+  const busy = await newRun(db, A, 'assessing');
+  await db.query(`UPDATE tracking_check_runs SET assessing_at = now() - interval '11 minutes' WHERE id = $1`, [stuck]);
+  await db.query(`UPDATE tracking_check_runs SET assessing_at = now() - interval '2 minutes' WHERE id = $1`, [busy]);
+  await db.query('SELECT tracking_check_retention()');
+  const { rows } = await db.query('SELECT id, status FROM tracking_check_runs');
+  assert.equal(rows.find((r) => r.id === stuck).status, 'running');
+  assert.equal(rows.find((r) => r.id === busy).status, 'assessing');
+  await assert.rejects(as(db, 'authenticated', A, () => db.query('SELECT tracking_check_retention()')), /permission denied/);
 });

@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
   if (!user) return json({ error: 'Unauthorized' }, 401);
 
   const allowlist = (Deno.env.get('TRACKING_CHECK_ALLOWED_EMAILS') ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
-  const allowed = !!user.email && allowlist.includes(user.email.toLowerCase());
+  const allowed = !!user.email && !!user.email_confirmed_at && allowlist.includes(user.email.toLowerCase());
 
   let body: Body;
   try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
@@ -62,11 +62,13 @@ async function siteOrigin(raw: unknown): Promise<string> {
   try { return (await assertSafeUrl(raw.trim())).origin; } catch (e) { throw new InputError(e instanceof Error ? e.message : 'Invalid URL'); }
 }
 
-function cleanPaths(list: unknown, max: number, label: string): string[] {
+function cleanPaths(list: unknown, max: number, label: string, allowQuery = false): string[] {
   if (list === undefined || list === null) return [];
   if (!Array.isArray(list)) throw new InputError(`${label} must be a list`);
   const paths = [...new Set(list.map((p) => String(p).trim()).filter(Boolean).map((p) => (p.startsWith('/') ? p : `/${p}`)))];
   if (paths.some((p) => p.length > 500 || /\s/.test(p))) throw new InputError(`Invalid ${label}`);
+  // Page paths end up in shared reports; query values could carry tokens. Old URLs may need them to resolve.
+  if (!allowQuery && paths.some((p) => /[?#]/.test(p))) throw new InputError('Pages must not contain query strings');
   if (paths.length > max) throw new InputError(`At most ${max} ${label} per run`);
   return paths;
 }
@@ -99,7 +101,7 @@ async function create(body: Body, userId: string, service: Db) {
   const baseline = mode === 'comparison' ? await siteOrigin(body.baselineUrl) : null;
   const pages = cleanPaths(body.pages, mode === 'policy' ? LIMITS.policyPages : LIMITS.comparisonPages, 'pages');
   if (!pages.length) throw new InputError('Select at least one page');
-  const legacy = mode === 'comparison' ? cleanPaths(body.legacyPaths, LIMITS.legacyPaths, 'legacy URLs') : [];
+  const legacy = mode === 'comparison' ? cleanPaths(body.legacyPaths, LIMITS.legacyPaths, 'legacy URLs', true) : [];
   const policy = mode === 'policy' ? parsePolicy(body.policy) : null;
 
   const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
@@ -123,7 +125,12 @@ async function create(body: Body, userId: string, service: Db) {
   for (const path of pages) for (const site_role of roles) for (const kind of ['fetch', 'browser']) tasks.push({ run_id: run.id, site_role, path, kind, legacy: false });
   for (const path of legacy) tasks.push({ run_id: run.id, site_role: 'target', path, kind: 'fetch', legacy: true });
   const { error: taskError } = await service.from('tracking_check_tasks').insert(tasks);
-  if (taskError) throw taskError;
+  if (taskError) {
+    // A run without tasks would never finish; remove it so it does not count against the daily limit either.
+    const { error: cleanupError } = await service.from('tracking_check_runs').delete().eq('id', run.id);
+    if (cleanupError) console.error('tracking-check-start cleanup', cleanupError);
+    throw taskError;
+  }
 
   kickWorker();
   return json({ runId: run.id });

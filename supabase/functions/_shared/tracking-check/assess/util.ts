@@ -78,6 +78,14 @@ export function stripQueryValues(url: string): string {
   }
 }
 
+/** A page path for display: query parameter names only, no values, no fragment ("/index.php?page_id=42" → "/index.php?page_id"). */
+export function displayPath(path: string): string {
+  const i = path.search(/[?#]/);
+  if (i < 0) return path;
+  const names = path[i] === '?' ? [...new Set(new URLSearchParams(path.slice(i + 1).split('#')[0]).keys())] : [];
+  return path.slice(0, i) + (names.length ? '?' + names.join('&') : '');
+}
+
 export const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
 
 export function finding(f: Omit<Finding, 'evidence'> & { evidence?: Partial<Finding['evidence']> }): Finding {

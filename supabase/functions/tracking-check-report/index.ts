@@ -11,14 +11,16 @@ Deno.serve(async (req) => {
   if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return json({ error: 'Not found' }, 404);
 
   const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-  const { data: run } = await db.from('tracking_check_runs')
+  const { data: run, error: runError } = await db.from('tracking_check_runs')
     .select('id, mode, baseline_url, target_url, status, summary, finished_at, share_expires_at')
     .eq('share_token', token).maybeSingle();
+  if (runError) { console.error('tracking-check-report run', runError); return json({ error: 'Internal error' }, 500); }
   if (!run || run.status !== 'done' || (run.share_expires_at && Date.parse(run.share_expires_at) < Date.now())) return json({ error: 'Not found' }, 404);
 
-  const { data: rows } = await db.from('tracking_check_findings')
+  const { data: rows, error: findingsError } = await db.from('tracking_check_findings')
     .select('scope, check_key, title, status, priority, explanation, fix, typical_owner, evidence, verified_at')
     .eq('run_id', run.id).order('sort_order');
+  if (findingsError) { console.error('tracking-check-report findings', findingsError); return json({ error: 'Internal error' }, 500); }
   // deno-lint-ignore no-explicit-any
   const findings = (rows ?? []).map((f: any) => ({
     scope: f.scope, checkKey: f.check_key, title: f.title, status: f.status, priority: f.priority, explanation: f.explanation,

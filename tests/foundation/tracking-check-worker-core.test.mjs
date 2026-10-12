@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { processBatch, buildSites, statesFor } from '../../supabase/functions/_shared/tracking-check/worker-core.ts';
 import { fetchOk, st, req } from './tracking-check-fixtures.mjs';
+import { createStore } from '../../supabase/functions/tracking-check-worker/store.ts';
 
 function fakeStore(run, tasks) {
   const s = { run: { ...run }, tasks: tasks.map((t, i) => ({ id: `t${i}`, run_id: run.id, legacy: false, attempts: 0, status: 'pending', error: null, ...t })),
@@ -91,4 +92,30 @@ test('buildSites groups tasks by role and path and keeps legacy pages separate',
   assert.ok(home.fetch);
   assert.equal(baseline.origin, 'https://old.example');
   assert.deepEqual(statesFor('policy'), ['none', 'reject', 'accept', 'analytics_only', 'marketing_only']);
+});
+
+test('store: saveResults replaces earlier findings (idempotent retry) and beginAssessing stamps assessing_at', async () => {
+  const ops = [];
+  const db = {
+    from(table) {
+      const op = { table, type: 'select', filters: [] };
+      const q = {
+        select() { return q; }, eq(k, v) { op.filters.push([k, v]); return q; },
+        insert(payload) { op.type = 'insert'; op.payload = payload; return q; },
+        update(payload) { op.type = 'update'; op.payload = payload; return q; },
+        delete() { op.type = 'delete'; return q; },
+        then(yes, no) { ops.push(op); return Promise.resolve({ data: op.type === 'update' ? [{ id: 'r1' }] : null, error: null }).then(yes, no); },
+      };
+      return q;
+    },
+  };
+  const store = createStore(db);
+  const finding = { scope: 'Tags', checkKey: 'tags.present', title: 'T', status: 'pass', priority: null, explanation: '', fix: '', typicalOwner: null, evidence: { pages: [], details: [] } };
+  await store.saveResults('r1', [finding], { headline: 'h' });
+  assert.deepEqual(ops.map((o) => `${o.type} ${o.table}`), ['delete tracking_check_findings', 'insert tracking_check_findings', 'update tracking_check_runs']);
+  assert.deepEqual(ops[0].filters, [['run_id', 'r1']]);
+  ops.length = 0;
+  assert.equal(await store.beginAssessing('r1'), true);
+  assert.equal(ops[0].payload.status, 'assessing');
+  assert.ok(Date.parse(ops[0].payload.assessing_at) > Date.now() - 5000);
 });
