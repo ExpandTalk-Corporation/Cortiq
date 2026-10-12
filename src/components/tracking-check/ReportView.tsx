@@ -54,7 +54,7 @@ export function ReportView({ summary, findings, mode, baselineUrl, targetUrl, fi
             const Icon = s.icon;
             return (
               <div key={line.checkKey} className="flex items-start gap-3">
-                <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${s.className}`} aria-label={s.label} />
+                <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${s.className}`} role="img" aria-label={s.label} />
                 <p className="flex-1">{line.text}</p>
                 {line.status !== 'pass' && (
                   <Button variant="link" className="h-auto p-0" onClick={() => showFix(line.checkKey)}>Show fix</Button>
@@ -89,7 +89,7 @@ function FindingItem({ finding: f, open, onToggle, onVerify }: FindingItemProps)
   return (
     <div id={anchor(f.checkKey)} className="p-4">
       <button type="button" onClick={onToggle} aria-expanded={open} className="flex w-full items-start gap-3 text-left">
-        <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${s.className}`} aria-label={s.label} />
+        <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${s.className}`} role="img" aria-label={s.label} />
         <span className="flex-1 font-medium">{f.title}</span>
         <Badge variant="outline">{f.scope}</Badge>
         {f.priority && f.status !== 'pass' && <Badge variant={f.priority === 'high' ? 'destructive' : 'secondary'}>{f.priority}</Badge>}

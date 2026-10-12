@@ -20,6 +20,17 @@ export default function TrackingCheckRun() {
   const verify = useVerifyFinding(runId);
 
   if (run.isLoading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" aria-label="Loading" /></div>;
+  if (run.isError) {
+    return (
+      <main className="container mx-auto max-w-2xl px-4 py-16">
+        <p className="text-destructive">Could not load this run: {(run.error as Error).message}</p>
+        <div className="mt-4 flex gap-2">
+          <Button variant="outline" onClick={() => run.refetch()}>Retry</Button>
+          <Link to="/tracking-check" className="self-center text-sm underline">Back</Link>
+        </div>
+      </main>
+    );
+  }
   if (!run.data) return <main className="container mx-auto px-4 py-16"><p>Run not found.</p><Link to="/tracking-check" className="underline">Back</Link></main>;
   const r = run.data;
 
@@ -40,8 +51,24 @@ export default function TrackingCheckRun() {
   return (
     <main className="container mx-auto max-w-4xl space-y-6 px-4 py-10">
       <Link to="/tracking-check" className="text-sm text-muted-foreground hover:underline">← Tracking Check</Link>
-      {active && <RunProgress status={status.data?.status ?? r.status} progress={status.data?.progress} />}
+      {active && (
+        <>
+          {status.isError && (
+            <div className="rounded-md border border-destructive p-4">
+              <p className="text-destructive">Could not refresh progress: {(status.error as Error).message}</p>
+              <Button className="mt-2" variant="outline" size="sm" onClick={() => status.refetch()}>Retry</Button>
+            </div>
+          )}
+          <RunProgress status={status.data?.status ?? r.status} progress={status.data?.progress} />
+        </>
+      )}
       {r.status === 'failed' && <p className="rounded-md border border-destructive p-4">The check failed: {r.error ?? 'unknown error'}. Start it again from the Tracking Check page.</p>}
+      {r.status === 'done' && r.summary && findings.isError && (
+        <div className="rounded-md border border-destructive p-4">
+          <p className="text-destructive">Could not load the findings: {(findings.error as Error).message}</p>
+          <Button className="mt-2" variant="outline" size="sm" onClick={() => findings.refetch()}>Retry</Button>
+        </div>
+      )}
       {r.status === 'done' && r.summary && findings.data && (
         <ReportView
           summary={r.summary} findings={findings.data} mode={r.mode} baselineUrl={r.baseline_url} targetUrl={r.target_url} finishedAt={r.finished_at}
