@@ -1,6 +1,6 @@
 import type { AssessInput, Finding, PageObservation, SiteObservation } from '../types.ts';
 import { MANUAL_STEPS } from '../instructions.ts';
-import { finding, isTestable, plural, stripQueryValues } from './util.ts';
+import { errorStatus, finding, isTestable, plural, stripQueryValues } from './util.ts';
 
 function untestableReason(p: PageObservation): string {
   if (p.failed) return p.failed;
@@ -8,7 +8,9 @@ function untestableReason(p: PageObservation): string {
   if (p.fetch?.challenge) return 'bot protection challenge';
   if (p.fetch?.finalStatus === 401) return 'password required (basic auth missing, wrong or expired)';
   const st = p.browser?.states.find((s) => s.challenge || s.error);
-  return st?.challenge ? 'bot protection challenge in the browser' : st?.error ?? 'unknown error';
+  if (st) return st.challenge ? 'bot protection challenge in the browser' : st.error!;
+  const status = errorStatus(p);
+  return status ? `HTTP ${status}` : 'unknown error';
 }
 
 export function assessCoverage({ target, baseline }: AssessInput): Finding[] {

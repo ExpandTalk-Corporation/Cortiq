@@ -138,7 +138,7 @@ export function inPageCollect(withHtml) {
 async function observeState(browser, state, context, inPageSource) {
   const ctx = await (browser.createBrowserContext ? browser.createBrowserContext() : browser.createIncognitoBrowserContext());
   const p = await ctx.newPage();
-  const out = { state, method: state === 'none' ? 'not_needed' : 'not_automated', requests: [], cookies: [], storageKeys: [], cspViolations: [], consentCommands: [], enhancedConversions: false, challenge: false, error: null };
+  const out = { state, method: state === 'none' ? 'not_needed' : 'not_automated', status: 0, requests: [], cookies: [], storageKeys: [], cspViolations: [], consentCommands: [], enhancedConversions: false, challenge: false, error: null };
   let cmp = null;
   let html = '';
   const userData = /[?&;]em=|"em"\s*:|user_data/;
@@ -160,6 +160,7 @@ async function observeState(browser, state, context, inPageSource) {
     await p.waitForNetworkIdle({ idleTime: 1500, timeout: 10000 }).catch(() => {});
     await p.evaluate(inPageSource);
     const status = res ? res.status() : 0;
+    out.status = status;
     const text = await p.evaluate(() => document.title + ' ' + (document.body ? document.body.innerText.slice(0, 3000) : ''));
     if ([403, 429, 503].includes(status) && /just a moment|attention required|captcha|verify you are human/i.test(text)) {
       out.challenge = true;
@@ -183,7 +184,8 @@ async function observeState(browser, state, context, inPageSource) {
         await p.waitForNetworkIdle({ idleTime: 1000, timeout: 8000 }).catch(() => {});
         out.requests.length = 0;   // observe the next page view after the choice
         out.enhancedConversions = false;
-        await p.reload({ waitUntil: 'load', timeout: 30000 });
+        const reloaded = await p.reload({ waitUntil: 'load', timeout: 30000 });
+        out.status = reloaded ? reloaded.status() : 0;
         await p.waitForNetworkIdle({ idleTime: 1500, timeout: 10000 }).catch(() => {});
         await p.evaluate(inPageSource);
       }

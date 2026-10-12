@@ -9,7 +9,7 @@ export const fetchOk = (path, extra = {}) => ({
 });
 
 export const st = (state, extra = {}) => ({
-  state, method: state === 'none' ? 'not_needed' : 'adapter',
+  state, method: state === 'none' ? 'not_needed' : 'adapter', status: 200,
   requests: [], cookies: [], storageKeys: [], cspViolations: [], consentCommands: [],
   enhancedConversions: false, challenge: false, error: null, ...extra,
 });

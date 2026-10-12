@@ -87,3 +87,26 @@ test('detectForms finds HubSpot (attribute, hs_context, embed script) and Gravit
     `gravity_forms:4:gravity_class`, `hubspot:${g1}:data_form_id`, `hubspot:${g2}:hs_context`, `hubspot:${g3}:embed_script`,
   ].sort());
 });
+
+test('target behind a challenge: no missing tags or forms are reported (coverage covers it)', () => {
+  const guid = '11111111-2222-3333-4444-555555555555';
+  const GTM = 'https://www.googletagmanager.com/gtm.js?id=GTM-ABC123';
+  const CKY = 'https://cdn-cookieyes.com/client_data/abc/script.js';
+  const findings = compare(
+    [page('/', { states: acceptWith(GTM, CKY, HS), forms: [{ provider: 'hubspot', formId: guid, method: 'data_form_id' }] })],
+    [page('/', { fetch: fetchOk('/', { challenge: true, finalStatus: 403 }), states: [st('none', { challenge: true, status: 403 })] })],
+  );
+  assert.equal(findings.filter((f) => f.checkKey.startsWith('tags.') || f.checkKey.startsWith('forms.')).length, 0,
+    findings.map((f) => f.checkKey).join());
+  assert.equal(byKey(findings, 'coverage.untestable')[0].status, 'untestable');
+});
+
+test('a form on a page whose target counterpart is untestable is not reported missing', () => {
+  const guid = '11111111-2222-3333-4444-555555555555';
+  const findings = compare(
+    [page('/', { states: acceptWith(GA) }), page('/contact/', { forms: [{ provider: 'hubspot', formId: guid, method: 'data_form_id' }] })],
+    [page('/', { states: acceptWith(GA) }), page('/contact/', { failed: 'Browserless 500' })],
+  );
+  assert.equal(byKey(findings, 'forms.missing').length, 0);
+  assert.equal(byKey(findings, 'tags.present')[0].status, 'pass');
+});

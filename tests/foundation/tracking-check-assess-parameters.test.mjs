@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { assess } from '../../supabase/functions/_shared/tracking-check/assess/index.ts';
 import { stripQueryValues } from '../../supabase/functions/_shared/tracking-check/assess/util.ts';
-import { fetchOk, page, site } from './tracking-check-fixtures.mjs';
+import { fetchOk, page, site, st, POLICY } from './tracking-check-fixtures.mjs';
 
 const run = (targetPages, mode = 'comparison') => assess({ mode, target: site('target', targetPages), baseline: mode === 'comparison' ? site('baseline', []) : null, policy: null });
 const byKey = (findings, key) => findings.filter((f) => f.checkKey === key);
@@ -60,4 +60,22 @@ test('findings are sorted fail, warning, manual, untestable, pass', () => {
 test('stripQueryValues keeps parameter names only', () => {
   assert.equal(stripQueryValues('https://s.example/p?token=abc&gclid=1&token=2'), 'https://s.example/p?token&gclid');
   assert.equal(stripQueryValues('https://s.example/p'), 'https://s.example/p');
+});
+
+test('error pages (HTTP 403/500) are untestable and give no params, consent or CSP pass', () => {
+  const findings = assess({ mode: 'policy', baseline: null, policy: POLICY, target: site('target', [
+    page('/blocked/', { fetch: fetchOk('/blocked/', { finalStatus: 403 }) }),
+    page('/broken/', { states: [st('none', { status: 500 }), st('reject', { status: 500 }), st('accept', { status: 500 })] }),
+  ]) });
+  const [coverage] = byKey(findings, 'coverage.untestable');
+  assert.equal(coverage.status, 'untestable');
+  assert.deepEqual(coverage.evidence.details, ['/blocked/: HTTP 403', '/broken/: HTTP 500']);
+  assert.equal(findings.filter((f) => f.status === 'pass').length, 0, findings.filter((f) => f.status === 'pass').map((f) => f.checkKey).join());
+  assert.equal(findings.filter((f) => ['Parameters', 'Consent', 'CSP'].includes(f.scope)).length, 0);
+});
+
+test('a legacy URL that ends in an error is still assessed as a broken redirect, not untestable', () => {
+  const findings = run([page('/'), page('/old/', { legacy: true, fetch: fetchOk('/old/', { hops: [{ url: 'https://new.example/old/', status: 404 }], finalStatus: 404 }) })]);
+  assert.equal(byKey(findings, 'redirects.legacy')[0].status, 'fail');
+  assert.equal(byKey(findings, 'coverage.untestable').length, 0);
 });

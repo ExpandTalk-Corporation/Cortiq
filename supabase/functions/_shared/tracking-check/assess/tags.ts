@@ -2,7 +2,7 @@ import type { AssessInput, Finding, FormHit, SiteObservation } from '../types.ts
 import { vendorForUrl, extractVendorIds, vendorById, type CspDirective, type Vendor } from '../../tracking-vendors.ts';
 import { cspAllows } from '../fetch-probe.ts';
 import { MANUAL_STEPS } from '../instructions.ts';
-import { allRequestUrls, attemptedVendors, finding, fullLoadReliable, plural, testablePages } from './util.ts';
+import { allRequestUrls, attemptedVendors, comparablePaths, finding, fullLoadReliable, plural, testablePages } from './util.ts';
 
 const firstCsp = (site: SiteObservation) => testablePages(site).find((p) => p.fetch?.csp)?.fetch?.csp ?? null;
 const pageList = (pages: Iterable<string>) => [...pages].join(', ');
@@ -24,11 +24,13 @@ export function cspFixLines(vendor: Vendor, csp: Record<string, string[]> | null
 
 export function assessTags({ mode, target, baseline, policy }: AssessInput): Finding[] {
   const out: Finding[] = [];
-  const tgt = attemptedVendors(target);
 
-  if (mode === 'comparison' && baseline) {
-    const base = attemptedVendors(baseline);
-    const reliable = fullLoadReliable(baseline) && fullLoadReliable(target);
+  // Only pages testable on both sites are compared; untestable pages are reported by coverage.
+  const common = mode === 'comparison' && baseline ? comparablePaths(baseline, target) : new Set<string>();
+  if (mode === 'comparison' && baseline && common.size) {
+    const tgt = attemptedVendors(target, common);
+    const base = attemptedVendors(baseline, common);
+    const reliable = fullLoadReliable(baseline, common) && fullLoadReliable(target, common);
     const targetCsp = firstCsp(target);
     let missingCount = 0;
     for (const [id, { vendor, pages }] of base) {
@@ -69,8 +71,8 @@ export function assessTags({ mode, target, baseline, policy }: AssessInput): Fin
       explanation: [...base.values()].map((b) => b.vendor.name).join(', '), fix: '', typicalOwner: null,
     }));
 
-    const baseIds = extractVendorIds(allRequestUrls(baseline));
-    const tgtIds = extractVendorIds(allRequestUrls(target));
+    const baseIds = extractVendorIds(allRequestUrls(baseline, common));
+    const tgtIds = extractVendorIds(allRequestUrls(target, common));
     for (const [vendorId, ids] of baseIds) {
       const now = tgtIds.get(vendorId);
       if (!now) continue;
@@ -167,9 +169,10 @@ export function assessCsp({ target }: AssessInput): Finding[] {
 
 export function assessForms({ mode, target, baseline }: AssessInput): Finding[] {
   if (mode !== 'comparison' || !baseline) return [];
+  const common = comparablePaths(baseline, target);
   const collect = (site: SiteObservation) => {
     const m = new Map<string, { hit: FormHit; pages: Set<string> }>();
-    for (const p of testablePages(site)) for (const hit of p.browser?.forms ?? []) {
+    for (const p of testablePages(site, common)) for (const hit of p.browser?.forms ?? []) {
       const key = `${hit.provider}:${hit.formId}`;
       if (!m.has(key)) m.set(key, { hit, pages: new Set() });
       m.get(key)!.pages.add(p.path);

@@ -24,6 +24,7 @@ export interface ObservedRequest { url: string; type: string }
 export interface StateObservation {
   state: ConsentState;
   method: ConsentMethod;
+  status: number;                                 // HTTP status of the main document (last load); 0 when unknown
   requests: ObservedRequest[];
   cookies: { name: string; domain: string }[];   // new since the consent action (all cookies for `none`)
   storageKeys: string[];                          // new since the consent action, without the local:/session: prefix
