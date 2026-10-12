@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { assertSafeUrl } from '../_shared/safe-url.ts';
+import { detectForms } from '../_shared/form-detection.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -71,77 +72,21 @@ serve(async (req) => {
 
     const detectedForms: any[] = [];
 
-    // Detect HubSpot forms — look for hs_context hidden input containing formGuid
-    const hsContextMatches = html.match(/name=["']hs_context["'][^>]*value=["']([^"']+)["']/gi);
-    if (hsContextMatches) {
-      for (const match of hsContextMatches) {
-        try {
-          const valueMatch = match.match(/value=["']([^"']+)["']/i);
-          if (valueMatch) {
-            const ctx = JSON.parse(decodeURIComponent(valueMatch[1]));
-            if (ctx.formGuid) {
-              detectedForms.push({
-                form_id: ctx.formGuid,
-                form_guid: ctx.formGuid,
-                form_name: `HubSpot Form (${ctx.formGuid.slice(0, 8)}...)`,
-                form_type: 'hubspot',
-                form_url: url,
-                site_id: siteId,
-                detection_method: 'hs_context_scan',
-                last_detected: new Date().toISOString()
-              });
-            }
-          }
-        } catch (_) {}
-      }
-    }
-
-    // Also detect HubSpot via data-form-id attributes
-    const hsDataFormMatches = html.match(/data-form-id=["']([0-9a-f-]{36})["']/gi);
-    if (hsDataFormMatches) {
-      for (const match of hsDataFormMatches) {
-        const guidMatch = match.match(/["']([0-9a-f-]{36})["']/i);
-        if (guidMatch) {
-          const guid = guidMatch[1];
-          const alreadyFound = detectedForms.some(f => f.form_guid === guid);
-          if (!alreadyFound) {
-            detectedForms.push({
-              form_id: guid,
-              form_guid: guid,
-              form_name: `HubSpot Form (${guid.slice(0, 8)}...)`,
-              form_type: 'hubspot',
-              form_url: url,
-              site_id: siteId,
-              detection_method: 'data-form-id_scan',
-              last_detected: new Date().toISOString()
-            });
-          }
-        }
-      }
-    }
-
-    // Detect Gravity Forms by gform_wrapper class
-    const gfMatches = html.match(/class=["'][^"']*gform_wrapper[^"']*["'][^>]*id=["'][^"']*gform_wrapper_(\d+)/gi);
-    if (gfMatches) {
-      for (const match of gfMatches) {
-        const idMatch = match.match(/gform_wrapper_(\d+)/i);
-        if (idMatch) {
-          const formId = `gf_${idMatch[1]}`;
-          const alreadyFound = detectedForms.some(f => f.form_id === formId);
-          if (!alreadyFound) {
-            detectedForms.push({
-              form_id: formId,
-              form_guid: formId,
-              form_name: `Gravity Form ${idMatch[1]}`,
-              form_type: 'gravity',
-              form_url: url,
-              site_id: siteId,
-              detection_method: 'gravity_class_scan',
-              last_detected: new Date().toISOString()
-            });
-          }
-        }
-      }
+    // HubSpot and Gravity Forms detection is shared with Tracking Check.
+    const METHOD_LABEL = { hs_context: 'hs_context_scan', data_form_id: 'data-form-id_scan', embed_script: 'embed_script_scan', gravity_class: 'gravity_class_scan' } as const;
+    for (const hit of detectForms(html)) {
+      const isHubSpot = hit.provider === 'hubspot';
+      const formId = isHubSpot ? hit.formId : `gf_${hit.formId}`;
+      detectedForms.push({
+        form_id: formId,
+        form_guid: formId,
+        form_name: isHubSpot ? `HubSpot Form (${hit.formId.slice(0, 8)}...)` : `Gravity Form ${hit.formId}`,
+        form_type: isHubSpot ? 'hubspot' : 'gravity',
+        form_url: url,
+        site_id: siteId,
+        detection_method: METHOD_LABEL[hit.method],
+        last_detected: new Date().toISOString(),
+      });
     }
 
     // Detektera Contact Form 7

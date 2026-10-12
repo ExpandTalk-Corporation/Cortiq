@@ -1,5 +1,6 @@
 import type { AssessInput, Finding, FindingStatus, Priority } from '../types.ts';
 import { assessCoverage, assessParameters } from './parameters.ts';
+import { assessCsp, assessForms, assessTags } from './tags.ts';
 
 const STATUS_ORDER: Record<FindingStatus, number> = { fail: 0, warning: 1, manual: 2, untestable: 3, pass: 4 };
 const PRIORITY_ORDER: Record<Priority, number> = { high: 0, medium: 1, low: 2 };
@@ -8,6 +9,9 @@ export function assess(input: AssessInput): Finding[] {
   const findings = [
     ...assessCoverage(input),
     ...assessParameters(input),
+    ...assessTags(input),
+    ...assessCsp(input),
+    ...assessForms(input),
   ];
   return findings
     .map((f, i) => ({ f, i }))

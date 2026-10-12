@@ -34,7 +34,11 @@ export interface StateObservation {
   error: string | null;
 }
 
-export interface FormHit { provider: 'hubspot' | 'gravity_forms'; formId: string }
+export interface FormHit {
+  provider: 'hubspot' | 'gravity_forms';
+  formId: string;
+  method: 'hs_context' | 'data_form_id' | 'embed_script' | 'gravity_class';
+}
 
 export interface BrowserObservation {
   url: string;
