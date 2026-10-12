@@ -1,6 +1,7 @@
-import type { AssessInput, Finding, PageObservation, SiteObservation } from '../types.ts';
+import type { AssessInput, ConsentMethod, Finding, PageObservation, SiteObservation } from '../types.ts';
+import { vendorById } from '../../tracking-vendors.ts';
 import { MANUAL_STEPS } from '../instructions.ts';
-import { displayPath, errorStatus, finding, isTestable, plural, stripQueryValues } from './util.ts';
+import { displayPath, errorStatus, finding, isTestable, plural, stripQueryValues, testablePages } from './util.ts';
 
 function untestableReason(p: PageObservation): string {
   if (p.failed) return p.failed;
@@ -26,6 +27,41 @@ export function assessCoverage({ target, baseline }: AssessInput): Finding[] {
       pages: bad.map(({ s, p }) => `${s.role === 'baseline' ? 'current' : 'new'} ${displayPath(p.path)}`),
       details: bad.map(({ p }) => `${displayPath(p.path)}: ${stripQueryValues(untestableReason(p))}`),
     },
+  })];
+}
+
+const METHOD_LABEL: Record<ConsentMethod, string> = { adapter: 'adapter', text: 'button text', not_automated: 'not automated', not_needed: 'no banner' };
+
+/** How the automated browser reached each consent state, per site, so readers can judge what the consent findings rest on. */
+export function assessConsentAutomation({ target, baseline }: AssessInput): Finding[] {
+  const lines: string[] = [];
+  const pages: string[] = [];
+  let incomplete = false;
+  for (const s of [baseline, target]) {
+    const observed = s ? testablePages(s).filter((p) => p.browser) : [];
+    if (!s || !observed.length) continue;
+    const cmp = observed.map((p) => p.browser!.cmp).find(Boolean) ?? null;
+    const methods = new Map<string, Set<string>>();
+    for (const p of observed) {
+      for (const st of p.browser!.states) {
+        if (st.state === 'none') continue;
+        if (!methods.has(st.state)) methods.set(st.state, new Set());
+        methods.get(st.state)!.add(METHOD_LABEL[st.method] ?? st.method);
+        if (st.method === 'not_automated') incomplete = true;
+      }
+    }
+    const role = s.role === 'baseline' ? 'current' : 'new';
+    const banner = cmp ? vendorById(cmp)?.name ?? cmp : 'no cookie banner detected';
+    lines.push(`${role}: ${banner} — ${[...methods].map(([state, m]) => `${state.replace(/_/g, ' ')}: ${[...m].join('/')}`).join(', ')}`);
+    pages.push(...observed.map((p) => `${role} ${p.path}`));
+  }
+  if (!lines.length) return [];
+  return [finding({
+    scope: 'Coverage', checkKey: 'coverage.consent_automation', status: incomplete ? 'warning' : 'pass', priority: incomplete ? 'low' : null,
+    title: incomplete ? 'Some consent states could not be reached automatically' : 'Every consent state was reached automatically',
+    explanation: 'How the automated browser made each consent choice: "adapter" uses the cookie banner\'s own API or buttons, "button text" clicks the button with a matching label, "no banner" means no banner was found to answer.'
+      + (incomplete ? ' Checks that depend on a state that was not automated are marked for manual testing.' : ''),
+    fix: '', typicalOwner: null, evidence: { pages, details: lines },
   })];
 }
 

@@ -124,3 +124,32 @@ test('a malformed blocked URL in a CSP report is skipped', () => {
   const findings = assess({ mode: 'policy', baseline: null, policy: POLICY, target: site('target', [page('/', { states })]) });
   assert.equal(byKey(findings, 'csp.ok')[0].status, 'pass');
 });
+
+test('a CMP change is one low warning; Google Fonts and reCAPTCHA never block go-live', () => {
+  const CKY = 'https://cdn-cookieyes.com/client_data/abc/script.js';
+  const CB = 'https://consent.cookiebot.com/uc.js';
+  const FONTS = 'https://fonts.googleapis.com/css2?family=Inter';
+  const CAPTCHA = 'https://www.google.com/recaptcha/api.js';
+  const findings = compare([page('/', { states: acceptWith(GA, CKY, FONTS, CAPTCHA) })], [page('/', { states: acceptWith(GA, CB) })]);
+  const [changed] = byKey(findings, 'tags.cmp_changed');
+  assert.equal(changed.status, 'warning');
+  assert.equal(changed.priority, 'low');
+  assert.match(changed.title, /CookieYes.*Cookiebot/);
+  assert.deepEqual(findings.filter((f) => /^tags\.(missing|new)\./.test(f.checkKey)).map((f) => f.checkKey), []);
+  const [present] = byKey(findings, 'tags.present');
+  assert.equal(present.title, 'All 1 tool from the current site load on the new site');
+  assert.equal(present.explanation, 'Google Analytics 4');
+});
+
+test('a CMP that disappears without a replacement is still missing', () => {
+  const CKY = 'https://cdn-cookieyes.com/client_data/abc/script.js';
+  const findings = compare([page('/', { states: acceptWith(GA, CKY) })], [page('/', { states: acceptWith(GA) })]);
+  assert.equal(byKey(findings, 'tags.missing.cookieyes')[0].status, 'fail');
+  assert.equal(byKey(findings, 'tags.cmp_changed').length, 0);
+});
+
+test('detectForms lowercases HubSpot GUIDs from hs_context like the other methods', () => {
+  const guid = 'AAAAAAAA-1111-2222-3333-444444444444';
+  const html = `<input name="hs_context" value="${encodeURIComponent(JSON.stringify({ formGuid: guid }))}"><form data-form-id="${guid}"></form>`;
+  assert.deepEqual(detectForms(html).map((f) => `${f.formId}:${f.method}`), [`${guid.toLowerCase()}:hs_context`]);
+});

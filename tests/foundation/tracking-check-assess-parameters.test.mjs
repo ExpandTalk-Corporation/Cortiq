@@ -89,3 +89,23 @@ test('legacy URLs with query strings show parameter names only, never values', (
   assert.deepEqual(byKey(findings, 'redirects.legacy')[0].evidence.pages, ['/index.php?page_id']);
   assert.deepEqual(byKey(findings, 'coverage.untestable')[0].evidence.pages, ['new /old.php?token']);
 });
+
+test('consent automation coverage lists the CMP and method per state for each site', () => {
+  const findings = assess({ mode: 'comparison', policy: null,
+    baseline: site('baseline', [page('/', { cmp: 'cookiebot' })]),
+    target: site('target', [page('/'), page('/b/', { states: [st('none'), st('reject', { method: 'text' }), st('accept')] })]) });
+  const [f] = byKey(findings, 'coverage.consent_automation');
+  assert.equal(f.status, 'pass');
+  assert.equal(f.priority, null);
+  assert.equal(f.scope, 'Coverage');
+  assert.deepEqual(f.evidence.details, ['current: Cookiebot — reject: adapter, accept: adapter', 'new: CookieYes — reject: adapter/button text, accept: adapter']);
+});
+
+test('consent automation coverage is a low warning when a state could not be automated', () => {
+  const findings = assess({ mode: 'policy', baseline: null, policy: POLICY,
+    target: site('target', [page('/', { cmp: null, states: [st('none'), st('reject', { method: 'not_needed' }), st('accept', { method: 'not_automated' })] })]) });
+  const [f] = byKey(findings, 'coverage.consent_automation');
+  assert.equal(f.status, 'warning');
+  assert.equal(f.priority, 'low');
+  assert.deepEqual(f.evidence.details, ['new: no cookie banner detected — reject: no banner, accept: not automated']);
+});

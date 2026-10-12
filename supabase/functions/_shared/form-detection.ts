@@ -10,7 +10,7 @@ export function detectForms(html: string): FormHit[] {
   for (const m of html.matchAll(/name=["']hs_context["'][^>]*value=["']([^"']+)["']/gi)) {
     try {
       const ctx = JSON.parse(decodeURIComponent(m[1]));
-      if (typeof ctx.formGuid === 'string') add({ provider: 'hubspot', formId: ctx.formGuid, method: 'hs_context' });
+      if (typeof ctx.formGuid === 'string') add({ provider: 'hubspot', formId: ctx.formGuid.toLowerCase(), method: 'hs_context' });
     } catch { /* not JSON */ }
   }
   for (const m of html.matchAll(new RegExp(`data-form-id=["'](${GUID})["']`, 'gi'))) {

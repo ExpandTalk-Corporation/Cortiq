@@ -1,5 +1,5 @@
 import type { AssessInput, Finding, FindingStatus, Priority } from '../types.ts';
-import { assessCoverage, assessParameters } from './parameters.ts';
+import { assessConsentAutomation, assessCoverage, assessParameters } from './parameters.ts';
 import { assessCsp, assessForms, assessTags } from './tags.ts';
 import { assessConsent } from './consent.ts';
 
@@ -9,6 +9,7 @@ const PRIORITY_ORDER: Record<Priority, number> = { high: 0, medium: 1, low: 2 };
 export function assess(input: AssessInput): Finding[] {
   const findings = [
     ...assessCoverage(input),
+    ...assessConsentAutomation(input),
     ...assessParameters(input),
     ...assessTags(input),
     ...assessCsp(input),

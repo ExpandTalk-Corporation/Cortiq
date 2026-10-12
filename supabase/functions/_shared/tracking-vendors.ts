@@ -15,6 +15,8 @@ export interface Vendor {
   idFrom?: (url: URL) => string | null;
   csp: Partial<Record<CspDirective, string[]>>;
   impact: string;
+  /** 'cmp': consent management platform; 'infrastructure': neither a tag nor tracking (fonts, captcha). Default 'tag'. */
+  kind?: 'tag' | 'cmp' | 'infrastructure';
 }
 
 const param = (name: string, prefix: string) => (u: URL): string | null => {
@@ -141,28 +143,28 @@ export const TRACKING_VENDORS: Vendor[] = [
   },
   // Consent management platforms
   {
-    id: 'cookieyes', name: 'CookieYes', category: 'necessary', googleTag: false,
+    id: 'cookieyes', kind: 'cmp', name: 'CookieYes', category: 'necessary', googleTag: false,
     requests: [{ host: /^(cdn-cookieyes\.com|log\.cookieyes\.com|directory\.cookieyes\.com)$/ }],
     cookies: [/^cookieyes-consent$/],
     csp: { 'script-src': ['cdn-cookieyes.com'], 'connect-src': ['log.cookieyes.com', 'directory.cookieyes.com'] },
     impact: 'The cookie banner does not appear, so consent cannot be collected.',
   },
   {
-    id: 'cookiebot', name: 'Cookiebot', category: 'necessary', googleTag: false,
+    id: 'cookiebot', kind: 'cmp', name: 'Cookiebot', category: 'necessary', googleTag: false,
     requests: [{ host: /^(consent|consentcdn|imgsct)\.cookiebot\.com$/ }],
     cookies: [/^CookieConsent$/],
     csp: { 'script-src': ['consent.cookiebot.com', 'consentcdn.cookiebot.com'], 'connect-src': ['consentcdn.cookiebot.com'], 'img-src': ['imgsct.cookiebot.com'] },
     impact: 'The cookie banner does not appear, so consent cannot be collected.',
   },
   {
-    id: 'onetrust', name: 'OneTrust', category: 'necessary', googleTag: false,
+    id: 'onetrust', kind: 'cmp', name: 'OneTrust', category: 'necessary', googleTag: false,
     requests: [{ host: /^(cdn\.cookielaw\.org|geolocation\.onetrust\.com|cdn-ukwest\.onetrust\.com)$/ }],
     cookies: [/^OptanonConsent$/, /^OptanonAlertBoxClosed$/],
     csp: { 'script-src': ['cdn.cookielaw.org'], 'connect-src': ['geolocation.onetrust.com', 'cdn.cookielaw.org'] },
     impact: 'The cookie banner does not appear, so consent cannot be collected.',
   },
   {
-    id: 'complianz', name: 'Complianz', category: 'necessary', googleTag: false,
+    id: 'complianz', kind: 'cmp', name: 'Complianz', category: 'necessary', googleTag: false,
     requests: [{ host: ANY, path: /\/wp-content\/plugins\/complianz/ }],
     cookies: [/^cmplz_/],
     csp: {},
@@ -170,12 +172,12 @@ export const TRACKING_VENDORS: Vendor[] = [
   },
   // Infrastructure that is neither a tag nor an unknown third party
   {
-    id: 'google-fonts', name: 'Google Fonts', category: 'necessary', googleTag: false,
+    id: 'google-fonts', kind: 'infrastructure', name: 'Google Fonts', category: 'necessary', googleTag: false,
     requests: [{ host: /^fonts\.(googleapis|gstatic)\.com$/ }], cookies: [], csp: {},
     impact: 'Web fonts fall back to system fonts.',
   },
   {
-    id: 'recaptcha', name: 'Google reCAPTCHA', category: 'necessary', googleTag: false,
+    id: 'recaptcha', kind: 'infrastructure', name: 'Google reCAPTCHA', category: 'necessary', googleTag: false,
     requests: [{ host: /^www\.(google|gstatic)\.com$/, path: /^\/recaptcha\// }], cookies: [], csp: {},
     impact: 'Forms protected by reCAPTCHA cannot be submitted.',
   },

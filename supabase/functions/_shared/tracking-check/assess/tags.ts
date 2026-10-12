@@ -32,8 +32,29 @@ export function assessTags({ mode, target, baseline, policy }: AssessInput): Fin
     const base = attemptedVendors(baseline, common);
     const reliable = fullLoadReliable(baseline, common) && fullLoadReliable(target, common);
     const targetCsp = firstCsp(target);
+
+    // A switch to another consent platform is one review item, not a missing plus a new tool.
+    const cmps = (m: Map<string, { vendor: Vendor }>) => [...m.values()].filter((e) => e.vendor.kind === 'cmp').map((e) => e.vendor);
+    const baseCmps = cmps(base), tgtCmps = cmps(tgt);
+    const cmpChanged = baseCmps.length > 0 && tgtCmps.length > 0
+      && (baseCmps.length !== tgtCmps.length || baseCmps.some((v) => !tgt.has(v.id)));
+    const compared = (v: Vendor) => v.kind !== 'infrastructure' && !(cmpChanged && v.kind === 'cmp');
+    if (cmpChanged) {
+      const names = (vs: Vendor[]) => vs.map((v) => v.name).join(' + ');
+      out.push(finding({
+        scope: 'Tags', checkKey: 'tags.cmp_changed', status: 'warning', priority: 'low',
+        title: `The cookie banner changes from ${names(baseCmps)} to ${names(tgtCmps)}`,
+        explanation: 'The new site uses a different consent management platform. Visitors will be asked for consent again, and categories and tag blocking are configured separately in the new tool.',
+        fix: 'Confirm that the new cookie banner assigns each tool to the same category as today and has Consent Mode v2 switched on.',
+        typicalOwner: 'cmp', evidence: { pages: [...common] },
+      }));
+    }
+
     let missingCount = 0;
+    let comparedCount = 0;
     for (const [id, { vendor, pages }] of base) {
+      if (!compared(vendor)) continue;
+      comparedCount++;
       if (tgt.has(id)) continue;
       missingCount++;
       if (!reliable && vendor.category !== 'necessary') {
@@ -56,7 +77,7 @@ export function assessTags({ mode, target, baseline, policy }: AssessInput): Fin
       }));
     }
     for (const [id, { vendor, pages }] of tgt) {
-      if (base.has(id)) continue;
+      if (base.has(id) || !compared(vendor)) continue;
       out.push(finding({
         scope: 'Tags', checkKey: `tags.new.${id}`, status: 'warning', priority: 'low',
         title: `${vendor.name} is new on the new site`,
@@ -65,10 +86,10 @@ export function assessTags({ mode, target, baseline, policy }: AssessInput): Fin
         typicalOwner: 'marketing', evidence: { pages: [...pages] },
       }));
     }
-    if (!missingCount && base.size) out.push(finding({
+    if (!missingCount && comparedCount) out.push(finding({
       scope: 'Tags', checkKey: 'tags.present', status: 'pass', priority: null,
-      title: `All ${plural(base.size, 'tool', 'tools')} from the current site load on the new site`,
-      explanation: [...base.values()].map((b) => b.vendor.name).join(', '), fix: '', typicalOwner: null,
+      title: `All ${plural(comparedCount, 'tool', 'tools')} from the current site load on the new site`,
+      explanation: [...base.values()].filter((b) => compared(b.vendor)).map((b) => b.vendor.name).join(', '), fix: '', typicalOwner: null,
     }));
 
     const baseIds = extractVendorIds(allRequestUrls(baseline, common));
