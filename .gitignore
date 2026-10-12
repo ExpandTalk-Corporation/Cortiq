@@ -56,3 +56,6 @@ SENTRISK-INTEGRATION.md
 *.sln
 *.sw?
 .gstack/
+
+# Superpowers brainstorming companion
+.superpowers/
