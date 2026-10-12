@@ -77,7 +77,9 @@ function choiceCheck({ mode, policy }: AssessInput, pages: PageObservation[], st
     for (const r of st.requests) {
       const v = vendorForUrl(r.url);
       if (!v || !(needsConsent(v) || (strictGoogle && v.googleTag))) continue;
-      const h = hit(v); h.pages.add(p.path); h.hosts.add(new URL(r.url).hostname);
+      let host = '';
+      try { host = new URL(r.url).hostname; } catch { continue; }
+      const h = hit(v); h.pages.add(p.path); h.hosts.add(host);
     }
     for (const name of [...st.cookies.map((c) => c.name), ...st.storageKeys]) {
       const v = vendorForName(name);
@@ -139,19 +141,40 @@ function choiceCheck({ mode, policy }: AssessInput, pages: PageObservation[], st
 
 function categoryCheck({ mode, policy }: AssessInput, pages: PageObservation[]): Finding[] {
   if (mode !== 'policy' || !(policy?.ga4RequiresAnalytics || policy?.adsRequiresMarketing)) return [];
-  const unsupported = pages.filter((p) => !automated(stateOf(p, 'analytics_only')) || !automated(stateOf(p, 'marketing_only')));
+
+  // Define checks based on independent policy flags
+  // adsRequiresMarketing: check analytics_only state (marketing must not send with only Statistics)
+  // ga4RequiresAnalytics: check marketing_only state (analytics must not send with only Marketing)
+  const checks: Array<{ state: string; forbidden: string; only: string }> = [];
+  if (policy.adsRequiresMarketing) {
+    checks.push({ state: 'analytics_only', forbidden: 'marketing', only: 'Statistics' });
+  }
+  if (policy.ga4RequiresAnalytics) {
+    checks.push({ state: 'marketing_only', forbidden: 'analytics', only: 'Marketing' });
+  }
+
+  // Find pages where required states are missing or not automated
+  const unsupported = pages.filter((p) =>
+    checks.some((c) => {
+      const st = stateOf(p, c.state as any);
+      return !st || st.method === 'not_automated';
+    })
+  );
+
+  // Check for violations in automated states
   const wrong = new Map<string, { vendor: Vendor; only: string; pages: Set<string> }>();
   for (const p of pages) {
-    for (const [state, forbidden, only] of [['analytics_only', 'marketing', 'Statistics'], ['marketing_only', 'analytics', 'Marketing']] as const) {
-      const st = stateOf(p, state);
+    for (const c of checks) {
+      const st = stateOf(p, c.state as any);
       if (!automated(st)) continue;
       for (const v of requestVendors(st!).values()) {
-        if (v.category !== forbidden) continue;
-        if (!wrong.has(v.id)) wrong.set(v.id, { vendor: v, only, pages: new Set() });
+        if (v.category !== c.forbidden) continue;
+        if (!wrong.has(v.id)) wrong.set(v.id, { vendor: v, only: c.only, pages: new Set() });
         wrong.get(v.id)!.pages.add(p.path);
       }
     }
   }
+
   const out: Finding[] = [];
   for (const [id, w] of wrong) {
     out.push(finding({

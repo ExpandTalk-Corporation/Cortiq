@@ -84,6 +84,19 @@ test('unknown third parties after reject are a warning; own site and known tools
   assert.deepEqual(f.evidence.details, ['px.unknown-tracker.example (on /)']);
 });
 
+test('category check respects independent policy flags', () => {
+  const base = [st('none', { consentCommands: [DENIED] }), st('reject'), st('accept')];
+  const onlyAdsRequired = { ...POLICY, ga4RequiresAnalytics: false, adsRequiresMarketing: true };
+  const findings = policyRun([
+    ...base,
+    st('analytics_only', { requests: [req(ADS)] }),  // Ads (marketing) in analytics_only → fail
+    st('marketing_only', { requests: [req(GA)], method: 'not_automated' }),  // GA4 (analytics) in marketing_only, not_automated, but not checked
+  ], onlyAdsRequired);
+  assert.equal(byKey(findings, 'consent.category.google-ads')[0].status, 'fail');
+  assert.equal(byKey(findings, 'consent.category.ga4').length, 0, 'GA4 not checked when ga4RequiresAnalytics is false');
+  assert.equal(byKey(findings, 'consent.category.manual').length, 0, 'manual not emitted for unchecked states');
+});
+
 test('Enhanced Conversions: seen is a fail, not seen is manual', () => {
   const base = [st('none', { consentCommands: [DENIED] }), st('reject'), ...granular];
   assert.equal(byKey(policyRun([...base, st('accept', { enhancedConversions: true })]), 'ads.enhanced_conversions')[0].status, 'fail');
