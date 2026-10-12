@@ -23,6 +23,9 @@ import Installation from "./pages/Installation";
 import Auth from "./pages/Auth";
 import GSCCallbackPage from "./pages/auth/GSCCallbackPage";
 import Navigation from "./pages/Navigation";
+import TrackingCheck from "./pages/TrackingCheck";
+import TrackingCheckRun from "./pages/TrackingCheckRun";
+import TrackingCheckShared from "./pages/TrackingCheckShared";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ContentPage from "./components/ContentPage";
@@ -87,6 +90,17 @@ const App = () => (
               <Route path="/installation" element={
                 <ProtectedRoute>
                   <Installation />
+                </ProtectedRoute>
+              } />
+              <Route path="/tracking-check" element={
+                <ProtectedRoute>
+                  <TrackingCheck />
+                </ProtectedRoute>
+              } />
+              <Route path="/tracking-check/r/:token" element={<TrackingCheckShared />} />
+              <Route path="/tracking-check/:runId" element={
+                <ProtectedRoute>
+                  <TrackingCheckRun />
                 </ProtectedRoute>
               } />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
