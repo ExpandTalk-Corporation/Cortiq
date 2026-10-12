@@ -13,7 +13,7 @@ export function loadEdge(name, client, { env = {}, fetch = async () => { throw n
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
     }).outputText;
     runInNewContext(code, {
-      exports, Request, Response, URL, fetch,
+      exports, Request, Response, URL, fetch, crypto: globalThis.crypto, TextEncoder, TextDecoder, AbortSignal, Headers, btoa, atob, setTimeout,
       console: { log() {}, warn() {}, error() {} },
       Deno: { serve: fn => { handler = fn; }, env: { get: key => env[key] ?? 'test-value' } },
       require(specifier) {

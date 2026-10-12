@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { assertSafeUrl } from '../_shared/safe-url.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,29 +11,6 @@ interface FormDetectorRequest {
   siteId: string;
   url: string;
   htmlContent?: string;
-}
-
-// SSRF guard: block non-http(s) schemes and requests aimed at private / loopback /
-// link-local / cloud-metadata addresses before any server-side fetch.
-const PRIVATE_HOST = /^(localhost$|127\.|10\.|192\.168\.|169\.254\.|::1$|fe80:|fc|fd|0\.0\.0\.0$)/i;
-const PRIVATE_172 = /^172\.(1[6-9]|2\d|3[01])\./;
-
-async function assertSafeUrl(raw: string): Promise<URL> {
-  let u: URL;
-  try { u = new URL(raw); } catch { throw new Error('Invalid URL'); }
-  if (u.protocol !== 'https:' && u.protocol !== 'http:') throw new Error('Only http(s) URLs allowed');
-  const host = u.hostname.toLowerCase();
-  if (PRIVATE_HOST.test(host) || PRIVATE_172.test(host) || host.endsWith('.internal') || host.endsWith('.local')) {
-    throw new Error('Blocked host');
-  }
-  // Best-effort DNS check to catch names that resolve to private space (DNS rebinding).
-  try {
-    const ips = await Deno.resolveDns(host, 'A');
-    for (const ip of ips) {
-      if (PRIVATE_HOST.test(ip) || PRIVATE_172.test(ip)) throw new Error('Blocked host (resolved to private IP)');
-    }
-  } catch (_) { /* resolver unavailable — rely on the literal checks above */ }
-  return u;
 }
 
 serve(async (req) => {
