@@ -35,7 +35,7 @@ export function StartForm({ prefill }: { prefill?: RunRow }) {
   const navigate = useNavigate();
   const suggest = useSuggestPages();
   const create = useCreateRun();
-  const [mode, setMode] = useState<Mode>(prefill?.mode ?? 'comparison');
+  const [mode, setMode] = useState<Mode>(prefill?.mode ?? 'policy');
   const [baselineUrl, setBaselineUrl] = useState(prefill?.baseline_url ?? '');
   const [targetUrl, setTargetUrl] = useState(prefill?.target_url ?? '');
   const [pages, setPages] = useState<PageChoice[]>((prefill?.pages.pages ?? []).map((path) => ({ path, selected: true })));
@@ -95,7 +95,7 @@ export function StartForm({ prefill }: { prefill?: RunRow }) {
       <CardHeader><CardTitle>New Tracking Check</CardTitle></CardHeader>
       <CardContent className="space-y-6">
         <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Check type">
-          {(['comparison', 'policy'] as const).map((m) => (
+          {(['policy', 'comparison'] as const).map((m) => (
             <Button key={m} type="button" role="radio" aria-checked={mode === m} variant={mode === m ? 'default' : 'outline'} className="h-auto flex-col items-start py-3" onClick={() => setMode(m)}>
               <span className="font-semibold">{m === 'comparison' ? 'Comparison' : 'Consent policy'}</span>
               <span className="text-xs font-normal opacity-80">{m === 'comparison' ? 'Current site vs new site' : 'One site vs agreed commitments'}</span>
