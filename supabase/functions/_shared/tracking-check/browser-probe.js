@@ -324,8 +324,13 @@ async function observeState(browser, state, context, inPageSource) {
     html = collected.html;
     if (done) {
       // A click or API call is not proof: keep the state only if the choice visibly took effect.
-      // bannerGone only counts if the banner was actually visible before the action (not just a hidden CMP signal).
-      const bannerGone = bannerVisible && !(await p.evaluate(() => window.__tc.bannerVisible()));
+      // bannerGone only counts if the banner was actually visible before the action (not just a hidden CMP
+      // signal), and "visible" is checked the same way on both sides (generic heuristic or this CMP's own
+      // markup) — a banner only ever found via the adapter-specific selector must be checked for using that
+      // same selector after the reload, not just the generic one.
+      const bannerVisibleAfter = (await p.evaluate(() => window.__tc.bannerVisible()))
+        || (cmp ? await p.evaluate((c) => window.__tc.adapterBannerVisible(c), cmp) : false);
+      const bannerGone = bannerVisible && !bannerVisibleAfter;
       const stored = bannerGone || await p.evaluate(() => window.__tc.storedConsent());
       if (!stored && !out.cookies.length && !out.storageKeys.length) out.method = 'not_automated';
     }

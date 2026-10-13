@@ -111,13 +111,20 @@ function fakeBrowser(loadsFor) {
           let cookies = [];
           const listeners = [];
           const elements = (banner) => (banner ? [{ getBoundingClientRect: () => ({ width: 400, height: 120 }) }] : []);
-          // spec.elements: { '<exact selector>': true | { visible: false } } — arbitrary extra elements
-          // (adapter buttons, adapter-specific banner markup) beyond the generic "cookie" banner above.
+          // spec.elements: { '<exact selector or #id>': true | { visible: false, checked: true } } — arbitrary
+          // extra elements (adapter buttons, checkboxes, adapter-specific banner markup) beyond the generic
+          // "cookie" banner above. '#id' keys are also reachable via getElementById.
+          const makeElement = (v) => {
+            const visible = !(v && v.visible === false);
+            return {
+              disabled: false, checked: !!(v && v.checked), events: [],
+              getBoundingClientRect: () => (visible ? { width: 100, height: 30 } : { width: 0, height: 0 }),
+              click() {}, dispatchEvent(e) { this.events.push(e.type); },
+            };
+          };
           const extraElements = (spec, sel) => {
             const parts = sel.split(',').map((s) => s.trim());
-            return Object.entries(spec.elements ?? {})
-              .filter(([key]) => parts.includes(key))
-              .map(([, v]) => ({ getBoundingClientRect: () => (v && v.visible === false ? { width: 0, height: 0 } : { width: 100, height: 30 }), disabled: false, click() {} }));
+            return Object.entries(spec.elements ?? {}).filter(([key]) => parts.includes(key)).map(([, v]) => makeElement(v));
           };
           const load = (spec) => {
             const keys = spec.storage ?? [];
@@ -125,7 +132,8 @@ function fakeBrowser(loadsFor) {
             win.document = {
               title: '', body: { innerText: '' }, cookie: '', documentElement: { outerHTML: '<html></html>' },
               querySelectorAll: (sel) => (/cookie/.test(sel) ? elements(spec.banner) : extraElements(spec, sel)),
-              querySelector: () => null, getElementById: () => null,
+              querySelector: () => null,
+              getElementById: (id) => { const v = (spec.elements ?? {})[`#${id}`]; return v ? makeElement(v) : null; },
             };
             cookies = [...cookies, ...(spec.cookies ?? [])];
             for (const r of spec.requests ?? []) for (const fn of listeners) fn({ url: () => r.url, postData: () => r.postData ?? null, resourceType: () => 'script' });
@@ -224,6 +232,61 @@ test('observeState does not count a cookie as new verification evidence when onl
   ] });
   assert.equal(out.reject.cookies.length, 0, 'same name|domain as before the action, only the value differs');
   assert.equal(out.reject.method, 'not_automated', 'banner still visible (not gone), no stored-consent signal, no new cookie');
+});
+
+test('observeState checks the same adapter-specific banner selector after the reload, not just the generic one (regression)', async () => {
+  // OneTrust: detected via its own window global, which also feeds the hidden-CMP signal — bannerSeen is
+  // true regardless, but the bug under test is specifically in the *after* check.
+  const onetrust = { OneTrust: { AllowAll() {}, RejectAll() {} } };
+  const stillThereOT = await probe(['reject'], { reject: [
+    { globals: onetrust, elements: { '#onetrust-banner-sdk': true } },
+    { globals: onetrust, elements: { '#onetrust-banner-sdk': true } },   // banner markup never actually disappeared
+  ] });
+  assert.equal(stillThereOT.reject.bannerSeen, true);
+  assert.equal(stillThereOT.reject.method, 'not_automated', 'the generic heuristic alone never saw this banner, before or after; checking only the generic one after would wrongly report it "gone"');
+
+  // CookieYes: not in the hidden-CMP globals list, so bannerSeen here only comes from the adapter-specific selector.
+  const cookieyes = { getCkyConsent: () => {} };
+  const stillThereCky = await probe(['reject'], { reject: [
+    { globals: cookieyes, elements: { '.cky-modal': true, '.cky-btn-reject': true } },
+    { globals: cookieyes, elements: { '.cky-modal': true } },   // banner markup never actually disappeared
+  ] });
+  assert.equal(stillThereCky.reject.bannerSeen, true);
+  assert.equal(stillThereCky.reject.method, 'not_automated');
+});
+
+test('observeState resolves analytics_only/marketing_only to not_needed when no banner and no CMP were seen', async () => {
+  const a = await probe(['analytics_only'], { analytics_only: [{}] });
+  assert.equal(a.analytics_only.bannerSeen, false);
+  assert.equal(a.analytics_only.method, 'not_needed');
+  const m = await probe(['marketing_only'], { marketing_only: [{}] });
+  assert.equal(m.marketing_only.bannerSeen, false);
+  assert.equal(m.marketing_only.method, 'not_needed');
+});
+
+test('observeState verifies the Dynamicweb reject adapter via its own banner markup and the choice cookie', async () => {
+  const dw = { setOptInCookie: () => {} };
+  const out = await probe(['reject'], { reject: [
+    { globals: dw, elements: { '#dwCookieModal': true, '#dwCookieDeclineAll': true } },
+    { globals: dw, cookies: [{ name: 'Dynamicweb.CookieOptInLevel', value: '0' }] },   // banner gone, choice cookie set
+  ] });
+  assert.equal(out.reject.bannerSeen, true);
+  assert.equal(out.reject.method, 'adapter');
+  assert.deepEqual(out.reject.cookies, [{ name: 'Dynamicweb.CookieOptInLevel', domain: '.new.example' }]);
+});
+
+test('observeState verifies the Dynamicweb analytics_only (granular) adapter path end-to-end', async () => {
+  const dw = { setOptInCookie: () => {} };
+  const out = await probe(['analytics_only'], { analytics_only: [
+    { globals: dw, elements: {
+      '#dwCookieModal': true,
+      '#CookieCategory_Statistical': { checked: false }, '#CookieCategory_Marketing': { checked: false },
+      '#dwCookieAcceptSelected': true,
+    } },
+    { globals: dw },   // banner gone after
+  ] });
+  assert.equal(out.analytics_only.bannerSeen, true);
+  assert.equal(out.analytics_only.method, 'adapter');
 });
 
 // ── Dynamicweb adapter (verified against www.pretec.se 2026-10-13) ───────────────────────
