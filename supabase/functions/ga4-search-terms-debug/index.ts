@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.3";
+import { requireSiteAccess } from "../_shared/site-access.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,6 +10,7 @@ const corsHeaders = {
 type Step =
   | "parse_request"
   | "validate_input"
+  | "authorize"
   | "init_supabase"
   | "load_site"
   | "check_site_ga4"
@@ -138,6 +140,17 @@ serve(async (req) => {
         "Hämta ett befintligt id från tabellen sites.",
       ], { startedAt });
     }
+
+    // Caller must be signed in and have access to the site (RLS on sites).
+    step = "authorize";
+    const authorization = req.headers.get("Authorization");
+    const userClient = createClient(
+      Deno.env.get("SUPABASE_URL") || "",
+      Deno.env.get("SUPABASE_ANON_KEY") || "",
+      { global: { headers: { Authorization: authorization ?? "" } } },
+    );
+    const access = await requireSiteAccess(userClient, authorization, siteId);
+    if (!access.ok) return fail(debugId, step, access.status, access.error, undefined, undefined, { startedAt });
 
     // 3) Initiera Supabase
     step = "init_supabase";

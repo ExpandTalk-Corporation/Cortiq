@@ -13,13 +13,19 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.ga4-kpi-dashboard]
-verify_jwt = false
+verify_jwt = true
+
+[functions.ga4-kpi-dashboard-debug]
+verify_jwt = true
 
 [functions.ga4-traffic-sources]
 verify_jwt = false
 
 [functions.ga4-search-terms]
-verify_jwt = false
+verify_jwt = true
+
+[functions.ga4-search-terms-debug]
+verify_jwt = true
 
 [functions.ga4-segment-data]
 verify_jwt = false
@@ -93,4 +99,13 @@ verify_jwt = true
 verify_jwt = false
 
 [functions.public-api]
+verify_jwt = false
+
+[functions.tracking-check-start]
+verify_jwt = true
+
+[functions.tracking-check-worker]
+verify_jwt = false
+
+[functions.tracking-check-report]
 verify_jwt = false

@@ -1,9 +1,17 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.3'
+import { requireSiteAccess } from '../_shared/site-access.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
 }
 
 interface KPIRequest {
@@ -22,13 +30,29 @@ serve(async (req) => {
 
   try {
     console.log('🚀 GA4 KPI Dashboard function started');
-    
+
+    let body: KPIRequest;
+    try {
+      body = await req.json();
+    } catch {
+      return json({ error: 'Invalid JSON body' }, 400);
+    }
+    const { siteId, startDate, endDate, comparisonStartDate, comparisonEndDate } = body;
+
+    // Caller must be signed in and have access to the site (RLS on sites).
+    const authorization = req.headers.get('Authorization');
+    const userClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authorization ?? '' } } },
+    );
+    const access = await requireSiteAccess(userClient, authorization, siteId);
+    if (!access.ok) return json({ error: access.error }, access.status);
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
-
-    const { siteId, startDate, endDate, comparisonStartDate, comparisonEndDate }: KPIRequest = await req.json();
     
     console.log(`Fetching KPI data for site: ${siteId} from ${startDate} to ${endDate}, comparing with ${comparisonStartDate} to ${comparisonEndDate}`);
 

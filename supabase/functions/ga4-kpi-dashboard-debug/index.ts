@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.3";
+import { requireSiteAccess } from "../_shared/site-access.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,7 +8,7 @@ const corsHeaders = {
 };
 
 type Step =
-  | "parse_request" | "validate_input" | "init_supabase" | "load_site" | "check_site_ga4"
+  | "parse_request" | "validate_input" | "authorize" | "init_supabase" | "load_site" | "check_site_ga4"
   | "get_service_key" | "get_access_token" | "fetch_sections" | "format_response";
 
 type SectionKey = "overall" | "channels" | "paid" | "social" | "ai" | "newsletter" | "newsletter_events";
@@ -275,6 +276,17 @@ serve(async (req) => {
         "Skicka ISO-datum (YYYY-MM-DD) för startDate och endDate.",
       ]);
     }
+
+    // Caller must be signed in and have access to the site (RLS on sites).
+    step = "authorize";
+    const authorization = req.headers.get("Authorization");
+    const userClient = createClient(
+      Deno.env.get("SUPABASE_URL") || "",
+      Deno.env.get("SUPABASE_ANON_KEY") || "",
+      { global: { headers: { Authorization: authorization ?? "" } } },
+    );
+    const access = await requireSiteAccess(userClient, authorization, siteId);
+    if (!access.ok) return fail(debugId, step, access.status, access.error);
 
     // Init Supabase
     step = "init_supabase";
