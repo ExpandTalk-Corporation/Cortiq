@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Settings, ChevronDown, Check, Sparkles, BarChart3 } from 'lucide-react';
+import { LogOut, Settings, ChevronDown, Check, Sparkles, BarChart3, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { AIAssistantPanel } from '@/components/dashboard/AIAssistantPanel';
+import { useTrackingCheckAccess } from '@/hooks/useTrackingCheck';
 
 interface Site {
   id: string;
@@ -46,6 +47,7 @@ export function DashboardHeader({ selectedSite, sites, onSiteSelect, dateRange, 
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
+  const trackingCheckAccess = useTrackingCheckAccess();
 
   return (
     <>
@@ -113,6 +115,17 @@ export function DashboardHeader({ selectedSite, sites, onSiteSelect, dateRange, 
           >
             <Sparkles className="w-4 h-4 text-primary" />
             Ask AI
+          </Button>
+        )}
+        {trackingCheckAccess.data?.allowed && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/tracking-check')}
+            className="font-mono text-sm gap-2"
+          >
+            <ShieldCheck className="w-4 h-4" />
+            Tracking Check
           </Button>
         )}
         <ThemeToggle />
