@@ -117,7 +117,7 @@ export const TRACKING_VENDORS: Vendor[] = [
     impact: 'Clarity records no sessions or heatmaps.',
   },
   {
-    // Host and cookie patterns are unverified guesses; confirm against pretec.se with scripts/tracking-check/probe-smoke.mjs (plan Task 10, Step 7).
+    // Verified 2026-10-13 against www.pretec.se: requests to cdn.extellio.com; cookies extellio_id.* and extellio_ses.*.
     id: 'extellio', name: 'Extellio', category: 'analytics', googleTag: false,
     requests: [{ host: /(^|\.)extellio\.com$/ }],
     cookies: [/^_?extellio/i],

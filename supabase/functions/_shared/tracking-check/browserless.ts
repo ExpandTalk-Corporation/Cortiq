@@ -3,7 +3,8 @@ import { buildProbeSource } from './browser-probe.js';
 import { assertSafeUrl } from '../safe-url.ts';
 import type { BasicAuth, BrowserObservation, ConsentState } from './types.ts';
 
-export const DEFAULT_BROWSERLESS_URL = 'https://production-sfo.browserless.io';
+// EU region: geo-targeted cookie banners (e.g. CookieYes) show no banner and auto-grant consent to US visitors.
+export const DEFAULT_BROWSERLESS_URL = 'https://production-ams.browserless.io';
 export type BrowserProbeResult = Omit<BrowserObservation, 'forms'> & { html: string };
 
 export async function runBrowserProbe(opts: {

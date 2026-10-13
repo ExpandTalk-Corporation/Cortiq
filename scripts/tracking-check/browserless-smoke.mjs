@@ -1,7 +1,8 @@
 // Verifies the Browserless /function contract Tracking Check relies on.
 // Usage: BROWSERLESS_API_KEY=... [BROWSERLESS_URL=...] node scripts/tracking-check/browserless-smoke.mjs
 const token = process.env.BROWSERLESS_API_KEY;
-const base = process.env.BROWSERLESS_URL ?? 'https://production-sfo.browserless.io';
+// EU region: geo-targeted cookie banners (e.g. CookieYes) show no banner and auto-grant consent to US visitors.
+const base = process.env.BROWSERLESS_URL ?? 'https://production-ams.browserless.io';
 if (!token) { console.error('Set BROWSERLESS_API_KEY'); process.exit(1); }
 
 const code = `
