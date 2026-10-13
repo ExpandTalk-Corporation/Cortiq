@@ -10,6 +10,7 @@ export function inPageDetectCmp() {
   if (w.OneTrust || w.Optanon) return 'onetrust';
   if (w.getCkyConsent || document.querySelector('.cky-consent-container, [data-cky-tag]')) return 'cookieyes';
   if (w.cmplz_set_category || document.querySelector('.cmplz-cookiebanner')) return 'complianz';
+  if (w.setOptInCookie || document.getElementById('dwCookieModal')) return 'dynamicweb';
   if (document.getElementById('crtq-consent-banner')) return 'cortiq';
   return null;
 }
@@ -61,6 +62,28 @@ export function inPageApplyAdapter(cmp, action) {
     if (preferences) preferences.checked = false;
     return click('#crtq-cb-save');
   }
+  if (cmp === 'dynamicweb') {
+    if (action === 'reject') return click('#dwCookieDeclineAll');
+    if (action === 'accept') return click('#dwCookieAcceptAll');
+    if (action === 'analytics_only' || action === 'marketing_only') {
+      const statistical = document.getElementById('CookieCategory_Statistical');
+      const marketing = document.getElementById('CookieCategory_Marketing');
+      const functional = document.getElementById('CookieCategory_Functional');
+      if (!statistical || !marketing) return false;
+      const setChecked = (el, checked) => {
+        if (!el || el.checked === checked) return;
+        el.checked = checked;
+        el.dispatchEvent(new Event('change'));   // triggers the page's own toggleAcceptSelected()
+      };
+      setChecked(statistical, action === 'analytics_only');
+      setChecked(marketing, action === 'marketing_only');
+      setChecked(functional, false);
+      if (usable('#dwCookieAcceptSelected')) return click('#dwCookieAcceptSelected');
+      if (typeof w.acceptCustomSetup === 'function') { w.acceptCustomSetup(); return true; }
+      return false;
+    }
+    return false;
+  }
   return false;
 }
 
@@ -98,6 +121,7 @@ export function inPageAdapterBannerVisible(cmp) {
     cookieyes: '.cky-consent-container, .cky-modal',
     complianz: '.cmplz-cookiebanner, #cmplz-cookiebanner-container, #cmplz-manage-consent-container',
     cortiq: '#crtq-consent-banner',
+    dynamicweb: '#dwCookieModal',
   };
   const sel = selectors[cmp];
   if (!sel) return false;

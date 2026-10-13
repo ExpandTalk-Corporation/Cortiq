@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildProbeSource, pickConsentButton, inPageCollect, cmpSignal, consentSignal } from '../../supabase/functions/_shared/tracking-check/browser-probe.js';
+import {
+  buildProbeSource, pickConsentButton, inPageCollect, cmpSignal, consentSignal,
+  inPageDetectCmp, inPageApplyAdapter, inPageAdapterBannerVisible,
+} from '../../supabase/functions/_shared/tracking-check/browser-probe.js';
 import { runBrowserProbe } from '../../supabase/functions/_shared/tracking-check/browserless.ts';
 
 test('picks reject and accept buttons in Swedish and English', () => {
@@ -221,5 +224,108 @@ test('observeState does not count a cookie as new verification evidence when onl
   ] });
   assert.equal(out.reject.cookies.length, 0, 'same name|domain as before the action, only the value differs');
   assert.equal(out.reject.method, 'not_automated', 'banner still visible (not gone), no stored-consent signal, no new cookie');
+});
+
+// ── Dynamicweb adapter (verified against www.pretec.se 2026-10-13) ───────────────────────
+
+function fakeDwElement({ visible = true, checked = false } = {}) {
+  const el = {
+    checked, disabled: false, clicked: false, events: [],
+    getBoundingClientRect: () => (visible ? { width: 120, height: 32 } : { width: 0, height: 0 }),
+    click() { el.clicked = true; },
+    dispatchEvent(e) { el.events.push(e.type); },
+  };
+  return el;
+}
+
+test('detects the Dynamicweb CMP via its global or its modal element', () => {
+  globalThis.window = { setOptInCookie: () => {} };
+  globalThis.document = { querySelector: () => null, getElementById: () => null };
+  try {
+    assert.equal(inPageDetectCmp(), 'dynamicweb');
+  } finally { delete globalThis.window; delete globalThis.document; }
+
+  globalThis.window = {};
+  globalThis.document = { querySelector: () => null, getElementById: (id) => (id === 'dwCookieModal' ? {} : null) };
+  try {
+    assert.equal(inPageDetectCmp(), 'dynamicweb');
+  } finally { delete globalThis.window; delete globalThis.document; }
+});
+
+test('inPageAdapterBannerVisible recognises the Dynamicweb modal and nothing for an unknown CMP', () => {
+  globalThis.document = { querySelectorAll: (sel) => (sel === '#dwCookieModal' ? [{ getBoundingClientRect: () => ({ width: 500, height: 300 }) }] : []) };
+  globalThis.getComputedStyle = () => ({ display: 'block', visibility: 'visible' });
+  try {
+    assert.equal(inPageAdapterBannerVisible('dynamicweb'), true);
+    assert.equal(inPageAdapterBannerVisible('cookiebot'), false);
+    assert.equal(inPageAdapterBannerVisible('unknown'), false);
+  } finally { delete globalThis.document; delete globalThis.getComputedStyle; }
+});
+
+test('Dynamicweb adapter: reject and accept click dwCookieDeclineAll / dwCookieAcceptAll', () => {
+  const declineBtn = fakeDwElement();
+  const acceptBtn = fakeDwElement();
+  globalThis.window = {};
+  globalThis.document = { querySelectorAll: (sel) => ({ '#dwCookieDeclineAll': [declineBtn], '#dwCookieAcceptAll': [acceptBtn] }[sel] ?? []) };
+  try {
+    assert.equal(inPageApplyAdapter('dynamicweb', 'reject'), true);
+    assert.equal(declineBtn.clicked, true);
+    assert.equal(inPageApplyAdapter('dynamicweb', 'accept'), true);
+    assert.equal(acceptBtn.clicked, true);
+  } finally { delete globalThis.document; delete globalThis.window; }
+});
+
+test('Dynamicweb adapter: analytics_only checks only Statistical, dispatches change, and clicks the save button once revealed', () => {
+  const statistical = fakeDwElement({ checked: false });
+  const marketing = fakeDwElement({ checked: false });
+  const functional = fakeDwElement({ checked: true });
+  const acceptSelected = fakeDwElement({ visible: true });
+  globalThis.window = {};
+  globalThis.document = {
+    getElementById: (id) => ({ CookieCategory_Statistical: statistical, CookieCategory_Marketing: marketing, CookieCategory_Functional: functional }[id] ?? null),
+    querySelectorAll: (sel) => (sel === '#dwCookieAcceptSelected' ? [acceptSelected] : []),
+  };
+  try {
+    assert.equal(inPageApplyAdapter('dynamicweb', 'analytics_only'), true);
+    assert.equal(statistical.checked, true);
+    assert.deepEqual(statistical.events, ['change']);
+    assert.equal(marketing.checked, false);
+    assert.deepEqual(marketing.events, [], 'already unchecked: no change event needed');
+    assert.equal(functional.checked, false);
+    assert.deepEqual(functional.events, ['change']);
+    assert.equal(acceptSelected.clicked, true);
+  } finally { delete globalThis.document; delete globalThis.window; }
+});
+
+test('Dynamicweb adapter: falls back to window.acceptCustomSetup() when the save button is still hidden (d-none)', () => {
+  const statistical = fakeDwElement({ checked: false });
+  const marketing = fakeDwElement({ checked: false });
+  const hiddenSaveBtn = fakeDwElement({ visible: false });
+  let called = false;
+  globalThis.document = {
+    getElementById: (id) => ({ CookieCategory_Statistical: statistical, CookieCategory_Marketing: marketing }[id] ?? null),
+    querySelectorAll: (sel) => (sel === '#dwCookieAcceptSelected' ? [hiddenSaveBtn] : []),
+  };
+  globalThis.window = { acceptCustomSetup: () => { called = true; } };
+  try {
+    assert.equal(inPageApplyAdapter('dynamicweb', 'marketing_only'), true);
+    assert.equal(marketing.checked, true);
+    assert.equal(called, true);
+    assert.equal(hiddenSaveBtn.clicked, false);
+  } finally { delete globalThis.document; delete globalThis.window; }
+});
+
+test('Dynamicweb adapter: returns false when the save button stays hidden and there is no fallback', () => {
+  const statistical = fakeDwElement({ checked: false });
+  const marketing = fakeDwElement({ checked: false });
+  const hiddenSaveBtn = fakeDwElement({ visible: false });
+  globalThis.document = {
+    getElementById: (id) => ({ CookieCategory_Statistical: statistical, CookieCategory_Marketing: marketing }[id] ?? null),
+    querySelectorAll: (sel) => (sel === '#dwCookieAcceptSelected' ? [hiddenSaveBtn] : []),
+  };
+  globalThis.window = {};
+  try {
+    assert.equal(inPageApplyAdapter('dynamicweb', 'analytics_only'), false);
+  } finally { delete globalThis.document; delete globalThis.window; }
 });
 

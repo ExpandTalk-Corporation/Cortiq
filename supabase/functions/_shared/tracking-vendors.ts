@@ -170,6 +170,15 @@ export const TRACKING_VENDORS: Vendor[] = [
     csp: {},
     impact: 'The cookie banner does not appear, so consent cannot be collected.',
   },
+  {
+    // Verified 2026-10-13 against www.pretec.se: choice cookie Dynamicweb.CookieOptInLevel, config
+    // requests to /Admin/Public/CookieOptInLevelConfig.
+    id: 'dynamicweb', kind: 'cmp', name: 'Dynamicweb cookie consent', category: 'necessary', googleTag: false,
+    requests: [{ host: ANY, path: /\/Admin\/Public\/CookieOptInLevelConfig/ }],
+    cookies: [/^Dynamicweb\.CookieOptInLevel$/],
+    csp: {},
+    impact: 'The cookie banner does not appear, so consent cannot be collected.',
+  },
   // Infrastructure that is neither a tag nor an unknown third party
   {
     id: 'google-fonts', kind: 'infrastructure', name: 'Google Fonts', category: 'necessary', googleTag: false,

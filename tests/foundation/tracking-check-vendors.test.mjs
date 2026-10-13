@@ -26,6 +26,7 @@ test('classifies request URLs, including gtag by ID prefix', () => {
     'https://www.google.com/recaptcha/api.js': 'recaptcha',
     'https://connect.facebook.net/en_US/fbevents.js': 'meta',
     'https://cdn-cookieyes.com/client_data/abc/script.js': 'cookieyes',
+    'https://www.pretec.se/Admin/Public/CookieOptInLevelConfig': 'dynamicweb',
     'https://example.com/app.js': null,
   };
   for (const [url, id] of Object.entries(cases)) assert.equal(vendorForUrl(url)?.id ?? null, id, url);
@@ -34,6 +35,7 @@ test('classifies request URLs, including gtag by ID prefix', () => {
 test('attributes cookies and storage keys and falls back to the cookie-scanner list', () => {
   assert.equal(vendorForName('__hstc')?.id, 'hubspot');
   assert.equal(vendorForName('_ga_6J9DFZLXNL')?.id, 'ga4');
+  assert.equal(vendorForName('Dynamicweb.CookieOptInLevel')?.id, 'dynamicweb');
   assert.equal(cookieCategory('_gcl_aw'), 'marketing');
   assert.equal(cookieCategory('wp-settings-1'), 'necessary');
   assert.equal(cookieCategory('totally_unknown'), null);
@@ -67,6 +69,6 @@ test('isGoogleHost covers Google-owned endpoints and exempts Google Fonts and re
 test('vendor kinds: CMPs and infrastructure are marked in the registry', () => {
   for (const v of TRACKING_VENDORS) assert.ok([undefined, 'tag', 'cmp', 'infrastructure'].includes(v.kind), v.id);
   const ids = (kind) => TRACKING_VENDORS.filter((v) => v.kind === kind).map((v) => v.id).sort();
-  assert.deepEqual(ids('cmp'), ['complianz', 'cookiebot', 'cookieyes', 'onetrust']);
+  assert.deepEqual(ids('cmp'), ['complianz', 'cookiebot', 'cookieyes', 'dynamicweb', 'onetrust']);
   assert.deepEqual(ids('infrastructure'), ['google-fonts', 'recaptcha']);
 });
