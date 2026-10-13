@@ -1,5 +1,5 @@
 import type { AssessInput, Finding, PageObservation, StateObservation } from '../types.ts';
-import { isGoogleHost, vendorForName, vendorForUrl, type Vendor } from '../../tracking-vendors.ts';
+import { GOOGLE_EXEMPT_VENDORS, isGoogleHost, vendorForName, vendorForUrl, type Vendor } from '../../tracking-vendors.ts';
 import { MANUAL_STEPS } from '../instructions.ts';
 import { finding, plural, requestVendors, siteKey, stateOf, testablePages } from './util.ts';
 
@@ -17,6 +17,23 @@ const GOOGLE_OTHER: Vendor = {
 function pass(checkKey: string, title: string, explanation: string, pages: PageObservation[]): Finding {
   return finding({ scope: checkKey.startsWith('ads.') ? 'Ads/GA4' : 'Consent', checkKey, status: 'pass', priority: null,
     title, explanation, fix: '', typicalOwner: null, evidence: { pages: paths(pages) } });
+}
+
+/**
+ * Strict Google policy: the "nothing to Google" commitment, reported on its own line so an unrelated
+ * vendor's warning (e.g. a cookieless analytics ping) never hides it. Only emitted when something else
+ * already produced a finding for this state (otherwise the combined "nothing is tracked or sent to
+ * Google" pass below already says so) and no Google-owned request was seen on the evaluated pages.
+ */
+function googleCommitment(state: 'none' | 'reject', key: string, evaluated: PageObservation[]): Finding {
+  const title = state === 'none' ? 'Nothing is sent to Google before the visitor chooses' : 'Nothing is sent to Google after "Reject all"';
+  const exemptSeen = evaluated.some((p) => stateOf(p, state)!.requests.some((r) => {
+    const v = vendorForUrl(r.url);
+    return !!v && GOOGLE_EXEMPT_VENDORS.includes(v.id);
+  }));
+  return pass(`${key}.google_commitment`, title,
+    `Checked on ${plural(evaluated.length, 'page', 'pages')}: no requests to Google.${exemptSeen ? ` ${GOOGLE_EXEMPTION}` : ''}`,
+    evaluated);
 }
 
 export function assessConsent(input: AssessInput): Finding[] {
@@ -149,11 +166,19 @@ function choiceCheck({ mode, policy }: AssessInput, pages: PageObservation[], st
       fix: MANUAL_STEPS.reject, typicalOwner: 'cmp', evidence: { pages: paths(pages) },
     }));
   }
-  if (!out.length && evaluated.length) {
+  const hadOtherFindings = out.length > 0;
+  if (!hadOtherFindings && evaluated.length) {
     const title = state === 'none'
       ? (strictGoogle ? 'Nothing is tracked or sent to Google before the visitor chooses' : 'No analytics or marketing tools run before the visitor chooses')
       : (strictGoogle ? 'Nothing is tracked or sent to Google after "Reject all"' : 'Nothing is tracked after "Reject all"');
     out.push(pass(key, title, `Checked on ${plural(evaluated.length, 'page', 'pages')}: no analytics or marketing requests, cookies or local storage${strictGoogle ? `, and no requests to Google. ${GOOGLE_EXEMPTION}` : '.'}`, evaluated));
+  }
+  // Other findings (e.g. a cookieless-vendor warning) must not hide whether the Google commitment itself
+  // held: report it on its own line unless the combined pass above already covered it, or Google was seen
+  // (the hits loop above already produced a fail finding for that).
+  if (strictGoogle && evaluated.length && hadOtherFindings) {
+    const googleSeen = evaluated.some((p) => stateOf(p, state)!.requests.some((r) => isGoogleHost(r.url)));
+    if (!googleSeen) out.push(googleCommitment(state, key, evaluated));
   }
   return out;
 }

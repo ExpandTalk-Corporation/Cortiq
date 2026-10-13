@@ -29,7 +29,17 @@ test('Pretec case: nothing to Google after reject passes; Extellio cookieless pi
   assert.equal(byKey(findings, 'consent.before_choice')[0].status, 'pass');
   assert.equal(byKey(findings, 'consent.defaults')[0].status, 'pass');
   assert.equal(byKey(findings, 'consent.category')[0].status, 'pass');
-  assert.equal(byKey(findings, 'consent.after_reject').length, 0, 'no pass while a warning exists');
+  assert.equal(byKey(findings, 'consent.after_reject').length, 0, 'no combined pass while a warning exists');
+  const [commitment] = byKey(findings, 'consent.after_reject.google_commitment');
+  assert.equal(commitment.status, 'pass', 'the Google commitment is reported on its own line, independent of the Extellio warning');
+  assert.match(commitment.explanation, /no requests to Google/);
+});
+
+test('strict policy: a Google hit after reject never gets a separate "nothing sent to Google" pass', () => {
+  const states = [st('none', { consentCommands: [DENIED] }), st('reject', { requests: [req(GA_HIT)] }), st('accept'), ...granular];
+  const findings = policyRun(states);
+  assert.equal(byKey(findings, 'consent.after_reject.ga4')[0].status, 'fail');
+  assert.equal(byKey(findings, 'consent.after_reject.google_commitment').length, 0, 'the Google fail finding already covers it');
 });
 
 test('an analytics tool that stores cookies after reject fails', () => {
