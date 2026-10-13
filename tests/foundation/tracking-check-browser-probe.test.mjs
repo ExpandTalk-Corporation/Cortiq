@@ -89,6 +89,7 @@ test('consentSignal recognises stored consent choices', () => {
   assert.equal(consentSignal('cookieyes-consent=consentid:abc,consent:no,action:no,necessary:yes', [], false), false, 'no decision yet');
   assert.equal(consentSignal('cookieyes-consent=consentid%3Aabc%2Caction%3Ayes', [], false), true, 'URL-encoded cookie');
   assert.equal(consentSignal('cmplz_banner-status=dismissed', [], false), true);
+  assert.equal(consentSignal('cmplz_welcome_message_shown=1', [], false), false, 'any cmplz_ cookie is not a choice; only banner-status=dismissed is');
   assert.equal(consentSignal('', ['site_cookie_consent'], false), true, 'CortIQ banner');
   assert.equal(consentSignal('_ga=GA1.1.1', ['other'], false), false);
 });
@@ -107,12 +108,20 @@ function fakeBrowser(loadsFor) {
           let cookies = [];
           const listeners = [];
           const elements = (banner) => (banner ? [{ getBoundingClientRect: () => ({ width: 400, height: 120 }) }] : []);
+          // spec.elements: { '<exact selector>': true | { visible: false } } — arbitrary extra elements
+          // (adapter buttons, adapter-specific banner markup) beyond the generic "cookie" banner above.
+          const extraElements = (spec, sel) => {
+            const parts = sel.split(',').map((s) => s.trim());
+            return Object.entries(spec.elements ?? {})
+              .filter(([key]) => parts.includes(key))
+              .map(([, v]) => ({ getBoundingClientRect: () => (v && v.visible === false ? { width: 0, height: 0 } : { width: 100, height: 30 }), disabled: false, click() {} }));
+          };
           const load = (spec) => {
             const keys = spec.storage ?? [];
             win = { ...(spec.globals ?? {}), dataLayer: [], localStorage: { length: keys.length, key: (i) => keys[i] }, sessionStorage: { length: 0 } };
             win.document = {
               title: '', body: { innerText: '' }, cookie: '', documentElement: { outerHTML: '<html></html>' },
-              querySelectorAll: (sel) => (/cookie/.test(sel) ? elements(spec.banner) : []),
+              querySelectorAll: (sel) => (/cookie/.test(sel) ? elements(spec.banner) : extraElements(spec, sel)),
               querySelector: () => null, getElementById: () => null,
             };
             cookies = [...cookies, ...(spec.cookies ?? [])];
@@ -176,3 +185,41 @@ test('observeState does not report "no banner needed" when a CMP is present but 
   const none = await probe(['reject'], { reject: [{}] });
   assert.equal(none.reject.method, 'not_needed');
 });
+
+// ── a consent choice only counts if the banner was seen first ────────────────────────────
+
+test('observeState reports not_automated when no banner was observed before the action, even if the adapter click succeeds', async () => {
+  const cookieyes = { getCkyConsent: () => {} };   // detected via its global, not via querySelector (which the fake harness always returns null for)
+  const out = await probe(['reject'], { reject: [
+    { globals: cookieyes, banner: false, elements: { '.cky-btn-reject': true } },   // the reject button exists and is clickable...
+    { globals: cookieyes, banner: false },
+  ] });
+  assert.equal(out.reject.bannerSeen, false, 'no generic banner, no adapter-specific banner, no hidden CMP signal for cookieyes');
+  assert.equal(out.reject.method, 'not_automated', '...but no banner was ever observed, so the click does not count');
+});
+
+test('observeState keeps the adapter method when its own banner element was visible before the action', async () => {
+  const cookieyes = { getCkyConsent: () => {} };
+  const out = await probe(['reject'], { reject: [
+    { globals: cookieyes, banner: false, elements: { '.cky-consent-container': true, '.cky-btn-reject': true } },
+    { globals: cookieyes, banner: false },
+  ] });
+  assert.equal(out.reject.bannerSeen, true, 'cookieyes banner markup matched the adapter-specific selector');
+  assert.equal(out.reject.method, 'adapter');
+});
+
+test('observeState keeps the adapter method when the generic banner was visible before and gone after', async () => {
+  const out = await probe(['reject'], { reject: [{ globals: cookiebot(false), banner: true }, { globals: cookiebot(false), banner: false }] });
+  assert.equal(out.reject.bannerSeen, true);
+  assert.equal(out.reject.method, 'adapter');
+});
+
+test('observeState does not count a cookie as new verification evidence when only its value changes on reload', async () => {
+  const out = await probe(['reject'], { reject: [
+    { globals: cookiebot(false), banner: true, cookies: [{ name: 'CookieConsent', value: 'v1' }] },
+    { globals: cookiebot(false), banner: true, cookies: [{ name: 'CookieConsent', value: 'v2' }] },
+  ] });
+  assert.equal(out.reject.cookies.length, 0, 'same name|domain as before the action, only the value differs');
+  assert.equal(out.reject.method, 'not_automated', 'banner still visible (not gone), no stored-consent signal, no new cookie');
+});
+

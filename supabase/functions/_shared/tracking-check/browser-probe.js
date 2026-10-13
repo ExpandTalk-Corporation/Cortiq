@@ -90,6 +90,24 @@ export function inPageBannerVisible() {
     });
 }
 
+/** in-page: is this specific CMP's own banner element visible? Covers markup inPageBannerVisible's generic id/class heuristic can miss. */
+export function inPageAdapterBannerVisible(cmp) {
+  const selectors = {
+    cookiebot: '#CybotCookiebotDialog',
+    onetrust: '#onetrust-banner-sdk, #onetrust-pc-sdk, #onetrust-consent-sdk',
+    cookieyes: '.cky-consent-container, .cky-modal',
+    complianz: '.cmplz-cookiebanner, #cmplz-cookiebanner-container, #cmplz-manage-consent-container',
+    cortiq: '#crtq-consent-banner',
+  };
+  const sel = selectors[cmp];
+  if (!sel) return false;
+  return Array.from(document.querySelectorAll(sel)).some((el) => {
+    const r = el.getBoundingClientRect();
+    const s = getComputedStyle(el);
+    return r.width > 50 && r.height > 20 && s.display !== 'none' && s.visibility !== 'hidden';
+  });
+}
+
 /**
  * Signs of a consent platform that inPageBannerVisible cannot see: the TCF API, known CMP
  * globals, shadow DOM hosts and CMP iframes. Self-contained (runs in-page via window.__tc).
@@ -126,7 +144,7 @@ export function consentSignal(cookieString, storageKeys, cookiebotResponded) {
   });
   if (cookies.some((c) => /^OptanonAlertBoxClosed=/.test(c))) return true;
   if (cookies.some((c) => /^cookieyes-consent=/.test(c) && /[=,]action:yes(,|$)/.test(c))) return true;
-  if (cookies.some((c) => /^cmplz_/.test(c))) return true;
+  if (cookies.some((c) => /^cmplz_banner-status=dismissed$/.test(c))) return true;
   return storageKeys.includes('site_cookie_consent');   // CortIQ consent banner
 }
 
@@ -206,13 +224,14 @@ export function inPageCollect(withHtml) {
 async function observeState(browser, state, context, inPageSource) {
   const ctx = await (browser.createBrowserContext ? browser.createBrowserContext() : browser.createIncognitoBrowserContext());
   const p = await ctx.newPage();
-  const out = { state, method: state === 'none' ? 'not_needed' : 'not_automated', status: 0, requests: [], cookies: [], storageKeys: [], cspViolations: [], consentCommands: [], enhancedConversions: false, challenge: false, error: null };
+  const out = { state, method: state === 'none' ? 'not_needed' : 'not_automated', status: 0, requests: [], cookies: [], storageKeys: [], cspViolations: [], consentCommands: [], enhancedConversions: false, challenge: false, error: null, bannerSeen: false };
   let cmp = null;
   let html = '';
   const userData = /[?&;]em=|"em"\s*:|user_data/;
   // Enhanced Conversions data only counts on requests to Google (inlined: this function is serialised).
   const googleHost = /(^|\.)(google\.([a-z]{2,3}|com?\.[a-z]{2})|doubleclick\.net|googlesyndication\.com|googleadservices\.com|google-analytics\.com|googletagmanager\.com)$/;
-  const cookieKey = (c) => `${c.name}|${c.domain}|${c.value}`;
+  // Compared by name|domain, not value: a cookie whose value merely changes on reload is not a "new" cookie.
+  const cookieKey = (c) => `${c.name}|${c.domain}`;
   p.on('request', (r) => {
     const url = r.url();
     if (out.requests.length >= 2000 || !/^https?:/.test(url)) return;
@@ -239,6 +258,14 @@ async function observeState(browser, state, context, inPageSource) {
       return { out, cmp, html };
     }
     cmp = await p.evaluate(() => window.__tc.detect());
+    // A consent choice only counts as automated if a banner was observed before the action: visibly
+    // (generically or via this CMP's own markup), or as a hidden/shadow/iframe CMP signal. Otherwise
+    // the method is `not_automated`, never `adapter`/`text`, even when the click or API call "succeeds".
+    const bannerVisibleBefore = await p.evaluate(() => window.__tc.bannerVisible());
+    const adapterBannerVisibleBefore = cmp ? await p.evaluate((c) => window.__tc.adapterBannerVisible(c), cmp) : false;
+    const cmpPresentBefore = await p.evaluate(() => window.__tc.cmpPresent());
+    const bannerVisible = bannerVisibleBefore || adapterBannerVisibleBefore;
+    out.bannerSeen = bannerVisible || cmpPresentBefore;
     const cdp = await p.createCDPSession();
     let before = new Set();
     let beforeKeys = new Set();
@@ -247,12 +274,12 @@ async function observeState(browser, state, context, inPageSource) {
       before = new Set((await cdp.send('Network.getAllCookies')).cookies.map(cookieKey));
       beforeKeys = new Set((await p.evaluate(() => window.__tc.collect(false))).storageKeys);
       done = cmp ? await p.evaluate((c, a) => window.__tc.apply(c, a), cmp, state) : false;
-      if (done) out.method = 'adapter';
+      if (done) out.method = out.bannerSeen ? 'adapter' : 'not_automated';
       else if (state === 'accept' || state === 'reject') {
         const idx = await p.evaluate((a) => window.__tc.pick(window.__tc.candidates(), a), state);
-        if (idx !== null && await p.evaluate((i) => window.__tc.click(i), idx)) { done = true; out.method = 'text'; }
-        else if (!cmp && !(await p.evaluate(() => window.__tc.bannerVisible())) && !(await p.evaluate(() => window.__tc.cmpPresent()))) out.method = 'not_needed';
+        if (idx !== null && await p.evaluate((i) => window.__tc.click(i), idx)) { done = true; out.method = out.bannerSeen ? 'text' : 'not_automated'; }
       }
+      if (!done && !out.bannerSeen && !cmp) out.method = 'not_needed';
       if (done) {
         await p.waitForNetworkIdle({ idleTime: 1000, timeout: 8000 }).catch(() => {});
         out.requests.length = 0;   // observe the next page view after the choice
@@ -273,7 +300,8 @@ async function observeState(browser, state, context, inPageSource) {
     html = collected.html;
     if (done) {
       // A click or API call is not proof: keep the state only if the choice visibly took effect.
-      const bannerGone = !(await p.evaluate(() => window.__tc.bannerVisible()));
+      // bannerGone only counts if the banner was actually visible before the action (not just a hidden CMP signal).
+      const bannerGone = bannerVisible && !(await p.evaluate(() => window.__tc.bannerVisible()));
       const stored = bannerGone || await p.evaluate(() => window.__tc.storedConsent());
       if (!stored && !out.cookies.length && !out.storageKeys.length) out.method = 'not_automated';
     }
@@ -300,7 +328,7 @@ async function probeMain({ page, context, inPageSource }) {
 }
 
 export function buildProbeSource() {
-  const inPage = `window.__tc = { detect: ${inPageDetectCmp}, apply: ${inPageApplyAdapter}, candidates: ${inPageCandidates}, click: ${inPageClickCandidate}, bannerVisible: ${inPageBannerVisible}, pick: ${pickConsentButton}, collect: ${inPageCollect}, cmpSignal: ${cmpSignal}, cmpPresent: ${inPageCmpPresent}, consentSignal: ${consentSignal}, storedConsent: ${inPageConsentSignal} };`;
+  const inPage = `window.__tc = { detect: ${inPageDetectCmp}, apply: ${inPageApplyAdapter}, candidates: ${inPageCandidates}, click: ${inPageClickCandidate}, bannerVisible: ${inPageBannerVisible}, adapterBannerVisible: ${inPageAdapterBannerVisible}, pick: ${pickConsentButton}, collect: ${inPageCollect}, cmpSignal: ${cmpSignal}, cmpPresent: ${inPageCmpPresent}, consentSignal: ${consentSignal}, storedConsent: ${inPageConsentSignal} };`;
   return [
     `const IN_PAGE = ${JSON.stringify(inPage)};`,
     observeState.toString(),

@@ -46,7 +46,9 @@ export function assessConsentAutomation({ target, baseline }: AssessInput): Find
       for (const st of p.browser!.states) {
         if (st.state === 'none') continue;
         if (!methods.has(st.state)) methods.set(st.state, new Set());
-        methods.get(st.state)!.add(METHOD_LABEL[st.method] ?? st.method);
+        let label = METHOD_LABEL[st.method] ?? st.method;
+        if (st.method === 'not_automated' && !st.bannerSeen) label += ' (banner not seen)';
+        methods.get(st.state)!.add(label);
         if (st.method === 'not_automated') incomplete = true;
       }
     }

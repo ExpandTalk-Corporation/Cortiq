@@ -11,7 +11,7 @@ export const fetchOk = (path, extra = {}) => ({
 export const st = (state, extra = {}) => ({
   state, method: state === 'none' ? 'not_needed' : 'adapter', status: 200,
   requests: [], cookies: [], storageKeys: [], cspViolations: [], consentCommands: [],
-  enhancedConversions: false, challenge: false, error: null, ...extra,
+  enhancedConversions: false, challenge: false, error: null, bannerSeen: true, ...extra,
 });
 
 /** opts.states: array of st(...) (default none/reject/accept with no activity); null = no browser observation. */

@@ -103,9 +103,9 @@ test('consent automation coverage lists the CMP and method per state for each si
 
 test('consent automation coverage is a low warning when a state could not be automated', () => {
   const findings = assess({ mode: 'policy', baseline: null, policy: POLICY,
-    target: site('target', [page('/', { cmp: null, states: [st('none'), st('reject', { method: 'not_needed' }), st('accept', { method: 'not_automated' })] })]) });
+    target: site('target', [page('/', { cmp: null, states: [st('none'), st('reject', { method: 'not_needed' }), st('accept', { method: 'not_automated', bannerSeen: false })] })]) });
   const [f] = byKey(findings, 'coverage.consent_automation');
   assert.equal(f.status, 'warning');
   assert.equal(f.priority, 'low');
-  assert.deepEqual(f.evidence.details, ['new: no cookie banner detected — reject: no banner, accept: not automated']);
+  assert.deepEqual(f.evidence.details, ['new: no cookie banner detected — reject: no banner, accept: not automated (banner not seen)']);
 });
