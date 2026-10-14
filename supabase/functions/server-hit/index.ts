@@ -13,7 +13,8 @@
  * Art. 5.3 not engaged). The rows are still personal data under GDPR (truncated IP, UA):
  * truncated again here, cleared after 30 days by run_data_retention().
  *
- * Auth: the site's tracking key (sites.tracking_id, "tk_…") as Bearer token or x-cortiq-key.
+ * Auth: the site's tracking key (sites.tracking_id: "tk_…", or the older base64 format) as
+ * Bearer token or x-cortiq-key.
  * That key is also present in the browser snippet, so every hit's host must be the site's
  * own domain or a subdomain of it, and writes are rate-limited per site (fail closed).
  *
@@ -81,7 +82,8 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'POST only' }, 405);
 
   const key = readKey(req);
-  if (!/^tk_[A-Za-z0-9]{16,64}$/.test(key)) return json({ error: 'Missing or malformed site key' }, 401);
+  // tk_ + 32 hex for new sites; older sites have a 44-char base64 key.
+  if (!/^[A-Za-z0-9+/=_-]{20,128}$/.test(key)) return json({ error: 'Missing or malformed site key' }, 401);
   if (Number(req.headers.get('content-length') ?? 0) > MAX_BODY_BYTES) return json({ error: 'Body too large' }, 413);
 
   let body: { hits?: unknown };

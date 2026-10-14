@@ -62,6 +62,11 @@ verify_jwt = true
 [functions.cloudflare-ingest]
 verify_jwt = false
 
+# Canary pixel/link (img src / a href from the tracker): a browser can't attach a JWT.
+# Always answers with the pixel; logs only for known site ids.
+[functions.canary-tracker]
+verify_jwt = false
+
 # Server-side agent measurement. Called from the customer's server/edge adapters, which
 # can't send a Supabase JWT; authenticates with the site tracking key + per-hit domain
 # ownership check + per-site rate limit (in code).
