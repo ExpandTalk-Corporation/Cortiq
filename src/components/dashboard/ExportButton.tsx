@@ -26,6 +26,7 @@ import {
 import { Download, FileJson, FileSpreadsheet, FileText, Loader2, Mail } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { toCsv } from '@/lib/csv';
 
 export type ExportFormat = 'csv' | 'json' | 'xlsx';
 
@@ -72,25 +73,9 @@ export function ExportButton({
    */
   function convertToCSV(data: any[]): string {
     if (!data || data.length === 0) return '';
-
+    // Shared helper: quotes every cell, neutralises spreadsheet formulas, adds a BOM.
     const headers = Object.keys(data[0]);
-    const csvRows = [
-      headers.join(','),
-      ...data.map(row =>
-        headers.map(header => {
-          const value = row[header];
-          // Escape commas, quotes, and newlines
-          if (value === null || value === undefined) return '';
-          const stringValue = String(value);
-          if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
-            return `"${stringValue.replace(/"/g, '""')}"`;
-          }
-          return stringValue;
-        }).join(',')
-      )
-    ];
-
-    return csvRows.join('\n');
+    return toCsv(headers, data.map(row => headers.map(header => row[header])));
   }
 
   /**

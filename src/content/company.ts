@@ -83,7 +83,7 @@ export const SECURITY: ContentPageData = {
           items: [
             '**Cloudflare** (USA, EU-US Data Privacy Framework): edge analytics and geo lookup.',
             '**Resend** (USA, EU-US Data Privacy Framework): when you send a report export by email.',
-            '**OpenAI** (USA): the AI insights widget, which receives aggregated statistics only.',
+            '**Anthropic** (USA, Standard Contractual Clauses): AI insights on the dashboard, which receive aggregated statistics only.',
           ],
         },
         { type: 'p', text: 'Services you connect with your own account act under your own agreement with them, not as our subprocessors: Google Analytics, Search Console and Google Ads, HubSpot, and Anthropic (AI features with your own API key).' },

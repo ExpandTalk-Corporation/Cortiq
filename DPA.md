@@ -6,7 +6,7 @@
 
 - **Data Processor:** Expandtalk Corporation AB, org. nr. 559358-8824, registered office Göteborg, VAT no. SE559358882401, Parmmätaregatan 4B, 417 04 Göteborg, Sweden ("CortIQ").
 
-**Version:** 1.2, dated 14 October 2026.
+**Version:** 1.3, dated 14 October 2026.
 
 This Data Processing Agreement ("DPA") governs the processing of personal data by CortIQ on behalf of the Customer, in accordance with Article 28 of the General Data Protection Regulation (EU) 2016/679 ("GDPR"). It forms part of the CortIQ Terms of Service (https://cortiq.se/terms/) and is accepted together with them when the Customer creates an account. Installing the tracking script, plugin, Worker or a server-side adapter with the Customer's keys also confirms acceptance of the version then in force. In case of conflict regarding personal data, this DPA prevails over the Terms of Service.
 
@@ -51,7 +51,7 @@ CortIQ shall:
 
 **3.4** Not engage another processor (sub-processor) without prior written authorisation from the Customer. The Customer gives general written authorisation for the sub-processors listed in Section 6. CortIQ will inform the Customer of any intended changes to sub-processors, giving the Customer the opportunity to object (Section 6).
 
-**3.4a** Impose on each sub-processor, by contract, the same data protection obligations as set out in this DPA, in particular sufficient guarantees to implement appropriate technical and organisational measures so that the processing meets the requirements of the GDPR (Art. 28.4 GDPR). Where a sub-processor fails to fulfil its data protection obligations, CortIQ remains fully liable to the Customer for the performance of that sub-processor's obligations.
+**3.4a** Impose on each sub-processor, by contract, the same data protection obligations as set out in this DPA, in particular sufficient guarantees to implement appropriate technical and organisational measures so that the processing meets the requirements of the GDPR (Art. 28.4 GDPR). Where a sub-processor fails to fulfil its data protection obligations, CortIQ remains liable to the Customer for the performance of that sub-processor's obligations as for its own acts, subject to Section 9.
 
 **3.5** Assist the Customer, by appropriate technical and organisational measures, in fulfilling the Customer's obligation to respond to requests from data subjects exercising their rights under Chapter III of the GDPR.
 
@@ -105,10 +105,11 @@ This section is the authoritative list. Other CortIQ pages (for example the secu
 |---------------|------|---------------|----------------------------|-----------|
 | Supabase, Inc. (USA) | Database, authentication and server functions for all processing. Supabase runs the CortIQ project on Amazon Web Services (AWS), which is Supabase's own sub-processor | EU — AWS eu-north-1 (Stockholm) | SCCs, Module 3 | [Supabase DPA](https://supabase.com/legal/dpa) |
 | Loopia AB (Sweden) | Web host for cortiq.se, which serves the dashboard and the tracking script file. Its access logs record the IP address and user agent of browsers that load the script | Sweden | No transfer | Loopia's data processing agreement (appendix to its general terms) |
-| Plus Five Five, Inc., trading as Resend (USA) | Email delivery of report exports — only when the Customer emails an export | USA | EU-US Data Privacy Framework; SCCs, Module 3 | [Resend DPA](https://resend.com/legal/dpa) |
+| Plus Five Five, Inc., trading as Resend (USA) | Email delivery of large report exports (over 10,000 rows) — Resend receives the recipient's address and a download link to EU storage that expires after one hour, not the export itself | USA | EU-US Data Privacy Framework; SCCs, Module 3 | [Resend DPA](https://resend.com/legal/dpa) |
+| Anthropic, PBC (USA) | AI insights on the dashboard overview and the KPI dashboard, using CortIQ's own API key. Receives aggregated statistics only: for the overview, page paths without query strings, page-view and session counts, device breakdown, form names and conversion rates; for the KPI dashboard, monthly KPI figures and traffic-channel totals. No visitor identifiers, IP addresses or email addresses | USA | SCCs, Module 3 | Anthropic's Data Processing Addendum (part of its Commercial Terms) |
 | Cloudflare, Inc. (USA) | Server-side bot classification from edge logs, edge web analytics (aggregate) and geo lookup for consent-banner gating — only if the Customer enables the Cloudflare integration | Global edge network | EU-US Data Privacy Framework; SCCs | [Cloudflare DPA](https://www.cloudflare.com/cloudflare-customer-dpa/) |
 
-The AI insights widget on the dashboard overview sends aggregated statistics for a site (page paths without query strings, page-view and session counts, device breakdown, form names and conversion rates) to OpenAI, L.L.C. (USA) using CortIQ's own API key. It sends no visitor identifiers, IP addresses or email addresses.
+Loading the tracking script file from cortiq.se necessarily transmits the browser's IP address and user agent to the web host. CortIQ considers this storage of, or access to, information strictly necessary to deliver a file the website requested, which falls under the transmission exception in Chapter 9, Section 28 of the Swedish Electronic Communications Act (2022:482) and Art. 5(3) of the ePrivacy Directive. The legal basis for the resulting access log is CortIQ's legitimate interest in operating and securing the service (Art. 6(1)(f) GDPR). The logs are kept for the retention period set by the web host and are not used for analytics.
 
 ### 6.2 Services the Customer connects under its own agreement
 
@@ -116,10 +117,10 @@ The following providers are not sub-processors of CortIQ. The Customer connects 
 
 | Service | What happens | Whose account |
 |---------|--------------|---------------|
-| Google Analytics 4 and Google Search Console | CortIQ reads reports from the Customer's property, and can send conversion events to the Customer's GA4 property | The Customer's property, to which the Customer grants access |
+| Google Analytics 4 and Google Search Console | CortIQ reads reports from the Customer's property, and can send conversion events to the Customer's GA4 property. The Customer grants CortIQ's service account read access to its own property; Google processes the data under the Customer's own Google terms | The Customer's property, to which the Customer grants access |
 | Google Ads | Upload of conversion adjustments (hashed email, click ID, conversion value) for conversions recorded with marketing consent | The Customer's Google Ads account and credentials |
 | HubSpot | The Customer's HubSpot account sends lead-status changes to CortIQ (Section 2) | The Customer's HubSpot account and webhook secret |
-| Anthropic (Claude API) | AI assistant and GEO analysis send relevant analytics results to Anthropic | The Customer's own Anthropic API key |
+| Anthropic (Claude API), with the Customer's own key | AI assistant and GEO analysis send relevant analytics results to Anthropic. (AI insights with CortIQ's key are listed in Section 6.1.) | The Customer's own Anthropic API key |
 | Hosting of server-side adapters (for example Vercel, Netlify, Cloudflare Workers, the Customer's own Node server or WordPress host) | The adapter runs on the Customer's server and sends only bot-like requests to CortIQ | The Customer's own hosting account |
 
 CortIQ will notify the Customer at least 30 days in advance of any intended change to the sub-processor list. The Customer may object to a new sub-processor within 14 days of notification; if no resolution is reached, either party may terminate the service agreement.
@@ -133,6 +134,7 @@ Analytics data is stored in the EU. The basis for any transfer outside the EEA, 
 - **Supabase, Inc.** — data is stored in AWS eu-north-1 (Stockholm). Supabase is a US company, and access to the data by Supabase or its own sub-processors from outside the EEA can be a transfer. Such transfers are covered by the European Commission's Standard Contractual Clauses (Implementing Decision (EU) 2021/914), Module 3 (processor to processor), which are incorporated in the Supabase DPA (Art. 46.2(c) GDPR). Supabase's DPA does not rely on the EU-US Data Privacy Framework.
 - **Loopia AB** — processing in Sweden. No transfer.
 - **Resend** — data is processed in the USA. Resend participates in the EU-US Data Privacy Framework (adequacy decision (EU) 2023/1795, Art. 45 GDPR). Its DPA also incorporates the SCCs, Module 3, for transfers where CortIQ acts as processor.
+- **Anthropic, PBC** — aggregated statistics are processed in the USA. Transfers rely on the Standard Contractual Clauses, Module 3, in Anthropic's Data Processing Addendum (Art. 46.2(c) GDPR). No visitor identifiers are sent.
 - **Cloudflare** — Cloudflare processes visitor IP addresses at its edge to derive country and aggregate traffic statistics. Cloudflare participates in the EU-US Data Privacy Framework (Art. 45 GDPR), and its DPA incorporates the SCCs (Art. 46 GDPR).
 - **Customer-connected services (Section 6.2)** — CortIQ transfers data to these providers on the Customer's documented instruction. The transfer basis is governed by the Customer's own agreement with each provider.
 
@@ -185,6 +187,8 @@ For all GDPR and data protection enquiries: [info@expandtalk.se](mailto:info@exp
 ---
 
 *Version: 1.2, dated 14 October 2026 (replaces version 1.1 of 3 October 2026). Changes to this DPA follow the change procedure in section 12 of the Terms of Service.*
+
+*Changes in 1.3: Anthropic added as a sub-processor for AI insights (replacing OpenAI, which is no longer used); section 3.4a liability aligned with section 9; GA4 access via CortIQ's service account clarified; legal basis for the web host's access logs stated.*
 
 *Changes in 1.2: sub-processor list split into sub-processors and Customer-connected services, with Loopia AB added and AWS shown as Supabase's sub-processor; transfer basis stated per sub-processor; new sections 3.4a (obligations on sub-processors, Art. 28.4 GDPR) and 3.9 (notice of infringing instructions, Art. 28.3 GDPR); section 4.5 amended; CRM lead-quality matching added as a processing category; session recording removed, as the tracking script does not record sessions.*
 
