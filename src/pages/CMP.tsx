@@ -18,7 +18,7 @@ export default function CMP() {
     },
     {
       icon: <Shield className="h-6 w-6" />,
-      title: "Built for GDPR",
+      title: "Designed for GDPR compliance",
       description: "Consent-first by design: visitor analytics and third-party tags wait for consent"
     },
     {
@@ -60,7 +60,7 @@ export default function CMP() {
       <section className="container mx-auto px-4 py-16 text-center">
         <Badge variant="secondary" className="mb-4">
           <Globe className="h-4 w-4 mr-2" />
-          Consent-First CMP, Built for GDPR
+          Consent-First CMP for GDPR compliance
         </Badge>
         
         <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-primary bg-clip-text text-transparent">

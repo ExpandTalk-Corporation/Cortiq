@@ -52,7 +52,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   {
     path: '/features/analytics/',
     title: 'Web Analytics — CortIQ',
-    description: 'Consent-first web analytics: cookieless mode, click and scroll heatmaps, form analytics, link click counts and conversion attribution. EU-hosted and built for GDPR.',
+    description: 'Consent-first web analytics: cookieless mode, click and scroll heatmaps, form analytics, link click counts and conversion attribution. EU-hosted and designed to support GDPR compliance.',
     changefreq: 'monthly',
     priority: 0.8,
     source: 'src/pages/FeaturesAnalytics.tsx',

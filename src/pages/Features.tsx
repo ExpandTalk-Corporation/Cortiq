@@ -67,7 +67,7 @@ export default function Features() {
     {
       icon: <Shield className="h-8 w-8" />,
       title: "Privacy by Design",
-      description: "Consent-first cookie handling, built for GDPR",
+      description: "Consent-first cookie handling, designed to support GDPR compliance",
       features: ["Automatic categorization", "Consent records", "Data handling", "User rights"]
     },
     {
@@ -350,7 +350,7 @@ export default function Features() {
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold mb-4">🛡️ Cookie Management Platform (CMP)</h2>
             <p className="text-lg text-muted-foreground">
-              Consent management built for GDPR
+              Consent management designed to support GDPR compliance
             </p>
           </div>
           <div className="grid lg:grid-cols-2 gap-8">
@@ -585,7 +585,7 @@ export default function Features() {
                   <div>
                     <CardTitle className="text-xl mb-2">Full Mode</CardTitle>
                     <CardDescription className="text-base">
-                      First-party cookies for returning-visitor and journey analysis
+                      Per-tab session ID for journey analysis within a visit
                     </CardDescription>
                   </div>
                 </div>
@@ -594,7 +594,7 @@ export default function Features() {
                 <ul className="space-y-2">
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span className="text-sm">First-party cookies only</span>
+                    <span className="text-sm">No cookies (session ID in sessionStorage)</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />

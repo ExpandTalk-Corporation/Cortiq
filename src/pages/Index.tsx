@@ -61,7 +61,7 @@ const Index = () => {
     {
       icon: Cookie,
       title: "Built-in Consent Banner",
-      description: "Consent banner with Google Consent Mode v2. Choose Cookieless mode (no cookies, no fingerprint) or Full mode with first-party cookies — both start only after analytics consent."
+      description: "Consent banner with Google Consent Mode v2. Choose Cookieless mode (no cookies, no fingerprint) or Full mode with a per-tab session ID and visitor profile — both start only after analytics consent."
     },
     {
       icon: Globe,
@@ -119,11 +119,11 @@ const Index = () => {
               One AI bot visit for every 31 human visits. Do you know which ones matter?
             </h1>
             <p className="text-sm text-muted-foreground mb-8">
-              Source: TollBit, State of the Bots, Q4 2025 (up from 1 in 200 in Q1 2025).
+              Source: TollBit, State of the Bots, Q4 2025, across its publisher network (up from 1 in 200 in Q1 2025).
             </p>
             <p className="text-lg text-foreground/80 mb-10 leading-relaxed">
               Not all AI traffic is equal. CortIQ classifies every AI visit — training crawlers, agentic browsers, and citation bots — so you know what to optimize, what to ignore, and what's costing you infrastructure budget.
-              Plus consent-first, cookieless visitor analytics, heatmaps and form analytics — EU-hosted and built for GDPR.
+              Plus consent-first, cookieless visitor analytics, heatmaps and form analytics — EU-hosted and designed to support GDPR compliance.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center xl:justify-start items-center">
               <Link to="/auth">
@@ -207,7 +207,7 @@ const Index = () => {
                       <div>
                         <h3 className="font-bold text-lg mb-2">Cookieless or Full Mode</h3>
                         <p className="text-muted-foreground">
-                          Cookieless mode: no cookies, no device fingerprint, no cross-visit profile. Full mode adds first-party cookies. Both start only after analytics consent.
+                          Cookieless mode: no cookies, no device fingerprint, no cross-visit profile. Full mode adds a per-tab session ID (sessionStorage, no cookies) and a salted device hash for the visitor profile. Both start only after analytics consent.
                         </p>
                       </div>
                     </div>
@@ -223,7 +223,7 @@ const Index = () => {
                       <div>
                         <h3 className="font-bold text-lg mb-2">Privacy-First Solution</h3>
                         <p className="text-muted-foreground">
-                          Privacy by design: EU hosting, no persistent IDs in Cookieless mode, built-in consent banner. Built for GDPR.
+                          Privacy by design: EU hosting, no persistent IDs in Cookieless mode, built-in consent banner. Designed to support GDPR compliance.
                         </p>
                       </div>
                     </div>
@@ -261,7 +261,7 @@ const Index = () => {
                       <span className="font-semibold">Device fingerprinting</span>
                       <div className="flex items-center space-x-3">
                         <Badge variant="outline">Common</Badge>
-                        <Badge className="bg-primary text-primary-foreground">None ✓</Badge>
+                        <Badge className="bg-primary text-primary-foreground">None in Cookieless mode ✓</Badge>
                       </div>
                     </div>
                     <div className="flex items-center justify-between mb-3">
@@ -338,7 +338,7 @@ const Index = () => {
                 <div className="w-12 h-12 bg-gradient-primary rounded-xl flex items-center justify-center mb-4">
                   <Shield className="h-6 w-6 text-white" />
                 </div>
-                <CardTitle className="text-xl">DDoS Protection</CardTitle>
+                <CardTitle className="text-xl">DDoS Detection</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
@@ -623,7 +623,7 @@ const Index = () => {
 
               <div className="bg-primary/5 p-6 rounded-lg text-center">
                 <p className="text-muted-foreground mb-4">
-                  <strong className="text-foreground">Why is this important?</strong> AI bots made up 4.2% of HTML requests in 2025, and training accounted for about 80% of AI crawling (Cloudflare Radar 2025 Year in Review).
+                  <strong className="text-foreground">Why is this important?</strong> AI bots (excluding Googlebot) made up 4.2% of HTML requests in 2025 (Cloudflare Radar 2025 Year in Review), and training accounts for nearly 80% of AI crawling (Cloudflare, The crawl-to-click gap).
                   Without dedicated measurement, you're missing critical data about how AI interacts with your content.
                 </p>
                 <Link to="/auth">
@@ -689,7 +689,7 @@ const Index = () => {
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
-                  <span className="text-foreground">EU-hosted, built for GDPR</span>
+                  <span className="text-foreground">EU-hosted, designed to support GDPR compliance</span>
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
@@ -1132,8 +1132,8 @@ const Index = () => {
               Build for tomorrow's web, today
             </h2>
             <p className="text-xl md:text-2xl mb-12 opacity-95 max-w-4xl mx-auto leading-relaxed">
-              AI bot traffic grew 300% year over year (Akamai SOTI Digital Fraud &amp; Abuse Report 2025). By Q4 2025 there was one AI bot visit
-              for every 31 human visits, up from one in 200 in Q1 2025 (TollBit, State of the Bots, Q4 2025).
+              AI bot traffic grew 300% year over year, from a low base (Akamai SOTI Digital Fraud &amp; Abuse Report 2025). By Q4 2025 there was one AI bot visit
+              for every 31 human visits on TollBit's publisher network, up from one in 200 in Q1 2025 (TollBit, State of the Bots, Q4 2025).
               Know what kind of AI traffic you have.
             </p>
           </div>
