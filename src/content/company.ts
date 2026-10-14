@@ -202,6 +202,7 @@ export const ABOUT: ContentPageData = {
           type: 'list',
           items: [
             'Company registration number: 559358-8824',
+            'VAT number: SE559358882401',
             'Address: Parmmätaregatan 4B, 417 04 Göteborg, Sweden',
             'Email: info@expandtalk.se',
           ],

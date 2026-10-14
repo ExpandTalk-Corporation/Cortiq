@@ -68,6 +68,7 @@ const Privacy = () => {
                 <p><strong>Legal entity:</strong> Expandtalk Corporation AB</p>
                 <p><strong>Product:</strong> CortIQ</p>
                 <p><strong>Company registration number:</strong> 559358-8824</p>
+                <p><strong>VAT number:</strong> SE559358882401</p>
                 <p><strong>Registered address:</strong> Parmmätaregatan 4B, 417 04 Göteborg, Sweden</p>
                 <p><strong>Email:</strong> info@expandtalk.se</p>
                 <p className="text-sm mt-3">
