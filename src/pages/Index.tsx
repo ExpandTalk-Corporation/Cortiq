@@ -6,7 +6,13 @@ import { useSEO } from "@/hooks/useSEO";
 import { seoFor } from "@/marketing-routes";
 import PublicNavigation from "@/components/PublicNavigation";
 import PublicFooter from "@/components/PublicFooter";
-import heroImage from "@/assets/analytics-dashboard-hero.jpg";
+import heroAvif1280 from "@/assets/hero/hero-1280.avif";
+import heroAvif1983 from "@/assets/hero/hero-1983.avif";
+import heroWebp1280 from "@/assets/hero/hero-1280.webp";
+import heroWebp1983 from "@/assets/hero/hero-1983.webp";
+import heroMobileAvif from "@/assets/hero/hero-mobile-900.avif";
+import heroMobileWebp from "@/assets/hero/hero-mobile-900.webp";
+import heroMobileJpg from "@/assets/hero/hero-mobile-900.jpg";
 import analyticsIllustration from "@/assets/analytics-illustration.jpg";
 import {
   Shield,
@@ -98,73 +104,58 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Hero Section */}
-      <section className="relative py-32 px-4 overflow-hidden">
-        {/* Animated background */}
-        <div className="absolute inset-0 bg-gradient-hero">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,hsl(var(--primary)/0.1),transparent)] animate-pulse"></div>
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,hsl(var(--accent)/0.1),transparent)] animate-pulse delay-1000"></div>
-        </div>
-        
-        {/* Floating decorative elements */}
-        <div className="absolute top-20 left-10 w-20 h-20 bg-primary/10 rounded-full animate-float"></div>
-        <div className="absolute top-40 right-20 w-16 h-16 bg-accent/10 rounded-full animate-float delay-1000"></div>
-        <div className="absolute bottom-20 left-1/4 w-12 h-12 bg-primary/5 rounded-full animate-float delay-2000"></div>
-        
-        <div className="container mx-auto relative z-10">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <div className="text-center lg:text-left">
-              <Badge className="mb-8 animate-fade-in bg-gradient-primary hover-scale hover-glow text-white border-0">
-                🤖 AI Bot Intelligence · Free during beta
-              </Badge>
-              <h1 className="text-4xl md:text-6xl font-black mb-4 animate-slide-up text-gradient-primary leading-tight">
-                One AI bot visit for every 31 human visits. Do you know which ones matter?
-              </h1>
-              <p className="text-sm text-muted-foreground mb-8 animate-fade-in">
-                Source: TollBit, State of the Bots, Q4 2025 (up from 1 in 200 in Q1 2025).
-              </p>
-              <p className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-2xl mx-auto lg:mx-0 animate-fade-in leading-relaxed">
-                Not all AI traffic is equal. CortIQ classifies every AI visit — training crawlers, agentic browsers, and citation bots — so you know what to optimize, what to ignore, and what's costing you infrastructure budget.
-                Plus consent-first, cookieless visitor analytics, heatmaps and form analytics — EU-hosted and built for GDPR.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-6 justify-center lg:justify-start items-center animate-scale-in">
-                <Link to="/auth">
-                  <Button size="lg" className="group bg-gradient-primary hover-scale hover-glow text-lg px-8 py-4 h-auto">
-                    Create free account
-                    <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-2 transition-transform duration-300" />
-                  </Button>
-                </Link>
-                <Link to="/features/">
-                  <Button variant="outline" size="lg" className="group glass hover-lift text-lg px-8 py-4 h-auto">
-                    <BarChart3 className="mr-3 h-5 w-5 group-hover:scale-110 transition-transform" />
-                    See All Features
-                  </Button>
-                </Link>
-              </div>
-            </div>
-            
-            <div className="relative animate-scale-in">
-              <div className="relative aspect-video rounded-3xl overflow-hidden shadow-elegant hover-glow group">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20"></div>
-                <img 
-                  src={heroImage}
-                  alt="Analytics Dashboard - Heatmap and user analysis"
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent"></div>
-                
-                {/* Floating stats indicators */}
-                <div className="absolute top-4 right-4 glass px-3 py-2 rounded-lg animate-float">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-accent rounded-full animate-pulse"></div>
-                    <span className="text-sm font-medium">Live Analytics</span>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Decorative elements */}
-              <div className="absolute -top-4 -left-4 w-24 h-24 bg-gradient-primary rounded-full opacity-20 animate-pulse"></div>
-              <div className="absolute -bottom-4 -right-4 w-32 h-32 bg-gradient-accent rounded-full opacity-15 animate-pulse delay-1000"></div>
+      {/* Hero: one full-bleed photo. Its left edge fades to #f7f9fc, so the light-mode
+          background matches it and a gradient in the same colour keeps the copy readable. */}
+      <section className="relative overflow-hidden bg-[#f7f9fc] dark:bg-background flex flex-col xl:flex-row xl:items-center xl:min-h-[640px]">
+        {/* Below xl: text, then the photo. From xl the photo is the backdrop. */}
+        <picture className="order-last xl:order-none">
+          <source media="(min-width: 1280px)" type="image/avif" srcSet={`${heroAvif1280} 1280w, ${heroAvif1983} 1983w`} sizes="100vw" />
+          <source media="(min-width: 1280px)" type="image/webp" srcSet={`${heroWebp1280} 1280w, ${heroWebp1983} 1983w`} sizes="100vw" />
+          <source type="image/avif" srcSet={heroMobileAvif} />
+          <source type="image/webp" srcSet={heroMobileWebp} />
+          <img
+            src={heroMobileJpg}
+            width={900}
+            height={584}
+            alt="An analyst reviews web traffic dashboards in an office overlooking a city waterfront"
+            // React 18 only passes the attribute through in lowercase.
+            {...({ fetchpriority: "high" } as Record<string, string>)}
+            className="block w-full h-auto xl:absolute xl:inset-0 xl:h-full xl:object-cover xl:object-right dark:xl:brightness-75"
+          />
+        </picture>
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 left-0 hidden xl:block w-[50%] bg-gradient-to-r from-[#f7f9fc] via-[#f7f9fc]/90 to-transparent dark:from-background dark:via-background/90"
+        />
+
+        <div className="container mx-auto relative z-10 w-full px-4 pt-20 pb-12 xl:py-20">
+          <div className="max-w-2xl xl:max-w-[34rem] text-center xl:text-left mx-auto xl:mx-0 animate-fade-in">
+            <Badge className="mb-8 bg-gradient-primary text-white border-0">
+              🤖 AI Bot Intelligence · Free during beta
+            </Badge>
+            <h1 className="text-4xl md:text-6xl xl:text-5xl font-black mb-4 text-gradient-primary leading-tight">
+              One AI bot visit for every 31 human visits. Do you know which ones matter?
+            </h1>
+            <p className="text-sm text-muted-foreground mb-8">
+              Source: TollBit, State of the Bots, Q4 2025 (up from 1 in 200 in Q1 2025).
+            </p>
+            <p className="text-lg text-foreground/80 mb-10 leading-relaxed">
+              Not all AI traffic is equal. CortIQ classifies every AI visit — training crawlers, agentic browsers, and citation bots — so you know what to optimize, what to ignore, and what's costing you infrastructure budget.
+              Plus consent-first, cookieless visitor analytics, heatmaps and form analytics — EU-hosted and built for GDPR.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center xl:justify-start items-center">
+              <Link to="/auth">
+                <Button size="lg" className="group bg-gradient-primary text-lg px-8 py-4 h-auto">
+                  Create free account
+                  <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-1 transition-transform duration-300 motion-reduce:transition-none" />
+                </Button>
+              </Link>
+              <Link to="/features/">
+                <Button variant="outline" size="lg" className="group bg-background/80 backdrop-blur text-lg px-8 py-4 h-auto">
+                  <BarChart3 className="mr-3 h-5 w-5" />
+                  See All Features
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
