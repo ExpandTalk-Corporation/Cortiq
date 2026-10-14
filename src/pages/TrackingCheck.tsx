@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { StartForm } from '@/components/tracking-check/StartForm';
 import { useRuns, useTrackingCheckAccess, type RunRow } from '@/hooks/useTrackingCheck';
+import PublicLayout from "@/components/PublicLayout";
 
-export default function TrackingCheck() {
+function TrackingCheckBody() {
   const access = useTrackingCheckAccess();
   const runs = useRuns();
   const prefill = (useLocation().state as { prefill?: RunRow } | null)?.prefill;
@@ -53,5 +54,13 @@ export default function TrackingCheck() {
         </CardContent>
       </Card>
     </main>
+  );
+}
+
+export default function TrackingCheck() {
+  return (
+    <PublicLayout>
+      <TrackingCheckBody />
+    </PublicLayout>
   );
 }

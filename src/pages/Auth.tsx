@@ -10,8 +10,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { TERMS_VERSION } from '@/content/legal';
+import PublicLayout from "@/components/PublicLayout";
 
-export default function Auth() {
+function AuthBody() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
@@ -248,7 +249,7 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6">
+    <div className="flex items-center justify-center px-6 py-16">
       <div className="w-full max-w-md space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
@@ -541,5 +542,13 @@ export default function Auth() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function Auth() {
+  return (
+    <PublicLayout>
+      <AuthBody />
+    </PublicLayout>
   );
 }

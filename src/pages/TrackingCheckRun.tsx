@@ -7,8 +7,9 @@ import { RunProgress } from '@/components/tracking-check/RunProgress';
 import { useAuth } from '@/hooks/useAuth';
 import { shareUrl, useFindings, useRun, useRunStatus, useShareRun, useVerifyFinding } from '@/hooks/useTrackingCheck';
 import { toCsv } from '../../supabase/functions/_shared/tracking-check/report.ts';
+import PublicLayout from "@/components/PublicLayout";
 
-export default function TrackingCheckRun() {
+function TrackingCheckRunBody() {
   const { runId = '' } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -82,5 +83,13 @@ export default function TrackingCheckRun() {
         />
       )}
     </main>
+  );
+}
+
+export default function TrackingCheckRun() {
+  return (
+    <PublicLayout>
+      <TrackingCheckRunBody />
+    </PublicLayout>
   );
 }

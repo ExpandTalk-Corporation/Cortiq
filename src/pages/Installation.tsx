@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button';
 import { AddSiteForm } from '@/components/dashboard/AddSiteForm';
 import { InstallationGuide } from '@/components/dashboard/InstallationGuide';
 import { useSites } from '@/hooks/useSites';
+import PublicLayout from "@/components/PublicLayout";
 
-export default function Installation() {
+function InstallationBody() {
   const { sites, loadSites } = useSites();
   const [activeSiteId, setActiveSiteId] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -15,7 +16,7 @@ export default function Installation() {
     sites.find((s) => s.id === activeSiteId) ?? sites[0] ?? null;
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div className="p-6">
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -78,5 +79,13 @@ export default function Installation() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function Installation() {
+  return (
+    <PublicLayout>
+      <InstallationBody />
+    </PublicLayout>
   );
 }
