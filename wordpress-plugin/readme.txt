@@ -3,7 +3,7 @@ Contributors: cortiq
 Tags: analytics, ai-tracking, heatmap, cookie-free, gdpr, chatgpt, ai-bots
 Requires at least: 5.6
 Tested up to: 6.8
-Stable tag: 5.5.0
+Stable tag: 5.5.1
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -86,6 +86,9 @@ All data is stored in the EU (AWS eu-north-1 via Supabase).
 The tracking script is loaded with `defer` so it does not block rendering.
 
 == Changelog ==
+
+= 5.5.1 =
+* Tracking script: a stored consent whose `expiresAt` is a number (epoch milliseconds, as some custom banners write it) is now honoured, not silently treated as expired.
 
 = 5.5.0 =
 * New: server-side AI agent measurement. WordPress reports bot/agent requests, robots.txt / llms.txt fetches and hits on a hidden honeypot link to CortIQ (IP truncated, human requests never sent). Adds `Disallow: /cortiq-trap/` to the virtual robots.txt. On by default when a Tracking ID is set; toggle in Settings → CortIQ.

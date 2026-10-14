@@ -1,7 +1,7 @@
 /**
  * CortIQ Advanced Tracking Script
  * Unified visitor profiling with AI agent detection
- * Version: 5.5.0 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
+ * Version: 5.5.1 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
  *
  * Usage:
  * <script>
@@ -17,7 +17,7 @@
   'use strict';
 
   // Keep in sync with wordpress-plugin/cortiq-analytics.php (CORTIQ_VERSION).
-  const CORTIQ_VERSION = '5.5.0';
+  const CORTIQ_VERSION = '5.5.1';
 
   // Configuration: window.cortiqConfig, overridden by data-* attributes on this script
   // tag, so a single-tag install (<script src=… data-site-id=…>) works and a tag that
@@ -154,7 +154,11 @@
   // plugin's default 365-day cooldown so installed sites keep working until they update.
   const LEGACY_CONSENT_MAX_AGE = 365 * 24 * 60 * 60 * 1000;
   function consentUnexpired(saved) {
-    if (saved.expiresAt != null) return Date.parse(saved.expiresAt) > Date.now();
+    // ISO date (CortIQ banner) or epoch milliseconds (some custom banners/CMPs).
+    if (saved.expiresAt != null) {
+      const exp = typeof saved.expiresAt === 'number' ? saved.expiresAt : Date.parse(saved.expiresAt);
+      return Number.isFinite(exp) && exp > Date.now();
+    }
     const legacy = typeof saved.timestamp === 'number' && saved.timestamp <= Date.now() &&
       typeof saved.consentId === 'string' && saved.policyVersion != null;
     return legacy && saved.timestamp + LEGACY_CONSENT_MAX_AGE > Date.now();
