@@ -2,6 +2,7 @@ import React, { lazy, Suspense } from 'react';
 import { TabErrorBoundary } from './TabErrorBoundary';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { OverviewTab } from './tabs/OverviewTab';
+import { FilterScopeNotice } from './FilterScopeNotice';
 import type { Site, Analytics } from '@/types/dashboard';
 
 const HeatmapTab               = lazy(() => import('./tabs/HeatmapTab').then(m => ({ default: m.HeatmapTab })));
@@ -51,6 +52,13 @@ const ReportBuilder                = lazy(() => import('./ReportBuilder').then(m
 const ServerLogAnalytics           = lazy(() => import('./ServerLogAnalytics').then(m => ({ default: m.ServerLogAnalytics })));
 const RealTimeWidget               = lazy(() => import('./RealTimeWidget').then(m => ({ default: m.RealTimeWidget })));
 
+// Tabs that receive the global date range (directly or as derived start/end dates).
+const DATE_AWARE = new Set([
+  'analytics', 'geolocation', 'campaigns', 'content-performance', 'content-tracking',
+  'paid-ads-server', 'click-fraud', 'cookiefree', 'heatmap', 'forms', 'agent-ops', 'ip-segments',
+  'server-logs',
+]);
+
 interface DashboardTabsProps {
   selectedSite: Site;
   analytics: Analytics | null;
@@ -67,6 +75,7 @@ function DashboardTabsInner({ selectedSite, analytics, dateRange, onSiteDeleted,
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 w-full">
+      {activeTab !== 'overview' && <FilterScopeNotice supports={{ date: DATE_AWARE.has(activeTab) }} />}
       <TabsContent value="overview" className="space-y-6">
         <TabErrorBoundary tabName="Overview">
           <OverviewTab selectedSite={selectedSite} onNavigate={setActiveTab} />
