@@ -43,8 +43,8 @@ function InstallationBody() {
           <div className="rounded-lg border bg-muted/30 p-4">
             <p className="text-sm font-medium mb-1">🔒 Privacy built in</p>
             <p className="text-xs text-muted-foreground">
-              Visitor analytics start only after analytics consent; click IDs, fingerprinting and session
-              replay need explicit consent too, verified server-side. Nothing runs in the browser before consent. IPs anonymised at ingest.
+              Visitor analytics start only after analytics consent; click IDs and fingerprinting
+              need explicit consent too, verified server-side. Nothing runs in the browser before consent. IPs anonymised at ingest.
             </p>
           </div>
           <div className="rounded-lg border bg-muted/30 p-4">

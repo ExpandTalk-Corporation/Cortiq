@@ -12,17 +12,7 @@ Sign in to the CortIQ dashboard and add your site (Settings → Sites, or the on
 
 Place the snippet in `<head>` (or before `</body>`) on every page:
 
-```html
-<script
-  src="https://cortiq.se/spa-tracking.js"
-  data-site-id="[YOUR_SITE_ID]"
-  data-api-key="[YOUR_TRACKING_KEY]"
-  data-cookieless="true"
-  defer
-></script>
-```
-
-Equivalent `window.cortiqConfig` form (what the dashboard shows). If both are present, `data-*` attributes on the tag win:
+This is the snippet the dashboard shows. It sets the configuration and **loads the tracker only after analytics consent**, so the browser makes no request to cortiq.se — and sends it no IP address — before the visitor has chosen. It reads the CortIQ banner, Cookiebot and Google Consent Mode:
 
 ```html
 <script>
@@ -31,11 +21,46 @@ Equivalent `window.cortiqConfig` form (what the dashboard shows). If both are pr
     apiKey: '[YOUR_TRACKING_KEY]',
     cookieless: true
   };
+  (function () {
+    var done = false;
+    function load() {
+      if (done) return;
+      done = true;
+      var s = document.createElement('script');
+      s.src = 'https://cortiq.se/spa-tracking.js';
+      s.defer = true;
+      document.head.appendChild(s);
+    }
+    function stored() {
+      try {
+        var c = JSON.parse(localStorage.getItem('site_cookie_consent') || 'null');
+        if (!c || c.analytics !== true) return false;
+        var e = typeof c.expiresAt === 'number' ? c.expiresAt : Date.parse(c.expiresAt);
+        return !(e <= Date.now());
+      } catch (err) { return false; }
+    }
+    function cookiebot() { return !!(window.Cookiebot && window.Cookiebot.consent && window.Cookiebot.consent.statistics); }
+    function consentMode(entry) {
+      return !!(entry && entry[0] === 'consent' && entry[1] === 'update' && entry[2] && entry[2].analytics_storage === 'granted');
+    }
+    var dl = window.dataLayer = window.dataLayer || [];
+    if (stored() || cookiebot() || Array.prototype.some.call(dl, consentMode)) load();
+    window.addEventListener('siteConsentUpdated', function (e) { if (e.detail && e.detail.analytics) load(); });
+    window.addEventListener('CookiebotOnAccept', function () { if (cookiebot()) load(); });
+    var push = dl.push;
+    dl.push = function () {
+      for (var i = 0; i < arguments.length; i++) if (consentMode(arguments[i])) load();
+      return push.apply(dl, arguments);
+    };
+  })();
 </script>
-<script src="https://cortiq.se/spa-tracking.js" defer></script>
 ```
 
-The script does nothing until the visitor gives analytics consent (see *Consent* below). AI crawlers that never run JavaScript are measured server-side — see **Server-side agent measurement**.
+Using another CMP or Google Tag Manager? Load `https://cortiq.se/spa-tracking.js` (after setting `window.cortiqConfig`) from your CMP's analytics category or a GTM tag with an `analytics_storage` consent trigger. The WordPress plugin serves the tracker from your own site.
+
+A plain tag (`<script src="https://cortiq.se/spa-tracking.js" data-site-id="…" data-api-key="…" defer>`) also works — the script collects nothing before consent — but the browser then requests the file from cortiq.se on every page load, before consent. Whether that is acceptable is your assessment; the loader above avoids it.
+
+AI crawlers that never run JavaScript are measured server-side — see **Server-side agent measurement**.
 
 Page views are tracked automatically. No additional calls required for standard navigation.
 
@@ -388,14 +413,14 @@ TikTok and additional paid-channel connectors live under the same Integrations t
 
 **The browser script does nothing before analytics consent** — in both modes, including in-browser bot/agent detection (bot probe, canary, honeypot). Reading device properties or loading a tracking pixel is device access under ePrivacy Art. 5.3 / LEK 9 kap. 28 § (EDPB Guidelines 2/2023), so it needs consent.
 
-**Server-side agent measurement** reads only the HTTP request your server already receives. It doesn't touch the visitor's device, so in our assessment it needs no consent banner. The request data (truncated IP, user agent) is still personal data under GDPR: you need a legal basis (typically legitimate interest, Art. 6.1.f) and should mention it in your privacy policy. You make the final assessment.
+**Server-side agent measurement** reads only the HTTP request your server already receives. It doesn't touch the visitor's device, so in our assessment it is not covered by the cookie consent rule (ePrivacy Art. 5(3)); this is an interpretation that a supervisory authority may not share. The request data (truncated IP, user agent) is still personal data under the GDPR: you need a legal basis (typically legitimate interest, Art. 6(1)(f), with a documented balancing test) and **must** describe it, and the right to object, in your privacy policy. You make the final assessment.
 
 | Data | Default | Legal basis |
 |------|---------|-------------|
 | Server-side agent measurement (bot/agent requests, robots.txt / llms.txt, honeypot) | On when an adapter is installed | No device access; GDPR basis decided by you (typically Art. 6.1.f) |
 | In-browser bot/agent signals | Requires analytics consent | ePrivacy Art. 5.3 (consent) |
 | Page views, sessions, AI referrals | Requires analytics consent | Art. 6.1.a GDPR / ePrivacy Art. 5.3 (consent) |
-| Clicks, scroll depth, heatmaps, session replay, A/B tests | Requires analytics consent | Art. 6.1.a / ePrivacy Art. 5.3 |
+| Clicks, scroll depth, heatmaps, A/B tests | Requires analytics consent | Art. 6.1.a / ePrivacy Art. 5.3 |
 | Conversions, e-commerce & form analytics | Requires analytics consent | Art. 6.1.a / ePrivacy Art. 5.3 |
 | Marketing click IDs (gclid, fbclid, …) | Requires marketing consent | Art. 6.1.a |
 

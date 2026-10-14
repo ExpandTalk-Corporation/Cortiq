@@ -1,3 +1,4 @@
+import { buildTrackingSnippet } from '@/lib/trackingSnippet';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -75,18 +76,14 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
     }
   };
 
-  // Same snippet as InstallationGuide: the tracker reads window.cortiqConfig only
-  // (it ignores data-* attributes on its script tag).
+  // Same snippet as InstallationGuide (consent-gated loader).
   const scriptTag = newSiteId
-    ? `<script>
-  window.cortiqConfig = {
-    apiUrl: '${import.meta.env.VITE_SUPABASE_URL}/functions/v1',
-    siteId: '${newSiteId}',
-    apiKey: '${newTrackingId}',
-    cookieless: true
-  };
-</script>
-<script src="https://cortiq.se/spa-tracking.js" defer></script>`
+    ? buildTrackingSnippet({
+        apiUrl: `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`,
+        siteId: newSiteId,
+        trackingKey: newTrackingId,
+        scriptSrc: 'https://cortiq.se/spa-tracking.js',
+      })
     : '';
 
   return (

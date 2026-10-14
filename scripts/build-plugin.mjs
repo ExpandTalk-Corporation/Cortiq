@@ -38,6 +38,11 @@ function addDirPrefixed(zip, dir, baseDir, prefix) {
 
 addDirPrefixed(zip, pluginDir, pluginDir, PLUGIN_FOLDER);
 
+// The plugin serves the tracker from the customer's own site, so the browser makes no request to
+// cortiq.se (and sends it no IP address) when the page loads. public/cortiq.js is the minified
+// tracker built by scripts/minify-tracker.mjs, which runs before this script in `npm run build`.
+zip.file(`${PLUGIN_FOLDER}/assets/cortiq.js`, readFileSync(join(outputDir, 'cortiq.js')));
+
 const buf = await zip.generateAsync({
   type: 'nodebuffer',
   compression: 'DEFLATE',

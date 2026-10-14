@@ -6,7 +6,7 @@
 
 - **Data Processor:** Expandtalk Corporation AB, org. nr. 559358-8824, registered office Göteborg, VAT no. SE559358882401, Parmmätaregatan 4B, 417 04 Göteborg, Sweden ("CortIQ").
 
-**Version:** 1.3, dated 14 October 2026.
+**Version:** 1.4, dated 15 October 2026.
 
 This Data Processing Agreement ("DPA") governs the processing of personal data by CortIQ on behalf of the Customer, in accordance with Article 28 of the General Data Protection Regulation (EU) 2016/679 ("GDPR"). It forms part of the CortIQ Terms of Service (https://cortiq.se/terms/) and is accepted together with them when the Customer creates an account. Installing the tracking script, plugin, Worker or a server-side adapter with the Customer's keys also confirms acceptance of the version then in force. In case of conflict regarding personal data, this DPA prevails over the Terms of Service.
 
@@ -69,7 +69,7 @@ CortIQ shall:
 
 The Customer shall:
 
-**4.1** Ensure a lawful basis exists for each category of personal data processed via CortIQ: consent for visitor analytics and the tracking script's in-browser bot checks, in both Cookieless and Full mode; for server-side agent measurement, the Customer's own legal basis (typically legitimate interest, Art. 6.1.f GDPR). Server-side agent measurement does not access the visitor's device; the Customer makes the final assessment of whether any consent requirement applies.
+**4.1** Ensure a lawful basis exists for each category of personal data processed via CortIQ: consent for visitor analytics and the tracking script's in-browser bot checks, in both Cookieless and Full mode; for server-side agent measurement, the Customer's own legal basis (typically legitimate interest, Art. 6(1)(f) GDPR, supported by a documented balancing test), with the information required by Art. 13 and 21(4) GDPR, including the visitor's right to object. Legitimate interest is not available to public authorities in the performance of their tasks. Server-side agent measurement does not access the visitor's device; in CortIQ's assessment it is not covered by the consent requirement in Art. 5(3) of the ePrivacy Directive, but this is not settled and the Customer makes the final assessment.
 
 **4.2** Provide data subjects with adequate privacy information, including disclosure of CortIQ as a data processor. CortIQ provides a [Privacy Policy template](./GDPR.md) for this purpose.
 
@@ -107,9 +107,9 @@ This section is the authoritative list. Other CortIQ pages (for example the secu
 | Loopia AB (Sweden) | Web host for cortiq.se, which serves the dashboard and the tracking script file. Its access logs record the IP address and user agent of browsers that load the script | Sweden | No transfer | Loopia's data processing agreement (appendix to its general terms) |
 | Plus Five Five, Inc., trading as Resend (USA) | Email delivery of large report exports (over 10,000 rows) — Resend receives the recipient's address and a download link to EU storage that expires after one hour, not the export itself | USA | EU-US Data Privacy Framework; SCCs, Module 3 | [Resend DPA](https://resend.com/legal/dpa) |
 | Anthropic, PBC (USA) | AI insights on the dashboard overview and the KPI dashboard, using CortIQ's own API key. Receives aggregated statistics only: for the overview, page paths without query strings, page-view and session counts, device breakdown, form names and conversion rates; for the KPI dashboard, monthly KPI figures and traffic-channel totals. No visitor identifiers, IP addresses or email addresses | USA | SCCs, Module 3 | Anthropic's Data Processing Addendum (part of its Commercial Terms) |
-| Cloudflare, Inc. (USA) | Server-side bot classification from edge logs, edge web analytics (aggregate) and geo lookup for consent-banner gating — only if the Customer enables the Cloudflare integration | Global edge network | EU-US Data Privacy Framework; SCCs | [Cloudflare DPA](https://www.cloudflare.com/cloudflare-customer-dpa/) |
+| Cloudflare, Inc. (USA) | Edge web analytics (aggregate) and geo lookup for consent-banner gating through CortIQ's own Cloudflare access — only if the Customer enables the Cloudflare integration | Global edge network | EU-US Data Privacy Framework; SCCs | [Cloudflare DPA](https://www.cloudflare.com/cloudflare-customer-dpa/) |
 
-Loading the tracking script file from cortiq.se necessarily transmits the browser's IP address and user agent to the web host. CortIQ considers this storage of, or access to, information strictly necessary to deliver a file the website requested, which falls under the transmission exception in Chapter 9, Section 28 of the Swedish Electronic Communications Act (2022:482) and Art. 5(3) of the ePrivacy Directive. The legal basis for the resulting access log is CortIQ's legitimate interest in operating and securing the service (Art. 6(1)(f) GDPR). The logs are kept for the retention period set by the web host and are not used for analytics.
+The installation snippet CortIQ provides requests the tracking script file only after the visitor's analytics consent, and the WordPress plugin serves the file from the Customer's own site, so in the recommended setups no request reaches CortIQ's web host before consent. If the Customer instead loads the file from cortiq.se on every page load, the browser transmits its IP address and user agent to the web host before consent; whether an exception in Chapter 9, Section 28 of the Swedish Electronic Communications Act (2022:482) and Art. 5(3) of the ePrivacy Directive applies to that is not settled, and the Customer makes that assessment. The legal basis for the resulting access log is CortIQ's legitimate interest in operating and securing the service (Art. 6(1)(f) GDPR). The logs are kept for the retention period set by the web host and are not used for analytics.
 
 ### 6.2 Services the Customer connects under its own agreement
 
@@ -122,6 +122,7 @@ The following providers are not sub-processors of CortIQ. The Customer connects 
 | HubSpot | The Customer's HubSpot account sends lead-status changes to CortIQ (Section 2) | The Customer's HubSpot account and webhook secret |
 | Anthropic (Claude API), with the Customer's own key | AI assistant and GEO analysis send relevant analytics results to Anthropic. (AI insights with CortIQ's key are listed in Section 6.1.) | The Customer's own Anthropic API key |
 | Hosting of server-side adapters (for example Vercel, Netlify, Cloudflare Workers, the Customer's own Node server or WordPress host) | The adapter runs on the Customer's server and sends only bot-like requests to CortIQ | The Customer's own hosting account |
+| Cloudflare, under the Customer's own account (Worker, edge logs) | The CortIQ Cloudflare Worker and any edge logs run in the Customer's Cloudflare account; Cloudflare acts as the Customer's provider. CortIQ receives only the bot-like requests the Worker sends | The Customer's own Cloudflare account |
 
 CortIQ will notify the Customer at least 30 days in advance of any intended change to the sub-processor list. The Customer may object to a new sub-processor within 14 days of notification; if no resolution is reached, either party may terminate the service agreement.
 
@@ -187,6 +188,8 @@ For all GDPR and data protection enquiries: [info@expandtalk.se](mailto:info@exp
 ---
 
 *Version: 1.2, dated 14 October 2026 (replaces version 1.1 of 3 October 2026). Changes to this DPA follow the change procedure in section 12 of the Terms of Service.*
+
+*Changes in 1.4: server-side agent measurement – Customer's balancing test, Art. 13/21(4) information and the public-authority limit added to 4.1, and the ePrivacy assessment stated as not settled; Cloudflare split into CortIQ's own access (sub-processor) and the Customer's own Cloudflare account (Customer-connected service); script loading clause rewritten: the provided snippet and the WordPress plugin make no request to CortIQ before consent.*
 
 *Changes in 1.3: Anthropic added as a sub-processor for AI insights (replacing OpenAI, which is no longer used); section 3.4a liability aligned with section 9; GA4 access via CortIQ's service account clarified; legal basis for the web host's access logs stated.*
 

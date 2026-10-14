@@ -44,6 +44,10 @@ test('served plugin zip matches wordpress-plugin/ sources', async () => {
     assert.equal(lf(await entry.async('string')), lf(read(`wordpress-plugin/${file}`)),
       `zip copy of ${file} is stale — run node scripts/build-plugin.mjs`);
   }
+  // The plugin serves the tracker itself (no request to cortiq.se on page load).
+  const tracker = zip.file('cortiq-analytics/assets/cortiq.js');
+  assert.ok(tracker, 'zip is missing the bundled tracker assets/cortiq.js');
+  assert.equal(lf(await tracker.async('string')), lf(read('public/cortiq.js')), 'bundled tracker is stale — run npm run build');
 });
 
 // ── Plugin banner ↔ tracker consent contract ────────────────────────────────
