@@ -1,7 +1,7 @@
 /**
  * CortIQ Advanced Tracking Script
  * Unified visitor profiling with AI agent detection
- * Version: 5.5.1 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
+ * Version: 5.5.2 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
  *
  * Usage:
  * <script>
@@ -17,7 +17,7 @@
   'use strict';
 
   // Keep in sync with wordpress-plugin/cortiq-analytics.php (CORTIQ_VERSION).
-  const CORTIQ_VERSION = '5.5.1';
+  const CORTIQ_VERSION = '5.5.2';
 
   // Configuration: window.cortiqConfig, overridden by data-* attributes on this script
   // tag, so a single-tag install (<script src=… data-site-id=…>) works and a tag that
@@ -101,42 +101,6 @@
     }
     try { sessionStorage.setItem('cortiq_session_id', id); } catch (_) { /* Storage or browser capability unavailable. */ }
     return id;
-  }
-
-  // Get canvas fingerprint
-  function getCanvasFingerprint() {
-    try {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      ctx.textBaseline = 'top';
-      ctx.font = '14px Arial';
-      ctx.fillStyle = '#f60';
-      ctx.fillRect(125, 1, 62, 20);
-      ctx.fillStyle = '#069';
-      ctx.fillText('CortIQ', 2, 15);
-      return canvas.toDataURL();
-    } catch (e) {
-      return null;
-    }
-  }
-
-  // Get WebGL fingerprint
-  function getWebGLFingerprint() {
-    try {
-      const canvas = document.createElement('canvas');
-      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-      if (!gl) return null;
-
-      const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-      if (!debugInfo) return null;
-
-      return {
-        vendor: gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL),
-        renderer: gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL)
-      };
-    } catch (e) {
-      return null;
-    }
   }
 
   // Extract UTM parameters from URL
@@ -223,8 +187,6 @@
     const generation = consentGeneration;
     try {
       const utm = getUTMParams();
-      const fingerprintAllowed = config.fingerprintConsent === true && hasMarketingConsent();
-      const webgl = fingerprintAllowed ? getWebGLFingerprint() : null;
 
       const clickIds = getClickIds();
       const payload = {
@@ -249,11 +211,8 @@
           ttclid: clickIds.ttclid,
           li_fat_id: clickIds.li_fat_id,
           clickIdConsentGiven: true
-        }),
-        // Canvas/WebGL fingerprinting requires BOTH operator opt-in (config flag)
-        // AND the visitor's explicit marketing consent under GDPR / ePrivacy.
-        canvasFingerprint: (config.fingerprintConsent === true && hasMarketingConsent()) ? getCanvasFingerprint() : null,
-        webglFingerprint: (config.fingerprintConsent === true && hasMarketingConsent() && webgl) ? JSON.stringify(webgl) : null
+        })
+        // No canvas/WebGL fingerprinting in any mode.
       };
 
       const response = await fetch(`${API_URL}/visitor-identification`, {

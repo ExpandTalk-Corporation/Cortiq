@@ -44,7 +44,8 @@ supabase/
 
 public/
   spa-tracking.js         # Embeddable tracking script for external sites
-  ai-tracking-unified.js  # AI bot detection script
+  cortiq-server.mjs       # Server-side AI agent adapter (Next/Netlify/Node)
+  cloudflare-worker.js    # Server-side AI agent adapter (Cloudflare)
 ```
 
 ---

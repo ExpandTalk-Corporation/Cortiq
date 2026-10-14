@@ -1,19 +1,13 @@
-// public/ai-tracking-unified.js runs without consent, so it must stay a pure bot layer:
-// no device storage, no fingerprinting and no human AI-referral measurement.
+// The legacy browser bot scripts ran before consent. They are retired to comments-only
+// no-ops so old embeds neither 404 nor touch the visitor's device.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const code = readFileSync(new URL('../../public/ai-tracking-unified.js', import.meta.url), 'utf8')
-  .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-
-test('legacy AI script writes nothing to the device and does not fingerprint', () => {
-  for (const banned of ['localStorage', 'sessionStorage', 'document.cookie', 'toDataURL', 'getContext(']) {
-    assert.ok(!code.includes(banned), `must not use ${banned}`);
-  }
-});
-
-test('legacy AI script sends no human AI-referral data', () => {
-  assert.ok(!code.includes('ai-search-tracker'));
-  assert.ok(!code.includes('citationData'));
-});
+for (const file of ['ai-tracking-unified.js', 'ai-bot-probe.js']) {
+  test(`${file} is a no-op`, () => {
+    const code = readFileSync(new URL(`../../public/${file}`, import.meta.url), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '').trim();
+    assert.equal(code, '', `${file} must contain no executable code`);
+  });
+}
