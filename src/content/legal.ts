@@ -16,7 +16,7 @@ export const TERMS: ContentPageData = {
       id: 'parties',
       heading: '1. Who we are and what the terms cover',
       blocks: [
-        { type: 'p', text: 'CortIQ is provided by Expandtalk Corporation AB, company registration number 559358-8824, Parmmätaregatan 4B, 417 04 Göteborg, Sweden ("CortIQ", "we", "us").' },
+        { type: 'p', text: 'CortIQ is provided by Expandtalk Corporation AB, company registration number 559358-8824, VAT number SE559358882401, Parmmätaregatan 4B, 417 04 Göteborg, Sweden ("CortIQ", "we", "us").' },
         { type: 'p', text: 'The "Service" means the CortIQ dashboard at cortiq.se, the tracking script, the WordPress plugin, the Cloudflare Worker, the REST API, the MCP server and related documentation. "You" means the business or organisation that creates an account. The individual who accepts these terms does so on its behalf and confirms that they are authorised to do so.' },
         { type: 'p', text: 'You accept these terms when you create an account by ticking the acceptance box. Installing the tracking script, plugin or Worker with your keys also confirms your acceptance of the version then in force.' },
         { type: 'p', text: 'You may only use the Service for purposes relating to your business, trade or profession. By accepting, you confirm that you are not acting as a consumer. If mandatory consumer protection law nevertheless applies, it applies in addition to these terms.' },

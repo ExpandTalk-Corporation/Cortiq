@@ -59,6 +59,11 @@ const Contact = () => {
                     <h3 className="text-2xl font-bold text-foreground">Daniel Larsson</h3>
                     <p className="text-lg text-muted-foreground">Founder & CEO</p>
                     <p className="text-primary font-semibold">Expandtalk Corporation AB</p>
+                    <p className="text-sm text-muted-foreground">
+                      Org. no. 559358-8824 · VAT no. SE559358882401
+                      <br />
+                      Parmmätaregatan 4B, 417 04 Göteborg, Sweden
+                    </p>
                   </div>
                 </div>
 
