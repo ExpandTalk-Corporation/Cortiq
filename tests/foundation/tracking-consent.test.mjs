@@ -86,7 +86,13 @@ test('analytics grant starts once, without canvas/WebGL reads or marketing data'
   assert.equal(b.canvasReads(), 0);
 });
 
-for (const expiresAt of ['2000-01-01T00:00:00Z', null, 'invalid']) {
+test('stored consent with a numeric (epoch ms) expiresAt is honoured', async () => {
+  const b = browser({}, { analytics: true, marketing: false, expiresAt: Date.now() + 86_400_000 });
+  await settle();
+  assert.ok(b.calls.some(c => c.url.endsWith('/track-event')), 'page view sent');
+});
+
+for (const expiresAt of ['2000-01-01T00:00:00Z', null, 'invalid', 946684800000]) {
   test(`stored consent with invalid/expired expiry is not used: ${expiresAt}`, async () => {
     const b = browser({}, { analytics: true, marketing: true, expiresAt });
     b.window.CortIQ.trackClick('test');
