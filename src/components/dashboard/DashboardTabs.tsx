@@ -1,11 +1,6 @@
 import React, { lazy, Suspense } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { TabErrorBoundary } from './TabErrorBoundary';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Button } from '@/components/ui/button';
-import { ChevronDown, Settings, ExternalLink, Key, Zap, Code2, Play, Globe, Database, DollarSign, TrendingUp, ShieldAlert, BarChart2, Bot, Sliders, Target, Shield, Users, Megaphone, FlaskConical, Bell, FileText, Flame, Network, Share2, Filter, AlertTriangle, BookOpen, Sparkles, ShoppingCart, Server, Activity, Cpu, Layers, PieChart } from 'lucide-react';
-import { UTMSegmentBar } from './UTMSegmentBar';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { OverviewTab } from './tabs/OverviewTab';
 import type { Site, Analytics } from '@/types/dashboard';
 
@@ -61,212 +56,17 @@ interface DashboardTabsProps {
   analytics: Analytics | null;
   dateRange?: import('react-day-picker').DateRange;
   onSiteDeleted?: () => void;
+  activeTab: string;
+  onTabChange: (value: string) => void;
 }
 
-type NavOption = { value: string; label: string; icon: React.ComponentType<{ className?: string }> };
-type NavGroup = { label: string; icon: React.ComponentType<{ className?: string }>; options: NavOption[] };
-
-const NAV_GROUPS: NavGroup[] = [
-  {
-    label: 'Traffic',
-    icon: BarChart2,
-    options: [
-      { value: 'analytics',    label: 'Analytics',       icon: BarChart2 },
-      { value: 'cookiefree',   label: 'Cookie-Free',     icon: Shield },
-      { value: 'realtime',     label: 'Real-Time',       icon: Activity },
-      { value: 'geolocation',  label: 'Geolocation',     icon: Globe },
-      { value: 'social-media', label: 'Social Media',    icon: Share2 },
-      { value: 'navigation',   label: 'Navigation Flow', icon: Network },
-      { value: 'server-logs',  label: 'Server Logs',     icon: Server },
-    ],
-  },
-  {
-    label: 'AI',
-    icon: Bot,
-    options: [
-      { value: 'ai',              label: 'AI Traffic',      icon: TrendingUp },
-      { value: 'ai-bots',         label: 'AI Agents',       icon: Bot },
-      { value: 'ai-visibility',   label: 'GEO / AI Search', icon: Sparkles },
-      { value: 'zero-click-risk', label: 'Zero-Click Risk', icon: AlertTriangle },
-      { value: 'agent-ops',       label: 'Agent Ops',       icon: Zap },
-    ],
-  },
-  {
-    label: 'Optimize',
-    icon: Sliders,
-    options: [
-      { value: 'heatmap',           label: 'Heatmap',           icon: Flame },
-      { value: 'forms',             label: 'Forms',             icon: FileText },
-      { value: 'abtesting',         label: 'A/B Testing',       icon: FlaskConical },
-      { value: 'session-recording', label: 'Session Recording', icon: Play },
-      { value: 'conversion-goals',  label: 'Conversion Goals',  icon: Target },
-    ],
-  },
-  {
-    label: 'Ads',
-    icon: Megaphone,
-    options: [
-      { value: 'paid-ads',        label: 'Ads (GA4)',        icon: Megaphone },
-      { value: 'paid-ads-server', label: 'Ads (Server-Side)', icon: Database },
-      { value: 'click-fraud',     label: 'Click Fraud',      icon: ShieldAlert },
-      { value: 'attribution',     label: 'Attribution Gap',  icon: Target },
-    ],
-  },
-  {
-    label: 'Reports',
-    icon: BookOpen,
-    options: [
-      { value: 'kpi',                 label: 'KPI Dashboard',      icon: Target },
-      { value: 'kpi-catalog',         label: 'AI KPI Overview',    icon: DollarSign },
-      { value: 'user-ltv',            label: 'User LTV & Cohorts', icon: Users },
-      { value: 'alerts',              label: 'Alerts',             icon: Bell },
-      { value: 'report-builder',      label: 'Report Builder',     icon: PieChart },
-      { value: 'campaigns',           label: 'Campaigns',          icon: Megaphone },
-      { value: 'content-performance', label: 'Content',            icon: FileText },
-    ],
-  },
-];
-
-const SETTINGS_OPTIONS: NavOption[] = [
-  { value: 'setup',             label: 'Setup & tracking script',  icon: Code2 },
-  { value: 'integrations',      label: 'Integrations',             icon: ExternalLink },
-  { value: 'cortiq-api',        label: 'CortIQ API & MCP',         icon: Key },
-  { value: 'api-keys',          label: 'Third-party Keys',         icon: Key },
-  { value: 'gdpr',              label: 'GDPR',                     icon: Shield },
-  { value: 'notifications',     label: 'Notifications',            icon: Bell },
-  { value: 'tag-manager',       label: 'Tag Manager',              icon: Code2 },
-  { value: 'warehouse',         label: 'Data Warehouse',           icon: Database },
-  { value: 'advanced-features', label: 'Web Vitals & White Label', icon: TrendingUp },
-  { value: 'segments',          label: 'Segments',                 icon: Users },
-  { value: 'utm-segments',      label: 'UTM Segments',             icon: Filter },
-  { value: 'ip-segments',       label: 'Network Segments',         icon: Network },
-  { value: 'ecommerce',         label: 'E-commerce',               icon: ShoppingCart },
-  { value: 'content-tracking',  label: 'Content Tracking',         icon: Layers },
-  { value: 'agent-macros',      label: 'Agent Macros',             icon: Cpu },
-  { value: 'agent-registry',    label: 'Agent Registry',           icon: Server },
-];
-
-function DashboardTabsInner({ selectedSite, analytics, dateRange, onSiteDeleted }: DashboardTabsProps) {
-  // Active tab lives in the URL (?tab=) so it deep-links, survives refresh, and works
-  // with the browser back button. Falls back to 'overview' when absent.
-  const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get('tab') || 'overview';
-  const setActiveTab = (value: string) => {
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev);
-      next.set('tab', value);
-      return next;
-    });
-  };
-
-  function NavGroupDropdown({ group }: { group: NavGroup }) {
-    const activeOption = group.options.find(o => o.value === activeTab);
-    const GroupIcon = group.icon;
-    return (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant={activeOption ? 'default' : 'ghost'}
-            className="flex items-center gap-2 h-10 px-4 py-2 whitespace-nowrap"
-          >
-            <GroupIcon className="h-4 w-4" />
-            {group.label}
-            {activeOption && <span className="h-2 w-2 rounded-full bg-current opacity-60 shrink-0" />}
-            <ChevronDown className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-52 bg-card border shadow-lg z-[100]" sideOffset={5}>
-          {group.options.map((option) => (
-            <DropdownMenuItem
-              key={option.value}
-              onClick={() => setActiveTab(option.value)}
-              className={`cursor-pointer ${activeTab === option.value ? 'bg-muted' : ''}`}
-            >
-              <option.icon className="mr-2 h-4 w-4" />
-              {option.label}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    );
-  }
-
-  const currentSettingsTab = SETTINGS_OPTIONS.find(o => o.value === activeTab);
+function DashboardTabsInner({ selectedSite, analytics, dateRange, onSiteDeleted, activeTab, onTabChange }: DashboardTabsProps) {
+  // Active tab lives in the URL (?tab=); Dashboard.tsx owns it so the numbered sidebar
+  // (DashboardSidebar) and this content switch share one value.
+  const setActiveTab = onTabChange;
 
   return (
-    <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 max-w-screen-2xl mx-auto w-full">
-      <div className="flex items-center gap-1 border-b pb-2 overflow-x-auto sticky top-0 z-40 bg-background [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {/* Overview — always visible */}
-        <TabsList aria-label="Dashboard navigation" className="bg-transparent border-0 h-auto p-0 shrink-0">
-          <TabsTrigger value="overview" className="data-[state=active]:bg-background data-[state=active]:shadow-sm whitespace-nowrap">
-            Overview
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Grouped dropdowns */}
-        {NAV_GROUPS.map(group => (
-          <div key={group.label} className="shrink-0">
-            <NavGroupDropdown group={group} />
-          </div>
-        ))}
-
-        {/* Settings / More Dropdown — pushed to right with ml-auto but no shrink */}
-        <div className="shrink-0 ml-auto pl-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant={currentSettingsTab ? 'default' : 'ghost'}
-                className="flex items-center gap-2 h-10 px-4 py-2 whitespace-nowrap"
-              >
-                <Settings className="h-4 w-4" />
-                {currentSettingsTab ? currentSettingsTab.label : 'Settings'}
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 bg-card border shadow-lg z-[100]" sideOffset={5}>
-              {/* Core config — Setup through Notifications */}
-              {SETTINGS_OPTIONS.slice(0, 5).map((option) => (
-                <DropdownMenuItem
-                  key={option.value}
-                  onClick={() => setActiveTab(option.value)}
-                  className={`cursor-pointer ${activeTab === option.value ? 'bg-muted' : ''}`}
-                >
-                  <option.icon className="mr-2 h-4 w-4" />
-                  {option.label}
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-              {/* Advanced tools — Tag Manager through Web Vitals */}
-              {SETTINGS_OPTIONS.slice(5, 8).map((option) => (
-                <DropdownMenuItem
-                  key={option.value}
-                  onClick={() => setActiveTab(option.value)}
-                  className={`cursor-pointer ${activeTab === option.value ? 'bg-muted' : ''}`}
-                >
-                  <option.icon className="mr-2 h-4 w-4" />
-                  {option.label}
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-              {/* Segments & specialised */}
-              {SETTINGS_OPTIONS.slice(8).map((option) => (
-                <DropdownMenuItem
-                  key={option.value}
-                  onClick={() => setActiveTab(option.value)}
-                  className={`cursor-pointer ${activeTab === option.value ? 'bg-muted' : ''}`}
-                >
-                  <option.icon className="mr-2 h-4 w-4" />
-                  {option.label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
-      {/* UTM Segment chip-bar — below nav, above all tab content */}
-      <UTMSegmentBar className="pb-1" />
-
+    <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 w-full">
       <TabsContent value="overview" className="space-y-6">
         <TabErrorBoundary tabName="Overview">
           <OverviewTab
