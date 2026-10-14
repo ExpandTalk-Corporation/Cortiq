@@ -23,18 +23,23 @@ CortIQ classifies every AI visit into three categories — this is the core diff
 - **Agentic** (agent fetches via ChatGPT-User, Claude-User, Perplexity-User, plus JS-signal heuristics for in-browser AI agents) — real users acting through an AI; track and convert them. AI browsers such as Perplexity Comet or Claude for Chrome send a stock Chrome user agent and are not identified by name.
 - **Citation crawlers** (PerplexityBot, OAI-SearchBot, Claude-SearchBot, YouBot, DuckAssistBot) — AI search indexing, your visibility signal
 
-Detection combines user-agent parsing with browser-type classification (visual / headless / text-based). Server-side ingest through a Cloudflare Worker (cloudflare-ingest) counts training and citation crawlers that never execute JavaScript. Agentic-browser journeys are reconstructed page-by-page with conversion attribution.
+Detection combines user-agent parsing with browser-type classification (visual / headless / text-based). Server-side agent measurement on the site's own server or edge counts the training and citation crawlers that never execute JavaScript. Agentic-browser journeys are reconstructed page-by-page with conversion attribution.
 
-### AI-Bot & Security Layer (runs without consent)
+### Server-Side Agent Measurement (no device access)
 
-Without consent, only the AI-bot / security layer runs:
+The primary method for AI crawlers and agents. It runs on the site's own server or edge — Next.js/Vercel middleware, Netlify Edge, Cloudflare Worker, Node/Express, the WordPress plugin, or any server through an HTTP API:
 
-- AI bot & agent detection and crawler classification (training / agentic / citation)
-- Bot probe, invisible honeypot link, and canary pixel/link traps
-- Click-fraud scoring of paid-ad sessions (confirmed bots, webdriver/headless signals, zero-engagement sessions)
-- Server-side bot classification through a Cloudflare Worker (cloudflare-ingest)
+- Crawler classification (training / agentic / citation) from the request user agent
+- robots.txt and llms.txt fetches
+- Hits on a hidden honeypot link in the server-rendered HTML
+- Only bot-like requests are sent; ordinary human requests never leave the customer's server
+- The IP is truncated to /24 (IPv6 /48) on the customer's server before sending; CortIQ clears the truncated IP after 30 days
 
-This layer is designed to run as strictly necessary security processing. The site operator makes the final legal assessment.
+It reads only the HTTP request the server already receives and does not access the visitor's device, so in our assessment it falls outside ePrivacy Art. 5.3 (Swedish LEK 9 kap. 28 §) and needs no consent banner. The request data is still personal data under GDPR: the site operator needs a legal basis (typically legitimate interest, Art. 6.1.f) and should mention it in their privacy policy. The site operator makes the final legal assessment.
+
+### In-Browser Bot Checks (after consent)
+
+The tracking script's bot probe, invisible honeypot link, canary pixel/link traps and click-fraud scoring read device properties, which is device access under ePrivacy Art. 5.3. They start only after analytics consent, together with visitor analytics.
 
 ### Consent-Gated Visitor Analytics
 
@@ -110,7 +115,7 @@ The consent banner is required for visitor analytics in both modes:
 Built by an EU company for EU-grade compliance, security-first by design:
 
 - **Row-Level Security on every table** — company/tenant isolation enforced at the database layer, never only in the application
-- **Consent-gated behavioral data** in every mode — all visitor analytics, including page views, require analytics consent; only the AI-bot / security layer runs without it
+- **Consent-gated behavioral data** in every mode — all visitor analytics, including page views and in-browser bot checks, require analytics consent; AI crawlers are measured server-side
 - **Data minimisation** — IP anonymisation at ingest; emails SHA-256 hashed before any third-party upload
 - **EU data residency** — Supabase, AWS eu-north-1; any US transfer (AI/ads) is optional, consent-gated and disclosed
 - **The Agentic Layer only ever reads** through governed, tenant-scoped interfaces — AI never sees another tenant's data
@@ -139,7 +144,7 @@ Installed on customer websites via a single `<script>` tag:
 <script src="https://cortiq.se/spa-tracking.js" data-site-id="YOUR_SITE_ID" defer></script>
 ```
 
-The script handles page views, click and scroll heatmaps, session events, AI-agent detection, UTM capture and consent integration (CortIQ banner, Cookiebot). All visitor analytics are consent-gated; only AI-agent detection runs without consent.
+The script handles page views, click and scroll heatmaps, session events, AI-agent detection, UTM capture and consent integration (CortIQ banner, Cookiebot). Everything the script does, including AI-agent detection in the browser, waits for analytics consent.
 
 ### API
 

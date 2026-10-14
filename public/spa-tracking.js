@@ -1,7 +1,7 @@
 /**
  * CortIQ Advanced Tracking Script
  * Unified visitor profiling with AI agent detection
- * Version: 5.4.3 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
+ * Version: 5.5.0 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
  *
  * Usage:
  * <script>
@@ -17,10 +17,25 @@
   'use strict';
 
   // Keep in sync with wordpress-plugin/cortiq-analytics.php (CORTIQ_VERSION).
-  const CORTIQ_VERSION = '5.4.3';
+  const CORTIQ_VERSION = '5.5.0';
 
-  // Configuration
-  const config = window.cortiqConfig || window.wfaConfig || {};
+  // Configuration: window.cortiqConfig, overridden by data-* attributes on this script
+  // tag, so a single-tag install (<script src=… data-site-id=…>) works and a tag that
+  // names its own site is never redirected by a global config from another install.
+  const config = Object.assign({}, window.cortiqConfig || window.wfaConfig || {}, readScriptAttributes());
+
+  function readScriptAttributes() {
+    let el = document.currentScript;
+    if (!el && typeof document.querySelector === 'function') el = document.querySelector('script[src*="spa-tracking"], script[src*="cortiq.js"]');
+    if (!el || typeof el.getAttribute !== 'function') return {};
+    const out = {};
+    const map = { 'site-id': 'siteId', 'api-key': 'apiKey', 'api-url': 'apiUrl', 'exclude-paths': 'excludePaths', 'auth-path': 'authPath', 'tenant-id': 'tenantId' };
+    for (const name in map) { const v = el.getAttribute('data-' + name); if (v) out[map[name]] = v; }
+    for (const name of ['cookieless', 'exclude-iframes']) {
+      if (el.getAttribute('data-' + name) === 'true') out[name === 'cookieless' ? 'cookieless' : 'excludeIframes'] = true;
+    }
+    return out;
+  }
   const API_URL = config.apiUrl || 'https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1';
   const SITE_ID = config.siteId || config.companyId;
   const API_KEY = config.apiKey;
@@ -36,7 +51,7 @@
   const TENANT_ID = config.tenantId || null;
 
   if (!SITE_ID) {
-    console.error('CortIQ Tracking: Missing siteId in window.cortiqConfig');
+    console.error('CortIQ Tracking: Missing siteId (set window.cortiqConfig.siteId or data-site-id on the script tag)');
     return;
   }
 
@@ -258,13 +273,6 @@
           VISITOR_PROFILE = result.visitor;
           IDENTIFICATION_COMPLETE = true;
 
-          console.log('CortIQ Visitor identified:', {
-            id: VISITOR_ID,
-            type: result.visitor.visitorType,
-            isNew: result.visitor.isNewVisitor,
-            segments: result.visitor.segments
-          });
-
           // Fire custom event for other scripts to listen to
           window.dispatchEvent(new CustomEvent('cortiq:visitor-identified', {
             detail: result.visitor
@@ -348,9 +356,6 @@
       if (!response.ok) {
         const error = await response.json();
         console.error('CortIQ Tracking error:', error);
-      } else {
-        const result = await response.json();
-        console.log('CortIQ Event tracked:', eventType, result.event_id);
       }
     } catch (error) {
       console.error('CortIQ Tracking failed:', error);
@@ -934,11 +939,14 @@
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Security / bot-detection layer. Treated as strictly necessary (ePrivacy
-  // Art. 5.3) — runs without analytics consent, subject to the operator's own
-  // legal assessment. Sends bot signatures and coarse capability signals for a
-  // single page context (SECURITY_SESSION_ID, in-memory). No cross-visit
-  // identity is written to the visitor's device.
+  // Client-side bot-detection layer. Reading navigator/screen properties and
+  // loading the canary pixel is access to the visitor's device (LEK 9:28 /
+  // ePrivacy Art. 5.3, EDPB Guidelines 2/2023), so it starts only after
+  // analytics consent, like every other part of this script. Crawlers that never
+  // run JavaScript are measured server-side instead (cortiq-server adapters ->
+  // server-hit), which needs no client code at all. Sends bot signatures and
+  // coarse capability signals for a single page context (SECURITY_SESSION_ID,
+  // in-memory). No cross-visit identity is written to the visitor's device.
   // trackAISearch/trackAICitation below measure human AI referrals and are NOT part
   // of this layer: startAnalytics() calls them only after analytics consent.
   // ─────────────────────────────────────────────────────────────────────────
@@ -1050,7 +1058,7 @@
     const known = detectKnownAgent(ua);
     const signals = getBotSignals();
     const capScore = Object.values(signals).filter(Boolean).length;
-    if (!known && capScore < 3) return; // looks like a real browser — no probe
+    if (!known && capScore < 3) return; // looks like a real browser — no probe, no canary
     const fp = getAgentFingerprint();
     let depth = 1;
     try { depth = parseInt(sessionStorage.getItem('_ciq_adp') || '0') + 1; sessionStorage.setItem('_ciq_adp', depth); } catch (_) {}
@@ -1064,6 +1072,9 @@
       if (navigator.sendBeacon) navigator.sendBeacon(API_URL + '/ai-bot-tracker', payload);
       else fetch(API_URL + '/ai-bot-tracker', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true }).catch(function () {});
     } catch (_) { /* Storage or browser capability unavailable. */ }
+    // Canary only for suspected bots: a canary fetched by a normal consented visitor
+    // would be logged (and alerted) as scraping.
+    try { setupCanary(); } catch (_) {}
     setTimeout(function () {
       const rms = Math.round(performance.now() - t0);
       if (rms < 200 && navigator.sendBeacon) navigator.sendBeacon(API_URL + '/ai-bot-tracker', JSON.stringify({ siteId: SITE_ID, sessionId: SECURITY_SESSION_ID, agentFingerprint: fp, update: { renderMs: rms, fastRender: true } }));
@@ -1071,6 +1082,7 @@
   }
 
   function reportHoneypot(trigger) {
+    if (!hasAnalyticsConsent()) return;
     try {
       const payload = JSON.stringify({ siteId: SITE_ID, url: window.location.href, referrer: document.referrer || null, userAgent: navigator.userAgent, sessionId: SECURITY_SESSION_ID, probeData: { jsExecuted: true, signals: { honeypotTriggered: true, honeypotTrigger: trigger, webdriver: navigator.webdriver === true, headless: /HeadlessChrome/.test(navigator.userAgent) } } });
       if (navigator.sendBeacon) navigator.sendBeacon(API_URL + '/ai-bot-tracker', payload);
@@ -1102,11 +1114,13 @@
     const token = canaryToken();
     const img = document.createElement('img');
     img.src = API_URL + '/canary-tracker/' + token + '?v=px&s=' + encodeURIComponent(SITE_ID);
+    img.id = '_ciq_canary_px';
     img.width = 1; img.height = 1; img.alt = ''; img.setAttribute('aria-hidden', 'true');
     img.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;';
     document.body.appendChild(img);
     const a = document.createElement('a');
     a.href = API_URL + '/canary-tracker/' + token + '?v=lk&s=' + encodeURIComponent(SITE_ID);
+    a.id = '_ciq_canary_lk';
     a.tabIndex = -1; a.setAttribute('aria-hidden', 'true');
     a.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;';
     a.textContent = 'Site resources';
@@ -1122,8 +1136,15 @@
     }
     securityStarted = true;
     try { runBotProbe(); } catch (_) {}
-    try { setupCanary(); } catch (_) {}
     try { setupHoneypot(); } catch (_) {}
+  }
+
+  // Revocation: remove the traps so nothing more is reported from this page.
+  function stopSecurityLayer() {
+    securityStarted = false;
+    for (const id of ['_ciq_trap', '_ciq_canary_px', '_ciq_canary_lk']) {
+      try { const el = document.getElementById(id); if (el && el.parentNode) el.parentNode.removeChild(el); } catch (_) {}
+    }
   }
 
   // Run the analytics pipeline (visitor identification, pageview, interaction
@@ -1140,6 +1161,7 @@
       IDENTIFICATION_COMPLETE = true;
     }
     if (generation !== consentGeneration || !hasAnalyticsConsent()) return;
+    startSecurityLayer();
     trackPageView();
     // AI-referral measurement (a human arriving from ChatGPT/Perplexity/…) is visitor
     // analytics, not security: it only runs after consent, once per page load.
@@ -1179,6 +1201,7 @@
       VISITOR_PROFILE = null;
       IDENTIFICATION_COMPLETE = false;
       try { sessionStorage.removeItem('cortiq_session_id'); } catch (_) { /* Storage or browser capability unavailable. */ }
+      stopSecurityLayer();
       return;
     }
     startAnalytics();
@@ -1186,9 +1209,6 @@
 
   // Keep listening after the first grant so revocation and re-grant work too.
   async function initialize() {
-    // Security / bot-detection layer runs independently of analytics consent
-    // (strictly necessary), subject to the operator's own legal assessment.
-    startSecurityLayer();
     window.addEventListener('siteConsentUpdated', e => updateConsent(e.detail));
     const updateCookiebot = () => updateConsent({
       analytics: window.Cookiebot?.consent?.statistics,

@@ -3,7 +3,7 @@ Contributors: cortiq
 Tags: analytics, ai-tracking, heatmap, cookie-free, gdpr, chatgpt, ai-bots
 Requires at least: 5.6
 Tested up to: 6.8
-Stable tag: 5.4.3
+Stable tag: 5.5.0
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -12,7 +12,7 @@ Analytics for the agentic web. Track AI agents, human visitors and Core Web Vita
 
 == Description ==
 
-CortIQ Analytics gives you a complete picture of who visits your site: human visitors and AI agents alike. AI-agent and bot detection runs as a strictly necessary security function; visitor analytics (page views, heatmaps, conversions) start only after the visitor gives analytics consent.
+CortIQ Analytics gives you a complete picture of who visits your site: human visitors and AI agents alike. AI crawlers and agents are measured server-side by WordPress itself — most of them never run JavaScript, and nothing runs in the visitor's browser. The tracking script (page views, heatmaps, conversions, in-browser agent signals) starts only after the visitor gives analytics consent.
 
 = What you can measure =
 
@@ -40,7 +40,7 @@ CortIQ Analytics gives you a complete picture of who visits your site: human vis
 
 = Privacy & GDPR =
 
-AI-agent and bot detection runs without consent as a strictly necessary security function. Visitor analytics — in both Cookieless and Full mode — start only after the visitor grants Statistics consent via the built-in cookie banner. Cookieless mode additionally avoids fingerprinting and cross-visit profiles. You decide the legal basis for your site. The banner implements:
+The tracking script — in both Cookieless and Full mode, including in-browser bot detection — starts only after the visitor grants Statistics consent via the built-in cookie banner. Cookieless mode additionally avoids fingerprinting and cross-visit profiles. Server-side agent measurement reads only the HTTP request WordPress already receives (user agent, path, truncated IP of bot-like requests), so it involves no consent banner; it is still personal data under GDPR, so mention it in your privacy policy. You decide the legal basis for your site. The banner implements:
 * Granular categories (Necessary / Preferences / Statistics / Marketing)
 * No pre-ticked boxes for non-essential categories
 * Consent ID and timestamp logging
@@ -71,7 +71,7 @@ The plugin loads the CortIQ tracking script in `<head>` and shows the cookie con
 
 = Do I need a cookie banner? =
 
-Yes, for visitor analytics. CortIQ's page views, heatmaps and sessions start only after Statistics consent, also in Cookieless mode. Without a banner only AI-agent and bot detection runs. The built-in banner handles this, including Google Consent Mode v2 for GA4.
+Yes, for visitor analytics. CortIQ's page views, heatmaps and sessions start only after Statistics consent, also in Cookieless mode. Without consent only server-side agent measurement runs (on your server, not in the browser). The built-in banner handles this, including Google Consent Mode v2 for GA4.
 
 = Does this work alongside Google Analytics? =
 
@@ -86,6 +86,10 @@ All data is stored in the EU (AWS eu-north-1 via Supabase).
 The tracking script is loaded with `defer` so it does not block rendering.
 
 == Changelog ==
+
+= 5.5.0 =
+* New: server-side AI agent measurement. WordPress reports bot/agent requests, robots.txt / llms.txt fetches and hits on a hidden honeypot link to CortIQ (IP truncated, human requests never sent). Adds `Disallow: /cortiq-trap/` to the virtual robots.txt. On by default when a Tracking ID is set; toggle in Settings → CortIQ.
+* Tracking script: in-browser bot detection (bot probe, canary, honeypot) now waits for analytics consent like everything else in the script. The script also accepts `data-site-id` / `data-api-key` on its own tag, and no longer logs visitor profiles to the console.
 
 = 5.4.3 =
 * Tracking script: reads Google Consent Mode v2 from the dataLayer when no CortIQ banner or Cookiebot choice exists, so CMPs wired to Google Tag Manager (OneTrust, Usercentrics, CookieYes and others) work without extra code. Click and scroll heatmap points are stored again.

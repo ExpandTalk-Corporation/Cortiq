@@ -20,7 +20,7 @@ export default function PublicFooter() {
             <span className="font-bold text-xl text-gradient-primary">CortIQ</span>
           </Link>
           <p className="text-muted-foreground leading-relaxed max-w-md">
-            AI-agent intelligence without consent friction; visitor analytics that are consent-first and cookieless.
+            AI-agent measurement on your own server; visitor analytics that are consent-first and cookieless.
           </p>
           <p className="text-sm text-muted-foreground mt-4">Built by Expandtalk Corporation AB, Sweden.</p>
         </div>

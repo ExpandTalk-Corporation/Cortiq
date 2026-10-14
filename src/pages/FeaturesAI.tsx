@@ -174,13 +174,13 @@ const features = [
   },
   {
     icon: <Search className="h-7 w-7" />,
-    title: "Server-Side Crawler Ingestion",
-    description: "Training and citation crawlers rarely execute JavaScript. A Cloudflare Worker reports them and CortIQ classifies them server-side with the same registry.",
+    title: "Server-Side Agent Measurement",
+    description: "Training and citation crawlers rarely execute JavaScript. Your server or edge reports them and CortIQ classifies them with the same registry.",
     items: [
-      "Cloudflare Worker at the edge",
+      "Next.js, Netlify, Cloudflare, Node or WordPress",
       "Catches crawlers the JS tag never sees",
       "Identical classification to the JS tag",
-      "Runs without visitor consent (no personal data)",
+      "No device access; IP truncated on your server (GDPR basis still needed)",
     ],
   },
   {

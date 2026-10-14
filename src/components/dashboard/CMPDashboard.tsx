@@ -261,7 +261,7 @@ export function CMPDashboard({ selectedSite }: CMPDashboardProps) {
                 <Shield className="h-4 w-4" />
                 <AlertDescription>
                   {trackingMode === 'cookieless'
-                    ? 'Cookieless: CortIQ analytics run without consent. GA4 and marketing tools still require consent.'
+                    ? 'Cookieless: no cookies, no fingerprint, no persistent IDs. Still starts only after analytics consent, like GA4 and marketing tools.'
                     : 'Full: device fingerprint + returning-visitor profiling. Requires analytics consent.'}
                   {' '}Make sure the tracking script sends the matching mode — in the WordPress plugin, set Tracking mode to the same value.
                 </AlertDescription>

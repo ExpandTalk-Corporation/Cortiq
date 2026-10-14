@@ -6,11 +6,12 @@ CortIQ is designed to give you complete analytics coverage while staying within 
 
 ## What runs when
 
-CortIQ separates an AI-bot / security layer from visitor analytics:
+CortIQ separates server-side agent measurement from everything that runs in the visitor's browser:
 
 | Layer | Runs | Storage in the browser | Legal basis |
 |-------|------|------------------------|-------------|
-| **AI-bot / security layer** | Always | None | Designed as strictly necessary security processing — the site operator makes the final assessment |
+| **Server-side agent measurement** | Always (on your server or edge, not in the browser) | None — no device access | Typically legitimate interest (Art. 6.1.f GDPR); in our assessment outside ePrivacy Art. 5.3 — the site operator makes the final assessment |
+| **In-browser bot checks** (bot probe, honeypot, canary) | Only after analytics consent | `_ciq_adp` (sessionStorage), only for clients detected as automated | Consent (Art. 6.1.a GDPR / ePrivacy Art. 5.3) |
 | **Visitor analytics — Cookieless mode** | Only after analytics consent | None (no cookies, no fingerprint, no persistent IDs) | Consent (Art. 6.1.a GDPR / ePrivacy Art. 5.3) |
 | **Visitor analytics — Full mode** | Only after analytics consent | Session ID (sessionStorage) + persistent visitor ID for returning-visitor recognition | Consent (Art. 6.1.a GDPR / ePrivacy Art. 5.3) |
 | **Marketing click IDs** (gclid, fbclid, …) | Only after marketing consent | Session storage | Consent (Art. 6.1.a GDPR) |
@@ -19,13 +20,21 @@ Consent is stored with an expiry and is valid for 12 months; after that the bann
 
 ---
 
-## AI-bot / security layer — what runs without consent
+## Server-side agent measurement — no device access
 
-- AI bot & agent detection and crawler classification (training / agentic / citation)
-- Bot probe, honeypot and canary checks
-- Server-side bot classification from Cloudflare edge logs (cloudflare-ingest), if the Cloudflare integration is enabled
+Runs on your own server or edge: Next.js/Vercel middleware, Netlify Edge, Cloudflare Worker, Node/Express, the WordPress plugin, or any server through the HTTP API.
 
-This layer analyses request characteristics such as the user-agent and request patterns. It is designed to run as strictly necessary security processing (protecting the site against automated traffic). Whether that assessment holds for your site is your decision as data controller.
+- Crawler and AI-agent classification (training / agentic / citation) from the request user agent
+- robots.txt and llms.txt fetches
+- Hits on a hidden honeypot link in your server-rendered HTML
+- Only bot-like requests are sent to CortIQ; ordinary human requests never leave your server
+- Data per request: timestamp, URL path, referrer, user agent, and the IP truncated to /24 (IPv6 /48) on your server before sending. CortIQ clears the truncated IP after 30 days
+
+Most AI training and citation crawlers (GPTBot, ClaudeBot, PerplexityBot, Google-Extended) never execute JavaScript, so this is also the only reliable way to see them.
+
+The measurement reads only the HTTP request your server already receives and stores or reads nothing on the visitor's device. In our assessment it therefore falls outside ePrivacy Art. 5.3 (Swedish LEK 9 kap. 28 §, EDPB Guidelines 2/2023) and needs no consent banner. The request data is still personal data under GDPR: you need a legal basis (typically legitimate interest, Art. 6.1.f, with a documented balancing test) and you must mention it in your privacy policy. As data controller you make the final assessment.
+
+The tracking script's in-browser bot checks (bot probe, honeypot, canary) read device properties, which is device access under Art. 5.3. They start only after analytics consent.
 
 **Disclosure required:** Yes. Describe this processing in your privacy policy. See the [Privacy Policy Template](#privacy-policy-template) below.
 
@@ -37,7 +46,7 @@ Activated only when a visitor accepts the "Statistics" category in the cookie ba
 
 - **Page views and sessions** — page URL, referrer, device type, browser family, viewport category
 - **AI referrals** — visits arriving from AI services (ChatGPT, Perplexity, Claude, Gemini): referrer, landing URL, UTM parameters, time on page
-- **Anonymised IP address** — last octet masked before storage (e.g. 192.168.1.0)
+- **IP address** — not stored by visitor analytics. Where an IP is kept (consent ledger, bot records) it is truncated before storage (e.g. 192.168.1.0); on bot records it is cleared after 30 days
 - **Click positions** — x/y coordinates for heatmap generation
 - **Scroll depth** — how far the visitor scrolled (25%, 50%, 75%, 100% milestones)
 - **Form interactions** — which fields were filled, when the form was abandoned (not the content of the fields)
@@ -56,7 +65,7 @@ Activated only when a visitor accepts the "Statistics" category in the cookie ba
 ## Data storage
 
 - **Location:** EU (Supabase EU region, hosted on AWS eu-north-1)
-- **Default retention:** 730 days, configurable per site
+- **Default retention:** 365 days, configurable per site (also for sites without GDPR settings). Truncated IPs on AI-bot records are cleared after 30 days; raw Cloudflare log rows are kept at most 90 days
 - **Encryption:** All data in transit via HTTPS/TLS. Data at rest encrypted by Supabase.
 - **Access control:** Row-Level Security (RLS) on all database tables. Each company's data is isolated.
 
@@ -140,9 +149,9 @@ Copy this section into your site's privacy policy. Replace `[YOUR COMPANY]` and 
 
 This website uses CortIQ Analytics to understand how visitors use the site.
 
-**Bot and security protection (always active)**
+**Measurement of bots and AI agents (server-side)**
 
-To protect the website against automated traffic, we analyse technical request data (such as the browser user-agent and request patterns) to detect and classify bots and AI agents. No cookies are set for this. [Describe your legal basis for this processing.]
+Our server analyses technical data from incoming requests (user agent, requested page, referrer and a shortened IP address) to detect and classify bots and AI agents. Only requests that look automated are sent to CortIQ, our processor. Nothing is stored on or read from your device. The legal basis is our legitimate interest in understanding and managing automated traffic (Art. 6.1.f GDPR). [Adjust to your own assessment.]
 
 **Analytics (only after consent)**
 

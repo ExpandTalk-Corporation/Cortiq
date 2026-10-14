@@ -121,8 +121,8 @@ export default function CMP() {
               </h2>
               <p className="text-muted-foreground mb-8">
                 Beyond the banner, CortIQ offers a consent-check API your server can call before
-                forwarding events to third parties. Only the AI-bot and security layer runs before consent,
-                designed as strictly necessary security processing; you make the final legal assessment.
+                forwarding events to third parties. The CortIQ script itself, including its in-browser bot checks, waits for
+                consent; AI crawlers are measured server-side instead. You make the final legal assessment.
               </p>
               
               <div className="space-y-4">

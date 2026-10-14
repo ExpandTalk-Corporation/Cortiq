@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { anonymizeIP } from '../_shared/jurisdiction.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -200,8 +201,11 @@ Deno.serve(async (req) => {
     // Prepare metadata with anonymization
     let metadata = body.metadata || {};
     
-    if (consentSettings.anonymize_ip && metadata.ip_address) {
-      delete metadata.ip_address;
+    // Never store a full client IP from event metadata: drop it when the site asks
+    // for anonymisation, otherwise keep only the network part.
+    if (metadata.ip_address) {
+      if (consentSettings.anonymize_ip) delete metadata.ip_address;
+      else metadata.ip_address = anonymizeIP(String(metadata.ip_address));
     }
     
     if (!consentSettings.gdpr_settings?.store_user_agent) {

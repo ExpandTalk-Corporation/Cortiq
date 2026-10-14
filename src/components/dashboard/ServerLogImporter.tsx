@@ -196,7 +196,7 @@ export function ServerLogImporter({ siteId }: ServerLogImporterProps) {
             <li>✓ Only country/region is stored — never IP addresses</li>
             <li>✓ Bot traffic is automatically excluded</li>
             <li>✓ Data is aggregated for cookie-free analytics</li>
-            <li>✓ No cookie banner required (GDPR Art. 6.1.f)</li>
+            <li>✓ No device access, so no cookie consent needed for imported logs; legal basis is typically legitimate interest (GDPR Art. 6.1.f), your assessment</li>
           </ul>
         </div>
       </CardContent>

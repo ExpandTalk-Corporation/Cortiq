@@ -35,14 +35,15 @@ export default function Installation() {
             <p className="text-sm font-medium mb-1">🗄️ Data layer</p>
             <p className="text-xs text-muted-foreground">
               The ~13&nbsp;kB (gzipped) script sends page views, clicks and (with consent) heatmaps to your
-              CortIQ project. It also detects AI bots. Cookie-free by default.
+              CortIQ project, and runs in-browser bot checks — all after analytics consent. Cookie-free by default.
+              AI crawlers that never run JavaScript are measured server-side.
             </p>
           </div>
           <div className="rounded-lg border bg-muted/30 p-4">
             <p className="text-sm font-medium mb-1">🔒 Privacy built in</p>
             <p className="text-xs text-muted-foreground">
               Visitor analytics start only after analytics consent; click IDs, fingerprinting and session
-              replay need explicit consent too, verified server-side. AI-bot detection runs without consent. IPs anonymised at ingest.
+              replay need explicit consent too, verified server-side. Nothing runs in the browser before consent. IPs anonymised at ingest.
             </p>
           </div>
           <div className="rounded-lg border bg-muted/30 p-4">

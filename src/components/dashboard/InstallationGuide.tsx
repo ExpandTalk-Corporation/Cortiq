@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
+import { ServerSideSetup } from '@/components/dashboard/ServerSideSetup';
 
 interface Site {
   id: string;
@@ -66,14 +66,20 @@ export function InstallationGuide({ selectedSite }: InstallationGuideProps) {
 <script src="${scriptSrc}" defer></script>`}
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            ✅ One script. AI bot detection (GPTBot, ClaudeBot, PerplexityBot) runs
-            without consent as a security layer. All visitor analytics — page views, sessions, AI referrals
-            (ChatGPT, Perplexity, Claude, Gemini), heatmaps, click/scroll, conversions — start only after analytics consent, also with
-            <code>cookieless: true</code> (which drops fingerprinting and persistent IDs). Paid-ads click IDs need
-            marketing consent. The script reads <code>window.cortiqConfig</code>,
-            so keep it directly above the script tag.
+            ✅ One script. It does nothing until the visitor gives analytics consent — page views, sessions,
+            AI referrals (ChatGPT, Perplexity, Claude, Gemini), heatmaps, click/scroll, conversions and in-browser
+            agent signals all wait for it, also with <code>cookieless: true</code> (which drops fingerprinting and
+            persistent IDs). Paid-ads click IDs need marketing consent. A single tag with <code>data-site-id</code> /
+            <code>data-api-key</code> works too; attributes on the tag win if both are set.
           </p>
         </div>
+
+        <ServerSideSetup
+          siteId={selectedSite.id}
+          trackingKey={selectedSite.tracking_id}
+          apiBase={apiBase}
+          origin={window.location.origin}
+        />
 
         <div>
           <Label>WordPress Plugin</Label>
@@ -88,6 +94,7 @@ export function InstallationGuide({ selectedSite }: InstallationGuideProps) {
               <li>Enter your Site ID: <code className="bg-muted text-foreground px-1 rounded">{selectedSite.id}</code></li>
               <li>Enter your Tracking ID: <code className="bg-muted text-foreground px-1 rounded">{selectedSite.tracking_id}</code></li>
               <li>Enable GDPR compatibility if needed</li>
+              <li>Server-side agent measurement is on by default (plugin 5.5.0+)</li>
             </ol>
           </div>
         </div>
@@ -96,7 +103,7 @@ export function InstallationGuide({ selectedSite }: InstallationGuideProps) {
           <h4 className="font-semibold text-blue-900">💡 Tips</h4>
           <ul className="text-sm text-blue-800 mt-2 space-y-1">
             <li>• The script is about 13 KB gzipped and loads with <code>defer</code></li>
-            <li>• Reads the visitor's stored consent choice; nothing but the bot/security layer runs before analytics consent</li>
+            <li>• Reads the visitor's stored consent choice; nothing runs in the browser before analytics consent</li>
             <li>• After analytics consent it tracks sessions, page views, clicks and scrolls; in cookieless mode without cookies or persistent IDs</li>
             <li>• Data appears in real-time on this dashboard</li>
             <li>• <strong>Paid Ads:</strong> Use UTM parameters in your ad links (e.g. ?utm_source=google&utm_medium=cpc&utm_campaign=winter2025) to attribute consented visits to campaigns without cookies</li>

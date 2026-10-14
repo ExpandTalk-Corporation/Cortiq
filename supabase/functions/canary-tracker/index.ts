@@ -55,11 +55,13 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    // Lightweight site existence check — look up by tracking_id (tk_... format)
+    // Lightweight site existence check. spa-tracking.js sends the site UUID (older
+    // versions did too, which this lookup used to miss); tk_ keys are still accepted.
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(siteId);
     const { data: site, error: siteError } = await supabase
       .from('sites')
       .select('id')
-      .eq('tracking_id', siteId)
+      .eq(isUuid ? 'id' : 'tracking_id', siteId)
       .single();
 
     if (siteError || !site) return respond(canaryType);
@@ -70,7 +72,12 @@ Deno.serve(async (req) => {
                 ?? null;
     const rawUA  = req.headers.get('user-agent') ?? null;
     const country  = req.headers.get('cf-ipcountry') ?? req.headers.get('x-country') ?? null;
-    const referrer = req.headers.get('referer') ?? null;
+    // Origin + path only: referrer query strings can carry tokens, emails, search terms.
+    const referrer = (() => {
+      const r = req.headers.get('referer');
+      if (!r) return null;
+      try { const u = new URL(r); return u.origin + u.pathname; } catch { return null; }
+    })();
 
     // GDPR: anonymize before storing
     const ipAnon     = anonymizeIP(rawIP);

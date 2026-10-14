@@ -243,7 +243,7 @@ export function ServerSidePaidAdsTab({ selectedSite, startDate, endDate }: Serve
       <Card>
         <CardHeader>
           <CardTitle>Campaign performance (server-side)</CardTitle>
-          <CardDescription>Detailed metrics per campaign — tracked via cookie-free fingerprinting</CardDescription>
+          <CardDescription>Detailed metrics per campaign — tracked server-side, without cookies</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">

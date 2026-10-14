@@ -103,7 +103,7 @@ export function CookiefreeAnalyticsTab({ selectedSite, dateRange }: CookiefreeAn
               Cookie-Free Analytics
             </h2>
             <p className="text-muted-foreground">
-              GDPR-friendly statistics for all visitors — no cookie banner impact
+              Privacy-minimised statistics without cookies — collected after analytics consent
             </p>
           </div>
           {(!dateRange) && (
@@ -122,8 +122,8 @@ export function CookiefreeAnalyticsTab({ selectedSite, dateRange }: CookiefreeAn
         <Alert>
           <Info className="h-4 w-4" />
           <AlertDescription>
-            <strong>What is measured:</strong> Server-side tracking based on anonymized IP hashes and user agent fingerprints.
-            No personal data is stored and no consent is required under GDPR.
+            <strong>What is measured:</strong> aggregated statistics without cookies or persistent IDs.
+            Browser measurement still starts only after the visitor&apos;s analytics consent (ePrivacy Art. 5.3).
             <br />
             <strong>Period:</strong> {analytics.period.days} days ({analytics.period.startDate} to {analytics.period.endDate})
           </AlertDescription>

@@ -139,7 +139,7 @@ export const COOKIES: ContentPageData = {
         {
           type: 'list',
           items: [
-            '**Without consent:** nothing for analytics. A page-depth counter (`_ciq_adp`, sessionStorage) is written only for visitors detected as bots or automated browsers.',
+            '**Without consent:** nothing. The script does not read device properties, write storage or send requests before analytics consent. After consent, a page-depth counter (`_ciq_adp`, sessionStorage) is written only for visitors detected as bots or automated browsers.',
             '**With analytics consent, full mode:** a session identifier (`cortiq_session_id`, sessionStorage), cleared when the tab closes. In cookieless mode it is held in memory only and nothing is written.',
             '**With marketing consent, full mode:** ad click IDs from the landing URL (`cortiq_click_ids`, sessionStorage).',
           ],
@@ -185,7 +185,7 @@ export const ABOUT: ContentPageData = {
         {
           type: 'list',
           items: [
-            '**Consent first.** Visitor analytics wait for consent, including in cookieless mode. Only bot and security detection runs without it.',
+            '**Consent first.** Everything in the browser waits for consent, including cookieless mode and in-browser bot detection. AI crawlers are measured server-side, from the HTTP request, without touching the visitor\'s device.',
             '**EU-hosted.** Analytics data is stored in Stockholm.',
             '**Open source.** The source code is public under the AGPL-3.0 licence on [GitHub](https://github.com/ExpandTalk-Corporation/Cortiq).',
             '**Honest about status.** CortIQ is in beta. Features that are not ready are marked "in development", and the [changelog](/changelog/) shows what has shipped.',
