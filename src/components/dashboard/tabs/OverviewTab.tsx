@@ -1,99 +1,36 @@
-import React from 'react';
-import { AnalyticsOverview } from '@/components/dashboard/AnalyticsOverview';
-import { TopPagesData } from '@/components/dashboard/TopPagesData';
-import { ImportantInteractions } from '@/components/dashboard/ImportantInteractions';
-import { SearchTermsAnalytics } from '@/components/dashboard/SearchTermsAnalytics';
-import { DateRangePicker } from '@/components/dashboard/DateRangePicker';
+// src/components/dashboard/tabs/OverviewTab.tsx
 import { AIInsightsWidget } from '@/components/dashboard/AIInsightsWidget';
-import { RealTimeWidget } from '@/components/dashboard/RealTimeWidget';
-import { DashboardCard } from '@/components/dashboard/DashboardCard';
-import { SetupHealthCheck } from '@/components/dashboard/SetupHealthCheck';
-import { Activity } from 'lucide-react';
-import type { Analytics } from '@/types/dashboard';
-import { DateRange } from 'react-day-picker';
+import { TopPagesData } from '@/components/dashboard/TopPagesData';
+import { StatusStrip } from '@/components/dashboard/overview/StatusStrip';
+import { KpiRow } from '@/components/dashboard/overview/KpiRow';
+import { ModuleCards } from '@/components/dashboard/overview/ModuleCards';
+import { useOverviewMetrics } from '@/hooks/useOverviewMetrics';
+import { useConversionGoalHealth } from '@/hooks/useConversionGoalHealth';
+import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
+import type { Site } from '@/types/dashboard';
 
-interface OverviewTabProps {
-  analytics: Analytics | null;
-  siteId: string;
-  selectedSite: { id: string; site_name: string };
-  dateRange?: DateRange;
-}
+export function OverviewTab({ selectedSite, onNavigate }: { selectedSite: Site; onNavigate: (tab: string) => void }) {
+  const { filters } = useDashboardFilters();
+  const metrics = useOverviewMetrics(selectedSite.id);
+  const health = useConversionGoalHealth(selectedSite.id);
+  const goals = health.data ?? [];
+  const goalIssues = goals.filter((g) => g.status !== 'healthy').map((g) => ({ goalName: g.goalName, issue: g.status }));
+  const trackingMode = ((selectedSite as Site & { tracking_mode?: string }).tracking_mode === 'cookieless') ? 'cookieless' : 'full';
 
-export function OverviewTab({ analytics, siteId, selectedSite, dateRange }: OverviewTabProps) {
-  const today = new Date();
-  const startDate = dateRange?.from ? new Date(Math.min(dateRange.from.getTime(), today.getTime())).toISOString().split('T')[0] : '';
-  const endDate = dateRange?.to ? new Date(Math.min(dateRange.to.getTime(), today.getTime())).toISOString().split('T')[0] : '';
-
-  if (!analytics) {
-    return (
-      <div className="space-y-6 animate-fade-in">
-        <SetupHealthCheck siteId={selectedSite.id} />
-        <div className="flex flex-col items-center justify-center text-center py-16">
-          <div className="rounded-full bg-muted p-4 mb-4">
-            <Activity className="h-8 w-8 text-muted-foreground" />
-          </div>
-          <h3 className="text-lg font-semibold mb-2">No data yet</h3>
-          <p className="text-muted-foreground max-w-md mb-1">
-            We haven't received any tracking events for this site. Verify the CortIQ
-            snippet is installed before the closing <code className="bg-muted px-1 rounded text-xs">&lt;/body&gt;</code> tag.
-          </p>
-          <p className="text-muted-foreground text-sm">
-            Your first visit should appear here within about a minute.
-          </p>
-        </div>
-      </div>
-    );
+  if (metrics.isLoading) return <div className="h-64 animate-pulse rounded-lg bg-muted" aria-busy="true" />;
+  if (metrics.error || !metrics.data) {
+    return <p className="rounded-lg border p-6 text-sm">Could not load the overview. Try again, or narrow the date range.</p>;
   }
-
+  const m = metrics.data;
   return (
-    <div className="space-y-6 animate-fade-in">
-      <SetupHealthCheck siteId={selectedSite.id} />
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Main Charts */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* AI Insights - Top Priority */}
-          <div className="card-variant-2 rounded-lg p-6 hover-lift hover-glow">
-            <AIInsightsWidget siteId={selectedSite.id} />
-          </div>
-          
-          <div className="card-variant-1 rounded-lg p-6 hover-lift">
-            <AnalyticsOverview analytics={analytics} />
-          </div>
-        </div>
-        
-        {/* Right Column - Side Widgets */}
-        <div className="space-y-6">
-          {/* Real-time Stats */}
-          <div className="card-variant-3 rounded-lg p-6 hover-lift hover-glow">
-            <RealTimeWidget siteId={selectedSite.id} />
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card-variant-1 rounded-lg p-6 hover-lift">
-          <TopPagesData 
-            siteId={siteId} 
-            startDate={startDate} 
-            endDate={endDate} 
-          />
-        </div>
-        <div className="card-variant-4 rounded-lg p-6 hover-lift">
-          <ImportantInteractions 
-            siteId={siteId} 
-            dateRange={dateRange?.from && dateRange?.to ? { from: dateRange.from, to: dateRange.to } : undefined} 
-          />
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-1 gap-6">
-        <div className="card-variant-2 rounded-lg p-6 hover-lift">
-          <SearchTermsAnalytics 
-            siteId={siteId} 
-            dateRange={dateRange?.from && dateRange?.to ? { from: dateRange.from, to: dateRange.to } : undefined} 
-          />
-        </div>
+    <div className="space-y-6">
+      <StatusStrip domain={selectedSite.domain} trackingMode={trackingMode}
+        lastPageViewAt={m.lastPageViewAt} lastServerHitAt={m.lastServerHitAt} onNavigate={onNavigate} />
+      <KpiRow m={m} from={filters.from} to={filters.to} />
+      <ModuleCards m={m} goalCount={goals.length} goalIssues={goalIssues} onNavigate={onNavigate} />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <TopPagesData siteId={selectedSite.id} startDate={`${filters.from}T00:00:00Z`} endDate={`${filters.to}T23:59:59Z`} />
+        <AIInsightsWidget siteId={selectedSite.id} />
       </div>
     </div>
   );

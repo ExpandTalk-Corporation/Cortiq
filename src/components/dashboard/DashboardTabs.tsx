@@ -69,15 +69,7 @@ function DashboardTabsInner({ selectedSite, analytics, dateRange, onSiteDeleted,
     <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 w-full">
       <TabsContent value="overview" className="space-y-6">
         <TabErrorBoundary tabName="Overview">
-          <OverviewTab
-            analytics={analytics}
-            siteId={selectedSite.id}
-            selectedSite={selectedSite}
-            dateRange={dateRange}
-            onNavigateToAI={() => setActiveTab('ai-bots')}
-            onNavigateToSetup={() => setActiveTab('setup')}
-            onNavigateToIntegrations={() => setActiveTab('integrations')}
-          />
+          <OverviewTab selectedSite={selectedSite} onNavigate={setActiveTab} />
         </TabErrorBoundary>
       </TabsContent>
 

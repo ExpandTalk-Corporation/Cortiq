@@ -13,6 +13,7 @@ import { PLUGIN_VERSION } from '@/lib/plugin-version';
 import { useSites } from '@/hooks/useSites';
 import { useNavigate } from 'react-router-dom';
 import type { Site } from '@/types/dashboard';
+import { SetupHealthCheck } from '@/components/dashboard/SetupHealthCheck';
 
 interface SetupTabProps {
   selectedSite: Site | null;
@@ -30,6 +31,7 @@ export function SetupTab({ selectedSite, onSiteDeleted }: SetupTabProps) {
 
   return (
     <div className="space-y-6">
+      {selectedSite && <SetupHealthCheck siteId={selectedSite.id} />}
       {/* Site Management Section */}
       <div className="grid gap-6">
         {/* Add Website Section */}
