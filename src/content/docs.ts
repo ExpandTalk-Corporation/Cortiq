@@ -17,15 +17,14 @@ export const GETTING_STARTED: ContentPageData = {
       id: 'what-you-install',
       heading: 'What you install',
       blocks: [
-        { type: 'p', text: 'CortIQ is one JavaScript file, `spa-tracking.js` (about 52 KB, 13 KB gzipped). It runs in two layers:' },
+        { type: 'p', text: 'CortIQ measures in two places:' },
         {
           type: 'list',
           items: [
-            '**Security layer, without consent:** AI bot and automation detection, a canary and a honeypot link. It sends data only when the visitor looks like a bot or automated browser.',
-            '**Analytics layer, after analytics consent:** page views, sessions, AI referrals, clicks, scroll depth, heatmaps, form analytics and conversions.',
+            '**On your server, for AI crawlers and agents:** a small [server-side adapter](/integrations/server-side/) (Next.js, Vercel, Netlify, Cloudflare, Node, WordPress or plain HTTP) reports bot and agent requests, `robots.txt` / `llms.txt` fetches and honeypot hits. Most AI crawlers never run JavaScript, so this is where they show up. Nothing runs in the visitor\'s browser.',
+            '**In the browser, after analytics consent:** one JavaScript file, `spa-tracking.js` (about 52 KB, 13 KB gzipped), for page views, sessions, AI referrals, clicks, scroll depth, heatmaps, form analytics, conversions and in-browser agent signals. It does nothing before consent.',
           ],
         },
-        { type: 'p', text: 'If you would rather not run JavaScript for bot detection, the [Cloudflare Worker](/integrations/cloudflare/) classifies AI crawlers server-side, including crawlers that never execute JavaScript.' },
       ],
     },
     {
@@ -156,7 +155,8 @@ export const INTEGRATIONS: ContentPageData = {
           type: 'list',
           items: [
             '[WordPress plugin](/integrations/wordpress/): tracking script, consent banner and Google Consent Mode v2 in one plugin.',
-            '[Cloudflare Worker](/integrations/cloudflare/): server-side AI crawler classification, including crawlers that never run JavaScript. Set up together with us during the beta.',
+            '[Server-side agent measurement](/integrations/server-side/): adapters for Next.js / Vercel, Netlify, Cloudflare, Node / Express, WordPress and any server. Classifies crawlers that never run JavaScript.',
+            '[Cloudflare Worker](/integrations/cloudflare/): the zero-code option for any site behind Cloudflare, whatever builds or hosts it.',
             '[Google Analytics 4](/integrations/google-analytics/): read-only import of GA4 reports next to CortIQ data.',
             '[MCP server](/integrations/mcp/): let Claude Code and other MCP clients query your analytics.',
             '[REST API](/api/): read-only JSON or CSV endpoints for sessions, pages, referrers, AI agents, conversions and heatmaps.',
@@ -270,37 +270,109 @@ export const WORDPRESS: ContentPageData = {
   ],
 };
 
+export const SERVER_SIDE: ContentPageData = {
+  path: '/integrations/server-side/',
+  breadcrumb: [{ label: 'Integrations', path: '/integrations/' }, { label: 'Server-side', path: '/integrations/server-side/' }],
+  eyebrow: 'Integration',
+  h1: 'Server-side AI agent measurement',
+  lead: 'Most AI training and citation crawlers never run JavaScript, so no browser tag can see them. A small adapter on your server or edge reports them to CortIQ, without touching the visitor\'s device.',
+  sections: [
+    {
+      id: 'why',
+      heading: 'Why on the server',
+      blocks: [
+        { type: 'p', text: 'GPTBot, ClaudeBot, PerplexityBot, Google-Extended and most other crawlers fetch the HTML and leave. They appear in your server logs, not in JavaScript analytics. CortIQ classifies each request as a [training crawler, agentic fetch or citation crawler](/features/ai/) with the same registry the browser script uses.' },
+        { type: 'p', text: 'Three signals are reported: requests with a bot or agent user agent, fetches of `/robots.txt`, `/llms.txt` and `/llms-full.txt`, and hits on a hidden honeypot link that `robots.txt` tells crawlers to skip. A honeypot hit means the visitor ignores `robots.txt`, whatever its user agent claims.' },
+        { type: 'p', text: 'AI agents that run inside a normal browser and send a standard Chrome user agent cannot be identified from the request alone; the browser script measures those after consent.' },
+      ],
+    },
+    {
+      id: 'adapters',
+      heading: 'Pick your adapter',
+      blocks: [
+        {
+          type: 'list',
+          items: [
+            '**Next.js / Vercel (incl. v0 apps):** `middleware.ts` with the dependency-free [cortiq-server.mjs](https://cortiq.se/cortiq-server.mjs) helper.',
+            '**Netlify (incl. static exports from Lovable or Bolt):** an Edge Function with the same helper.',
+            '**Cloudflare:** the [Worker](/integrations/cloudflare/), for any site behind Cloudflare. It adds the honeypot link and the `robots.txt` line itself.',
+            '**Node / Express:** `app.use(cortiqExpress(createCortiq({ siteKey })))` from the helper.',
+            '**WordPress:** built into the [plugin](/integrations/wordpress/) from 5.5.0, on by default once the Tracking ID is set.',
+            '**Any other server:** POST to the HTTP endpoint below.',
+          ],
+        },
+        { type: 'p', text: 'The dashboard (**Install tracking → Server-side agent measurement**) shows each snippet with your tracking key filled in, and whether server-side data has arrived.' },
+        { type: 'code', code: `// Next.js middleware.ts (Next.js 16: proxy.ts, export function proxy)
+import { NextResponse, type NextRequest, type NextFetchEvent } from 'next/server';
+import { createCortiq } from './lib/cortiq-server.mjs';
+
+const cortiq = createCortiq({ siteKey: process.env.CORTIQ_SITE_KEY });
+
+export function middleware(request: NextRequest, event: NextFetchEvent) {
+  const waitUntil = (p: Promise<unknown>) => event.waitUntil(p);
+  if (cortiq.isTrap(request)) return cortiq.trapResponse(request, waitUntil);
+  cortiq.report(request, { waitUntil });
+  return NextResponse.next();
+}` },
+        { type: 'p', text: 'Honeypot link for your HTML template (Next.js, Netlify, Node, any server), plus `Disallow: /cortiq-trap/` in `robots.txt`:' },
+        { type: 'code', code: '<a href="/cortiq-trap/" rel="nofollow" tabindex="-1" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden">.</a>' },
+      ],
+    },
+    {
+      id: 'http',
+      heading: 'HTTP endpoint',
+      blocks: [
+        { type: 'p', text: 'Authenticate with the site\'s tracking key (`tk_…`). Every hit\'s host must belong to that site; hits for other hosts are rejected. Up to 100 hits per request.' },
+        { type: 'code', code: `POST ${API_BASE}/server-hit
+Authorization: Bearer tk_…
+Content-Type: application/json
+
+{"hits":[{"url":"https://example.com/page","userAgent":"Mozilla/5.0 (compatible; GPTBot/1.2)","ip":"203.0.113.0","status":200}]}` },
+      ],
+    },
+    {
+      id: 'data',
+      heading: 'What leaves your server, and what is stored',
+      blocks: [
+        {
+          type: 'list',
+          items: [
+            'Only agent-like requests, the watched files and honeypot hits are sent. Ordinary human requests stay on your server.',
+            'The adapter cuts the IP to its network (/24 for IPv4, /48 for IPv6) and drops the query string before sending.',
+            'CortIQ stores AI-registry bots and honeypot visitors: URL path, user agent, referrer, truncated IP and time. Other requests are discarded. The truncated IP is cleared after 30 days; rows follow the site\'s retention (default 365 days).',
+          ],
+        },
+        { type: 'p', text: 'Nothing is read from or stored on the visitor\'s device, so in our assessment this falls outside the cookie rules (ePrivacy Art. 5.3 / LEK 9 kap. 28 §) and needs no consent banner. The request data is still personal data under GDPR: you need a legal basis (typically legitimate interest) and should mention it in your privacy policy. You make the final assessment for your site. See the [privacy policy](/privacy/).' },
+      ],
+    },
+  ],
+  related: [
+    { label: 'Cloudflare Worker', path: '/integrations/cloudflare/' },
+    { label: 'WordPress plugin', path: '/integrations/wordpress/' },
+    { label: 'AI agent analytics', path: '/features/ai/' },
+  ],
+};
+
 export const CLOUDFLARE: ContentPageData = {
   path: '/integrations/cloudflare/',
   breadcrumb: [{ label: 'Integrations', path: '/integrations/' }, { label: 'Cloudflare', path: '/integrations/cloudflare/' }],
   eyebrow: 'Integration',
-  status: 'Beta: set up with our help',
   h1: 'Server-side AI crawler tracking with Cloudflare',
-  lead: 'Most AI training and citation crawlers never run JavaScript, so a JavaScript tag cannot see them. A Cloudflare Worker sees every request and sends the AI crawler traffic to CortIQ for classification.',
+  lead: 'For any site behind Cloudflare, whatever builds or hosts it: a paste-ready Worker reports AI crawler traffic to CortIQ, including crawlers that never run JavaScript. No code changes on your site.',
   sections: [
-    {
-      id: 'why',
-      heading: 'Why server-side',
-      blocks: [
-        { type: 'p', text: 'GPTBot, ClaudeBot, PerplexityBot and most other crawlers fetch HTML and leave. They show up in your server logs but not in JavaScript analytics. The Worker sees them at the edge and CortIQ classifies each one as a [training crawler, agentic fetch or citation crawler](/features/ai/), using the same registry as the JavaScript tag.' },
-        { type: 'p', text: 'Detection is based on the user agent. AI agents that run inside a normal browser and send a standard Chrome user agent cannot be identified this way; the JavaScript tag uses browser signals for those.' },
-      ],
-    },
     {
       id: 'setup',
       heading: 'Setup',
       blocks: [
-        { type: 'note', text: 'During the beta, the ingest key is issued by us. [Contact us](/contact/) to get one before you start.' },
         {
           type: 'steps',
           items: [
-            'Make sure your domain is added as a site in CortIQ. The Worker matches requests to sites by hostname; requests for unknown domains are ignored.',
+            'Make sure your domain is added as a site in CortIQ. Reports for hostnames that don\'t belong to the site are rejected.',
             'In Cloudflare, go to **Workers & Pages → Create Worker**, paste the code from [cloudflare-worker.js](https://cortiq.se/cloudflare-worker.js) and deploy it.',
-            'Under the Worker\'s **Settings → Variables**, add `CORTIQ_INGEST_URL` and `CORTIQ_INGEST_KEY` with the values we send you.',
+            'Under the Worker\'s **Settings → Variables**, add `CORTIQ_SITE_KEY` with your site\'s tracking key (`tk_…`, shown under **Install tracking** in the dashboard).',
             'Under **Triggers**, add a route for your domain, for example `example.com/*`.',
           ],
         },
-        { type: 'code', code: `CORTIQ_INGEST_URL = ${API_BASE}/cloudflare-ingest` },
       ],
     },
     {
@@ -310,30 +382,25 @@ export const CLOUDFLARE: ContentPageData = {
         {
           type: 'list',
           items: [
-            'It passes every request on to your site unchanged and reports to CortIQ in the background, so visitors do not wait for CortIQ.',
-            'It skips static files (CSS, JavaScript, images, fonts, media) and Cloudflare\'s `/cdn-cgi/` paths.',
+            'It passes every request on to your site and reports in the background, so visitors do not wait for CortIQ.',
+            'It reports only requests with a bot or agent user agent, fetches of `robots.txt` / `llms.txt`, and hits on the honeypot link. Human requests never leave Cloudflare.',
+            'It adds a hidden honeypot link to HTML pages and `Disallow: /cortiq-trap/` to `robots.txt`, and answers the honeypot URL with a 404.',
             'Each request still runs the Worker, so it counts toward your Cloudflare Workers request quota.',
           ],
         },
+        { type: 'p', text: 'Workers set up during the beta with an ingest key (`CORTIQ_INGEST_KEY`) keep working; switch to `CORTIQ_SITE_KEY` with the current Worker code when convenient.' },
       ],
     },
     {
       id: 'data',
       heading: 'What is stored',
       blocks: [
-        { type: 'p', text: 'The Worker cuts the IP address to its network (/24 for IPv4, /48 for IPv6) before anything leaves Cloudflare. CortIQ never receives full IP addresses from it.' },
-        {
-          type: 'list',
-          items: [
-            '**Bots and automated traffic:** path (without query string), user agent, referrer, the truncated network address and Cloudflare\'s Ray ID.',
-            '**Human visitors:** counted only. No path, user agent, referrer or address is kept.',
-          ],
-        },
-        { type: 'p', text: 'This runs without visitor consent because no personal data about human visitors is kept. Raw rows are deleted after 90 days. See the [privacy policy](/privacy/).' },
+        { type: 'p', text: 'The Worker cuts the IP address to its network (/24 for IPv4, /48 for IPv6) and drops the query string before anything leaves Cloudflare. CortIQ stores AI-registry bots and honeypot visitors (path, user agent, referrer, truncated IP); the truncated IP is cleared after 30 days. Nothing runs in the visitor\'s browser. See [server-side agent measurement](/integrations/server-side/#data) for the legal assessment and the [privacy policy](/privacy/).' },
       ],
     },
   ],
   related: [
+    { label: 'Server-side agent measurement', path: '/integrations/server-side/' },
     { label: 'AI agent analytics', path: '/features/ai/' },
     { label: 'Getting started', path: '/docs/' },
   ],
@@ -373,7 +440,7 @@ export const GOOGLE_ANALYTICS: ContentPageData = {
             'Traffic sources, segments and month-by-month KPIs.',
           ],
         },
-        { type: 'p', text: 'GA4 only counts visitors who run its JavaScript and, in most of Europe, gave consent. Comparing it with CortIQ\'s [server-side crawler data](/integrations/cloudflare/) shows how much AI traffic GA4 never sees.' },
+        { type: 'p', text: 'GA4 only counts visitors who run its JavaScript and, in most of Europe, gave consent. Comparing it with CortIQ\'s [server-side crawler data](/integrations/server-side/) shows how much AI traffic GA4 never sees.' },
       ],
     },
     {
@@ -464,4 +531,4 @@ export const MCP: ContentPageData = {
   ],
 };
 
-export const DOCS_PAGES: ContentPageData[] = [GETTING_STARTED, INTEGRATIONS, WORDPRESS, CLOUDFLARE, GOOGLE_ANALYTICS, MCP];
+export const DOCS_PAGES: ContentPageData[] = [GETTING_STARTED, INTEGRATIONS, WORDPRESS, SERVER_SIDE, CLOUDFLARE, GOOGLE_ANALYTICS, MCP];

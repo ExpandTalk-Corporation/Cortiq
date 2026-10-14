@@ -48,7 +48,7 @@ const Privacy = () => {
                 Processing on websites that use CortIQ falls into three tiers:
               </p>
               <ul className="text-muted-foreground space-y-2 ml-4">
-                <li>• <strong>Without consent</strong> — security, AI-bot and agent detection, and server/edge logs (section 3).</li>
+                <li>• <strong>Server-side, without device access</strong> — AI-agent and bot measurement and server/edge logs (section 3).</li>
                 <li>• <strong>With analytics (Statistics) consent</strong> — all visitor analytics, in both Cookieless and Full mode (section 5).</li>
                 <li>• <strong>With marketing consent</strong> — advertising click IDs and conversion feedback to ad platforms (section 5A).</li>
               </ul>
@@ -80,26 +80,27 @@ const Privacy = () => {
             </CardContent>
           </Card>
 
-          {/* Security & Bot Detection */}
+          {/* Server-Side Agent Measurement */}
           <Card className="glass shadow-elegant border-primary/20">
             <CardHeader>
               <div className="flex items-center space-x-3 mb-2">
                 <Shield className="h-6 w-6 text-primary" />
-                <CardTitle>3A. Security &amp; AI-Bot Detection (Without consent)</CardTitle>
+                <CardTitle>3A. Server-Side AI-Agent &amp; Bot Measurement (No device access)</CardTitle>
               </div>
-              <Badge className="w-fit bg-gradient-accent text-white">Security layer</Badge>
+              <Badge className="w-fit bg-gradient-accent text-white">Server-side</Badge>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-muted-foreground leading-relaxed">
-                Before any consent choice is made, the CortIQ script runs only a limited security and
-                bot-detection layer:
+                AI crawlers and agents are measured on the site operator&apos;s own server or edge (for example a
+                Next.js, Netlify or Cloudflare function, Node middleware or the WordPress plugin), from the HTTP request
+                the server already receives:
               </p>
               <ul className="space-y-3">
                 {[
-                  'AI bot and agent detection (e.g. ChatGPT Browser, Perplexity Comet, Claude Browser) based on the User-Agent string and browser capability signals',
-                  'Crawler classification (training crawlers, citation crawlers, search engines, scrapers)',
-                  'Bot probe — runs only when the client looks automated; ordinary browsers send nothing',
-                  'Honeypot and canary links — invisible elements that only automated clients interact with'
+                  'Requests whose User-Agent matches a known crawler or bot, classified as training, agentic or citation traffic',
+                  'Fetches of robots.txt and llms.txt',
+                  'Requests to a hidden honeypot link in the server-rendered HTML, which only automated clients follow',
+                  'Ordinary human requests are filtered out on the operator\'s server and never sent to CortIQ'
                 ].map((item, index) => (
                   <li key={index} className="flex items-start space-x-3">
                     <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
@@ -109,17 +110,18 @@ const Privacy = () => {
               </ul>
               <div className="bg-primary/5 p-4 rounded-lg mt-4">
                 <ul className="text-sm text-muted-foreground space-y-2 ml-4">
-                  <li>• No cookies are set and no analytics identifiers are stored by this layer. It uses a random identifier that exists only for the current page load.</li>
-                  <li>• If a client is classified as automated, a page-depth counter (<code>_ciq_adp</code>) is kept in sessionStorage for that tab session.</li>
-                  <li>• Data from this layer is used for security, abuse prevention and bot classification — not for advertising or visitor profiling.</li>
+                  <li>• Data per request: timestamp, URL path, referrer, User-Agent and the IP address truncated to /24 (IPv4) or /48 (IPv6) on the operator&apos;s server before it is sent. The truncated IP is cleared after 30 days.</li>
+                  <li>• Nothing is stored on or read from the visitor&apos;s device.</li>
+                  <li>• Used for crawler and AI-agent measurement and site protection — not for advertising or visitor profiling.</li>
+                  <li>• The CortIQ script&apos;s in-browser bot checks (bot probe, honeypot, canary) are different: they read device properties, so they run only after analytics consent (section 5).</li>
                 </ul>
                 <p className="text-sm text-muted-foreground mt-3">
                   <strong className="text-foreground">Legal basis (our assessment):</strong> legitimate interest
-                  (GDPR Art. 6.1.f) in protecting websites against abuse and in identifying automated traffic. To the
-                  extent the script accesses information on the device, we consider this strictly necessary for the
-                  security of the service within the meaning of ePrivacy Directive Art. 5.3. This is our
-                  interpretation; supervisory authorities may take a different view, and site operators remain
-                  responsible for their own assessment.
+                  (GDPR Art. 6.1.f) in understanding and managing automated traffic. Because the measurement only uses
+                  the HTTP request and does not store or read information on the visitor&apos;s device, we consider it
+                  outside the consent requirement in ePrivacy Directive Art. 5.3 (Swedish LEK 9 kap. 28 §). The request
+                  data is still personal data under GDPR. This is our interpretation; supervisory authorities may take
+                  a different view, and site operators remain responsible for their own assessment.
                 </p>
               </div>
             </CardContent>
@@ -157,7 +159,8 @@ const Privacy = () => {
                   <li>• <strong>Request identifier</strong> (e.g. Cloudflare Ray ID) and load time</li>
                 </ul>
                 <p className="text-sm text-muted-foreground mt-2">
-                  For requests that look human or cannot be classified, CortIQ keeps only an anonymous count:
+                  CortIQ&apos;s server adapters send only bot-like requests (section 3A). With the Cloudflare log
+                  integration, for requests that look human or cannot be classified, CortIQ keeps only an anonymous count:
                   timestamp, method, status code, country and whether it was a file request. No user agent,
                   referrer, IP subnet, request identifier or URL is stored for those requests.
                 </p>
@@ -248,7 +251,8 @@ const Privacy = () => {
                   'Clicks and link clicks',
                   'Scroll depth and heatmaps',
                   'Form interactions (field content is not captured) and form submissions',
-                  'E-commerce events and conversions'
+                  'E-commerce events and conversions',
+                  'In-browser bot checks — bot probe (device capability signals, sent only for clients that look automated), honeypot and canary links'
                 ].map((item, index) => (
                   <li key={index} className="flex items-start space-x-3">
                     <CheckCircle className="h-5 w-5 text-accent flex-shrink-0 mt-0.5" />
@@ -487,15 +491,16 @@ const Privacy = () => {
                 </p>
                 <ul className="text-sm text-muted-foreground space-y-1 ml-4">
                   <li>• <strong>Retention period:</strong> the value in the site's GDPR settings (default 365 days)</li>
-                  <li>• <strong>Sites without GDPR settings:</strong> 730 days</li>
+                  <li>• <strong>Sites without GDPR settings:</strong> 365 days</li>
+                  <li>• <strong>Truncated IP on AI-bot records:</strong> cleared after 30 days</li>
                 </ul>
               </div>
 
               <div className="bg-primary/5 p-4 rounded-lg">
-                <h4 className="font-semibold mb-2 text-foreground">Security layer</h4>
+                <h4 className="font-semibold mb-2 text-foreground">Server logs and bot detection</h4>
                 <ul className="text-sm text-muted-foreground space-y-1 ml-4">
                   <li>• <strong>Server-log (Cloudflare) records:</strong> 90 days, or the site's retention period if shorter</li>
-                  <li>• <strong>Bot detection records:</strong> 730 days</li>
+                  <li>• <strong>Bot detection records:</strong> 365 days</li>
                   <li>• <strong>Hourly bot statistics (aggregated):</strong> 365 days</li>
                 </ul>
               </div>
@@ -581,14 +586,14 @@ const Privacy = () => {
             <CardContent>
               <div className="grid md:grid-cols-3 gap-6">
                 <div className="bg-background/80 p-6 rounded-lg">
-                  <h4 className="font-bold mb-3">Without consent</h4>
-                  <p className="text-sm text-muted-foreground mb-3">Security layer + logs</p>
+                  <h4 className="font-bold mb-3">Server-side</h4>
+                  <p className="text-sm text-muted-foreground mb-3">No device access, no banner needed</p>
                   <ul className="text-sm space-y-2 text-muted-foreground">
-                    <li>• AI bot &amp; agent detection</li>
+                    <li>• AI crawler &amp; agent measurement</li>
                     <li>• Crawler classification</li>
-                    <li>• Bot probe, honeypot, canary</li>
+                    <li>• robots.txt, llms.txt and honeypot hits</li>
                     <li>• Server &amp; edge logs (operations, security)</li>
-                    <li className="font-semibold text-foreground">No visitor analytics, no cookies</li>
+                    <li className="font-semibold text-foreground">Nothing runs in the browser, no cookies</li>
                     <li className="font-semibold text-foreground">Basis: legitimate interest (Art. 6.1.f), our assessment</li>
                   </ul>
                 </div>

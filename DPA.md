@@ -2,17 +2,17 @@
 
 **Between:**
 
-- **Data Controller:** The legal entity or individual ("Customer") who has registered an account with CortIQ and embeds the CortIQ tracking script on their website(s).
+- **Data Controller:** The legal entity or individual ("Customer") who has registered an account with CortIQ and embeds the CortIQ tracking script or a CortIQ server-side adapter on their website(s).
 
 - **Data Processor:** Expandtalk Corporation AB, org. nr. 559358-8824, Parmmätaregatan 4B, 417 04 Göteborg, Sweden ("CortIQ").
 
-This Data Processing Agreement ("DPA") governs the processing of personal data by CortIQ on behalf of the Customer, in accordance with Article 28 of the General Data Protection Regulation (EU) 2016/679 ("GDPR"). It forms part of the CortIQ Terms of Service (https://cortiq.se/terms/) and is accepted together with them when the Customer creates an account. Installing the tracking script, plugin or Worker with the Customer's keys also confirms acceptance of the version then in force. In case of conflict regarding personal data, this DPA prevails over the Terms of Service.
+This Data Processing Agreement ("DPA") governs the processing of personal data by CortIQ on behalf of the Customer, in accordance with Article 28 of the General Data Protection Regulation (EU) 2016/679 ("GDPR"). It forms part of the CortIQ Terms of Service (https://cortiq.se/terms/) and is accepted together with them when the Customer creates an account. Installing the tracking script, plugin, Worker or a server-side adapter with the Customer's keys also confirms acceptance of the version then in force. In case of conflict regarding personal data, this DPA prevails over the Terms of Service.
 
 ---
 
 ## 1. Subject matter and duration
 
-CortIQ processes personal data on behalf of the Customer for the purpose of providing web analytics services, including visitor behaviour tracking, AI agent detection, heatmap generation, session recording, and conversion analysis.
+CortIQ processes personal data on behalf of the Customer for the purpose of providing web analytics services, including visitor behaviour tracking, server-side measurement of AI crawlers and agents, heatmap generation, session recording, and conversion analysis.
 
 This DPA enters into force when the Customer accepts the Terms of Service and remains in effect for as long as CortIQ processes personal data on the Customer's behalf.
 
@@ -22,11 +22,12 @@ This DPA enters into force when the Customer accepts the Terms of Service and re
 
 | | |
 |--|--|
-| **Purpose** | Web analytics — measuring visitor behaviour to improve the Customer's website |
+| **Purpose** | (a) Web analytics — measuring visitor behaviour to improve the Customer's website (after visitor consent); (b) server-side AI-agent and crawler measurement for the Customer |
 | **Nature** | Collection, storage, aggregation, analysis, and deletion of visitor data |
-| **Categories of data** | Pseudonymised visitor and session identifiers, truncated IP addresses, page URLs, device type, browser family, geographic region, interaction events (clicks, scrolls, form activity), session recordings, hashed email addresses and advertising click IDs (marketing consent only) |
-| **Categories of data subjects** | Visitors to the Customer's website(s) |
-| **Retention period** | Per-site retention period set in the dashboard (default 365 days; 730 days for sites without GDPR settings). Security-layer retention as stated in the Privacy Policy, section 9 |
+| **Categories of data — visitor analytics** | Pseudonymised visitor and session identifiers, page URLs, device type, browser family, geographic region, interaction events (clicks, scrolls, form activity), in-browser bot-check signals, session recordings, hashed email addresses and advertising click IDs (marketing consent only) |
+| **Categories of data — server-side agent measurement** | For bot-like requests only: IP address truncated to /24 (IPv4) or /48 (IPv6) on the Customer's server before transfer, user agent, URL path, referrer, timestamp. Ordinary human requests are not transferred to CortIQ |
+| **Categories of data subjects** | Visitors to the Customer's website(s), including operators of automated clients (crawlers, AI agents) |
+| **Retention period** | Per-site retention period set in the dashboard (default 365 days, also for sites without GDPR settings). Truncated IPs on AI-bot records are cleared after 30 days; raw Cloudflare log rows are kept at most 90 days. Further details in the Privacy Policy, section 9 |
 
 ---
 
@@ -60,7 +61,7 @@ CortIQ shall:
 
 The Customer shall:
 
-**4.1** Ensure a lawful basis exists for each category of personal data processed via CortIQ (e.g. consent for visitor analytics in both Cookieless and Full mode; the Customer's own assessment for the AI-bot / security layer, which is designed to run as strictly necessary security processing).
+**4.1** Ensure a lawful basis exists for each category of personal data processed via CortIQ: consent for visitor analytics and the tracking script's in-browser bot checks, in both Cookieless and Full mode; for server-side agent measurement, the Customer's own legal basis (typically legitimate interest, Art. 6.1.f GDPR). Server-side agent measurement does not access the visitor's device; the Customer makes the final assessment of whether any consent requirement applies.
 
 **4.2** Provide data subjects with adequate privacy information, including disclosure of CortIQ as a data processor. CortIQ provides a [Privacy Policy template](./GDPR.md) for this purpose.
 
@@ -95,6 +96,8 @@ Requests should be submitted to: [info@expandtalk.se](mailto:info@expandtalk.se)
 | Amazon Web Services, Inc. | Cloud infrastructure (via Supabase) | EU (eu-north-1) | [AWS DPA](https://aws.amazon.com/agreement/) |
 | Resend, Inc. | Sending report exports by email — optional, only when the Customer emails an export | US (SCCs) | [Resend DPA](https://resend.com/legal/dpa) |
 | Cloudflare, Inc. | Server-side bot classification from edge logs, edge web analytics (aggregate) and geo lookup for consent-banner gating — optional, only if the Customer enables the Cloudflare integration | US (EU-US Data Privacy Framework certified; SCCs) | [Cloudflare DPA](https://www.cloudflare.com/cloudflare-customer-dpa/) |
+
+Server-side adapters (Next.js/Vercel middleware, Netlify Edge, Cloudflare Worker, Node/Express, the WordPress plugin) run on the Customer's own server or hosting account under the Customer's own agreement with that provider; those providers are not sub-processors of CortIQ.
 
 CortIQ will notify the Customer at least 30 days in advance of any intended change to the sub-processor list. The Customer may object to a new sub-processor within 14 days of notification; if no resolution is reached, either party may terminate the service agreement.
 

@@ -10,7 +10,7 @@ import type { Site } from '@/types/dashboard';
 
 // The coverage-gap story in three layers:
 //   Edge (Cloudflare)  — ALL traffic, incl. AI crawlers & non-JS requests
-//   CortIQ cookieless  — all human sessions (no consent needed)
+//   CortIQ cookieless  — consented human sessions (no cookies, but consent still required)
 //   GA4 (estimated)    — only the consented subset
 export function ConsentImpact({ selectedSite }: { selectedSite: Site }) {
   const [loading, setLoading] = useState(true);
@@ -147,7 +147,7 @@ export function ConsentImpact({ selectedSite }: { selectedSite: Site }) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{fmt(cortiqPV)}</div>
-            <p className="text-xs text-muted-foreground">page views · all human sessions, no consent needed</p>
+            <p className="text-xs text-muted-foreground">page views · consented sessions, no cookies</p>
           </CardContent>
         </Card>
 

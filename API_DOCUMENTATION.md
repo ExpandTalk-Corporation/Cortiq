@@ -122,8 +122,9 @@ Referrers response:
 
 The API returns what the tracker collected. Visitor analytics (sessions, page views, heatmaps,
 conversions) are collected only after the visitor gives analytics consent, in both Cookieless and
-Full mode. Consent is valid for 12 months. Only the AI-bot/security layer runs without consent; the
-site operator makes the final legal assessment of that processing.
+Full mode, including the tracker's in-browser bot checks. Consent is valid for 12 months. AI crawlers are
+measured server-side from the HTTP request, without device access; the site operator makes the final legal
+assessment of that processing.
 
 ## Agentic layer (MCP)
 

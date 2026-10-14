@@ -13,10 +13,10 @@ const CONFIG = {
     iconColor: 'text-orange-500',
     details: [
       'Legal basis: Legitimate interest (Art. 6(1)(f) GDPR)',
-      'IP addresses: hashed, never stored in plain text',
-      'Retention: 48 hours',
+      'IP addresses: truncated to /24 (IPv6 /48), cleared after 30 days',
+      'Retention: site retention period (default 365 days)',
     ],
-    tooltip: 'Security monitoring data is processed under legitimate interest for fraud prevention and site protection. Raw IP addresses are hashed immediately and automatically deleted after 48 hours.',
+    tooltip: 'Server-side bot and security data is processed under legitimate interest for crawler measurement and site protection. Full IP addresses are never stored: they are truncated before storage and the truncated value is cleared after 30 days.',
   },
   analytics: {
     icon: BarChart3,
@@ -24,11 +24,11 @@ const CONFIG = {
     color: 'bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-400',
     iconColor: 'text-blue-500',
     details: [
-      'No personal data stored',
-      'Aggregated metrics only — no identifiable link',
-      'Retention: 730 days',
+      'Collected only after analytics consent',
+      'Pseudonymous at most — no names, emails or IP addresses',
+      'Retention: 365 days by default',
     ],
-    tooltip: 'Analytics data contains no personal data. All metrics are aggregated and anonymized. No cookies or IP addresses are stored.',
+    tooltip: 'Visitor analytics are collected only after analytics consent. No cookies are set by the tracking script and no IP addresses are stored with visitor analytics; only AI-bot records keep a truncated IP, cleared after 30 days.',
   },
 };
 

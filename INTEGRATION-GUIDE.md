@@ -2,32 +2,40 @@
 
 ## Quick Start
 
-### 1. Run the setup script
+### 1. Create a site
 
-Create your company records and generate API keys. Set the required environment variables first:
-
-```bash
-export VITE_SUPABASE_URL="https://[YOUR_PROJECT_REF].supabase.co"
-export SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
-npx tsx src/scripts/setup-companies.ts
-```
-
-You will receive:
-- **Company ID** (UUID)
-- **API Key** (one per site)
+Sign in to the CortIQ dashboard and add your site (Settings → Sites, or the onboarding wizard). You get:
+- **Site ID** (UUID)
+- **Tracking key** (`tk_…`, one per site)
 
 ### 2. Add the tracking script
 
-Place the snippet before `</body>` on every page:
+Place the snippet in `<head>` (or before `</body>`) on every page:
 
 ```html
 <script
   src="https://cortiq.se/spa-tracking.js"
-  data-site-id="[YOUR_COMPANY_ID]"
-  data-api-key="[YOUR_API_KEY]"
+  data-site-id="[YOUR_SITE_ID]"
+  data-api-key="[YOUR_TRACKING_KEY]"
+  data-cookieless="true"
   defer
 ></script>
 ```
+
+Equivalent `window.cortiqConfig` form (what the dashboard shows; it wins over `data-*` if both are present):
+
+```html
+<script>
+  window.cortiqConfig = {
+    siteId: '[YOUR_SITE_ID]',
+    apiKey: '[YOUR_TRACKING_KEY]',
+    cookieless: true
+  };
+</script>
+<script src="https://cortiq.se/spa-tracking.js" defer></script>
+```
+
+The script does nothing until the visitor gives analytics consent (see *Consent* below). AI crawlers that never run JavaScript are measured server-side — see **Server-side agent measurement**.
 
 Page views are tracked automatically. No additional calls required for standard navigation.
 
@@ -40,10 +48,9 @@ Page views are tracked automatically. No additional calls required for standard 
 ```html
 <!-- Place in <head> or before </body> -->
 <script>
-  window.wfaConfig = {
-    companyId: '[YOUR_COMPANY_ID]',
-    apiKey: '[YOUR_API_KEY]',
-    apiUrl: 'https://[YOUR_PROJECT_REF].supabase.co/functions/v1',
+  window.cortiqConfig = {
+    siteId: '[YOUR_SITE_ID]',
+    apiKey: '[YOUR_TRACKING_KEY]',
     contentType: 'page',
     platform: 'my-site'
   };
@@ -74,8 +81,8 @@ CortIQ captures SPA navigation automatically via History API (`pushState` / `rep
 ```html
 <script
   src="https://cortiq.se/spa-tracking.js"
-  data-site-id="[YOUR_COMPANY_ID]"
-  data-api-key="[YOUR_API_KEY]"
+  data-site-id="[YOUR_SITE_ID]"
+  data-api-key="[YOUR_TRACKING_KEY]"
   defer
 ></script>
 ```
@@ -118,7 +125,7 @@ For apps with a public marketing section and a protected `/admin` area:
 <script
   src="https://cortiq.se/spa-tracking.js"
   data-site-id="[YOUR_SITE_ID]"
-  data-api-key="[YOUR_API_KEY]"
+  data-api-key="[YOUR_TRACKING_KEY]"
   data-exclude-iframes="true"
   data-exclude-paths="/embed/"
   data-auth-path="/admin"
@@ -207,7 +214,7 @@ Astro does full page loads — the script re-initialises on every page. Add it t
     is:inline
     src="https://cortiq.se/spa-tracking.js"
     data-site-id="[SITE_ID]"
-    data-api-key="[API_KEY]"
+    data-api-key="[TRACKING_KEY]"
     defer
   ></script>
 </head>
@@ -227,7 +234,7 @@ Add an `astro:page-load` listener as a complement for edge cases where Astro rep
     is:inline
     src="https://cortiq.se/spa-tracking.js"
     data-site-id="[SITE_ID]"
-    data-api-key="[API_KEY]"
+    data-api-key="[TRACKING_KEY]"
     defer
   ></script>
   <script is:inline>
@@ -249,14 +256,104 @@ The tracking script runs entirely client-side — where Astro serves HTML (Node,
 
 ## Script data attributes
 
+Each attribute has a `window.cortiqConfig` equivalent (`siteId`, `apiKey`, `apiUrl`, `cookieless`, `excludeIframes`, `excludePaths`, `authPath`, `tenantId`). `window.cortiqConfig` wins when both are set.
+
 | Attribute | Type | Description |
 |-----------|------|-------------|
 | `data-site-id` | UUID | **Required.** Identifies the site in CortIQ. |
-| `data-api-key` | string | API key for authenticating against Edge Functions. |
+| `data-api-key` | string | Site tracking key (`tk_…`). |
+| `data-api-url` | URL | Override the ingest endpoint (default: CortIQ cloud). |
+| `data-cookieless` | `"true"` | No visitor identification and no persistent IDs. Still requires consent. |
 | `data-exclude-iframes` | `"true"` | Stops all tracking when the script runs inside an iframe. |
 | `data-exclude-paths` | comma-separated | Path prefixes to ignore. Example: `"/embed/,/preview/"`. Matched with `startsWith`. |
 | `data-auth-path` | string | Path prefix for authenticated mode. Default: `/admin`. |
 | `data-tenant-id` | UUID | Static tenant dimension — attached to all events. |
+
+---
+
+## Server-side agent measurement
+
+Most AI training and citation crawlers (GPTBot, ClaudeBot, PerplexityBot, Google-Extended…) never run JavaScript, so the browser script cannot see them. Server-side adapters run on your server or edge and send CortIQ only:
+
+- requests whose User-Agent looks like a bot or AI agent,
+- fetches of `/robots.txt`, `/llms.txt`, `/llms-full.txt`,
+- hits on a hidden honeypot link (`/cortiq-trap/`) that `robots.txt` disallows.
+
+Human requests are never sent. The IP is truncated (/24 IPv4, /48 IPv6) and the query string dropped before anything leaves your server. Nothing runs in the visitor's browser.
+
+| Stack | Adapter |
+|---|---|
+| Next.js / Vercel (incl. v0) | `middleware.ts` (Next.js 16: `proxy.ts`) + [`cortiq-server.mjs`](https://cortiq.se/cortiq-server.mjs) |
+| Netlify (incl. Lovable/Bolt static exports) | Edge Function + `cortiq-server.mjs` |
+| Any site behind Cloudflare | [`cloudflare-worker.js`](https://cortiq.se/cloudflare-worker.js) — also injects the honeypot link and the robots.txt line |
+| Node / Express | `app.use(cortiqExpress(createCortiq({ siteKey })))` |
+| WordPress | Built into the plugin from 5.5.0 (on by default when the Tracking ID is set) |
+| Anything else | `POST /functions/v1/server-hit` (below) |
+
+All adapters authenticate with the site's tracking key (`tk_…`). The dashboard (**Install tracking → Server-side agent measurement**) shows every snippet with the key filled in and whether data has arrived.
+
+### Next.js / Vercel
+
+```ts
+// middleware.ts — copy https://cortiq.se/cortiq-server.mjs to lib/cortiq-server.mjs
+import { NextResponse, type NextRequest, type NextFetchEvent } from 'next/server';
+import { createCortiq } from './lib/cortiq-server.mjs';
+
+const cortiq = createCortiq({ siteKey: process.env.CORTIQ_SITE_KEY });
+
+export function middleware(request: NextRequest, event: NextFetchEvent) {
+  const waitUntil = (p: Promise<unknown>) => event.waitUntil(p);
+  if (cortiq.isTrap(request)) return cortiq.trapResponse(request, waitUntil);
+  cortiq.report(request, { waitUntil });
+  return NextResponse.next();
+}
+
+export const config = { matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'] };
+```
+
+### Netlify Edge Function
+
+```ts
+// netlify/edge-functions/cortiq.ts
+import { createCortiq } from '../../lib/cortiq-server.mjs';
+
+const cortiq = createCortiq({ siteKey: Netlify.env.get('CORTIQ_SITE_KEY') });
+
+export default async (request: Request, context) => {
+  const waitUntil = (p: Promise<unknown>) => context.waitUntil(p);
+  if (cortiq.isTrap(request)) return cortiq.trapResponse(request, waitUntil);
+  const response = await context.next();
+  cortiq.report(request, { status: response.status, waitUntil });
+  return response;
+};
+
+export const config = { path: '/*', excludedPath: ['/*.css', '/*.js', '/*.png', '/*.jpg', '/*.svg', '/*.webp', '/*.woff2'] };
+```
+
+### Honeypot link and robots.txt
+
+Cloudflare and WordPress add these automatically. Elsewhere, put the link once in your HTML template and the rule in `robots.txt`:
+
+```html
+<a href="/cortiq-trap/" rel="nofollow" tabindex="-1" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden">.</a>
+```
+
+```
+User-agent: *
+Disallow: /cortiq-trap/
+```
+
+### HTTP endpoint
+
+```
+POST https://[YOUR_PROJECT_REF].supabase.co/functions/v1/server-hit
+Authorization: Bearer tk_…
+Content-Type: application/json
+
+{"hits":[{"url":"https://example.com/page","userAgent":"Mozilla/5.0 (compatible; GPTBot/1.2)","ip":"203.0.113.0","status":200,"referrer":"https://…"}]}
+```
+
+Up to 100 hits per request. Every hit's host must belong to the key's site (other hosts are rejected). Response: `{ accepted, stored, ignored, rejected }`. CortIQ stores AI-registry bots and honeypot visitors (`ai_bot_traffic`, `source = 'server_log'`, `server_signal = request | robots_txt | llms_txt | honeypot`) and discards everything else. The truncated IP is cleared after 30 days.
 
 ---
 
@@ -289,13 +386,14 @@ TikTok and additional paid-channel connectors live under the same Integrations t
 
 ## Privacy & GDPR
 
-Without consent, only the **AI-bot / security layer** runs: AI bot & agent detection, crawler classification (training / agentic / citation), bot probe, honeypot, canary, and server-side bot classification from Cloudflare edge logs (`cloudflare-ingest`). It is designed to run as strictly necessary security processing; the site operator makes the final legal assessment.
+**The browser script does nothing before analytics consent** — in both modes, including in-browser bot/agent detection (bot probe, canary, honeypot). Reading device properties or loading a tracking pixel is device access under ePrivacy Art. 5.3 / LEK 9 kap. 28 § (EDPB Guidelines 2/2023), so it needs consent.
 
-**All visitor analytics are consent-gated in both modes**:
+**Server-side agent measurement** reads only the HTTP request your server already receives. It doesn't touch the visitor's device, so in our assessment it needs no consent banner. The request data (truncated IP, user agent) is still personal data under GDPR: you need a legal basis (typically legitimate interest, Art. 6.1.f) and should mention it in your privacy policy. You make the final assessment.
 
 | Data | Default | Legal basis |
 |------|---------|-------------|
-| AI-bot / security layer | On | Designed as strictly necessary security processing (operator's assessment) |
+| Server-side agent measurement (bot/agent requests, robots.txt / llms.txt, honeypot) | On when an adapter is installed | No device access; GDPR basis decided by you (typically Art. 6.1.f) |
+| In-browser bot/agent signals | Requires analytics consent | ePrivacy Art. 5.3 (consent) |
 | Page views, sessions, AI referrals | Requires analytics consent | Art. 6.1.a GDPR / ePrivacy Art. 5.3 (consent) |
 | Clicks, scroll depth, heatmaps, session replay, A/B tests | Requires analytics consent | Art. 6.1.a / ePrivacy Art. 5.3 |
 | Conversions, e-commerce & form analytics | Requires analytics consent | Art. 6.1.a / ePrivacy Art. 5.3 |
@@ -305,9 +403,9 @@ Without consent, only the **AI-bot / security layer** runs: AI bot & agent detec
 - **Full mode** — persistent visitor ID and returning-visitor analysis after consent.
 - **Consent expiry** — each choice is stored with `expiresAt` and is valid 12 months, then re-asked.
 
-- **IP anonymisation** at ingest — raw IP addresses are never stored.
+- **IP truncation** — server-side adapters truncate before sending, ingest truncates again; truncated IPs on bot records are cleared after 30 days.
 - **Emails SHA-256 hashed** in the browser before any ad-platform upload — raw PII never reaches CortIQ.
-- **Configurable retention** with an automated retention job across sensitive tables.
+- **Configurable retention** (default 365 days) with an automated daily retention job across sensitive tables.
 - **Consent verified server-side**, not just a client flag — the consent banner writes an authoritative server-side ledger for Art. 7(1) proof.
 
 See [consent-banner-strategy](./docs/consent-banner-strategy.md) for banner design and consent-rate guidance.

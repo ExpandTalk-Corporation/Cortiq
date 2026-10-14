@@ -3,7 +3,7 @@
  * Plugin Name: CortIQ Analytics
  * Plugin URI: https://cortiq.se
  * Description: Analytics for the agentic web. Classifies AI crawlers and agent fetches (GPTBot, ClaudeBot, ChatGPT-User, PerplexityBot…) and measures human visitors after consent — cookieless mode, heatmaps, conversions and a built-in consent banner.
- * Version: 5.4.3
+ * Version: 5.5.0
  * Author: CortIQ
  * Author URI: https://cortiq.se
  * Requires at least: 5.6
@@ -21,11 +21,15 @@ if ( defined( 'CORTIQ_LOADED' ) ) return;
 define( 'CORTIQ_LOADED', true );
 
 // Shared with public/spa-tracking.js (CORTIQ_VERSION) — also the ?ver= cache-bust for it.
-define( 'CORTIQ_VERSION',    '5.4.3' );
+define( 'CORTIQ_VERSION',    '5.5.0' );
 define( 'CORTIQ_OPTION_KEY', 'cortiq_options' );
 define( 'CORTIQ_CDN',        'https://cortiq.se' );
 // Supabase Edge Functions base — used for the GDPR consent ledger (store-consent).
 define( 'CORTIQ_API',        'https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1' );
+// Server-side agent measurement: honeypot path and bot/agent pre-filter.
+// Keep CORTIQ_AGENT_UA in sync with AGENT_UA in public/cortiq-server.mjs (test-enforced).
+define( 'CORTIQ_TRAP_PATH',  '/cortiq-trap/' );
+define( 'CORTIQ_AGENT_UA',   '/bot|crawl|spider|slurp|scrape|GPT|OAI-|ChatGPT|Claude|anthropic|Perplexity|Google-Extended|GoogleOther|Meta-External|facebookexternalhit|Applebot|DuckAssist|Grok|Bytespider|CCBot|Diffbot|cohere|DeepSeek|MistralAI|headless|python-requests|curl\/|wget/i' );
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -48,6 +52,7 @@ function cortiq_defaults() {
         'reprompt_cooldown_days'=> 365,      // how long a saved choice is respected before re-asking
         'consent_region'        => 'eea',    // 'eea' (region-scoped defaults) | 'global'
         'geo_gating'            => false,    // show the banner only to EEA/UK/CH visitors
+        'server_side'           => true,     // server-side AI agent measurement (needs tracking_id)
     );
 }
 
@@ -255,8 +260,8 @@ function cortiq_enqueue() {
         'apiKey'      => $opts['tracking_id'],
         'contentType' => 'page',
         'platform'    => 'web',
-        // Cookieless mode: no fingerprint and no cross-visit profile. It still
-        // requires analytics consent — only the bot/security layer runs without it.
+        // Cookieless mode: no fingerprint and no cross-visit profile. Like everything
+        // in spa-tracking.js (including in-browser bot detection) it waits for consent.
         'cookieless'  => ( 'cookieless' === $opts['tracking_mode'] ),
     ) );
     wp_add_inline_script( 'cortiq-tracking', 'window.cortiqConfig = ' . $config . ';', 'before' );
@@ -268,6 +273,91 @@ function cortiq_add_script_attrs( $tag, $handle ) {
     if ( 'cortiq-tracking' !== $handle ) return $tag;
     // Config travels via window.cortiqConfig (injected above); just defer the load.
     return str_replace( ' src=', ' defer src=', $tag );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Server-side agent measurement (no client code, no device access)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function cortiq_server_side_active( $opts ) {
+    return ! empty( $opts['server_side'] ) && 0 === strpos( (string) $opts['tracking_id'], 'tk_' );
+}
+
+function cortiq_truncate_ip( $ip ) {
+    $ip = trim( (string) $ip );
+    if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 ) ) {
+        $o = explode( '.', $ip );
+        return $o[0] . '.' . $o[1] . '.' . $o[2] . '.0';
+    }
+    if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 ) ) {
+        $g = explode( ':', $ip );
+        return implode( ':', array_slice( $g, 0, 3 ) ) . '::';
+    }
+    return null;
+}
+
+function cortiq_request_path() {
+    $uri = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '/';
+    return (string) wp_parse_url( $uri, PHP_URL_PATH );
+}
+
+function cortiq_report_request( $opts, $status ) {
+    $host = isset( $_SERVER['HTTP_HOST'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) ) : '';
+    $hit  = array(
+        'url'       => ( is_ssl() ? 'https' : 'http' ) . '://' . $host . cortiq_request_path(),
+        'method'    => isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : 'GET',
+        'status'    => (int) $status,
+        'userAgent' => isset( $_SERVER['HTTP_USER_AGENT'] ) ? substr( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ), 0, 512 ) : '',
+        'referrer'  => isset( $_SERVER['HTTP_REFERER'] ) ? esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ) ) : null,
+        'ip'        => cortiq_truncate_ip( isset( $_SERVER['REMOTE_ADDR'] ) ? wp_unslash( $_SERVER['REMOTE_ADDR'] ) : '' ),
+    );
+    // Non-blocking: the page is not delayed by the report.
+    wp_remote_post( CORTIQ_API . '/server-hit', array(
+        'blocking' => false,
+        'timeout'  => 1,
+        'headers'  => array( 'Content-Type' => 'application/json', 'Authorization' => 'Bearer ' . $opts['tracking_id'] ),
+        'body'     => wp_json_encode( array( 'hits' => array( $hit ) ) ),
+    ) );
+}
+
+// Runs for normal pages, 404s and WordPress' virtual robots.txt / llms.txt.
+add_action( 'template_redirect', 'cortiq_server_side_measure', 0 );
+function cortiq_server_side_measure() {
+    $opts = cortiq_options();
+    if ( empty( $opts['tracking_enabled'] ) || ! cortiq_server_side_active( $opts ) ) return;
+
+    $path = strtolower( cortiq_request_path() );
+    $ua   = isset( $_SERVER['HTTP_USER_AGENT'] ) ? wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) : '';
+
+    if ( $path === rtrim( CORTIQ_TRAP_PATH, '/' ) || 0 === strpos( $path, CORTIQ_TRAP_PATH ) ) {
+        cortiq_report_request( $opts, 404 );
+        status_header( 404 );
+        nocache_headers();
+        header( 'X-Robots-Tag: noindex, nofollow' );
+        echo 'Not found';
+        exit;
+    }
+
+    $watched = in_array( $path, array( '/robots.txt', '/llms.txt', '/llms-full.txt' ), true );
+    if ( $watched || preg_match( CORTIQ_AGENT_UA, $ua ) ) {
+        cortiq_report_request( $opts, is_404() ? 404 : 200 );
+    }
+}
+
+// Hidden honeypot link in the server-rendered HTML; robots.txt tells crawlers to skip it,
+// so only bots that ignore robots.txt follow it.
+add_action( 'wp_footer', 'cortiq_honeypot_link', 1 );
+function cortiq_honeypot_link() {
+    $opts = cortiq_options();
+    if ( empty( $opts['tracking_enabled'] ) || ! cortiq_server_side_active( $opts ) ) return;
+    echo '<a href="' . esc_url( home_url( CORTIQ_TRAP_PATH ) ) . '" rel="nofollow" tabindex="-1" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden">.</a>';
+}
+
+add_filter( 'robots_txt', 'cortiq_robots_txt', 20 );
+function cortiq_robots_txt( $output ) {
+    $opts = cortiq_options();
+    if ( ! cortiq_server_side_active( $opts ) || false !== strpos( $output, 'Disallow: ' . CORTIQ_TRAP_PATH ) ) return $output;
+    return rtrim( $output ) . "\n\nUser-agent: *\nDisallow: " . CORTIQ_TRAP_PATH . "\n";
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -647,6 +737,7 @@ function cortiq_sanitize_options( $input ) {
     $clean['reprompt_cooldown_days'] = ( $cd >= 1 && $cd <= 400 ) ? $cd : 365;
     $clean['consent_region']   = ( isset( $input['consent_region'] ) && 'global' === $input['consent_region'] ) ? 'global' : 'eea';
     $clean['geo_gating']       = ! empty( $input['geo_gating'] );
+    $clean['server_side']      = ! empty( $input['server_side'] );
     return $clean;
 }
 
@@ -698,6 +789,25 @@ function cortiq_settings_page() {
                         <p class="description">
                             tk_xxx key from Dashboard → Settings → Setup. Used for
                             <strong>heatmaps, sessions and page views</strong>.
+                        </p>
+                    </td>
+                </tr>
+
+                <tr>
+                    <th scope="row">Server-side agent measurement</th>
+                    <td>
+                        <label>
+                            <input type="checkbox" name="<?php echo CORTIQ_OPTION_KEY; ?>[server_side]" value="1"
+                                   <?php checked( ! empty( $opts['server_side'] ) ); ?> />
+                            Measure AI crawlers and agents on the server
+                        </label>
+                        <p class="description">
+                            Most AI crawlers (GPTBot, ClaudeBot, PerplexityBot…) never run JavaScript. WordPress reports
+                            bot/agent requests, <code>robots.txt</code> / <code>llms.txt</code> fetches and hits on a hidden
+                            honeypot link to CortIQ, with the IP truncated. Human requests are never sent and nothing runs in
+                            the visitor's browser, so no consent banner is involved — mention it in your privacy policy.
+                            Requires the Tracking ID above. With full-page caching (or a physical robots.txt file) WordPress
+                            doesn't see every request; use the CortIQ Cloudflare Worker for complete coverage.
                         </p>
                     </td>
                 </tr>
@@ -778,7 +888,7 @@ function cortiq_settings_page() {
                                    <?php checked( 'full', $opts['tracking_mode'] ); ?> />
                             <strong>Full</strong> — device fingerprint + returning-visitor profiling. Requires analytics consent.
                         </label>
-                        <p class="description">Both modes need analytics consent before visitor analytics start. AI-agent and bot detection runs without it as a strictly necessary security function — you decide the legal basis for your site.</p>
+                        <p class="description">Both modes need analytics consent before the tracking script does anything, including in-browser bot detection. AI crawlers are measured server-side instead (see Server-side agent measurement).</p>
                     </td>
                 </tr>
 

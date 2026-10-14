@@ -90,9 +90,13 @@ export function CloudflareTrafficWidget({ siteId, days = 7 }: Props) {
             <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
               <li>Copy <code className="bg-muted px-1 rounded">/cloudflare-worker.js</code> from the project</li>
               <li>Create a Worker in Cloudflare dashboard and paste the code</li>
-              <li>Add env vars: <code className="bg-muted px-1 rounded">CORTIQ_INGEST_URL</code> and <code className="bg-muted px-1 rounded">CORTIQ_INGEST_KEY</code></li>
+              <li>Add env var <code className="bg-muted px-1 rounded">CORTIQ_SITE_KEY</code> = your tracking key (tk_…)</li>
               <li>Add route <code className="bg-muted px-1 rounded">yourdomain.com/*</code></li>
             </ol>
+            <p className="text-xs text-muted-foreground">
+              The current Worker reports AI crawlers to the AI-bot views (server-side agent measurement); this card
+              shows data from Workers set up with the older ingest key.
+            </p>
           </div>
         </CardContent>
       </Card>

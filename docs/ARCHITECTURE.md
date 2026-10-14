@@ -438,7 +438,7 @@ Rate Limits:
 Database:
   - PostgreSQL connection pooling: 60 connections
   - Table size: Unlimited (auto-vacuum)
-  - Data retention: 730 days default
+  - Data retention: 365 days default (truncated IPs on AI-bot records cleared after 30 days)
 
 Storage:
   - Session recordings: 1 GB free, then paid

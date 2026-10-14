@@ -24,7 +24,7 @@ const companies = [
     name: 'My Site 1',
     consent_settings: {
       consent_mode: 'opt-out',
-      data_retention_days: 730,
+      data_retention_days: 365,
       anonymize_ip: true,
       allowed_event_types: ['view', 'click', 'conversion', 'submission'],
       gdpr_settings: {
@@ -38,7 +38,7 @@ const companies = [
     name: 'My Site 2',
     consent_settings: {
       consent_mode: 'opt-out',
-      data_retention_days: 730,
+      data_retention_days: 365,
       anonymize_ip: true,
       allowed_event_types: ['view', 'click', 'conversion', 'submission'],
       gdpr_settings: {
@@ -52,7 +52,7 @@ const companies = [
     name: 'My SaaS App',
     consent_settings: {
       consent_mode: 'opt-out',
-      data_retention_days: 730,
+      data_retention_days: 365,
       anonymize_ip: true,
       allowed_event_types: ['view', 'click', 'conversion', 'submission'],
       gdpr_settings: {

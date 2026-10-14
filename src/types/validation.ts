@@ -331,7 +331,7 @@ export const InviteUserSchema = z.object({
 // Settings Schemas
 export const DataRetentionSettingsSchema = z.object({
   siteId: SiteIdSchema,
-  retentionDays: z.number().int().min(1).max(2555).default(730),
+  retentionDays: z.number().int().min(1).max(2555).default(365),
   anonymizeIpAfterDays: z.number().int().min(0).max(365).default(30),
   deleteSessionsOlderThan: z.number().int().min(1).max(365).default(90),
 });

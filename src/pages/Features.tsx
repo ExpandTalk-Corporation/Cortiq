@@ -171,9 +171,9 @@ export default function Features() {
     },
     {
       icon: <Upload className="h-8 w-8" />,
-      title: "Server-Side Bot Ingestion",
-      description: "A Cloudflare Worker reports training and citation crawlers that never execute JavaScript",
-      features: ["Cloudflare Worker", "Same bot registry as the JS tag", "Training & citation crawlers", "No tracking script required"]
+      title: "Server-Side Agent Measurement",
+      description: "Measures the training and citation crawlers that never execute JavaScript, from your own server or edge",
+      features: ["Next.js, Netlify, Cloudflare, Node, WordPress", "Same bot registry as the JS tag", "Only bot-like requests are sent", "No access to the visitor's device"]
     },
     {
       icon: <Layers className="h-8 w-8" />,
@@ -615,9 +615,9 @@ export default function Features() {
                     <Zap className="h-8 w-8" />
                   </div>
                   <div>
-                    <CardTitle className="text-xl mb-2">AI-Agent & Bot Layer</CardTitle>
+                    <CardTitle className="text-xl mb-2">Server-Side Agent Measurement</CardTitle>
                     <CardDescription className="text-base">
-                      Runs before consent — designed as strictly necessary security processing
+                      Runs on your server, not in the visitor's browser — the primary method for AI crawlers
                     </CardDescription>
                   </div>
                 </div>
@@ -626,7 +626,7 @@ export default function Features() {
                 <ul className="space-y-2">
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span className="text-sm">AI bot & agent detection</span>
+                    <span className="text-sm">User agent, robots.txt and llms.txt fetches</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
@@ -634,11 +634,11 @@ export default function Features() {
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span className="text-sm">Bot probe, honeypot & canary</span>
+                    <span className="text-sm">Honeypot link in server-rendered HTML</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span className="text-sm">Server-side classification from edge logs</span>
+                    <span className="text-sm">IP truncated on your server before sending</span>
                   </li>
                 </ul>
               </CardContent>
@@ -654,15 +654,17 @@ export default function Features() {
               <div>
                 <h4 className="font-medium mb-2">Before Consent</h4>
                 <p className="text-sm text-muted-foreground">
-                  Only the AI-bot, agent and security layer runs. It is designed to run as strictly necessary
-                  security processing; the site operator makes the final legal assessment. No visitor analytics are collected.
+                  The browser script does nothing — no device reads, no storage, no requests. AI crawlers are measured
+                  server-side from the HTTP request; that data is still personal data under GDPR, so you need a legal basis
+                  (typically legitimate interest). The site operator makes the final legal assessment.
                 </p>
               </div>
               <div>
                 <h4 className="font-medium mb-2">After Analytics Consent</h4>
                 <p className="text-sm text-muted-foreground">
                   Page views, sessions, clicks, scroll, heatmaps, link click counts, forms, e-commerce and conversions
-                  start in the mode you chose. Consent is valid for 12 months, then re-asked.
+                  start in the mode you chose, together with the in-browser bot checks (probe, honeypot, canary).
+                  Consent is valid for 12 months, then re-asked.
                 </p>
               </div>
             </div>

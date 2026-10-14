@@ -60,10 +60,10 @@ const features = [
     title: "Honeypot & Canary Traps",
     description: "Hidden traps that only automated visitors trigger — proof of scraping instead of a guess.",
     items: [
-      "Invisible honeypot link (click/focus = bot)",
+      "Honeypot link in server-rendered HTML (server-side, catches non-JS crawlers)",
       "Canary pixel: fetched from a server IP = scraper",
       "Canary link followed by link-traversal bots",
-      "IP anonymized, raw user agent never stored",
+      "In-browser traps start only after analytics consent",
     ],
   },
   {
@@ -113,9 +113,9 @@ const features = [
   {
     icon: <Lock className="h-7 w-7" />,
     title: "Privacy-First Architecture",
-    description: "Security intelligence without compromising visitor privacy — all data is anonymized and EU-hosted.",
+    description: "Security intelligence with minimal visitor data — truncated IPs, consent-gated browser checks, EU-hosted.",
     items: [
-      "Hashed visitor IDs (no PII)",
+      "Pseudonymous visitor IDs only in Full mode, after consent",
       "Cookieless tracking mode",
       "EU data hosting",
       "Built for GDPR, privacy by design",

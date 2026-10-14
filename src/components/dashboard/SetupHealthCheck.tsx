@@ -51,12 +51,10 @@ export function SetupHealthCheck({ siteId }: { siteId: string }) {
         },
         {
           label: 'GDPR consent log',
-          status: (consents || 0) > 0 ? 'ok' : cookieless ? 'na' : 'warn',
+          status: (consents || 0) > 0 ? 'ok' : 'warn',
           detail: (consents || 0) > 0
             ? `${consents} consent records / 30d (Art. 7 proof)`
-            : cookieless
-              ? 'Aggregate cookieless measurement needs no consent log — but clicks, scroll & heatmaps still require consent. Verify your installed script is actually in cookieless mode.'
-              : 'No consent recorded yet',
+            : 'No consent recorded yet — CortIQ collects nothing in the browser until analytics consent, in cookieless mode too',
         },
         {
           // This reflects the DASHBOARD setting only. The dashboard cannot observe the
@@ -64,7 +62,7 @@ export function SetupHealthCheck({ siteId }: { siteId: string }) {
           label: 'Tracking mode (dashboard setting)',
           status: 'ok',
           detail: cookieless
-            ? 'Set to Cookieless. Confirm your installed snippet/plugin is also set to cookieless — otherwise full-mode fingerprinting runs without a consent log.'
+            ? 'Set to Cookieless. Confirm your installed snippet/plugin is also set to cookieless — otherwise the script identifies returning visitors (full mode) after consent.'
             : 'Set to Full (fingerprint + returning-visitor profiling, requires consent).',
         },
         {

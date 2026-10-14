@@ -121,9 +121,17 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
     source: 'src/content/docs.ts',
   },
   {
+    path: '/integrations/server-side/',
+    title: 'Server-Side AI Agent Measurement — CortIQ',
+    description: 'Measure GPTBot, ClaudeBot and other AI crawlers that never run JavaScript, on your own server: adapters for Next.js, Vercel, Netlify, Cloudflare, Node and WordPress. No device access, truncated IPs.',
+    changefreq: 'monthly',
+    priority: 0.8,
+    source: 'src/content/docs.ts',
+  },
+  {
     path: '/integrations/cloudflare/',
     title: 'Track AI Crawlers Server-Side with Cloudflare — CortIQ',
-    description: 'A Cloudflare Worker that sends AI crawler traffic to CortIQ for classification, including GPTBot, ClaudeBot and other bots that never run JavaScript. No full IPs stored.',
+    description: 'A paste-ready Cloudflare Worker that reports AI crawler traffic to CortIQ, including GPTBot, ClaudeBot and other bots that never run JavaScript. Human requests never leave Cloudflare.',
     changefreq: 'monthly',
     priority: 0.7,
     source: 'src/content/docs.ts',
@@ -201,7 +209,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   {
     path: '/privacy/',
     title: 'Privacy Policy — CortIQ',
-    description: 'CortIQ privacy policy: what is processed without consent (security and bot detection), what requires analytics or marketing consent, EU data storage, retention periods and your rights.',
+    description: 'CortIQ privacy policy: what server-side agent measurement processes, what requires analytics or marketing consent, EU data storage, retention periods and your rights.',
     changefreq: 'yearly',
     priority: 0.4,
     source: 'src/pages/Privacy.tsx',

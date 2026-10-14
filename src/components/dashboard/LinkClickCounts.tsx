@@ -31,7 +31,7 @@ export function LinkClickCounts({ siteId }: LinkClickCountsProps) {
           </Select>
         </div>
         <p className="text-sm text-muted-foreground">
-          Anonymous per-link tallies. Works in cookieless mode without consent.
+          Anonymous per-link tallies, counted after analytics consent. Works in cookieless mode.
         </p>
       </CardHeader>
       <CardContent>

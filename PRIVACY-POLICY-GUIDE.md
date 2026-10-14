@@ -22,11 +22,13 @@ Kopiera och anpassa texten nedan för din webbplats. Ersätt [DITT FÖRETAGSNAMN
 
 ### 3. Vilken data samlar vi in?
 
-#### 3.1 Bot- och säkerhetsskydd (alltid aktivt)
+#### 3.1 Mätning av botar och AI-agenter (på vår server)
 
-För att skydda webbplatsen mot automatiserad trafik analyserar vi tekniska uppgifter i förfrågan (t.ex. webbläsarens user-agent och förfrågningsmönster) för att upptäcka och klassificera botar och AI-agenter. Inga cookies används för detta.
+Vår server analyserar tekniska uppgifter i inkommande förfrågningar (user-agent, begärd sida, hänvisande sida och en förkortad IP-adress) för att upptäcka och klassificera botar och AI-agenter. Bara förfrågningar som ser automatiserade ut skickas till CortIQ, vårt personuppgiftsbiträde. IP-adressen förkortas på vår server innan den skickas. Ingenting lagras i eller läses från din enhet.
 
-**Rättslig grund (GDPR):** [Ange er rättsliga grund. CortIQ är utformat för att detta ska kunna köras som strikt nödvändig säkerhetsbehandling, men bedömningen görs av er som personuppgiftsansvarig.]
+**Rättslig grund (GDPR):** Berättigat intresse (Art. 6.1.f GDPR) av att förstå och hantera automatiserad trafik. [Justera efter er egen bedömning och intresseavvägning.]
+
+CortIQ:s botkontroller i webbläsaren (bot-probe, honeypot, canary) läser uppgifter från enheten och körs därför först efter ditt samtycke till statistik (se 3.2).
 
 #### 3.2 Besöksstatistik (kräver ditt samtycke)
 
@@ -155,9 +157,9 @@ Telefon: 08-657 61 00
 
 ## Snabbguide: Vad är skillnaden?
 
-### Utan samtycke (alltid aktivt)
-- Bot- och AI-agentdetektion (säkerhetsskydd)
-- **Ingen besöksstatistik**
+### Utan samtycke (på servern)
+- Mätning av botar och AI-agenter från HTTP-förfrågan, utan åtkomst till enheten
+- **Inget körs i webbläsaren, ingen besöksstatistik**
 
 ### Med samtycke – Cookieless-läge
 - Sidvisningar, sessioner inom ett besök, klick, scroll, heatmaps, formulär, konverteringar
@@ -190,13 +192,13 @@ Telefon: 08-657 61 00
 A: Ja. All besöksstatistik startar först efter samtycke, i både Cookieless- och Full-läge. Cookieless-läget minskar vilka data som samlas in, men ersätter inte samtycket.
 
 **Q: Kan jag helt skippa cookie-bannern?**  
-A: Då körs endast bot- och säkerhetslagret, ingen besöksstatistik.
+A: Då körs ingenting från CortIQ i webbläsaren. Mätningen av botar och AI-agenter på serversidan fungerar ändå, eftersom den inte rör besökarens enhet.
 
 **Q: Vad händer om användare säger nej eller stänger bannern?**  
-A: Ingen besöksstatistik samlas in. Att stänga bannern sparas som "endast nödvändiga". Bot- och säkerhetslagret fortsätter.
+A: Ingen besöksstatistik samlas in och skriptet gör ingenting. Att stänga bannern sparas som "endast nödvändiga". Mätningen av botar på serversidan fortsätter.
 
 **Q: Vilken rättslig grund gäller?**  
-A: Besöksstatistik = samtycke (Art. 6.1.a GDPR / ePrivacy Art. 5.3). Bot- och säkerhetslagret är utformat som strikt nödvändig säkerhetsbehandling. Den slutliga rättsliga bedömningen görs av dig som webbplatsägare.
+A: Besöksstatistik = samtycke (Art. 6.1.a GDPR / ePrivacy Art. 5.3). Botkontroller i webbläsaren = samtycke. Mätning av botar på serversidan = i vår bedömning utanför ePrivacy Art. 5.3 (LEK 9 kap. 28 §) eftersom enheten inte används, men personuppgifter enligt GDPR, normalt berättigat intresse (Art. 6.1.f). Den slutliga rättsliga bedömningen görs av dig som webbplatsägare.
 
 **Q: Hur länge sparas data?**  
-A: Enligt den retention-period du ställer in i CortIQ (standard 730 dagar). Samtyckesval gäller i 12 månader.
+A: Enligt den retention-period du ställer in i CortIQ (standard 365 dagar). Förkortade IP-adresser på botposter rensas efter 30 dagar. Samtyckesval gäller i 12 månader.

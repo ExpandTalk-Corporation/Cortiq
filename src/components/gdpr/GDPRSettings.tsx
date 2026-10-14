@@ -409,7 +409,7 @@ export function GDPRSettings({ siteId }: GDPRSettingsProps) {
                     Cookie-free mode
                   </Label>
                   <p className="text-sm text-muted-foreground">
-                    Hide the cookie banner and run 100% cookie-free tracking (security fingerprinting for bot detection + aggregated server-side analytics)
+                    Prefer cookie-free measurement: no cookies or persistent IDs. This does not replace consent — the banner still asks before any browser measurement, and AI crawlers are measured server-side
                   </p>
                 </div>
                 <Switch

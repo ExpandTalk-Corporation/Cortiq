@@ -164,7 +164,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
               <p className="text-xs font-medium text-muted-foreground">What you get:</p>
               <div className="grid grid-cols-1 gap-1.5 text-xs text-muted-foreground">
                 <div className="flex items-center gap-2"><Bot className="h-3.5 w-3.5 text-primary" /> AI agent tracking (ChatGPT, Perplexity, Claude)</div>
-                <div className="flex items-center gap-2"><CheckCircle className="h-3.5 w-3.5 text-green-500" /> 100% cookie-free, GDPR-compliant analytics</div>
+                <div className="flex items-center gap-2"><CheckCircle className="h-3.5 w-3.5 text-green-500" /> Cookie-free, consent-first analytics</div>
                 <div className="flex items-center gap-2"><BarChart3 className="h-3.5 w-3.5 text-primary" /> Heatmaps, A/B testing, session recording</div>
               </div>
             </div>

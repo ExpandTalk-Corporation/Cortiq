@@ -67,7 +67,7 @@ const Index = () => {
   const benefits = [
     "AI traffic classified as training, agentic or citation",
     "Agent fetches via ChatGPT-User, Claude-User and Perplexity-User",
-    "Server-side bot ingestion through a Cloudflare Worker — catches crawlers that never run JavaScript",
+    "Server-side agent measurement on your own server or edge — catches the crawlers that never run JavaScript",
     "Built-in consent banner with Google Consent Mode v2",
     "Cookieless mode: no cookies, no fingerprinting, no cross-visit profile",
     "Universal tracking script for any CMS or custom site",
@@ -187,10 +187,10 @@ const Index = () => {
                 Consent-first by design
               </Badge>
               <h2 className="text-4xl md:text-5xl font-black mb-8 text-gradient-primary">
-                AI-agent intelligence without consent friction
+                Measure the agent web where it happens: on your server
               </h2>
               <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
-                AI-bot and agent detection is designed to run as strictly necessary security processing — the site operator makes the final legal assessment.
+                AI crawlers and agents are measured server-side, from the HTTP request your server already receives — no access to the visitor's device, so in our assessment no consent banner is needed for it. The site operator makes the final legal assessment.
                 All visitor analytics — page views, sessions, clicks, heatmaps, conversions — start only after the visitor grants analytics consent. Consent is valid for 12 months.
               </p>
 
@@ -202,9 +202,9 @@ const Index = () => {
                         <Shield className="h-6 w-6 text-white" />
                       </div>
                       <div>
-                        <h3 className="font-bold text-lg mb-2">AI-Agent &amp; Bot Layer</h3>
+                        <h3 className="font-bold text-lg mb-2">Server-Side Agent Measurement</h3>
                         <p className="text-muted-foreground">
-                          AI bot and agent detection, crawler classification (training / agentic / citation), honeypots and server-side bot classification from edge logs. Designed to run as strictly necessary security processing, based on ePrivacy guidance — the site operator makes the final legal assessment.
+                          Crawler classification (training / agentic / citation), robots.txt and llms.txt fetches and a honeypot link in your server-rendered HTML — via Next.js, Netlify, Cloudflare, Node or WordPress. IPs are truncated on your server and only bot-like requests are sent. Still personal data under GDPR: you need a legal basis, typically legitimate interest.
                         </p>
                       </div>
                     </div>
@@ -311,7 +311,7 @@ const Index = () => {
                     <div className="bg-gradient-primary/10 rounded-xl p-4 text-center">
                       <p className="font-bold text-lg mb-2">What needs consent?</p>
                       <p className="text-sm text-muted-foreground">
-                        All visitor analytics — sessions, heatmaps, forms, conversions — start only after analytics consent, in both Cookieless and Full mode. Only the AI-bot and security layer runs before consent.
+                        All visitor analytics — sessions, heatmaps, forms, conversions — start only after analytics consent, in both Cookieless and Full mode. AI crawlers are measured server-side instead, without touching the visitor's device.
                       </p>
                     </div>
                   </div>
@@ -337,10 +337,10 @@ const Index = () => {
               Security & Compliance
             </Badge>
             <h2 className="text-4xl md:text-5xl font-black mb-6 text-gradient-primary">
-              Bot security as strictly necessary processing
+              Bot detection that doesn't touch the visitor's device
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-              Under ePrivacy Art. 5.3, security measures can qualify as "strictly necessary" - DDoS protection, spy bots, and scrapers, subject to your own legal assessment.
+              Bots are identified server-side from the HTTP request. In-browser checks run only after analytics consent, because reading device properties is covered by ePrivacy Art. 5.3.
             </p>
           </div>
 
@@ -355,8 +355,8 @@ const Index = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Identify malicious bots attempting to overload your website.
-                  Can qualify as strictly necessary under ePrivacy Art. 5.3.
+                  Identify malicious bots attempting to overload your website,
+                  from server-side request data.
                 </p>
               </CardContent>
             </Card>
@@ -387,8 +387,8 @@ const Index = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Detect click fraud on paid ad traffic — confirmed bots, headless browsers and zero-engagement sessions. 
-                  Designed to run as strictly necessary security processing; the site operator makes the final legal assessment.
+                  Detect click fraud on paid ad traffic — confirmed bots, headless browsers and zero-engagement sessions.
+                  Session-based signals require analytics consent.
                 </p>
               </CardContent>
             </Card>
@@ -410,8 +410,8 @@ const Index = () => {
                     ePrivacy Art. 5.3
                   </h4>
                   <p className="text-sm text-muted-foreground">
-                    The EU ePrivacy Directive provides a consent exemption for processing that is "strictly necessary".
-                    Bot detection, DDoS protection, and fraud prevention may qualify, subject to your own assessment.
+                    Storing or reading information on the visitor's device needs consent unless strictly necessary for a service the visitor asked for.
+                    Bot analytics for the site owner doesn't qualify, so CortIQ's browser checks wait for consent and bots are measured server-side (EDPB Guidelines 2/2023).
                   </p>
                 </div>
                 <div className="space-y-3">
@@ -420,8 +420,8 @@ const Index = () => {
                     GDPR Art. 6.1.f
                   </h4>
                   <p className="text-sm text-muted-foreground">
-                    Legitimate interest can support protecting your website and users from threats and fraud,
-                    provided processing is proportionate and minimal. The site operator makes the final assessment.
+                    Server-side request data (truncated IP, user agent, path) is still personal data. Legitimate interest can support
+                    measuring bots and protecting your site, provided processing is proportionate and minimal. The site operator makes the final assessment.
                   </p>
                 </div>
               </div>
@@ -429,7 +429,7 @@ const Index = () => {
               <div className="bg-primary/5 p-6 rounded-lg">
                 <h4 className="font-bold mb-3 flex items-center">
                   <Bot className="h-5 w-5 text-primary mr-2" />
-                  What we measure for security (before consent)
+                  What we measure server-side (no device access)
                 </h4>
                 <ul className="grid md:grid-cols-2 gap-3 text-sm text-muted-foreground">
                   <li className="flex items-start">
@@ -438,31 +438,31 @@ const Index = () => {
                   </li>
                   <li className="flex items-start">
                     <span className="mr-2">✓</span>
-                    Request frequency (rate limiting)
+                    robots.txt and llms.txt fetches
                   </li>
                   <li className="flex items-start">
                     <span className="mr-2">✓</span>
-                    Suspicious behavior patterns
+                    Hits on a hidden honeypot link
                   </li>
                   <li className="flex items-start">
                     <span className="mr-2">✓</span>
-                    IP reputation for threat sources
+                    IP truncated to /24 on your server
                   </li>
                   <li className="flex items-start">
                     <span className="mr-2">✓</span>
-                    Automated scraping
+                    Requested path and referrer
                   </li>
                   <li className="flex items-start">
                     <span className="mr-2">✓</span>
-                    Click-fraud and fake traffic
+                    Only bot-like requests — human requests are never sent
                   </li>
                 </ul>
               </div>
 
               <div className="bg-accent/5 p-4 rounded-lg">
                 <p className="text-sm text-muted-foreground">
-                  <strong className="text-foreground">Important:</strong> All security data is stored anonymously and aggregated. 
-                  Used ONLY for security and fraud prevention - never for marketing or user tracking.
+                  <strong className="text-foreground">Important:</strong> Truncated IPs are cleared after 30 days and records are deleted after the site's retention period (default 365 days).
+                  Used only for bot measurement and site protection — never for marketing or visitor profiling.
                 </p>
               </div>
             </CardContent>
