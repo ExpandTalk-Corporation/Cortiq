@@ -77,7 +77,7 @@ export const TERMS: ContentPageData = {
       heading: '6. Integrations and AI features',
       blocks: [
         { type: 'p', text: 'Integrations with third-party services (for example Google Analytics, Google Search Console, Cloudflare and WordPress) are optional. Your use of those services is governed by your agreements with their providers, and we are not responsible for them or for changes they make that affect an integration.' },
-        { type: 'p', text: 'AI features use your own Anthropic API key. You are responsible for the costs under your agreement with Anthropic. AI-generated insights can be wrong; check them against the underlying data, which the Service shows alongside each insight, before you act on them.' },
+        { type: 'p', text: 'The AI assistant and GEO analysis use your own Anthropic API key, and you are responsible for the costs under your agreement with Anthropic. AI insights on the dashboard use CortIQ's own key. AI-generated insights can be wrong; check them against the underlying data, which the Service shows alongside each insight, before you act on them.' },
       ],
     },
     {

@@ -356,10 +356,10 @@ const Privacy = () => {
               </p>
               <ul className="space-y-3 text-muted-foreground text-sm ml-4">
                 <li>• <strong>Supabase</strong> (Supabase, Inc., USA) — database, authentication and server functions for all data. Data is stored on AWS in Stockholm (EU).</li>
-                <li>• <strong>Loopia</strong> (Loopia AB, Sweden) — web host for cortiq.se, which serves the dashboard and the tracking script file. When a browser loads the script, Loopia&apos;s access log records the IP address, user agent, file and time.</li>
+                <li>• <strong>Loopia</strong> (Loopia AB, Sweden) — web host for cortiq.se, which serves the dashboard and the tracking script file. When a browser loads the script, Loopia&apos;s access log records the IP address, user agent, file and time. This is needed to deliver the file (the transmission exception in Chapter 9, Section 28 of the Electronic Communications Act); our legal basis for the log is legitimate interest in running and securing the service (Art. 6(1)(f) GDPR), and it is not used for analytics.</li>
                 <li>• <strong>Resend</strong> (Plus Five Five, Inc., USA) — email delivery, only when an account holder sends a report export by email; the report and the recipient address are passed to Resend.</li>
                 <li>• <strong>Cloudflare</strong> (Cloudflare, Inc., USA) — when the operator enables the Cloudflare integration, Cloudflare processes visitor IP addresses at its edge; CortIQ receives the country and a truncated IP address for security and bot classification (section 3B).</li>
-                <li>• <strong>OpenAI</strong> (USA) — the AI insights widget on the dashboard sends aggregated statistics for a site (page paths without query strings, counts, device breakdown, form conversion rates). No visitor identifiers, IP addresses or email addresses are sent.</li>
+                <li>• <strong>Anthropic</strong> (USA) — AI insights on the dashboard use CortIQ&apos;s own key and receive aggregated statistics for a site (page paths without query strings, counts, device breakdown, form conversion rates). No visitor identifiers, IP addresses or email addresses are sent.</li>
               </ul>
               <p className="text-muted-foreground leading-relaxed">
                 Services that a site operator connects with its own account. These providers act under the
@@ -394,6 +394,7 @@ const Privacy = () => {
                 <li>• <strong>Supabase</strong> — data is stored in Stockholm, but Supabase is a US company and may access it from outside the EEA. Such transfers rely on the European Commission&apos;s Standard Contractual Clauses (Art. 46 GDPR) in Supabase&apos;s data processing agreement.</li>
                 <li>• <strong>Loopia</strong> — Sweden; no transfer.</li>
                 <li>• <strong>Resend</strong> — USA; the EU–US Data Privacy Framework (Art. 45 GDPR), with Standard Contractual Clauses in Resend&apos;s data processing agreement.</li>
+                <li>• <strong>Anthropic</strong> — USA; Standard Contractual Clauses (Art. 46 GDPR) in Anthropic&apos;s data processing addendum. Only aggregated statistics are sent.</li>
                 <li>• <strong>Cloudflare</strong> — the EU–US Data Privacy Framework (Art. 45 GDPR), with Standard Contractual Clauses in Cloudflare&apos;s data processing agreement.</li>
                 <li>• <strong>Services the operator connects</strong> (Anthropic, Google, HubSpot) — the transfer basis follows the operator&apos;s own agreement with each provider.</li>
               </ul>
