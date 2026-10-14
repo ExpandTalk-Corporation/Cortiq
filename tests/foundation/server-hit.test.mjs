@@ -110,3 +110,10 @@ test('caps a batch at 25 hits, rejects oversized bodies and host-spraying batche
   const spray = ['a', 'b', 'c', 'd'].map(s => ({ url: `https://${s}.shop.test/`, userAgent: 'GPTBot' }));
   assert.equal((await setup().handler(post(spray))).status, 400);
 });
+
+test('older base64 site keys are accepted', async () => {
+  const { handler } = setup();
+  const res = await handler(post([{ url: 'https://shop.test/', userAgent: 'GPTBot' }], '7wU' + 'A'.repeat(40) + '='));
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).stored, 1);
+});

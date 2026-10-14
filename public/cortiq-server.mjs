@@ -76,7 +76,8 @@ function pathOf(url) {
 
 export function createCortiq({ siteKey, endpoint = DEFAULT_ENDPOINT, fetchImpl } = {}) {
   const doFetch = fetchImpl || ((...a) => fetch(...a));
-  const enabled = typeof siteKey === 'string' && siteKey.startsWith('tk_');
+  // tk_… for new sites, an older 44-char base64 key for some existing ones.
+  const enabled = typeof siteKey === 'string' && siteKey.trim().length >= 20;
 
   function isTrap(request) {
     const p = pathOf(request.url);

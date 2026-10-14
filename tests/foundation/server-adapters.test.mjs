@@ -221,3 +221,9 @@ test('worker: robots.txt redirects and server errors pass through untouched', as
     assert.equal(res.status, status);
   }
 });
+
+test('adapters accept older base64 site keys', async () => {
+  const { sent, fetchImpl } = capture();
+  await createCortiq({ siteKey: '7wU' + 'A'.repeat(40) + '=', fetchImpl }).report(req('https://shop.test/', 'GPTBot/1.2'));
+  assert.equal(sent.length, 1);
+});

@@ -6,7 +6,7 @@
  *
  * SETUP (~3 min):
  * 1. Cloudflare dashboard → Workers & Pages → Create Worker → paste this file → Deploy.
- * 2. Worker → Settings → Variables → add CORTIQ_SITE_KEY = your site's tracking key (tk_…,
+ * 2. Worker → Settings → Variables → add CORTIQ_SITE_KEY = your site's tracking key (tk_… or older format,
  *    CortIQ → Settings → Installation).
  * 3. Worker → Triggers → Add route: example.com/*  (and www.example.com/* if used), and set
  *    the route's request-limit failure mode to "Fail open (proceed)" so the site keeps
@@ -76,7 +76,7 @@ function cleanReferrer(r) {
 }
 
 async function report(request, url, status, key, env) {
-  if (!key.startsWith('tk_')) return;
+  if (key.trim().length < 20) return; // tk_… or an older base64 site key
   try {
     await fetch(env.CORTIQ_ENDPOINT || ENDPOINT, {
       method: 'POST',

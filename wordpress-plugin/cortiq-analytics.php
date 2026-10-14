@@ -280,7 +280,8 @@ function cortiq_add_script_attrs( $tag, $handle ) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function cortiq_server_side_active( $opts ) {
-    return ! empty( $opts['server_side'] ) && 0 === strpos( (string) $opts['tracking_id'], 'tk_' );
+    // tk_… for new sites; some existing sites have an older 44-char base64 key.
+    return ! empty( $opts['server_side'] ) && strlen( trim( (string) $opts['tracking_id'] ) ) >= 20;
 }
 
 // The CortIQ Cloudflare Worker already reported this request (it adds this header).
