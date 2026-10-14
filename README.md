@@ -107,7 +107,6 @@ npm install && npm run dev  # → http://localhost:8080
 ### 📊 Human Visitor Analytics
 - Page views, sessions, bounce rate, traffic sources
 - Click heatmaps by device + scroll-depth funnels (25/50/75/100%)
-- Session recording with **input & text masking on by default**
 - Form analytics — field-level completion and drop-off
 - Navigation flow analysis
 
@@ -126,7 +125,7 @@ npm install && npm run dev  # → http://localhost:8080
 CortIQ is built by an EU company for EU-grade compliance:
 - **Server-side agent measurement** — AI crawlers and agents measured on your own server or edge (Next.js, Netlify, Cloudflare, Node, WordPress or any server via HTTP API). Only bot-like requests are sent, with the IP truncated on your server. No access to the visitor's device, so in our assessment no consent banner is needed for it; it is still personal data under GDPR (typically legitimate interest). The site operator makes the final legal assessment
 - **In-browser bot checks after consent** — bot probe, honeypot and canary in the tracking script read device properties, so they start only after analytics consent
-- **Consent-gated visitor analytics** — page views, sessions, AI referrals, clicks, scroll, heatmaps, forms, e-commerce, conversions, session recording and A/B tests start only after analytics consent (GDPR Art. 6.1.a / ePrivacy Art. 5.3), verified **server-side**. Consent is valid 12 months, then re-asked
+- **Consent-gated visitor analytics** — page views, sessions, AI referrals, clicks, scroll, heatmaps, forms, e-commerce, conversions and A/B tests start only after analytics consent (GDPR Art. 6.1.a / ePrivacy Art. 5.3), verified **server-side**. Consent is valid 12 months, then re-asked
 - **Cookieless or Full mode** — Cookieless: no cookies, no fingerprint, no cross-visit profile, no persistent IDs (still needs consent). Full: persistent visitor ID and returning-visitor analysis after consent. Marketing click IDs only with marketing consent
 - **Demonstrable consent** — the consent banner writes an authoritative server-side ledger (timestamp, version, GPC signal) for Art. 7(1) proof
 - **Data minimisation** — IP addresses anonymised at ingest; emails SHA-256 hashed before any third-party upload
@@ -219,11 +218,9 @@ npm run build
 
 ### WordPress / any site
 
-```html
-<script src="https://cortiq.se/spa-tracking.js" data-site-id="YOUR_SITE_ID" data-api-key="YOUR_TRACKING_KEY" data-cookieless="true" defer></script>
-```
+Copy the snippet from the dashboard (Install tracking). It loads the tracker only after analytics consent, so no request reaches cortiq.se before the visitor has chosen. See [INTEGRATION-GUIDE.md](./INTEGRATION-GUIDE.md) for the snippet and for CMP / GTM setups.
 
-For WordPress, download the plugin zip from the dashboard (Settings → Setup). The plugin shares its version with the tracking script (`window.CortIQ.version`).
+For WordPress, download the plugin zip from the dashboard (Settings → Setup); it serves the tracker from your own site. The plugin shares its version with the tracking script (`window.CortIQ.version`).
 
 ---
 

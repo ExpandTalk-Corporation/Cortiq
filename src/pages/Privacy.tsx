@@ -107,7 +107,7 @@ const Privacy = () => {
                 {[
                   'Requests whose User-Agent matches a known crawler or bot, classified as training, agentic or citation traffic',
                   'Fetches of robots.txt and llms.txt',
-                  'Requests to a hidden honeypot link in the server-rendered HTML, which only automated clients follow',
+                  'Requests to a hidden honeypot link in the server-rendered HTML, which is not visible to human visitors and is normally followed only by automated clients',
                   'Ordinary human requests are filtered out on the operator\'s server and never sent to CortIQ'
                 ].map((item, index) => (
                   <li key={index} className="flex items-start space-x-3">
@@ -124,12 +124,13 @@ const Privacy = () => {
                   <li>• The CortIQ script&apos;s in-browser bot checks (bot probe, honeypot, canary) are different: they read device properties, so they run only after analytics consent (section 5).</li>
                 </ul>
                 <p className="text-sm text-muted-foreground mt-3">
-                  <strong className="text-foreground">Legal basis (our assessment):</strong> legitimate interest
-                  (GDPR Art. 6.1.f) in understanding and managing automated traffic. Because the measurement only uses
-                  the HTTP request and does not store or read information on the visitor&apos;s device, we consider it
-                  outside the consent requirement in ePrivacy Directive Art. 5.3 (Swedish LEK 9 kap. 28 §). The request
-                  data is still personal data under GDPR. This is our interpretation; supervisory authorities may take
-                  a different view, and site operators remain responsible for their own assessment.
+                  <strong className="text-foreground">Legal basis:</strong> the site operator, as controller, decides
+                  the legal basis; typically this is legitimate interest (GDPR Art. 6(1)(f)) in understanding, managing
+                  and protecting against automated traffic. Because the measurement only uses the HTTP request and does
+                  not store or read information on the visitor&apos;s device, our assessment is that it is not covered by
+                  the consent requirement in ePrivacy Directive Art. 5(3) (Swedish LEK chapter 9, section 28). The
+                  request data is still personal data under the GDPR, and you may object to the processing (Art. 21
+                  GDPR). This is our interpretation; supervisory authorities may take a different view.
                 </p>
               </div>
             </CardContent>
@@ -163,7 +164,7 @@ const Privacy = () => {
                   <li>• <strong>User-Agent</strong> (used for crawler and bot classification)</li>
                   <li>• <strong>Referrer</strong></li>
                   <li>• <strong>Country</strong>, derived from the IP address</li>
-                  <li>• <strong>Truncated IP address</strong> — the last octet is removed (/24 subnet) before CortIQ stores it; the full IP address is not stored</li>
+                  <li>• <strong>Truncated IP address</strong> — truncated to /24 (IPv4) or /48 (IPv6) before CortIQ stores it; the full IP address is not stored</li>
                   <li>• <strong>Request identifier</strong> (e.g. Cloudflare Ray ID) and load time</li>
                 </ul>
                 <p className="text-sm text-muted-foreground mt-2">
@@ -621,14 +622,14 @@ const Privacy = () => {
               <div className="grid md:grid-cols-3 gap-6">
                 <div className="bg-background/80 p-6 rounded-lg">
                   <h4 className="font-bold mb-3">Server-side</h4>
-                  <p className="text-sm text-muted-foreground mb-3">No device access; in our assessment, no consent banner needed</p>
+                  <p className="text-sm text-muted-foreground mb-3">No device access; in our assessment not subject to cookie consent</p>
                   <ul className="text-sm space-y-2 text-muted-foreground">
                     <li>• AI crawler &amp; agent measurement</li>
                     <li>• Crawler classification</li>
                     <li>• robots.txt, llms.txt and honeypot hits</li>
                     <li>• Server &amp; edge logs (operations, security)</li>
                     <li className="font-semibold text-foreground">Nothing runs in the browser, no cookies</li>
-                    <li className="font-semibold text-foreground">Basis: legitimate interest (Art. 6.1.f), our assessment</li>
+                    <li className="font-semibold text-foreground">Basis: set by the site operator, typically legitimate interest (Art. 6(1)(f)); right to object applies</li>
                   </ul>
                 </div>
                 <div className="bg-background/80 p-6 rounded-lg">

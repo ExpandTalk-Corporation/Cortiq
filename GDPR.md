@@ -10,7 +10,7 @@ CortIQ separates server-side agent measurement from everything that runs in the 
 
 | Layer | Runs | Storage in the browser | Legal basis |
 |-------|------|------------------------|-------------|
-| **Server-side agent measurement** | Always (on your server or edge, not in the browser) | None — no device access | Typically legitimate interest (Art. 6.1.f GDPR); in our assessment outside ePrivacy Art. 5.3 — the site operator makes the final assessment |
+| **Server-side agent measurement** | Always (on your server or edge, not in the browser) | None — no device access | Typically legitimate interest (Art. 6.1.f GDPR); in our assessment not covered by ePrivacy Art. 5(3) (not settled) – the site operator makes the final assessment |
 | **In-browser bot checks** (bot probe, honeypot, canary) | Only after analytics consent | `_ciq_adp` (sessionStorage), only for clients detected as automated | Consent (Art. 6.1.a GDPR / ePrivacy Art. 5.3) |
 | **Visitor analytics — Cookieless mode** | Only after analytics consent | None (no cookies, no fingerprint, no persistent IDs) | Consent (Art. 6.1.a GDPR / ePrivacy Art. 5.3) |
 | **Visitor analytics — Full mode** | Only after analytics consent | Session ID (sessionStorage) + persistent visitor ID for returning-visitor recognition | Consent (Art. 6.1.a GDPR / ePrivacy Art. 5.3) |
@@ -32,7 +32,7 @@ Runs on your own server or edge: Next.js/Vercel middleware, Netlify Edge, Cloudf
 
 Most AI training and citation crawlers (GPTBot, ClaudeBot, PerplexityBot, Google-Extended) never execute JavaScript, so this is also the only reliable way to see them.
 
-The measurement reads only the HTTP request your server already receives and stores or reads nothing on the visitor's device. In our assessment it therefore falls outside ePrivacy Art. 5.3 (Swedish LEK 9 kap. 28 §, EDPB Guidelines 2/2023) and needs no consent banner. The request data is still personal data under GDPR: you need a legal basis (typically legitimate interest, Art. 6.1.f, with a documented balancing test) and you must mention it in your privacy policy. As data controller you make the final assessment.
+The measurement reads only the HTTP request your server already receives and stores or reads nothing on the visitor's device. In our assessment it is therefore not covered by ePrivacy Art. 5(3) (Swedish LEK chapter 9, section 28), so cookie consent is not required for it. Note that the EDPB's Guidelines 2/2023 take a broad view of "gaining access" (paragraphs 42–43 and 55), so this is an interpretation, not settled law. You need a legal basis under the GDPR (typically legitimate interest, Art. 6(1)(f), with a documented balancing test; not available to public authorities in the performance of their tasks) and must describe the processing and the right to object (Art. 21) in your privacy policy.
 
 The tracking script's in-browser bot checks (bot probe, honeypot, canary) read device properties, which is device access under Art. 5.3. They start only after analytics consent.
 
@@ -51,7 +51,6 @@ Activated only when a visitor accepts the "Statistics" category in the cookie ba
 - **Scroll depth** — how far the visitor scrolled (25%, 50%, 75%, 100% milestones)
 - **Form interactions** — which fields were filled, when the form was abandoned (not the content of the fields)
 - **E-commerce and conversion events**
-- **Session recording** — a replay of the user's interaction with the page (inputs masked by default)
 - **A/B test assignment**
 
 **Cookieless mode:** no cookies, no fingerprint, no cross-visit profile, no persistent IDs. Page views within a visit are linked in memory only. Consent is still required.
@@ -77,7 +76,7 @@ Activated only when a visitor accepts the "Statistics" category in the cookie ba
 |-----------|------|----------|-----|
 | Supabase | Database, edge functions | EU (AWS eu-north-1) | [DPA](https://supabase.com/privacy) |
 | Google (optional) | GA4 if configured | EU/US | [DPA](https://business.safety.google/adsprocessorterms/) |
-| Cloudflare (optional) | Server-side bot classification from edge logs, edge web analytics (aggregate) + geo lookup for banner gating, if the Cloudflare integration is enabled | US (EU-US DPF; SCCs) | [DPA](https://www.cloudflare.com/cloudflare-customer-dpa/) |
+| Cloudflare (optional) | Edge web analytics (aggregate) + geo lookup for banner gating through CortIQ's own Cloudflare access, if the Cloudflare integration is enabled. The CortIQ Worker in **your** Cloudflare account is your own provider, not CortIQ's sub-processor | US (EU-US DPF; SCCs) | [DPA](https://www.cloudflare.com/cloudflare-customer-dpa/) |
 
 CortIQ does not sell or share visitor data with third parties for advertising.
 
@@ -153,6 +152,8 @@ This website uses CortIQ Analytics to understand how visitors use the site.
 
 Our server analyses technical data from incoming requests (user agent, requested page, referrer and a shortened IP address) to detect and classify bots and AI agents. Only requests that look automated are sent to CortIQ, our processor. Nothing is stored on or read from your device. The legal basis is our legitimate interest in understanding and managing automated traffic (Art. 6.1.f GDPR). [Adjust to your own assessment.]
 
+Our legitimate interest (Art. 6(1)(f) GDPR) is to understand, manage and protect our site against automated traffic, including crawlers that ignore robots.txt. **You have the right to object** to this processing at any time on grounds relating to your particular situation (Art. 21 GDPR); contact [CONTACT EMAIL]. The shortened IP address is deleted after 30 days; other request data is kept for [X] days.
+
 **Analytics (only after consent)**
 
 If you accept the Statistics category in our cookie banner, we collect: visited pages, referrer, device type, browser family, anonymised IP address, click positions (heatmaps), scroll depth, form interaction data, conversion events and session recordings. Without your consent, none of this is collected.
@@ -164,9 +165,9 @@ This processing is based on your consent (Art. 6.1.a GDPR). Your choice is store
 
 **Data storage and retention**
 
-All data is stored in the EU. We retain analytics data for [X] days. You have the right to request deletion by contacting [CONTACT EMAIL].
+All data is stored in the EU. We retain analytics data for [X] days (CortIQ's default is 365). Server-side bot measurement data: the shortened IP address is deleted after 30 days, other request data follows the same retention. You have the right to request deletion by contacting [CONTACT EMAIL].
 
-**Sub-processor:** CortIQ (Expandtalk Corporation AB), [https://cortiq.se](https://cortiq.se)
+**Processor:** CortIQ (Expandtalk Corporation AB), [https://cortiq.se](https://cortiq.se)
 
 ---
 
@@ -177,5 +178,4 @@ All data is stored in the EU. We retain analytics data for [X] days. You have th
 - [ ] Tracking mode (Cookieless / Full) chosen and matching paragraph kept in the privacy policy
 - [ ] Data retention period reviewed and set in CortIQ dashboard
 - [ ] GA4 server-side configured if using Google Analytics (avoids GA4 client-side cookies)
-- [ ] Session recording: sensitive fields marked with `data-cortiq-mask`
 - [ ] Supabase project in EU region confirmed

@@ -35,7 +35,7 @@ The primary method for AI crawlers and agents. It runs on the site's own server 
 - Only bot-like requests are sent; ordinary human requests never leave the customer's server
 - The IP is truncated to /24 (IPv6 /48) on the customer's server before sending; CortIQ clears the truncated IP after 30 days
 
-It reads only the HTTP request the server already receives and does not access the visitor's device, so in our assessment it falls outside ePrivacy Art. 5.3 (Swedish LEK 9 kap. 28 §) and needs no consent banner. The request data is still personal data under GDPR: the site operator needs a legal basis (typically legitimate interest, Art. 6.1.f) and should mention it in their privacy policy. The site operator makes the final legal assessment.
+It reads only the HTTP request the server already receives and does not access the visitor's device, so in our assessment it is not covered by ePrivacy Art. 5(3) (an interpretation, not settled law) (Swedish LEK 9 kap. 28 §) and needs no consent banner. The request data is still personal data under GDPR: the site operator needs a legal basis (typically legitimate interest, Art. 6.1.f) and should mention it in their privacy policy. The site operator makes the final legal assessment.
 
 ### In-Browser Bot Checks (after consent)
 
@@ -155,7 +155,6 @@ REST API documented at https://cortiq.se/api/. Plus an MCP server so AI agents c
 ## What CortIQ Does NOT Include
 
 - Spatial mouse-movement / attention overlay maps (click maps + scroll-depth funnels are supported)
-- Session recording / replay
 - A/B or multivariate testing on your live site (no variant-assignment script)
 - Data-warehouse export
 - Mobile app analytics

@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { ServerSideSetup } from '@/components/dashboard/ServerSideSetup';
+import { buildTrackingSnippet } from '@/lib/trackingSnippet';
 
 interface Site {
   id: string;
@@ -52,25 +53,15 @@ export function InstallationGuide({ selectedSite }: InstallationGuideProps) {
         <div>
           <Label>Tracking snippet (Recommended)</Label>
           <div className="bg-muted text-foreground p-4 rounded-md font-mono text-xs mt-2 overflow-x-auto whitespace-pre-wrap break-all">
-            {`<!-- CortIQ Analytics -->
-<script>
-  window.cortiqConfig = {
-    apiUrl: '${apiBase}',
-    siteId: '${selectedSite.id}',
-    apiKey: '${selectedSite.tracking_id}',
-    contentType: 'page',
-    platform: 'web',
-    cookieless: true
-  };
-</script>
-<script src="${scriptSrc}" defer></script>`}
+            {buildTrackingSnippet({ apiUrl: apiBase, siteId: selectedSite.id, trackingKey: selectedSite.tracking_id, scriptSrc })}
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            ✅ One script. It does nothing until the visitor gives analytics consent — page views, sessions,
-            AI referrals (ChatGPT, Perplexity, Claude, Gemini), heatmaps, click/scroll, conversions and in-browser
-            agent signals all wait for it, also with <code>cookieless: true</code> (which drops fingerprinting and
-            persistent IDs). Paid-ads click IDs need marketing consent. A single tag with <code>data-site-id</code> /
-            <code>data-api-key</code> works too; attributes on the tag win if both are set.
+            ✅ The snippet requests the tracker only after the visitor gives analytics consent (CortIQ banner,
+            Cookiebot or Google Consent Mode), so nothing — not even the file request — reaches CortIQ before that.
+            Page views, sessions, AI referrals, heatmaps, click/scroll, conversions and in-browser agent signals all
+            wait for consent, also with <code>cookieless: true</code> (which drops fingerprinting and persistent IDs).
+            Paid-ads click IDs need marketing consent. With another CMP or GTM, load the script from its analytics
+            category instead; see the integration guide.
           </p>
         </div>
 

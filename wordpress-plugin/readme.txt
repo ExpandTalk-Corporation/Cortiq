@@ -3,7 +3,7 @@ Contributors: cortiq
 Tags: analytics, ai-tracking, heatmap, cookie-free, gdpr, chatgpt, ai-bots
 Requires at least: 5.6
 Tested up to: 6.8
-Stable tag: 5.5.2
+Stable tag: 5.5.3
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -86,6 +86,9 @@ All data is stored in the EU (AWS eu-north-1 via Supabase).
 The tracking script is loaded with `defer` so it does not block rendering.
 
 == Changelog ==
+
+= 5.5.3 =
+* The tracking script is now served from your own site (bundled in the plugin) instead of cortiq.se, so loading a page sends nothing to CortIQ before the visitor has consented.
 
 = 5.5.2 =
 * Tracking script: canvas and WebGL fingerprinting removed entirely (it was opt-in via `fingerprintConsent` and required marketing consent). The `fingerprintConsent` option is now ignored.
