@@ -48,7 +48,7 @@ function endpoint({ validUser = true, allowedSite = true, siteError = null, summ
   };
   runInNewContext(compiled, {
     exports: {}, Request, Response, console: { log() {}, error() {} },
-    Deno: { env: { get: key => ({ SUPABASE_URL: 'https://example.invalid', SUPABASE_ANON_KEY: 'anon', SUPABASE_SERVICE_ROLE_KEY: 'service', OPENAI_API_KEY: 'test' })[key] } },
+    Deno: { env: { get: key => ({ SUPABASE_URL: 'https://example.invalid', SUPABASE_ANON_KEY: 'anon', SUPABASE_SERVICE_ROLE_KEY: 'service', ANTHROPIC_API_KEY: 'test' })[key] } },
     require(name) {
       if (name.includes('http/server')) return { serve: fn => { handler = fn; } };
       if (name.includes('supabase-js')) return { createClient: (_url, key, options) => {
@@ -60,8 +60,8 @@ function endpoint({ validUser = true, allowedSite = true, siteError = null, summ
     },
     fetch: async (_url, options) => {
       calls.ai++;
-      calls.prompt = JSON.parse(options.body).messages[1].content;
-      return Response.json({ choices: [{ message: { content: JSON.stringify({ insights: aiInsights }) } }], usage: {} }, { status: providerStatus });
+      calls.prompt = JSON.parse(options.body).messages[0].content;
+      return Response.json({ content: [{ type: 'text', text: JSON.stringify({ insights: aiInsights }) }], stop_reason: 'end_turn', usage: {} }, { status: providerStatus });
     },
   });
   return { handler, calls };
