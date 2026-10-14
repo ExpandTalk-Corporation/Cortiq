@@ -86,24 +86,6 @@ const Index = () => {
       {/* Navigation */}
       <PublicNavigation />
       
-      {/* Proof of Concept Badges */}
-      <section className="container mx-auto px-4 pt-8 pb-4">
-        <div className="flex flex-wrap justify-center gap-4">
-          <Badge variant="outline" className="px-6 py-3 text-base border-2 border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors">
-            <Brain className="h-5 w-5 mr-2 text-primary" />
-            <span className="font-semibold">AI First</span>
-          </Badge>
-          <Badge variant="outline" className="px-6 py-3 text-base border-2 border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors">
-            <Shield className="h-5 w-5 mr-2 text-primary" />
-            <span className="font-semibold">EU First (GDPR)</span>
-          </Badge>
-          <Badge variant="outline" className="px-6 py-3 text-base border-2 border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors">
-            <Code className="h-5 w-5 mr-2 text-primary" />
-            <span className="font-semibold">API First</span>
-          </Badge>
-        </div>
-      </section>
-
       {/* Hero: one full-bleed photo. Its left edge fades to #f7f9fc, so the light-mode
           background matches it and a gradient in the same colour keeps the copy readable. */}
       <section className="relative overflow-hidden bg-[#f7f9fc] dark:bg-background flex flex-col xl:flex-row xl:items-center xl:min-h-[640px]">
@@ -128,7 +110,7 @@ const Index = () => {
           className="pointer-events-none absolute inset-y-0 left-0 hidden xl:block w-[50%] bg-gradient-to-r from-[#f7f9fc] via-[#f7f9fc]/90 to-transparent dark:from-background dark:via-background/90"
         />
 
-        <div className="container mx-auto relative z-10 w-full px-4 pt-20 pb-12 xl:py-20">
+        <div className="container mx-auto relative z-10 w-full px-4 pt-12 pb-12 xl:py-16">
           <div className="max-w-2xl xl:max-w-[34rem] text-center xl:text-left mx-auto xl:mx-0 animate-fade-in">
             <Badge className="mb-8 bg-gradient-primary text-white border-0">
               🤖 AI Bot Intelligence · Free during beta
@@ -157,6 +139,20 @@ const Index = () => {
                 </Button>
               </Link>
             </div>
+            <ul className="mt-8 flex flex-wrap justify-center xl:justify-start gap-x-6 gap-y-2 text-sm font-medium text-foreground/70">
+              <li className="flex items-center">
+                <Shield className="h-4 w-4 mr-2 text-primary" aria-hidden="true" />
+                EU-hosted
+              </li>
+              <li className="flex items-center">
+                <Cookie className="h-4 w-4 mr-2 text-primary" aria-hidden="true" />
+                Cookieless mode
+              </li>
+              <li className="flex items-center">
+                <Code className="h-4 w-4 mr-2 text-primary" aria-hidden="true" />
+                REST API + MCP
+              </li>
+            </ul>
           </div>
         </div>
       </section>
