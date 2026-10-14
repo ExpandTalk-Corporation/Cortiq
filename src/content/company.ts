@@ -1,7 +1,7 @@
 import type { ContentPageData } from './types';
 
 // Company and trust pages. Facts verified against the code, the live site and the
-// Supabase project on 2026-10-03. Update the page in the same commit as the change.
+// Supabase project on 2026-10-03; subprocessor list re-checked against DPA.md on 2026-10-14. Update the page in the same commit as the change.
 
 const REPO = 'https://github.com/ExpandTalk-Corporation/Cortiq';
 
@@ -17,7 +17,7 @@ export const SECURITY: ContentPageData = {
       heading: 'Where data is stored',
       blocks: [
         { type: 'p', text: 'All analytics data is stored in the EU, in a Supabase project hosted on AWS in Stockholm (region eu-north-1). Supabase encrypts data at rest. All traffic to the dashboard, the tracking endpoints and the APIs uses HTTPS, and cortiq.se sends HSTS, so browsers only connect over HTTPS.' },
-        { type: 'p', text: 'The marketing website cortiq.se is a static site hosted by Loopia in Sweden. It does not store analytics data.' },
+        { type: 'p', text: 'The website cortiq.se, which also serves the dashboard and the tracking script file, is hosted by Loopia in Sweden. It does not store analytics data, but like any web server it records the IP address of browsers that load a file in its access logs.' },
       ],
     },
     {
@@ -68,19 +68,26 @@ export const SECURITY: ContentPageData = {
       id: 'subprocessors',
       heading: 'Subprocessors',
       blocks: [
+        { type: 'p', text: 'Section 6 of the [Data Processing Agreement](' + REPO + '/blob/main/DPA.md) is the authoritative list, with the transfer basis for each provider. In short:' },
         { type: 'p', text: 'Always used:' },
-        { type: 'list', items: ['**Supabase** (on AWS, Stockholm, EU): database, authentication and server functions.'] },
-        { type: 'p', text: 'Used only when you enable the related feature:' },
         {
           type: 'list',
           items: [
-            '**Cloudflare** (USA, EU-US Data Privacy Framework): the Cloudflare Worker and edge analytics.',
-            '**Google** (USA): Google Analytics 4 and Search Console imports.',
-            '**Anthropic** (USA): AI insights and GEO analysis, with your own API key.',
-            '**Resend** (USA): when you send a report export by email.',
+            '**Supabase** (on AWS, Stockholm, EU): database, authentication and server functions.',
+            '**Loopia** (Sweden): hosting of cortiq.se, the dashboard and the tracking script file.',
           ],
         },
-        { type: 'p', text: 'The [Data Processing Agreement](' + REPO + '/blob/main/DPA.md) sets out how we process personal data on your behalf, including breach notification within 72 hours.' },
+        { type: 'p', text: 'Used only when you use the related feature:' },
+        {
+          type: 'list',
+          items: [
+            '**Cloudflare** (USA, EU-US Data Privacy Framework): edge analytics and geo lookup.',
+            '**Resend** (USA, EU-US Data Privacy Framework): when you send a report export by email.',
+            '**OpenAI** (USA): the AI insights widget, which receives aggregated statistics only.',
+          ],
+        },
+        { type: 'p', text: 'Services you connect with your own account act under your own agreement with them, not as our subprocessors: Google Analytics, Search Console and Google Ads, HubSpot, and Anthropic (AI features with your own API key).' },
+        { type: 'p', text: 'The Data Processing Agreement also sets out how we process personal data on your behalf, including breach notification within 72 hours.' },
       ],
     },
     {
@@ -202,6 +209,7 @@ export const ABOUT: ContentPageData = {
           type: 'list',
           items: [
             'Company registration number: 559358-8824',
+            'Registered office: Göteborg, Sweden',
             'VAT number: SE559358882401',
             'Address: Parmmätaregatan 4B, 417 04 Göteborg, Sweden',
             'Email: info@expandtalk.se',

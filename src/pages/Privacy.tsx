@@ -8,7 +8,7 @@ import { useSEO } from "@/hooks/useSEO";
 import { seoFor } from "@/marketing-routes";
 import { Shield, CheckCircle, Mail, FileText, Database, Users, BarChart3, Megaphone } from "lucide-react";
 
-const LAST_UPDATED = "October 3, 2026";
+const LAST_UPDATED = "October 14, 2026";
 
 const Privacy = () => {
   useSEO(seoFor("/privacy/"));
@@ -68,6 +68,7 @@ const Privacy = () => {
                 <p><strong>Legal entity:</strong> Expandtalk Corporation AB</p>
                 <p><strong>Product:</strong> CortIQ</p>
                 <p><strong>Company registration number:</strong> 559358-8824</p>
+                <p><strong>Registered office:</strong> Göteborg, Sweden</p>
                 <p><strong>VAT number:</strong> SE559358882401</p>
                 <p><strong>Registered address:</strong> Parmmätaregatan 4B, 417 04 Göteborg, Sweden</p>
                 <p><strong>Email:</strong> info@expandtalk.se</p>
@@ -76,6 +77,12 @@ const Privacy = () => {
                   <strong> processor</strong> on behalf of the site operator (the controller). For our own
                   account, billing and platform data, CortIQ (Expandtalk Corporation AB) is the
                   <strong> controller</strong>.
+                </p>
+                <p className="text-sm mt-3">
+                  <strong className="text-foreground">Visiting a website that uses CortIQ?</strong> The owner of that
+                  website is the controller for the data collected about you there. Contact the website owner to
+                  exercise your rights. If you contact us instead, we will forward your request to the website owner
+                  and help them respond.
                 </p>
               </div>
             </CardContent>
@@ -221,6 +228,11 @@ const Privacy = () => {
                   <li>• <strong>Legitimate interest</strong> (GDPR Art. 6.1.f) - Improve platform based on user activity</li>
                 </ul>
                 <p className="text-sm text-muted-foreground mt-2">
+                  <strong className="text-foreground">Retention:</strong> we keep account data for as long as your
+                  account exists. When you close your account, it is deleted within 30 days, unless the law requires
+                  us to keep it longer.
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
                   <strong className="text-foreground">Note:</strong> This covers account holders of the CortIQ
                   platform. It is separate from the visitor analytics described in section 5, which always requires
                   consent.
@@ -313,7 +325,7 @@ const Privacy = () => {
               </p>
               <ul className="space-y-2 text-muted-foreground text-sm ml-4">
                 <li>• Advertising click IDs from the page URL (<code>gclid</code>, <code>fbclid</code>, <code>msclkid</code>, <code>ttclid</code>, <code>li_fat_id</code>), kept in sessionStorage for the tab session and linked to conversions.</li>
-                <li>• Conversion feedback to advertising platforms (e.g. Google Ads Enhanced Conversions), using a SHA-256 hash of an email address submitted in a form together with the click ID (section 5B).</li>
+                <li>• Conversion feedback to advertising platforms (e.g. Google Ads Enhanced Conversions), using a SHA-256 hash of an email address submitted in a form together with the click ID (section 5B). The tracking script hashes the email in the browser; the plain email is not sent to CortIQ.</li>
                 <li>• Canvas/WebGL device signals for visitor identification — only where the site operator has explicitly enabled this feature.</li>
               </ul>
               <p className="text-sm text-muted-foreground">
@@ -338,16 +350,26 @@ const Privacy = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-muted-foreground leading-relaxed">
-                We use the following processors and, for consent-based advertising features, share
-                data with the following recipients:
+                Our processors (sub-processors, when we act for a site operator). The authoritative list is section 6
+                of our{" "}
+                <a href="https://github.com/ExpandTalk-Corporation/Cortiq/blob/main/DPA.md" className="text-primary underline" target="_blank" rel="noopener noreferrer">Data Processing Agreement</a>:
               </p>
               <ul className="space-y-3 text-muted-foreground text-sm ml-4">
-                <li>• <strong>Supabase</strong> (infrastructure / database hosting, EU region) — processor for all analytics data.</li>
-                <li>• <strong>Anthropic</strong> (AI assistant &amp; GEO analysis, USA) — when the operator uses AI features with their own Anthropic API key, relevant analytics results are sent to the Claude API on the operator's instruction. Anthropic then acts under the operator's own agreement with Anthropic, not as CortIQ's subprocessor.</li>
-                <li>• <strong>Resend</strong> (email delivery, USA) — only when the operator sends a report export by email; the report and the recipient address are passed to Resend for delivery.</li>
-                <li>• <strong>Google Ads</strong> (Enhanced Conversions for Leads, USA) — when the operator enables conversion feedback and marketing consent was given, a SHA-256 hash of the email plus the ad click ID (gclid) and conversion value are uploaded. The raw email never leaves the browser.</li>
-                <li>• <strong>HubSpot</strong> (CRM lead-quality feedback, USA/EU) — when the operator connects HubSpot, lead-quality signals are exchanged to enrich conversion measurement.</li>
-                <li>• <strong>Cloudflare</strong> (edge logs &amp; geo lookup, USA — EU-US DPF certified) — when the operator enables the Cloudflare integration, Cloudflare processes visitor IP addresses at its edge; CortIQ receives the country and a truncated IP address for security and bot classification (section 3B).</li>
+                <li>• <strong>Supabase</strong> (Supabase, Inc., USA) — database, authentication and server functions for all data. Data is stored on AWS in Stockholm (EU).</li>
+                <li>• <strong>Loopia</strong> (Loopia AB, Sweden) — web host for cortiq.se, which serves the dashboard and the tracking script file. When a browser loads the script, Loopia&apos;s access log records the IP address, user agent, file and time.</li>
+                <li>• <strong>Resend</strong> (Plus Five Five, Inc., USA) — email delivery, only when an account holder sends a report export by email; the report and the recipient address are passed to Resend.</li>
+                <li>• <strong>Cloudflare</strong> (Cloudflare, Inc., USA) — when the operator enables the Cloudflare integration, Cloudflare processes visitor IP addresses at its edge; CortIQ receives the country and a truncated IP address for security and bot classification (section 3B).</li>
+                <li>• <strong>OpenAI</strong> (USA) — the AI insights widget on the dashboard sends aggregated statistics for a site (page paths without query strings, counts, device breakdown, form conversion rates). No visitor identifiers, IP addresses or email addresses are sent.</li>
+              </ul>
+              <p className="text-muted-foreground leading-relaxed">
+                Services that a site operator connects with its own account. These providers act under the
+                operator&apos;s own agreement with them:
+              </p>
+              <ul className="space-y-3 text-muted-foreground text-sm ml-4">
+                <li>• <strong>Anthropic</strong> (AI assistant &amp; GEO analysis, USA) — when the operator uses AI features with their own Anthropic API key, relevant analytics results are sent to the Claude API on the operator&apos;s instruction.</li>
+                <li>• <strong>Google Ads</strong> (Enhanced Conversions for Leads, USA) — when the operator enables conversion feedback and marketing consent was given, a SHA-256 hash of the email plus the ad click ID (gclid) and conversion value are uploaded to the operator&apos;s Google Ads account.</li>
+                <li>• <strong>HubSpot</strong> (CRM lead-quality feedback) — when the operator connects HubSpot, the operator&apos;s HubSpot account sends CortIQ a contact&apos;s email address and lead status when the status changes. CortIQ hashes the email immediately on receipt and never stores it in plain text. The hash and lead status are kept only if they match a conversion recorded with marketing consent; otherwise they are discarded.</li>
+                <li>• <strong>Google Analytics and Search Console</strong> — when the operator connects its own property, CortIQ reads reports from it and can send conversion events to it.</li>
               </ul>
               <div className="bg-accent/5 p-4 rounded-lg mt-4">
                 <p className="text-sm text-muted-foreground">
@@ -366,16 +388,19 @@ const Privacy = () => {
             </CardHeader>
             <CardContent className="space-y-3 text-muted-foreground">
               <p className="leading-relaxed">
-                Some recipients above (Anthropic, Google, HubSpot, Cloudflare) process data in the
-                United States. Where personal data is transferred outside the EU/EEA, we rely on the
-                European Commission's Standard Contractual Clauses (Art. 46 GDPR) and, where applicable,
-                the recipient's certification under the EU–US Data Privacy Framework, together with
-                supplementary measures such as pseudonymisation (hashing) and data minimisation.
+                Analytics data is stored in the EU. The basis for transfers outside the EU/EEA, per processor:
               </p>
+              <ul className="text-sm space-y-2 ml-4">
+                <li>• <strong>Supabase</strong> — data is stored in Stockholm, but Supabase is a US company and may access it from outside the EEA. Such transfers rely on the European Commission&apos;s Standard Contractual Clauses (Art. 46 GDPR) in Supabase&apos;s data processing agreement.</li>
+                <li>• <strong>Loopia</strong> — Sweden; no transfer.</li>
+                <li>• <strong>Resend</strong> — USA; the EU–US Data Privacy Framework (Art. 45 GDPR), with Standard Contractual Clauses in Resend&apos;s data processing agreement.</li>
+                <li>• <strong>Cloudflare</strong> — the EU–US Data Privacy Framework (Art. 45 GDPR), with Standard Contractual Clauses in Cloudflare&apos;s data processing agreement.</li>
+                <li>• <strong>Services the operator connects</strong> (Anthropic, Google, HubSpot) — the transfer basis follows the operator&apos;s own agreement with each provider.</li>
+              </ul>
               <p className="text-sm">
-                Core analytics infrastructure (Supabase) is hosted in the EU. AI, advertising and
-                Cloudflare features that may involve US transfers are optional and enabled by the site
-                operator; advertising transfers additionally require the visitor's marketing consent.
+                We also limit what is transferred, for example by hashing email addresses and truncating IP
+                addresses. AI, advertising and Cloudflare features are optional and enabled by the site
+                operator; advertising transfers additionally require the visitor&apos;s marketing consent.
               </p>
             </CardContent>
           </Card>
@@ -421,8 +446,10 @@ const Privacy = () => {
                 </ul>
               </div>
               <p className="text-sm text-muted-foreground">
-                The only cookie CortIQ sets is the consent-choice mirror <code>site_consent</code>. Analytical and
-                marketing storage is written only after the corresponding consent. Withdrawing consent removes
+                The CortIQ tracking script sets no cookies, in either mode. In Full mode it keeps a session
+                identifier in sessionStorage; in Cookieless mode it writes nothing. The only cookie in CortIQ&apos;s
+                products is the consent-choice mirror <code>site_consent</code>, set by the CortIQ consent banner.
+                Analytical and marketing storage is written only after the corresponding consent. Withdrawing consent removes
                 <code> cortiq_session_id</code> and <code>cortiq_click_ids</code>.
               </p>
             </CardContent>
@@ -439,6 +466,7 @@ const Privacy = () => {
                 <li>✓ <strong>Right of access</strong> (Art. 15 GDPR) - Request a copy of your data</li>
                 <li>✓ <strong>Right to erasure</strong> (Art. 17 GDPR) - Request deletion of your data</li>
                 <li>✓ <strong>Right to rectification</strong> (Art. 16 GDPR) - Correct inaccurate data</li>
+                <li>✓ <strong>Right to restriction of processing</strong> (Art. 18 GDPR) - Ask us to limit how we use your data, for example while we check a disputed fact</li>
                 <li>✓ <strong>Right to object</strong> (Art. 21 GDPR) - Object to processing based on legitimate interest (section 3)</li>
                 <li>✓ <strong>Right to data portability</strong> (Art. 20 GDPR) - Get your data in structured form</li>
                 <li>✓ <strong>Right to withdraw consent</strong> (Art. 7.3 GDPR) - At any time, via the site's cookie settings</li>
@@ -450,8 +478,12 @@ const Privacy = () => {
                 <ol className="text-sm text-muted-foreground space-y-1 ml-4">
                   <li>1. Send an email to: info@expandtalk.se</li>
                   <li>2. Include: Your name, email, and which right you want to exercise</li>
-                  <li>3. We will respond within 30 days</li>
+                  <li>3. We will respond within one month. For complex or numerous requests, we may extend this by two further months; we will tell you within the first month (Art. 12.3 GDPR)</li>
                 </ol>
+                <p className="text-sm text-muted-foreground mt-2">
+                  If your data was collected on a website that uses CortIQ, the website owner is the controller.
+                  Send your request to the website owner; we help them respond (section 2).
+                </p>
                 <p className="text-sm text-muted-foreground mt-2">
                   You also have the right to lodge a complaint with a supervisory authority, in Sweden
                   Integritetsskyddsmyndigheten (IMY).
@@ -517,8 +549,8 @@ const Privacy = () => {
               <div className="bg-primary/5 p-4 rounded-lg">
                 <h4 className="font-semibold mb-2 text-foreground">Hosting providers</h4>
                 <p className="text-sm text-muted-foreground">
-                  Request logs held by our hosting providers (Supabase and, where enabled, Cloudflare) follow those
-                  providers' own log retention. Deleting a site from CortIQ deletes all of its data immediately.
+                  Request logs held by our hosting providers (Supabase, Loopia and, where enabled, Cloudflare) follow
+                  those providers' own log retention. Deleting a site from CortIQ deletes all of its data immediately.
                 </p>
               </div>
 
@@ -588,7 +620,7 @@ const Privacy = () => {
               <div className="grid md:grid-cols-3 gap-6">
                 <div className="bg-background/80 p-6 rounded-lg">
                   <h4 className="font-bold mb-3">Server-side</h4>
-                  <p className="text-sm text-muted-foreground mb-3">No device access, no banner needed</p>
+                  <p className="text-sm text-muted-foreground mb-3">No device access; in our assessment, no consent banner needed</p>
                   <ul className="text-sm space-y-2 text-muted-foreground">
                     <li>• AI crawler &amp; agent measurement</li>
                     <li>• Crawler classification</li>
