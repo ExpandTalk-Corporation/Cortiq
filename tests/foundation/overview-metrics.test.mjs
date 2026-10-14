@@ -14,3 +14,9 @@ test('PostgreSQL: overview metrics — periods, gaps, path, segment, AI split, a
     await db.close();
   }
 });
+
+test('daily series aggregates each source once instead of one subquery per day', () => {
+  const migration = readFileSync(new URL('../../supabase/migrations/20261015000001_overview_metrics.sql', import.meta.url), 'utf8');
+  assert.ok(!/WHERE\s+\w+\.d\s*=\s*days\.d/.test(migration), 'no correlated per-day count(*)');
+  assert.match(migration, /GROUP BY d/);
+});

@@ -246,8 +246,8 @@ Return JSON format:
       await supabase.from('agent_runs').update({
         status: 'completed',
         output: { insights_count: insights.insights.length },
-        input_tokens: aiResponse.usage?.prompt_tokens ?? null,
-        output_tokens: aiResponse.usage?.completion_tokens ?? null,
+        input_tokens: aiResponse.usage?.input_tokens ?? null,
+        output_tokens: aiResponse.usage?.output_tokens ?? null,
         duration_ms: Date.now() - startTime,
         completed_at: new Date().toISOString(),
       }).eq('id', runId);

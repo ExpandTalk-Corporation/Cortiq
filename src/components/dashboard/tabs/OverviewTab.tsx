@@ -26,7 +26,7 @@ export function OverviewTab({ selectedSite, onNavigate }: { selectedSite: Site; 
     <div className="space-y-6">
       <StatusStrip domain={selectedSite.domain} trackingMode={trackingMode}
         lastPageViewAt={m.lastPageViewAt} lastServerHitAt={m.lastServerHitAt} onNavigate={onNavigate} />
-      <KpiRow m={m} from={filters.from} to={filters.to} />
+      <KpiRow m={m} from={filters.from} to={filters.to} segmented={!!filters.segmentId} />
       <ModuleCards m={m} goalCount={goals.length} goalIssues={goalIssues} onNavigate={onNavigate} />
       <div className="grid gap-6 lg:grid-cols-2">
         <TopPagesData siteId={selectedSite.id} startDate={`${filters.from}T00:00:00Z`} endDate={`${filters.to}T23:59:59Z`} />

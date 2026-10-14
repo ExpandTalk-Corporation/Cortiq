@@ -24,3 +24,8 @@ test('sections are numbered 1..n and items get n.m labels', () => {
 test('overview is the first item', () => {
   assert.equal(NAV_SECTIONS[0].items[0].value, 'overview');
 });
+
+test('sidebar opens the section of the active tab whenever the tab changes', () => {
+  const sidebar = readFileSync(new URL('../../src/components/dashboard/nav/DashboardSidebar.tsx', import.meta.url), 'utf8');
+  assert.match(sidebar, /useEffect\(\(\) => \{[\s\S]*owning[\s\S]*\}, \[owning\]\)/);
+});

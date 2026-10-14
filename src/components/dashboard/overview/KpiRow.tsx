@@ -17,16 +17,18 @@ function Delta({ current, previous }: { current: number; previous: number }) {
   );
 }
 
-export function KpiRow({ m, from, to }: { m: OverviewMetrics; from: string; to: string }) {
+export function KpiRow({ m, from, to, segmented = false }: { m: OverviewMetrics; from: string; to: string; segmented?: boolean }) {
   const convRate = (t: { visits: number; conversions: number }) => (t.visits ? (t.conversions / t.visits) * 100 : 0);
   const tiles = [
     { label: 'Visits', cur: m.current.visits, prev: m.previous.visits, series: m.daily.map((d) => d.visits) },
     { label: 'Page views', cur: m.current.pageViews, prev: m.previous.pageViews, series: m.daily.map((d) => d.pageViews) },
     { label: 'Conversions', cur: m.current.conversions, prev: m.previous.conversions, series: m.daily.map((d) => d.conversions) },
     { label: 'Conversion rate', cur: convRate(m.current), prev: convRate(m.previous), series: null, pct: true },
-    { label: 'AI visits', cur: m.current.ai.total, prev: m.previous.ai.total, series: m.daily.map((d) => d.ai) },
-    { label: 'AI per 100 visits', cur: m.current.visits ? (m.current.ai.total / m.current.visits) * 100 : 0,
-      prev: m.previous.visits ? (m.previous.ai.total / m.previous.visits) * 100 : 0, series: null },
+    { label: segmented ? 'AI visits (not segmented)' : 'AI visits', cur: m.current.ai.total, prev: m.previous.ai.total, series: m.daily.map((d) => d.ai) },
+    // Bots carry no UTM tags, so AI traffic ignores the segment; a ratio against
+    // segmented visits would mix two populations.
+    ...(segmented ? [] : [{ label: 'AI per 100 visits', cur: m.current.visits ? (m.current.ai.total / m.current.visits) * 100 : 0,
+      prev: m.previous.visits ? (m.previous.ai.total / m.previous.visits) * 100 : 0, series: null }]),
   ];
   return (
     <WidgetCard title="Key figures" subtitle={`${from} – ${to}`}

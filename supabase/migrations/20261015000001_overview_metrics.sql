@@ -18,7 +18,7 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.sites WHERE id = p_site_id AND user_id = auth.uid()) THEN
     RAISE EXCEPTION 'not authorised' USING ERRCODE = '42501';
   END IF;
-  IF p_to < p_from OR v_days > 366 THEN
+  IF p_from IS NULL OR p_to IS NULL OR p_to < p_from OR v_days > 366 THEN
     RAISE EXCEPTION 'invalid range' USING ERRCODE = '22023';
   END IF;
   -- Literal prefix match: escape LIKE metacharacters.
@@ -78,31 +78,51 @@ BEGIN
       AND a.detected_at >= v_prev AND a.detected_at < p_to + 1
       AND (v_like IS NULL OR regexp_replace(a.url, '^https?://[^/]+', '') LIKE v_like)
   ),
+  -- One aggregate per source and day (at most 2 x 366 rows each); totals and the daily
+  -- series read these small sets instead of rescanning the raw rows per day.
+  per_day AS (
+    SELECT d, sum(visits) AS visits, sum(page_views) AS page_views, sum(conversions) AS conversions,
+           sum(ai) AS ai, sum(training) AS training, sum(agentic) AS agentic, sum(citation) AS citation
+    FROM (
+      SELECT d, count(*) AS visits, 0 AS page_views, 0 AS conversions, 0 AS ai, 0 AS training, 0 AS agentic, 0 AS citation
+        FROM sess GROUP BY d
+      UNION ALL SELECT d, 0, count(*), 0, 0, 0, 0, 0 FROM pvs  GROUP BY d
+      UNION ALL SELECT d, 0, 0, count(*), 0, 0, 0, 0 FROM conv GROUP BY d
+      UNION ALL SELECT d, 0, 0, 0, count(*),
+                       count(*) FILTER (WHERE cat = 'training'),
+                       count(*) FILTER (WHERE cat = 'agentic'),
+                       count(*) FILTER (WHERE cat = 'citation')
+        FROM ai GROUP BY d
+    ) u
+    GROUP BY d
+  ),
   totals AS (
-    SELECT period,
+    SELECT p.period,
       jsonb_build_object(
-        'visits',      (SELECT count(*) FROM sess  WHERE d BETWEEN lo AND hi),
-        'pageViews',   (SELECT count(*) FROM pvs   WHERE d BETWEEN lo AND hi),
-        'conversions', (SELECT count(*) FROM conv  WHERE d BETWEEN lo AND hi),
+        'visits',      COALESCE(sum(pd.visits), 0),
+        'pageViews',   COALESCE(sum(pd.page_views), 0),
+        'conversions', COALESCE(sum(pd.conversions), 0),
         'ai', jsonb_build_object(
-          'total',    (SELECT count(*) FROM ai WHERE d BETWEEN lo AND hi),
-          'training', (SELECT count(*) FROM ai WHERE d BETWEEN lo AND hi AND cat = 'training'),
-          'agentic',  (SELECT count(*) FROM ai WHERE d BETWEEN lo AND hi AND cat = 'agentic'),
-          'citation', (SELECT count(*) FROM ai WHERE d BETWEEN lo AND hi AND cat = 'citation'))
+          'total',    COALESCE(sum(pd.ai), 0),
+          'training', COALESCE(sum(pd.training), 0),
+          'agentic',  COALESCE(sum(pd.agentic), 0),
+          'citation', COALESCE(sum(pd.citation), 0))
       ) AS obj
     FROM (VALUES ('current', p_from, p_to), ('previous', v_prev, p_from - 1)) AS p(period, lo, hi)
+    LEFT JOIN per_day pd ON pd.d BETWEEN p.lo AND p.hi
+    GROUP BY p.period
   ),
   days AS (SELECT g::date AS d FROM generate_series(p_from, p_to, interval '1 day') g)
   SELECT jsonb_build_object(
     'current',  (SELECT obj FROM totals WHERE period = 'current'),
     'previous', (SELECT obj FROM totals WHERE period = 'previous'),
     'daily', (SELECT jsonb_agg(jsonb_build_object(
-                'date', to_char(days.d, 'YYYY-MM-DD'),
-                'visits',      (SELECT count(*) FROM sess WHERE sess.d = days.d),
-                'pageViews',   (SELECT count(*) FROM pvs  WHERE pvs.d  = days.d),
-                'conversions', (SELECT count(*) FROM conv WHERE conv.d = days.d),
-                'ai',          (SELECT count(*) FROM ai   WHERE ai.d   = days.d)) ORDER BY days.d)
-              FROM days),
+                'date',        to_char(days.d, 'YYYY-MM-DD'),
+                'visits',      COALESCE(pd.visits, 0),
+                'pageViews',   COALESCE(pd.page_views, 0),
+                'conversions', COALESCE(pd.conversions, 0),
+                'ai',          COALESCE(pd.ai, 0)) ORDER BY days.d)
+              FROM days LEFT JOIN per_day pd ON pd.d = days.d),
     'lastPageViewAt',  (SELECT max(viewed_at) FROM public.page_views WHERE site_id = p_site_id),
     'lastServerHitAt', (SELECT max(detected_at) FROM public.ai_bot_traffic
                         WHERE site_id = p_site_id AND source = 'server_log'),

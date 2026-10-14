@@ -25,3 +25,8 @@ test('handles refusals and sends no sampling params (rejected on current models)
 test('only URL paths, never query strings, reach the model', () => {
   assert.ok(src.includes('new URL(page.url') && src.includes('.pathname'));
 });
+
+test('token usage is read with Anthropic field names', () => {
+  assert.ok(src.includes('usage?.input_tokens') && src.includes('usage?.output_tokens'));
+  assert.ok(!src.includes('prompt_tokens') && !src.includes('completion_tokens'));
+});

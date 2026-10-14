@@ -1,5 +1,5 @@
 // src/components/dashboard/nav/DashboardSidebar.tsx
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronDown, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { NAV_SECTIONS, SETTINGS_ITEMS, numberedLabel } from './navSections';
@@ -7,6 +7,10 @@ import { NAV_SECTIONS, SETTINGS_ITEMS, numberedLabel } from './navSections';
 export function DashboardSidebar({ activeTab, onSelect }: { activeTab: string; onSelect: (v: string) => void }) {
   const owning = NAV_SECTIONS.find((s) => s.items.some((i) => i.value === activeTab))?.number;
   const [open, setOpen] = useState<Set<number>>(new Set([owning ?? 1]));
+  // Navigation from elsewhere (module cards, status strip, Back) must reveal the active item.
+  useEffect(() => {
+    if (owning) setOpen((prev) => (prev.has(owning) ? prev : new Set(prev).add(owning)));
+  }, [owning]);
   const toggle = (n: number) => setOpen((prev) => {
     const next = new Set(prev);
     next.has(n) ? next.delete(n) : next.add(n);
