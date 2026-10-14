@@ -74,23 +74,23 @@ const BOT_TYPES = [
 const STATS = [
   {
     value: "300%",
-    label: "AI bot traffic growth in 12 months",
+    label: "AI bot traffic growth in 12 months, from a low base",
     source: "Akamai SOTI, 2025",
   },
   {
     value: "1 : 31",
-    label: "AI bot visits per human visits, up from 1 : 200 in Q1",
+    label: "AI bot visits per human visits on TollBit's network, up from 1 : 200 in Q1",
     source: "TollBit, Q4 2025",
   },
   {
     value: "4.2%",
-    label: "Of all HTML requests are AI crawlers",
+    label: "Of all HTML requests are AI crawlers (excl. Googlebot)",
     source: "Cloudflare Radar 2025",
   },
   {
-    value: "80%",
-    label: "Of AI crawling is training only — no referral traffic",
-    source: "Cloudflare Radar 2025",
+    value: "~80%",
+    label: "Of AI crawling is for training, with little referral traffic",
+    source: "Cloudflare, The crawl-to-click gap",
   },
 ];
 

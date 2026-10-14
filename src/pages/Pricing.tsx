@@ -288,7 +288,7 @@ export default function Pricing() {
                 <div className="mx-auto w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
                   <Shield className="h-6 w-6 text-primary" />
                 </div>
-                <CardTitle className="text-lg">Built for GDPR</CardTitle>
+                <CardTitle className="text-lg">Designed for GDPR compliance</CardTitle>
               </CardHeader>
               <CardContent>
                 <CardDescription>

@@ -147,6 +147,9 @@ Deno.serve(async (req) => {
       // Capture-time consent is necessary but insufficient: a queued conversion
       // must not be exported after withdrawal or expiry. Legacy rows without a
       // verifiable browser session are deliberately not exported.
+      // Consent Mode v2 ad_user_data is not stored as its own field: the tracker
+      // only records marketing=true when ad_storage AND ad_user_data are granted
+      // (spa-tracking.js readGoogleConsent), so `marketing` is the ad_user_data gate.
       const pending = [];
       for (const conversion of claimed) {
         const sessionId = conversion.form_data?.tracking_session_id;

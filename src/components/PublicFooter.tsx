@@ -23,6 +23,9 @@ export default function PublicFooter() {
             AI-agent measurement on your own server; visitor analytics that are consent-first and cookieless.
           </p>
           <p className="text-sm text-muted-foreground mt-4">Built by Expandtalk Corporation AB, Sweden.</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Expandtalk Corporation AB · Company reg. no. 559358-8824 · Registered office: Göteborg, Sweden
+          </p>
         </div>
 
         {GROUPS.map((group) => (

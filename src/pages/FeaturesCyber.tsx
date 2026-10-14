@@ -118,7 +118,7 @@ const features = [
       "Pseudonymous visitor IDs only in Full mode, after consent",
       "Cookieless tracking mode",
       "EU data hosting",
-      "Built for GDPR, privacy by design",
+      "Privacy by design, supports GDPR compliance",
     ],
   },
   {

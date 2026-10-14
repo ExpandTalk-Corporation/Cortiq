@@ -52,7 +52,7 @@ export const GETTING_STARTED: ContentPageData = {
 </script>
 <script src="https://cortiq.se/spa-tracking.js" defer></script>`,
         },
-        { type: 'p', text: 'The script reads its settings from `window.cortiqConfig` only, so the config block must come before the script tag. Without a `siteId` it logs an error to the console and does nothing.' },
+        { type: 'p', text: 'The script reads its settings from `window.cortiqConfig` or from `data-*` attributes on its own script tag (`data-site-id`, `data-api-key`, `data-cookieless`, `data-exclude-paths`). A `window.cortiqConfig` block must come before the script tag. Without a `siteId` it logs an error to the console and does nothing.' },
         { type: 'p', text: 'On WordPress, use the [WordPress plugin](/integrations/wordpress/) instead. It adds the script, a consent banner and Google Consent Mode v2.' },
       ],
     },
@@ -87,7 +87,7 @@ export const GETTING_STARTED: ContentPageData = {
 }));`,
         },
         { type: 'p', text: 'A withdrawal (`analytics: false`) stops analytics on the page immediately.' },
-        { type: 'p', text: '**Marketing consent** is needed on top of analytics consent for: ad click IDs (`gclid`, `fbclid`, `msclkid`, `ttclid`, `li_fat_id`), a SHA-256 hash of the email on conversions, and browser fingerprinting (which you must also switch on with `fingerprintConsent: true`).' },
+        { type: 'p', text: '**Marketing consent** is needed on top of analytics consent for: ad click IDs (`gclid`, `fbclid`, `msclkid`, `ttclid`, `li_fat_id`) and a SHA-256 hash of the email on conversions. The script does no canvas or WebGL fingerprinting.' },
       ],
     },
     {

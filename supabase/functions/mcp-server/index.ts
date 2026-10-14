@@ -72,7 +72,7 @@ const TOOLS = [
   },
   {
     name: 'cortiq_describe_schema',
-    description: 'Describe available data: event types, AI platforms tracked, device categories. Free. Call before cortiq_execute_query to understand table columns.',
+    description: 'Describe available data: event types, AI platforms tracked, device categories. Free.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -328,21 +328,6 @@ const TOOLS = [
       },
     },
   },
-
-  // ── SQL Escape Hatch ──────────────────────────────────────────────────────
-  {
-    name: 'cortiq_execute_query',
-    description: 'CURRENTLY DISABLED — Custom SQL queries are not available in this version. Use the predefined cortiq_* tools instead. This tool will return an error if called.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        sql: { type: 'string', description: 'SELECT statement. Max 10,000 rows returned.' },
-        since: { type: 'string', description: 'Window start — auto-available as the :since parameter' },
-        until: { type: 'string', description: 'Window end — auto-available as the :until parameter' },
-      },
-      required: ['sql'],
-    },
-  },
 ];
 
 // ============================================================================
@@ -466,7 +451,7 @@ async function executeTool(
         ],
         ai_platforms_tracked_this_period: aiPlatforms,
         device_types: ['mobile', 'tablet', 'desktop'],
-        note: 'All tables are scoped to your site_id automatically. Do not filter by site_id in cortiq_execute_query.',
+        note: 'All tables are scoped to your site_id automatically.',
         window: { since, until },
       };
     }
