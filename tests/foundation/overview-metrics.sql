@@ -31,7 +31,8 @@ INSERT INTO conversion_events VALUES ('11111111-1111-4111-8111-111111111111','00
 INSERT INTO ai_bot_traffic VALUES
  ('11111111-1111-4111-8111-111111111111','https://a.se/pricing','training','server_log','2026-09-02 01:00Z'),
  ('11111111-1111-4111-8111-111111111111','https://a.se/blog','agentic','js_tag','2026-09-02 02:00Z'),
- ('11111111-1111-4111-8111-111111111111','https://a.se/blog','citation','server_log','2026-09-03 03:00Z');
+ ('11111111-1111-4111-8111-111111111111','https://a.se/blog','citation','server_log','2026-09-03 03:00Z'),
+ ('11111111-1111-4111-8111-111111111111','https://a.se/blog','unknown','js_tag','2026-09-03 04:00Z');
 
 SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', true);
 SET LOCAL ROLE authenticated;
@@ -43,8 +44,8 @@ BEGIN
   ASSERT (r->'current'->>'visits')::int = 2, 'visits current';
   ASSERT (r->'current'->>'pageViews')::int = 4, 'page views exclude wp-admin';
   ASSERT (r->'current'->>'conversions')::int = 1, 'conversions';
-  ASSERT (r->'current'->'ai'->>'total')::int = 3 AND (r->'current'->'ai'->>'training')::int = 1
-     AND (r->'current'->'ai'->>'agentic')::int = 1 AND (r->'current'->'ai'->>'citation')::int = 1, 'ai split';
+  ASSERT (r->'current'->'ai'->>'total')::int = 4 AND (r->'current'->'ai'->>'training')::int = 1
+     AND (r->'current'->'ai'->>'agentic')::int = 1 AND (r->'current'->'ai'->>'citation')::int = 1, 'ai split: unknown counts in total only';
   ASSERT (r->'previous'->>'visits')::int = 1, 'previous visits';
   ASSERT jsonb_array_length(r->'daily') = 3, 'one point per day incl. empty 2026-09-02 visits';
   ASSERT (r->'daily'->1->>'visits')::int = 0 AND (r->'daily'->1->>'ai')::int = 2, 'gap day present';
@@ -57,7 +58,7 @@ BEGIN
   r := public.get_overview_metrics('11111111-1111-4111-8111-111111111111','2026-09-01','2026-09-03', NULL,
          '[{"field":"utm_source","op":"eq","value":"Newsletter"}]');
   ASSERT (r->'current'->>'visits')::int = 1 AND (r->'current'->>'conversions')::int = 1, 'segment eq, case-insensitive';
-  ASSERT (r->'current'->'ai'->>'total')::int = 3, 'segment does not filter AI';
+  ASSERT (r->'current'->'ai'->>'total')::int = 4, 'segment does not filter AI';
 
   r := public.get_overview_metrics('11111111-1111-4111-8111-111111111111','2026-09-01','2026-09-03', NULL,
          '[{"field":"bogus","op":"eq","value":"x"}]');

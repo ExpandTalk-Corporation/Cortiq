@@ -11,17 +11,20 @@ export function ModuleCards({ m, goalIssues, goalCount, onNavigate }: {
 }) {
   const open = (tab: string, label = 'Open') => <Button variant="link" className="px-0" onClick={() => onNavigate(tab)}>{label} →</Button>;
   const ai = m.current.ai;
+  // Rows the classifier marked 'unknown' count in the total but in no category.
+  const unclassified = Math.max(0, ai.total - ai.training - ai.agentic - ai.citation);
   return (
     <div className="grid gap-6 md:grid-cols-2">
       <WidgetCard title="AI agents" subtitle="Training, agentic and citation traffic"
         exportData={() => ({ filename: 'cortiq-ai-categories', columns: ['Category', 'Visits'],
-          rows: [['Training', ai.training], ['Agentic', ai.agentic], ['Citation', ai.citation]] })}>
+          rows: [['Training', ai.training], ['Agentic', ai.agentic], ['Citation', ai.citation], ['Unclassified', unclassified]] })}>
         <dl className="grid grid-cols-3 gap-3 text-center">
           {(['training', 'agentic', 'citation'] as const).map((k) => (
             <div key={k}><dt className="text-xs text-muted-foreground">{BOT_CATEGORY_META[k]?.label ?? k}</dt>
               <dd className="text-xl font-semibold tabular-nums">{ai[k]}</dd></div>
           ))}
         </dl>
+        {unclassified > 0 && <p className="text-xs text-muted-foreground">{unclassified} unclassified</p>}
         {open('ai-bots')}
       </WidgetCard>
 

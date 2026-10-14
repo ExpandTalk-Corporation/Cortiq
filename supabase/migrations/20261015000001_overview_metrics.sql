@@ -72,7 +72,8 @@ BEGIN
   ),
   ai AS (
     SELECT a.detected_at::date AS d,
-           CASE WHEN a.request_type IN ('training', 'agentic') THEN a.request_type ELSE 'citation' END AS cat
+           -- 'unknown' and unclassified rows count in the AI total only, never as a category.
+           CASE WHEN a.request_type IN ('training', 'agentic', 'citation') THEN a.request_type ELSE 'other' END AS cat
     FROM public.ai_bot_traffic a
     WHERE a.site_id = p_site_id
       AND a.detected_at >= v_prev AND a.detected_at < p_to + 1
