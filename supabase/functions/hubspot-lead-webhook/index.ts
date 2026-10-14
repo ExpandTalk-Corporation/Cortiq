@@ -1,8 +1,9 @@
 // HubSpot Lead Quality Webhook
 // Receives contact.propertyChange events from HubSpot when lead_quality changes.
-// GDPR: email is SHA-256 hashed immediately — never stored in plain text.
-// Classifies matching conversion_events; the consent gate that decides what is
-// actually uploaded to Google Ads is enforced in google-ads-quality-upload.
+// GDPR: email is SHA-256 hashed immediately — never logged or stored in plain text.
+// Only UPDATES existing conversion_events that match the hash AND have
+// click_id_consent_given = true. Unmatched contacts are dropped (no insert).
+// google-ads-quality-upload re-checks current consent before any export.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -159,33 +160,36 @@ Deno.serve(async (req) => {
     const events: any[] = Array.isArray(body) ? body : [body];
     const qualityProperty = (site as any).hubspot_quality_property || 'lead_quality';
 
+    // GDPR (art. 28.10 / DPA scope): HubSpot sends a plaintext email. It is hashed
+    // immediately and the plaintext is never logged or persisted. The hash is used
+    // ONLY to look up existing conversion_events from consenting website visitors.
+    // Contacts with no matching consented conversion are dropped — nothing is
+    // inserted or stored for them.
+    let matchedCount = 0;
+
     for (const event of events) {
       if (event.propertyName !== qualityProperty) continue;
 
-      const email: string | undefined = event.email || event.properties?.email;
       const qualityValue: string = event.propertyValue || event.value || '';
+      if (!qualityValue || !(qualityValue in QUALITY_VALUES)) continue;
 
-      if (!email || !qualityValue) continue;
-      if (!(qualityValue in QUALITY_VALUES)) continue;
-
-      const hashedEmail = await sha256Hex(email);
+      const rawEmail: unknown = event.email || event.properties?.email;
+      if (typeof rawEmail !== 'string' || !rawEmail.trim()) continue;
+      const hashedEmail = await sha256Hex(rawEmail);
       const numericValue = QUALITY_VALUES[qualityValue];
 
-      // Find conversion event by hashed email
+      // Match only consented conversions for this site that are not yet classified.
       const { data: convEvents } = await supabase
         .from('conversion_events')
         .select('id, gclid, upload_status')
         .eq('site_id', effectiveSiteId)
         .eq('hashed_email', hashedEmail)
+        .eq('click_id_consent_given', true)
         .is('quality_classified_at', null) // Don't re-classify already classified leads
         .limit(5);
 
-      if (!convEvents || convEvents.length === 0) {
-        // Store hashed email + quality even without existing conversion event
-        // (the conversion event may arrive later or be linked on next form submit)
-        console.log('No matching conversion event found for hashed email — stored for future matching');
-        continue;
-      }
+      // No consented match: drop the contact. Never insert a row for it.
+      if (!convEvents || convEvents.length === 0) continue;
 
       for (const ce of convEvents) {
         const hasGclid = !!ce.gclid;
@@ -202,16 +206,21 @@ Deno.serve(async (req) => {
             upload_status: uploadStatus,
           })
           .eq('id', ce.id)
+          .eq('site_id', effectiveSiteId)
+          .eq('click_id_consent_given', true)
           .is('quality_classified_at', null);
+        matchedCount++;
       }
     }
 
-    return new Response(JSON.stringify({ ok: true, processed: events.length }), {
+    // Always 200 for a valid signed delivery so HubSpot does not retry unmatched contacts.
+    return new Response(JSON.stringify({ ok: true, processed: events.length, matched: matchedCount > 0, matched_count: matchedCount }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (err) {
-    console.error('hubspot-lead-webhook error:', err);
+    // Log only the error type: messages from the DB client can echo filter values.
+    console.error('hubspot-lead-webhook error:', err instanceof Error ? err.name : 'unknown');
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
