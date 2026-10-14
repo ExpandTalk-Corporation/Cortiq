@@ -178,3 +178,46 @@ test('worker: injects honeypot into HTML, Disallow into robots.txt, answers the 
   assert.equal(trap.status, 404);
   assert.equal(w.sent.filter(b => b.hits[0].url.endsWith(TRAP_PATH)).length, 1);
 });
+
+test('worker: an HTML answer to /robots.txt (SPA fallback) is replaced by a real robots.txt', async () => {
+  const w = await loadWorker(() => new Response('<html><body>app</body></html>', { headers: { 'Content-Type': 'text/html' } }));
+  const body = await (await w.run('https://shop.test/robots.txt', 'Mozilla/5.0 Firefox/130.0')).text();
+  assert.equal(body, 'User-agent: *\nDisallow: /cortiq-trap/\n');
+});
+
+test('pre-filter is registry-only: generic SEO crawlers stay on the server', () => {
+  for (const ua of ['AhrefsBot/7.0', 'SemrushBot/7', 'curl/8.4', 'python-requests/2.31']) assert.doesNotMatch(ua, AGENT_UA);
+});
+
+test('truncateIp handles compressed IPv6 without keeping interface bits', () => {
+  assert.equal(truncateIp('2001:db8::1'), '2001:db8:0::');
+  assert.equal(truncateIp('2001::a:b:c:d'), '2001:0:0::');
+  assert.equal(truncateIp('fe80::1%eth0'), 'fe80:0:0::');
+});
+
+test('addTrapRule adds the Disallow line to every user-agent group', () => {
+  const out = mod.addTrapRule('User-agent: Googlebot\nAllow: /\n\nUser-agent: *\nUser-agent: Bingbot\nDisallow: /x');
+  assert.equal(out.match(/Disallow: \/cortiq-trap\//g).length, 2);
+  assert.match(mod.addTrapRule(''), /^User-agent: \*\nDisallow: \/cortiq-trap\//);
+  assert.equal(mod.addTrapRule(out), out, 'idempotent');
+});
+
+test('worker: marks origin requests, serves robots.txt when the origin has none, strips referrer query', async () => {
+  const seen = [];
+  const w = await loadWorker(input => { seen.push(input.headers.get('x-cortiq-edge')); return new Response('nope', { status: 404, headers: { 'Content-Type': 'text/html' } }); });
+  const robots = await w.run('https://shop.test/robots.txt', 'Mozilla/5.0 Firefox/130.0');
+  assert.equal(robots.status, 200);
+  assert.match(robots.headers.get('content-type'), /text\/plain/);
+  assert.match(await robots.text(), /Disallow: \/cortiq-trap\//);
+  await w.run('https://shop.test/a', 'GPTBot/1.2', { Referer: 'https://ref.test/s?q=secret' });
+  assert.ok(seen.every(v => v === '1'));
+  assert.equal(w.sent.at(-1).hits[0].referrer, 'https://ref.test/s');
+});
+
+test('worker: robots.txt redirects and server errors pass through untouched', async () => {
+  for (const status of [301, 503]) {
+    const w = await loadWorker(() => new Response('', { status, headers: status === 301 ? { Location: 'https://www.shop.test/robots.txt' } : {} }));
+    const res = await w.run('https://shop.test/robots.txt', 'Mozilla/5.0 Firefox/130.0');
+    assert.equal(res.status, status);
+  }
+});

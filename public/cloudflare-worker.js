@@ -8,15 +8,20 @@
  * 1. Cloudflare dashboard → Workers & Pages → Create Worker → paste this file → Deploy.
  * 2. Worker → Settings → Variables → add CORTIQ_SITE_KEY = your site's tracking key (tk_…,
  *    CortIQ → Settings → Installation).
- * 3. Worker → Triggers → Add route: example.com/*  (and www.example.com/* if used).
+ * 3. Worker → Triggers → Add route: example.com/*  (and www.example.com/* if used), and set
+ *    the route's request-limit failure mode to "Fail open (proceed)" so the site keeps
+ *    working if the Workers request quota runs out.
  *
  * What it does — and doesn't:
  * - Visitors are never delayed: reporting runs in ctx.waitUntil after the response.
  * - Only bot/agent-like requests, /robots.txt, /llms.txt and honeypot hits are sent.
  *   Human requests never leave Cloudflare. IPs are truncated (/24, /48) before sending;
  *   query strings are dropped.
- * - Adds a hidden honeypot link to HTML pages and "Disallow: /cortiq-trap/" to robots.txt,
- *   so bots that ignore robots.txt show up. Nothing runs in the visitor's browser.
+ * - Adds a hidden honeypot link to HTML pages and "Disallow: /cortiq-trap/" to every group in
+ *   robots.txt (serving a minimal robots.txt if the origin has none), so only bots that ignore
+ *   robots.txt hit it. Nothing runs in the visitor's browser.
+ * - Marks requests to the origin with x-cortiq-edge: 1 so the CortIQ WordPress plugin doesn't
+ *   report the same request a second time.
  *
  * Older Workers posting to `cloudflare-ingest` with CORTIQ_INGEST_KEY keep working.
  */
@@ -24,7 +29,7 @@
 const ENDPOINT = 'https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1/server-hit';
 const TRAP_PATH = '/cortiq-trap/';
 // Keep in sync with AGENT_UA in public/cortiq-server.mjs (test-enforced).
-const AGENT_UA = /bot|crawl|spider|slurp|scrape|GPT|OAI-|ChatGPT|Claude|anthropic|Perplexity|Google-Extended|GoogleOther|Meta-External|facebookexternalhit|Applebot|DuckAssist|Grok|Bytespider|CCBot|Diffbot|cohere|DeepSeek|MistralAI|headless|python-requests|curl\/|wget/i;
+const AGENT_UA = /GPTBot|ChatGPT|OAI-SearchBot|Claude-User|Claude-SearchBot|ClaudeBot|anthropic-ai|Perplexity|Google-Extended|GoogleOther|Googlebot|bingbot|BingPreview|Meta-ExternalAgent|FacebookBot|facebookexternalhit|Applebot|YouBot|DuckAssistBot|Grok|Amazonbot|Bytespider|CCBot|Diffbot|cohere-ai|DeepSeek|MistralAI/i;
 const WATCHED_FILES = new Set(['/robots.txt', '/llms.txt', '/llms-full.txt']);
 const HONEYPOT_HTML = `<a href="${TRAP_PATH}" rel="nofollow" tabindex="-1" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden">.</a>`;
 
@@ -39,23 +44,36 @@ export default {
       return new Response('Not found', { status: 404, headers: { 'X-Robots-Tag': 'noindex, nofollow', 'Cache-Control': 'no-store' } });
     }
 
-    let response = await fetch(request);
+    const headers = new Headers(request.headers);
+    headers.set('x-cortiq-edge', '1');
+    let response = await fetch(new Request(request, { headers }));
 
     const ua = request.headers.get('User-Agent') || '';
     if (WATCHED_FILES.has(path) || AGENT_UA.test(ua)) {
       ctx.waitUntil(report(request, url, response.status, key, env));
     }
 
-    if (path === '/robots.txt' && response.ok) {
-      const text = await response.text();
-      const body = text.includes(`Disallow: ${TRAP_PATH}`) ? text : `${text.trimEnd()}\n\nUser-agent: *\nDisallow: ${TRAP_PATH}\n`;
-      response = new Response(body, response);
-    } else if ((response.headers.get('Content-Type') || '').includes('text/html')) {
+    const type = response.headers.get('Content-Type') || '';
+    if (path === '/robots.txt') {
+      if (response.ok && type.includes('text/plain')) {
+        response = new Response(addTrapRule(await response.text()), response);
+      } else if (response.status === 404 || response.status === 410 || (response.ok && type.includes('text/html'))) {
+        // No real robots.txt (missing, or an SPA answering with index.html): serve a minimal
+        // one, otherwise compliant crawlers would follow the honeypot link and be counted.
+        response = new Response(addTrapRule(''), { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=3600' } });
+      }
+      // Redirects and 5xx pass through untouched: they carry meaning for crawlers.
+    } else if (type.includes('text/html')) {
       response = new HTMLRewriter().on('body', { element(el) { el.append(HONEYPOT_HTML, { html: true }); } }).transform(response);
     }
     return response;
   },
 };
+
+function cleanReferrer(r) {
+  if (!r) return undefined;
+  try { const u = new URL(r); return u.origin + u.pathname; } catch { return undefined; }
+}
 
 async function report(request, url, status, key, env) {
   if (!key.startsWith('tk_')) return;
@@ -68,7 +86,7 @@ async function report(request, url, status, key, env) {
         method: request.method,
         status,
         userAgent: (request.headers.get('User-Agent') || '').slice(0, 512),
-        referrer: request.headers.get('Referer') || undefined,
+        referrer: cleanReferrer(request.headers.get('Referer')),
         ip: truncateIp(request.headers.get('CF-Connecting-IP')) || undefined,
       }] }),
     });
@@ -77,7 +95,33 @@ async function report(request, url, status, key, env) {
 
 function truncateIp(ip) {
   if (!ip) return null;
-  if (ip.includes(':')) { const g = ip.split(':'); return g.length >= 3 ? g.slice(0, 3).join(':') + '::' : null; }
-  const o = ip.split('.');
-  return o.length === 4 ? `${o[0]}.${o[1]}.${o[2]}.0` : null;
+  const first = String(ip).split(',')[0].trim().replace(/%.*$/, '');
+  if (first.includes(':') && !first.includes('.')) {
+    // Expand "::" so compressed forms (2001:db8::1) keep exactly the first 48 bits.
+    const [head, tail] = first.split('::');
+    const h = head ? head.split(':') : [];
+    const t = tail ? tail.split(':') : [];
+    const groups = first.includes('::') ? [...h, ...Array(Math.max(0, 8 - h.length - t.length)).fill('0'), ...t] : first.split(':');
+    if (groups.length !== 8 || groups.some(g => !/^[0-9a-f]{1,4}$/i.test(g))) return null;
+    return groups.slice(0, 3).map(g => g.toLowerCase().replace(/^0+(?=.)/, '')).join(':') + '::';
+  }
+  const v4 = first.replace(/^::ffff:/i, '').split(':')[0];
+  const o = v4.split('.');
+  return o.length === 4 && o.every(x => /^\d{1,3}$/.test(x)) ? `${o[0]}.${o[1]}.${o[2]}.0` : null;
+}
+
+/** Add "Disallow: /cortiq-trap/" to every user-agent group (bots obey only their own group). */
+function addTrapRule(robots) {
+  const text = String(robots || '');
+  if (text.includes(`Disallow: ${TRAP_PATH}`)) return text;
+  const lines = text.split(/\r?\n/);
+  const out = [];
+  let groups = 0;
+  lines.forEach((line, i) => {
+    out.push(line);
+    const isUa = /^\s*user-agent\s*:/i.test(line);
+    const nextIsUa = /^\s*user-agent\s*:/i.test(lines[i + 1] || '');
+    if (isUa && !nextIsUa) { out.push(`Disallow: ${TRAP_PATH}`); groups++; }
+  });
+  return groups ? out.join('\n') : `${text.trimEnd()}${text.trim() ? '\n\n' : ''}User-agent: *\nDisallow: ${TRAP_PATH}\n`;
 }

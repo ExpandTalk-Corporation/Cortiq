@@ -72,7 +72,12 @@ Deno.serve(async (req) => {
                 ?? null;
     const rawUA  = req.headers.get('user-agent') ?? null;
     const country  = req.headers.get('cf-ipcountry') ?? req.headers.get('x-country') ?? null;
-    const referrer = req.headers.get('referer') ?? null;
+    // Origin + path only: referrer query strings can carry tokens, emails, search terms.
+    const referrer = (() => {
+      const r = req.headers.get('referer');
+      if (!r) return null;
+      try { const u = new URL(r); return u.origin + u.pathname; } catch { return null; }
+    })();
 
     // GDPR: anonymize before storing
     const ipAnon     = anonymizeIP(rawIP);

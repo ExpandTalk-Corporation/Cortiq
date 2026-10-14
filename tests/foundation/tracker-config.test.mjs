@@ -5,7 +5,7 @@ import { runInNewContext } from 'node:vm';
 import { webcrypto } from 'node:crypto';
 
 // INTEGRATION-GUIDE/README historically documented a single script tag with
-// data-site-id. The tracker must honour it (window.cortiqConfig still wins).
+// data-site-id. The tracker must honour it; a tag's own attributes win over a global config.
 
 const script = readFileSync(new URL('../../public/spa-tracking.js', import.meta.url), 'utf8');
 const settle = async () => { for (let i = 0; i < 12; i++) await new Promise(resolve => setImmediate(resolve)); };
@@ -53,12 +53,13 @@ test('single-tag install with data-site-id tracks after consent', async () => {
   assert.equal(r.requests.some(x => x.url.endsWith('/visitor-identification')), false);
 });
 
-test('window.cortiqConfig wins over data-* attributes', async () => {
+test('data-* on the tag win over a global cortiqConfig; unset attributes fall back to it', async () => {
   const r = run({ attrs: { 'data-site-id': 'site-attr', 'data-api-url': 'https://attr.test/v1' }, cortiqConfig: { siteId: 'site-config', apiUrl: 'https://config.test/v1', cookieless: true } });
   await settle();
   const pv = r.requests.find(x => x.url.endsWith('/track-event'));
-  assert.ok(pv.url.startsWith('https://config.test/v1'));
-  assert.equal(pv.body.siteId ?? pv.body.site_id, 'site-config');
+  assert.ok(pv.url.startsWith('https://attr.test/v1'));
+  assert.equal(pv.body.siteId ?? pv.body.site_id, 'site-attr');
+  assert.equal(r.requests.some(x => x.url.endsWith('/visitor-identification')), false, 'cookieless from cortiqConfig kept');
 });
 
 test('no siteId anywhere logs a clear error and sends nothing', async () => {

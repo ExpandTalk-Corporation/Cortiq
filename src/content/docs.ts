@@ -370,7 +370,7 @@ export const CLOUDFLARE: ContentPageData = {
             'Make sure your domain is added as a site in CortIQ. Reports for hostnames that don\'t belong to the site are rejected.',
             'In Cloudflare, go to **Workers & Pages → Create Worker**, paste the code from [cloudflare-worker.js](https://cortiq.se/cloudflare-worker.js) and deploy it.',
             'Under the Worker\'s **Settings → Variables**, add `CORTIQ_SITE_KEY` with your site\'s tracking key (`tk_…`, shown under **Install tracking** in the dashboard).',
-            'Under **Triggers**, add a route for your domain, for example `example.com/*`.',
+            'Under **Triggers**, add a route for your domain, for example `example.com/*`, and set its request limit failure mode to **Fail open (proceed)** so your site keeps working if the Workers request quota runs out.',
           ],
         },
       ],
@@ -384,7 +384,8 @@ export const CLOUDFLARE: ContentPageData = {
           items: [
             'It passes every request on to your site and reports in the background, so visitors do not wait for CortIQ.',
             'It reports only requests with a bot or agent user agent, fetches of `robots.txt` / `llms.txt`, and hits on the honeypot link. Human requests never leave Cloudflare.',
-            'It adds a hidden honeypot link to HTML pages and `Disallow: /cortiq-trap/` to `robots.txt`, and answers the honeypot URL with a 404.',
+            'It adds a hidden honeypot link to HTML pages and `Disallow: /cortiq-trap/` to every group in `robots.txt` (or serves a minimal `robots.txt` if your site has none), and answers the honeypot URL with a 404.',
+            'It marks requests to your site so the CortIQ WordPress plugin does not report them a second time.',
             'Each request still runs the Worker, so it counts toward your Cloudflare Workers request quota.',
           ],
         },

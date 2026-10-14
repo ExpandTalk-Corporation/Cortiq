@@ -10,7 +10,8 @@
 -- 2. get_ai_bot_source_breakdown() — browser vs server-side coverage for the dashboard.
 -- 3. run_data_retention(): default 365 days (was 730 for sites without gdpr_settings),
 --    and the truncated IP on bot rows is cleared after 30 days.
--- 4. run_bot_detection_retention(): bot_detections 730 -> 365 days.
+-- 4. run_bot_detection_retention(): bot_detections 730 -> 365 days; run_canary_retention()
+--    730 -> 365 days, and canary_hits also follow each site's retention.
 -- 5. auto_anonymize_ip also on tracking_sessions and heatmap_data (both have an
 --    ip_address column that no current writer fills — defence in depth).
 --
@@ -119,6 +120,12 @@ begin
     exception when others then raise warning 'retention ai_bot_traffic ip failed for %: %', site_rec.site_id, sqlerrm; end;
 
     begin
+      delete from canary_hits where site_id = site_rec.site_id and detected_at < cutoff;
+      get diagnostics del_count = row_count;
+      results := results || jsonb_build_object('canary_hits', coalesce((results->>'canary_hits')::int, 0) + del_count);
+    exception when others then raise warning 'retention canary_hits failed for %: %', site_rec.site_id, sqlerrm; end;
+
+    begin
       delete from conversion_events where site_id = site_rec.site_id and created_at < cutoff;
       get diagnostics del_count = row_count;
       results := results || jsonb_build_object('conversion_events', coalesce((results->>'conversion_events')::int, 0) + del_count);
@@ -191,6 +198,21 @@ BEGIN
     'bot_detections_deleted', deleted_detections,
     'bot_hourly_stats_deleted', deleted_stats
   );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.run_canary_retention()
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  deleted BIGINT;
+BEGIN
+  DELETE FROM public.canary_hits WHERE detected_at < now() - interval '365 days';
+  GET DIAGNOSTICS deleted = ROW_COUNT;
+  RETURN jsonb_build_object('canary_hits_deleted', deleted);
 END;
 $$;
 

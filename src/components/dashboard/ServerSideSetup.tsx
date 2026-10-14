@@ -42,7 +42,7 @@ export const config = { matcher: ['/((?!_next/static|_next/image|favicon.ico).*)
 
 // .env: CORTIQ_SITE_KEY=${trackingKey}
 // app/layout.tsx, inside <body>: the honeypot link below
-// app/robots.ts: rules: [{ userAgent: '*', disallow: '/cortiq-trap/' }]`;
+// app/robots.ts: add disallow: '/cortiq-trap/' to every rule (crawlers obey only their own group)`;
 
   const netlify = `// netlify/edge-functions/cortiq.ts
 // Copy ${helperUrl} to lib/cortiq-server.mjs
@@ -67,8 +67,11 @@ export const config = { path: '/*', excludedPath: ['/*.css', '/*.js', '/*.png', 
 2. Paste ${origin}/cloudflare-worker.js and deploy
 3. Settings → Variables: CORTIQ_SITE_KEY = ${trackingKey}
 4. Triggers → Add route: your-domain.com/*
+5. On the route, set "Request limit failure mode" to "Fail open (proceed)" so the site
+   keeps working if the Workers request quota runs out.
 
-The Worker adds the honeypot link to HTML and the Disallow line to robots.txt itself.`;
+The Worker adds the honeypot link to HTML and the Disallow line to robots.txt itself.
+Works together with the WordPress plugin without double counting.`;
 
   const node = `// Node 18+ / Express. Copy ${helperUrl} next to your server.
 import express from 'express';
@@ -125,7 +128,9 @@ app.use(cortiqExpress(createCortiq({ siteKey: process.env.CORTIQ_SITE_KEY, endpo
           <p className="text-sm text-muted-foreground mt-2">
             Built into the CortIQ plugin from version 5.5.0 and on by default once the Tracking ID is filled in
             (Settings → CortIQ → Server-side agent measurement). It also adds the honeypot link and the robots.txt line.
-            With full-page caching WordPress doesn't see every request — add the Cloudflare Worker for full coverage.
+            With full-page caching WordPress doesn't see every request — add the Cloudflare Worker for full coverage
+            (requests the Worker reports are not counted again). With a physical robots.txt file the plugin leaves
+            out the honeypot link; add <code>Disallow: /cortiq-trap/</code> to that file to enable it.
           </p>
         </TabsContent>
         <TabsContent value="http"><Code>{http}</Code></TabsContent>

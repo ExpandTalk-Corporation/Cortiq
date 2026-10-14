@@ -26,10 +26,10 @@ define( 'CORTIQ_OPTION_KEY', 'cortiq_options' );
 define( 'CORTIQ_CDN',        'https://cortiq.se' );
 // Supabase Edge Functions base — used for the GDPR consent ledger (store-consent).
 define( 'CORTIQ_API',        'https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1' );
-// Server-side agent measurement: honeypot path and bot/agent pre-filter.
+// Server-side agent measurement: honeypot path and AI-bot pre-filter (CortIQ's registry).
 // Keep CORTIQ_AGENT_UA in sync with AGENT_UA in public/cortiq-server.mjs (test-enforced).
 define( 'CORTIQ_TRAP_PATH',  '/cortiq-trap/' );
-define( 'CORTIQ_AGENT_UA',   '/bot|crawl|spider|slurp|scrape|GPT|OAI-|ChatGPT|Claude|anthropic|Perplexity|Google-Extended|GoogleOther|Meta-External|facebookexternalhit|Applebot|DuckAssist|Grok|Bytespider|CCBot|Diffbot|cohere|DeepSeek|MistralAI|headless|python-requests|curl\/|wget/i' );
+define( 'CORTIQ_AGENT_UA',   '/GPTBot|ChatGPT|OAI-SearchBot|Claude-User|Claude-SearchBot|ClaudeBot|anthropic-ai|Perplexity|Google-Extended|GoogleOther|Googlebot|bingbot|BingPreview|Meta-ExternalAgent|FacebookBot|facebookexternalhit|Applebot|YouBot|DuckAssistBot|Grok|Amazonbot|Bytespider|CCBot|Diffbot|cohere-ai|DeepSeek|MistralAI/i' );
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -283,6 +283,11 @@ function cortiq_server_side_active( $opts ) {
     return ! empty( $opts['server_side'] ) && 0 === strpos( (string) $opts['tracking_id'], 'tk_' );
 }
 
+// The CortIQ Cloudflare Worker already reported this request (it adds this header).
+function cortiq_reported_at_edge() {
+    return ! empty( $_SERVER['HTTP_X_CORTIQ_EDGE'] );
+}
+
 function cortiq_truncate_ip( $ip ) {
     $ip = trim( (string) $ip );
     if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 ) ) {
@@ -290,8 +295,8 @@ function cortiq_truncate_ip( $ip ) {
         return $o[0] . '.' . $o[1] . '.' . $o[2] . '.0';
     }
     if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 ) ) {
-        $g = explode( ':', $ip );
-        return implode( ':', array_slice( $g, 0, 3 ) ) . '::';
+        // Keep the first 48 bits; inet_pton handles compressed forms like 2001:db8::1.
+        return inet_ntop( substr( inet_pton( $ip ), 0, 6 ) . str_repeat( "\0", 10 ) );
     }
     return null;
 }
@@ -308,14 +313,36 @@ function cortiq_report_request( $opts, $status ) {
         'method'    => isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : 'GET',
         'status'    => (int) $status,
         'userAgent' => isset( $_SERVER['HTTP_USER_AGENT'] ) ? substr( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ), 0, 512 ) : '',
-        'referrer'  => isset( $_SERVER['HTTP_REFERER'] ) ? esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ) ) : null,
+        'referrer'  => cortiq_clean_referrer(),
         'ip'        => cortiq_truncate_ip( isset( $_SERVER['REMOTE_ADDR'] ) ? wp_unslash( $_SERVER['REMOTE_ADDR'] ) : '' ),
     );
-    // Non-blocking: the page is not delayed by the report.
+    $GLOBALS['cortiq_pending_hit'] = array( $opts['tracking_id'], $hit );
+    if ( ! has_action( 'shutdown', 'cortiq_send_pending_hit' ) ) {
+        add_action( 'shutdown', 'cortiq_send_pending_hit', 1 );
+    }
+}
+
+// Origin + path only: referrer query strings can carry tokens, emails or search terms.
+function cortiq_clean_referrer() {
+    if ( empty( $_SERVER['HTTP_REFERER'] ) ) return null;
+    $parts = wp_parse_url( wp_unslash( $_SERVER['HTTP_REFERER'] ) );
+    if ( empty( $parts['scheme'] ) || empty( $parts['host'] ) ) return null;
+    $port = isset( $parts['port'] ) ? ':' . (int) $parts['port'] : '';
+    return esc_url_raw( $parts['scheme'] . '://' . $parts['host'] . $port . ( isset( $parts['path'] ) ? $parts['path'] : '/' ) );
+}
+
+// Sent after the response: the visitor (bot) gets the page first, the report follows.
+function cortiq_send_pending_hit() {
+    if ( empty( $GLOBALS['cortiq_pending_hit'] ) ) return;
+    list( $key, $hit ) = $GLOBALS['cortiq_pending_hit'];
+    unset( $GLOBALS['cortiq_pending_hit'] );
+    if ( function_exists( 'fastcgi_finish_request' ) ) {
+        fastcgi_finish_request();
+    }
     wp_remote_post( CORTIQ_API . '/server-hit', array(
-        'blocking' => false,
-        'timeout'  => 1,
-        'headers'  => array( 'Content-Type' => 'application/json', 'Authorization' => 'Bearer ' . $opts['tracking_id'] ),
+        'blocking' => true,
+        'timeout'  => 2,
+        'headers'  => array( 'Content-Type' => 'application/json', 'Authorization' => 'Bearer ' . $key ),
         'body'     => wp_json_encode( array( 'hits' => array( $hit ) ) ),
     ) );
 }
@@ -327,10 +354,13 @@ function cortiq_server_side_measure() {
     if ( empty( $opts['tracking_enabled'] ) || ! cortiq_server_side_active( $opts ) ) return;
 
     $path = strtolower( cortiq_request_path() );
+    $trap = ( $path === rtrim( CORTIQ_TRAP_PATH, '/' ) || 0 === strpos( $path, CORTIQ_TRAP_PATH ) );
+    // The Cloudflare Worker reports (and answers the trap) itself; don't count twice.
+    if ( cortiq_reported_at_edge() && ! $trap ) return;
     $ua   = isset( $_SERVER['HTTP_USER_AGENT'] ) ? wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) : '';
 
-    if ( $path === rtrim( CORTIQ_TRAP_PATH, '/' ) || 0 === strpos( $path, CORTIQ_TRAP_PATH ) ) {
-        cortiq_report_request( $opts, 404 );
+    if ( $trap ) {
+        if ( ! cortiq_reported_at_edge() ) cortiq_report_request( $opts, 404 );
         status_header( 404 );
         nocache_headers();
         header( 'X-Robots-Tag: noindex, nofollow' );
@@ -345,11 +375,14 @@ function cortiq_server_side_measure() {
 }
 
 // Hidden honeypot link in the server-rendered HTML; robots.txt tells crawlers to skip it,
-// so only bots that ignore robots.txt follow it.
+// so only bots that ignore robots.txt follow it. Only when WordPress serves robots.txt
+// itself — a physical robots.txt file bypasses the filter below, and without the Disallow
+// rule compliant crawlers would follow the link. The Worker injects its own link.
 add_action( 'wp_footer', 'cortiq_honeypot_link', 1 );
 function cortiq_honeypot_link() {
     $opts = cortiq_options();
     if ( empty( $opts['tracking_enabled'] ) || ! cortiq_server_side_active( $opts ) ) return;
+    if ( cortiq_reported_at_edge() || file_exists( ABSPATH . 'robots.txt' ) ) return;
     echo '<a href="' . esc_url( home_url( CORTIQ_TRAP_PATH ) ) . '" rel="nofollow" tabindex="-1" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden">.</a>';
 }
 
@@ -357,7 +390,19 @@ add_filter( 'robots_txt', 'cortiq_robots_txt', 20 );
 function cortiq_robots_txt( $output ) {
     $opts = cortiq_options();
     if ( ! cortiq_server_side_active( $opts ) || false !== strpos( $output, 'Disallow: ' . CORTIQ_TRAP_PATH ) ) return $output;
-    return rtrim( $output ) . "\n\nUser-agent: *\nDisallow: " . CORTIQ_TRAP_PATH . "\n";
+    // A crawler obeys only its own user-agent group, so add the rule to every group.
+    $rule   = 'Disallow: ' . CORTIQ_TRAP_PATH;
+    $lines  = preg_split( '/\r?\n/', (string) $output );
+    $out    = array();
+    $groups = 0;
+    foreach ( $lines as $i => $line ) {
+        $out[] = $line;
+        $is_ua   = (bool) preg_match( '/^\s*user-agent\s*:/i', $line );
+        $next_ua = isset( $lines[ $i + 1 ] ) && preg_match( '/^\s*user-agent\s*:/i', $lines[ $i + 1 ] );
+        if ( $is_ua && ! $next_ua ) { $out[] = $rule; $groups++; }
+    }
+    if ( $groups ) return implode( "\n", $out );
+    return rtrim( $output ) . "\n\nUser-agent: *\n" . $rule . "\n";
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

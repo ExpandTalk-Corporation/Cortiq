@@ -22,7 +22,7 @@ Place the snippet in `<head>` (or before `</body>`) on every page:
 ></script>
 ```
 
-Equivalent `window.cortiqConfig` form (what the dashboard shows; it wins over `data-*` if both are present):
+Equivalent `window.cortiqConfig` form (what the dashboard shows). If both are present, `data-*` attributes on the tag win:
 
 ```html
 <script>
@@ -256,7 +256,7 @@ The tracking script runs entirely client-side — where Astro serves HTML (Node,
 
 ## Script data attributes
 
-Each attribute has a `window.cortiqConfig` equivalent (`siteId`, `apiKey`, `apiUrl`, `cookieless`, `excludeIframes`, `excludePaths`, `authPath`, `tenantId`). `window.cortiqConfig` wins when both are set.
+Each attribute has a `window.cortiqConfig` equivalent (`siteId`, `apiKey`, `apiUrl`, `cookieless`, `excludeIframes`, `excludePaths`, `authPath`, `tenantId`). `data-*` attributes on the tag win when both are set.
 
 | Attribute | Type | Description |
 |-----------|------|-------------|

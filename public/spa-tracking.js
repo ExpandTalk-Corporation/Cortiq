@@ -19,13 +19,14 @@
   // Keep in sync with wordpress-plugin/cortiq-analytics.php (CORTIQ_VERSION).
   const CORTIQ_VERSION = '5.5.0';
 
-  // Configuration. window.cortiqConfig wins; data-* attributes on this script tag
-  // are the fallback, so a single-tag install (<script src=… data-site-id=…>) works.
-  const config = Object.assign(readScriptAttributes(), window.cortiqConfig || window.wfaConfig || {});
+  // Configuration: window.cortiqConfig, overridden by data-* attributes on this script
+  // tag, so a single-tag install (<script src=… data-site-id=…>) works and a tag that
+  // names its own site is never redirected by a global config from another install.
+  const config = Object.assign({}, window.cortiqConfig || window.wfaConfig || {}, readScriptAttributes());
 
   function readScriptAttributes() {
     let el = document.currentScript;
-    if (!el && typeof document.querySelector === 'function') el = document.querySelector('script[src*="spa-tracking"]');
+    if (!el && typeof document.querySelector === 'function') el = document.querySelector('script[src*="spa-tracking"], script[src*="cortiq.js"]');
     if (!el || typeof el.getAttribute !== 'function') return {};
     const out = {};
     const map = { 'site-id': 'siteId', 'api-key': 'apiKey', 'api-url': 'apiUrl', 'exclude-paths': 'excludePaths', 'auth-path': 'authPath', 'tenant-id': 'tenantId' };
@@ -1057,7 +1058,7 @@
     const known = detectKnownAgent(ua);
     const signals = getBotSignals();
     const capScore = Object.values(signals).filter(Boolean).length;
-    if (!known && capScore < 3) return; // looks like a real browser — no probe
+    if (!known && capScore < 3) return; // looks like a real browser — no probe, no canary
     const fp = getAgentFingerprint();
     let depth = 1;
     try { depth = parseInt(sessionStorage.getItem('_ciq_adp') || '0') + 1; sessionStorage.setItem('_ciq_adp', depth); } catch (_) {}
@@ -1071,6 +1072,9 @@
       if (navigator.sendBeacon) navigator.sendBeacon(API_URL + '/ai-bot-tracker', payload);
       else fetch(API_URL + '/ai-bot-tracker', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true }).catch(function () {});
     } catch (_) { /* Storage or browser capability unavailable. */ }
+    // Canary only for suspected bots: a canary fetched by a normal consented visitor
+    // would be logged (and alerted) as scraping.
+    try { setupCanary(); } catch (_) {}
     setTimeout(function () {
       const rms = Math.round(performance.now() - t0);
       if (rms < 200 && navigator.sendBeacon) navigator.sendBeacon(API_URL + '/ai-bot-tracker', JSON.stringify({ siteId: SITE_ID, sessionId: SECURITY_SESSION_ID, agentFingerprint: fp, update: { renderMs: rms, fastRender: true } }));
@@ -1078,6 +1082,7 @@
   }
 
   function reportHoneypot(trigger) {
+    if (!hasAnalyticsConsent()) return;
     try {
       const payload = JSON.stringify({ siteId: SITE_ID, url: window.location.href, referrer: document.referrer || null, userAgent: navigator.userAgent, sessionId: SECURITY_SESSION_ID, probeData: { jsExecuted: true, signals: { honeypotTriggered: true, honeypotTrigger: trigger, webdriver: navigator.webdriver === true, headless: /HeadlessChrome/.test(navigator.userAgent) } } });
       if (navigator.sendBeacon) navigator.sendBeacon(API_URL + '/ai-bot-tracker', payload);
@@ -1109,11 +1114,13 @@
     const token = canaryToken();
     const img = document.createElement('img');
     img.src = API_URL + '/canary-tracker/' + token + '?v=px&s=' + encodeURIComponent(SITE_ID);
+    img.id = '_ciq_canary_px';
     img.width = 1; img.height = 1; img.alt = ''; img.setAttribute('aria-hidden', 'true');
     img.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;';
     document.body.appendChild(img);
     const a = document.createElement('a');
     a.href = API_URL + '/canary-tracker/' + token + '?v=lk&s=' + encodeURIComponent(SITE_ID);
+    a.id = '_ciq_canary_lk';
     a.tabIndex = -1; a.setAttribute('aria-hidden', 'true');
     a.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;';
     a.textContent = 'Site resources';
@@ -1129,8 +1136,15 @@
     }
     securityStarted = true;
     try { runBotProbe(); } catch (_) {}
-    try { setupCanary(); } catch (_) {}
     try { setupHoneypot(); } catch (_) {}
+  }
+
+  // Revocation: remove the traps so nothing more is reported from this page.
+  function stopSecurityLayer() {
+    securityStarted = false;
+    for (const id of ['_ciq_trap', '_ciq_canary_px', '_ciq_canary_lk']) {
+      try { const el = document.getElementById(id); if (el && el.parentNode) el.parentNode.removeChild(el); } catch (_) {}
+    }
   }
 
   // Run the analytics pipeline (visitor identification, pageview, interaction
@@ -1187,6 +1201,7 @@
       VISITOR_PROFILE = null;
       IDENTIFICATION_COMPLETE = false;
       try { sessionStorage.removeItem('cortiq_session_id'); } catch (_) { /* Storage or browser capability unavailable. */ }
+      stopSecurityLayer();
       return;
     }
     startAnalytics();

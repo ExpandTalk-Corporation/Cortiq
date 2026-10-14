@@ -70,7 +70,7 @@ export function InstallationGuide({ selectedSite }: InstallationGuideProps) {
             AI referrals (ChatGPT, Perplexity, Claude, Gemini), heatmaps, click/scroll, conversions and in-browser
             agent signals all wait for it, also with <code>cookieless: true</code> (which drops fingerprinting and
             persistent IDs). Paid-ads click IDs need marketing consent. A single tag with <code>data-site-id</code> /
-            <code>data-api-key</code> works too; <code>window.cortiqConfig</code> wins if both are set.
+            <code>data-api-key</code> works too; attributes on the tag win if both are set.
           </p>
         </div>
 
