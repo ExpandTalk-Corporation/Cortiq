@@ -5,7 +5,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, Settings, ExternalLink, Key, Zap, Code2, Play, Globe, Database, DollarSign, TrendingUp, ShieldAlert, BarChart2, Bot, Sliders, Target, Shield, Users, Megaphone, FlaskConical, Bell, FileText, Flame, Network, Share2, Filter, AlertTriangle, BookOpen, Sparkles, ShoppingCart, Server, Activity, Cpu, Layers, PieChart } from 'lucide-react';
-import { UTMSegmentProvider } from '@/contexts/UTMSegmentContext';
 import { UTMSegmentBar } from './UTMSegmentBar';
 import { OverviewTab } from './tabs/OverviewTab';
 import type { Site, Analytics } from '@/types/dashboard';
@@ -605,10 +604,7 @@ function DashboardTabsInner({ selectedSite, analytics, dateRange, onSiteDeleted 
   );
 }
 
+// UTMSegmentProvider now wraps the whole dashboard (Dashboard.tsx) so the filter panel shares it.
 export function DashboardTabs(props: DashboardTabsProps) {
-  return (
-    <UTMSegmentProvider siteId={props.selectedSite.id}>
-      <DashboardTabsInner {...props} />
-    </UTMSegmentProvider>
-  );
+  return <DashboardTabsInner {...props} />;
 }
