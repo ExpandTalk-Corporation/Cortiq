@@ -116,13 +116,16 @@ const Index = () => {
               🤖 AI Bot Intelligence · Free during beta
             </Badge>
             <h1 className="text-4xl md:text-6xl xl:text-5xl font-black mb-4 text-gradient-primary leading-tight">
-              One AI bot visit for every 31 human visits. Do you know which ones matter?
+              Every AI visit, classified.
             </h1>
+            <p className="text-xl md:text-2xl font-semibold text-foreground mb-3 leading-snug">
+              One AI bot visit for every 31 human visits. CortIQ shows which ones train on your content, which ones act for real users, and which ones cite you.
+            </p>
             <p className="text-sm text-muted-foreground mb-8">
               Source: TollBit, State of the Bots, Q4 2025, across its publisher network (up from 1 in 200 in Q1 2025).
             </p>
             <p className="text-lg text-foreground/80 mb-10 leading-relaxed">
-              Not all AI traffic is equal. CortIQ classifies every AI visit — training crawlers, agentic browsers, and citation bots — so you know what to optimize, what to ignore, and what's costing you infrastructure budget.
+              Know what to optimize, what to ignore, and what's costing you infrastructure budget.
               Plus consent-first, cookieless visitor analytics, heatmaps and form analytics — EU-hosted and designed to support GDPR compliance.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center xl:justify-start items-center">
