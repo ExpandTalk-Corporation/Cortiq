@@ -326,10 +326,13 @@
       if (!response.ok) {
         const error = await response.json();
         console.error('CortIQ Tracking error:', error);
+        return null;
       }
+      return await response.json().catch(function () { return null; });
     } catch (error) {
       console.error('CortIQ Tracking failed:', error);
     }
+    return null;
   }
 
   // Track page view
@@ -341,7 +344,40 @@
   function trackPageView() {
     // excludePaths (e.g. "/dashboard,/auth") also covers page views, including SPA route changes.
     if (isExcludedPath()) return;
-    trackEvent('view', window.location.pathname);
+    // Lets per-page state (scroll milestones, fired goals) reset on SPA route changes.
+    try { window.dispatchEvent(new CustomEvent('cortiq:pageview')); } catch (_) {}
+    trackEvent('view', window.location.pathname).then(function (res) {
+      if (res && Array.isArray(res.goals)) installConversionGoals(res.goals);
+    });
+  }
+
+  // Conversion goals from the dashboard (Goals tab). track-event returns the form/click goals
+  // with the page-view response; page-visit goals are matched on the server. A hit is reported
+  // once per goal per page; the server also counts each goal once per session.
+  let conversionGoals = [];
+  let goalListenersInstalled = false;
+  const firedGoals = new Set();
+  function goalMatches(el, selector) {
+    try { return !!(el && el.closest && el.closest(selector)); } catch (_) { return false; }
+  }
+  function fireGoal(goal) {
+    if (firedGoals.has(goal.id) || !hasInteractionConsent()) return;
+    firedGoals.add(goal.id);
+    trackEvent('conversion', window.location.pathname, { goal_id: goal.id, goal_type: goal.type });
+  }
+  function installConversionGoals(goals) {
+    conversionGoals = goals.filter(function (g) { return g && typeof g.id === 'string' && typeof g.selector === 'string'; });
+    if (goalListenersInstalled || conversionGoals.length === 0) return;
+    goalListenersInstalled = true;
+    document.addEventListener('submit', function (e) {
+      conversionGoals.forEach(function (g) { if (g.type === 'form_submission' && goalMatches(e.target, g.selector)) fireGoal(g); });
+    }, true);
+    document.addEventListener('click', function (e) {
+      conversionGoals.forEach(function (g) {
+        if ((g.type === 'element_click' || g.type === 'phone_click') && goalMatches(e.target, g.selector)) fireGoal(g);
+      });
+    }, true);
+    window.addEventListener('cortiq:pageview', function () { firedGoals.clear(); });
   }
 
   // Track clicks on specific elements
@@ -428,7 +464,9 @@
         // Behavioral event (tracking_events)…
         trackEvent('conversion', contentId, {
           form_id: form.id || 'unknown',
-          ...(value > 0 && { value: value, currency: currency })
+          ...(value > 0 && { value: value, currency: currency }),
+          // record-conversion is skipped in cookieless mode; the server stores the row instead.
+          ...(COOKIELESS && { server_record: true })
         });
         // …and the attributable conversion row (conversion_events + Enhanced Conversions).
         recordConversion(form, contentId);
@@ -887,7 +925,7 @@
         const contentId = el.getAttribute('data-wfa-content-id') || window.location.pathname;
         const value = parseFloat(el.getAttribute('data-wfa-value') || '0');
         const currency = el.getAttribute('data-wfa-currency') || 'SEK';
-        trackEvent('conversion', contentId, { ...(value > 0 && { value: value, currency: currency }) });
+        trackEvent('conversion', contentId, { ...(value > 0 && { value: value, currency: currency }), server_record: true });
         if (value > 0) trackEcommercePurchase(contentId, value, currency);
       }
     });
