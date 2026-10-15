@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { anonymizeIP } from '../_shared/jurisdiction.ts';
+import { countryFromTimeZone } from '../_shared/tz-country.js';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,7 +11,7 @@ interface TrackingEventRequest {
   company_id: string;
   content_type: 'image' | 'form' | 'event' | 'survey' | 'chatbot' | 'page';
   content_id: string;
-  event_type: 'view' | 'click' | 'conversion' | 'submission';
+  event_type: 'view' | 'click' | 'conversion' | 'submission' | 'heatmap' | 'form_session';
   platform?: string;
   session_id: string;
   metadata?: {
@@ -119,7 +120,7 @@ Deno.serve(async (req) => {
 
     // Check consent settings
     const consentSettings = company.consent_settings || {};
-    const allowedEventTypes = consentSettings.gdpr_settings?.allowed_event_types || ['view', 'click', 'conversion', 'submission', 'heatmap'];
+    const allowedEventTypes = consentSettings.gdpr_settings?.allowed_event_types || ['view', 'click', 'conversion', 'submission', 'heatmap', 'form_session'];
     
     if (!allowedEventTypes.includes(body.event_type)) {
       console.log('Event type not allowed by consent settings:', body.event_type);
@@ -172,6 +173,66 @@ Deno.serve(async (req) => {
       }
       return new Response(JSON.stringify({ success: true }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // Form sessions (field focus / completion / abandonment from the tracker) and SentriSK
+    // iframe submits feed form_sessions + form_analytics, which the Forms tab reads. Until
+    // 2026-10 form_session was not on the allow-list and was dropped. Only counts and field
+    // names are stored, never field values.
+    const resolveOwnedSite = async () => {
+      const siteId = (body as { site_id?: string }).site_id;
+      if (!siteId) return null;
+      const { data } = await supabase.from('sites').select('id').eq('id', siteId).eq('user_id', company!.id).maybeSingle();
+      return data?.id ?? null;
+    };
+    const num = (v: unknown) => (Number.isFinite(Number(v)) ? Math.round(Number(v)) : null);
+
+    if (body.event_type === 'form_session') {
+      const m = body.metadata || {};
+      const siteId = await resolveOwnedSite();
+      const status = m.status === 'completed' || m.status === 'abandoned' ? m.status : null;
+      if (!siteId || !status || typeof m.form_id !== 'string' || !m.form_id) {
+        return new Response(JSON.stringify({ success: false, error: 'Invalid form_session event' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      const fieldData = Array.isArray(m.field_data) ? m.field_data : [];
+      const { error: formError } = await supabase.rpc('record_form_session', {
+        p_site_id: siteId,
+        p_session_id: body.session_id ?? null,
+        p_form_id: m.form_id,
+        p_form_name: typeof m.form_name === 'string' ? m.form_name : null,
+        p_form_type: typeof m.form_type === 'string' ? m.form_type : 'custom',
+        p_status: status,
+        p_duration_seconds: num(m.duration_seconds),
+        p_fields_completed: num(m.fields_completed),
+        p_total_fields: num(m.total_fields),
+        p_error_count: fieldData.reduce((sum: number, f: { errors?: unknown }) => sum + (num(f?.errors) ?? 0), 0),
+        p_device_type: typeof m.device_type === 'string' ? m.device_type : null,
+      });
+      if (formError) {
+        console.error('Failed to record form session:', formError);
+        return new Response(JSON.stringify({ success: false, error: 'Failed to store form session' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      return new Response(JSON.stringify({ success: true }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // A SentriSK submit is also kept as a conversion event below; here it is counted as a
+    // completed form. Starts are not visible inside the cross-origin iframe.
+    if (body.event_type === 'conversion' && body.metadata?.form_provider === 'sentrisk'
+        && typeof body.metadata.form_id === 'string') {
+      const siteId = await resolveOwnedSite();
+      if (siteId) {
+        const { error: sentriskError } = await supabase.rpc('record_form_session', {
+          p_site_id: siteId, p_session_id: body.session_id ?? null, p_form_id: body.metadata.form_id,
+          p_form_name: `SentriSK Form (${body.metadata.form_id.replace(/^sentrisk_/, '').slice(0, 8)}...)`,
+          p_form_type: 'sentrisk', p_status: 'completed', p_duration_seconds: 0,
+          p_fields_completed: 0, p_total_fields: 0, p_error_count: 0,
+          p_device_type: typeof body.metadata.device_type === 'string' ? body.metadata.device_type : null,
+        });
+        if (sentriskError) console.error('SentriSK form session failed (non-fatal):', sentriskError);
+      }
     }
 
     // Generate UUID from content_id if it's not already a UUID
@@ -296,9 +357,11 @@ Deno.serve(async (req) => {
             p_device: metadata.device_type ?? null,
             p_referrer: metadata.referrer ?? null,
             p_viewed_at: body.timestamp ? new Date(body.timestamp).toISOString() : new Date().toISOString(),
-            // Country only (ISO alpha-2, set by Cloudflare in front of Supabase Edge);
-            // ingest_pageview drops XX/T1/non-ISO values.
-            p_country: req.headers.get('cf-ipcountry'),
+            // Country only (ISO alpha-2). Supabase Edge no longer forwards CF-IPCountry
+            // (checked 2026-10-15), so the browser time zone the tracker sends is the
+            // estimate; the header still wins if it comes back. ingest_pageview drops
+            // XX/T1/non-ISO values.
+            p_country: req.headers.get('cf-ipcountry') ?? countryFromTimeZone(body.metadata?.timezone),
           });
         } else if (resolvedSiteId) {
           console.warn('page_view bridge: domain-resolved site not owned by caller; skipping', {

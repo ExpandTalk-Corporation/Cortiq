@@ -1,9 +1,10 @@
 /**
  * Locations tab: sessions per visitor country.
  *
- * Country is the ISO code Cloudflare reports for the request (CF-IPCountry), stamped on
- * the session by track-event → ingest_pageview. No IP, region or city is stored, so the
- * map shows one marker per country at its geographic centre.
+ * Country is estimated from the visitor's browser time zone (tracker 5.5.4+), mapped to an
+ * ISO code by track-event and stamped on the session by ingest_pageview. No IP lookup is
+ * made and no region or city is stored, so the map shows one marker per country at its
+ * geographic centre.
  */
 
 import { useMemo } from 'react';
@@ -103,7 +104,8 @@ export function GeolocationDashboard({ siteId }: GeolocationDashboardProps) {
       <p>{error ? 'Failed to load location data' : 'No country data for this period yet'}</p>
       {!error && (
         <p className="text-xs mt-1">
-          Country is recorded on new sessions from 2026-10-15; earlier sessions show as Unknown.
+          Country is estimated from the browser time zone on new sessions from tracker 5.5.4
+          (2026-10-15). Earlier sessions, and visitors whose time zone is not set, show as Unknown.
         </p>
       )}
     </div>
@@ -176,7 +178,10 @@ export function GeolocationDashboard({ siteId }: GeolocationDashboardProps) {
                 <MapPin className="h-5 w-5" />
                 World Map
               </CardTitle>
-              <CardDescription>Sessions per country, one marker per country</CardDescription>
+              <CardDescription>
+                Sessions per country, one marker per country. Country is estimated from the visitor's
+                browser time zone; no IP address is looked up.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="w-full h-96 rounded-lg border overflow-hidden">

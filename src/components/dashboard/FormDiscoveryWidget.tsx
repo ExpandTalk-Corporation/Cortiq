@@ -18,7 +18,8 @@ const FORM_TYPE_LABELS: Record<string, string> = {
   contact7: 'Contact Form 7',
   custom: 'Custom',
   generic: 'Generic HTML',
-  traffikboost: 'Traffikboost',
+  sentrisk: 'SentriSK',
+  traffikboost: 'SentriSK', // rows detected before the rename
   woocommerce_checkout: 'WooCommerce',
 };
 

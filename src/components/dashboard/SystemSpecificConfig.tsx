@@ -82,21 +82,19 @@ const systemConfigs = {
     ],
     webhookExample: 'https://your-site.com/api/eloqua-webhook'
   },
-  traffikboost: {
-    name: 'Traffikboost',
+  sentrisk: {
+    name: 'SentriSK',
     fields: {
-      accountId: { label: 'Account ID', type: 'text', required: true, placeholder: 'tb_...' },
-      apiKey: { label: 'API Key', type: 'password', required: true, placeholder: 'Traffikboost API key' },
-      pixelId: { label: 'Pixel ID', type: 'text', required: false, placeholder: 'Tracking pixel ID' },
-      conversionGoals: { label: 'Conversion Goals', type: 'textarea', required: false, placeholder: 'lead,purchase,signup (comma-separated)' }
+      formIds: { label: 'SentriSK form IDs', type: 'textarea', required: false, placeholder: 'Optional: form UUIDs, one per line (found automatically when left empty)' }
     },
     instructions: [
-      'Log in to Traffikboost Dashboard',
-      'Go to Settings → API Settings',
-      'Generate a new API key',
-      'Copy Account ID from the Dashboard header'
+      'Embed the form with the SentriSK WordPress plugin ([sentrisk_form id="..."]), the SentriSK block, or sentrisk-embed.js',
+      'Install the CortIQ tracking script (5.5.4 or later) or the CortIQ WordPress plugin on the same pages',
+      'No API key is needed: the SentriSK form reports each submission to the CortIQ tracker on the page, which records it as a form conversion',
+      'Forms are discovered automatically under Conversion Goals; give them a label there',
+      'Field-level drop-off is not available: the form runs in a SentriSK iframe, so CortIQ sees submissions, not individual fields'
     ],
-    webhookExample: 'https://your-site.com/api/traffikboost-webhook'
+    webhookExample: 'https://www.sentrisk.se/embed/<form-id>'
   },
   contact_form_7: {
     name: 'Contact Form 7',

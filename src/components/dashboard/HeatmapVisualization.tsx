@@ -140,7 +140,7 @@ export function HeatmapVisualization({
   };
 
   const currentScreenshot = getScreenshotForPage(screenshots, selectedUrl, filters?.deviceType || 'desktop');
-  const validScreenshot = currentScreenshot; // Show both real screenshots and placeholders
+  const validScreenshot = currentScreenshot;
   
   // Above the fold line (responsive based on device type)
   const getFoldLine = (deviceType: string) => {
@@ -276,6 +276,11 @@ export function HeatmapVisualization({
                     {filters.deviceType}
                   </span>
                 )}
+                {' '}on this page. Each dot is a cluster of interactions at that position; warmer colours
+                mean more interactions. The dashed line marks the fold for the selected device, so
+                anything below it was only reached by visitors who scrolled. Positions are laid over a
+                screenshot of the page, so take or update the screenshot after a redesign. Data comes from
+                the CortIQ tracking script and is recorded only for visitors who accepted analytics cookies.
               </CardDescription>
             </div>
           </div>
@@ -498,13 +503,15 @@ export function HeatmapVisualization({
                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center z-30 bg-black/50 backdrop-blur-sm">
                          <div className="bg-white/90 rounded-lg p-6 max-w-md">
                            <div className="text-4xl mb-4">🔍</div>
-                           <h3 className="text-lg font-medium text-gray-800 mb-2">No heatmap data</h3>
+                           <h3 className="text-lg font-medium text-gray-800 mb-2">No heatmap data yet</h3>
                            <p className="text-sm text-gray-600">
-                             There is no {filters?.interactionType === 'all' ? 'interaction' : filters?.interactionType || 'click'} data for this page in the selected time period.
+                             No {filters?.interactionType === 'all' ? 'interaction' : filters?.interactionType || 'click'} data was recorded for this page in the selected period.
                            </p>
-                           <div className="mt-4 text-xs text-gray-500">
-                             Install the WordPress plugin to start collecting data
-                           </div>
+                           <ul className="mt-4 text-xs text-gray-600 text-left list-disc pl-5 space-y-1">
+                             <li>Install the CortIQ tracking script or the WordPress plugin on the site (Setup tab).</li>
+                             <li>Heatmap data is recorded only for visitors who accept analytics cookies.</li>
+                             <li>Pick a page with traffic above, or widen the period in the filters below.</li>
+                           </ul>
                          </div>
                        </div>
                      )}

@@ -17,7 +17,7 @@ interface HeatmapTabProps {
 export function HeatmapTab({ siteId, selectedSite, dateRange }: HeatmapTabProps) {
   const [filters, setFilters] = useState<HeatmapFiltersType>({
     deviceType: 'all',
-    days: 365, // Visa alla tillgängliga data som standard
+    days: 365, // Show all available data by default
     interactionType: 'click'
   });
 
@@ -57,21 +57,7 @@ export function HeatmapTab({ siteId, selectedSite, dateRange }: HeatmapTabProps)
         placeholder="Select page for heatmap analysis"
       />
       
-      <HeatmapFilters 
-        filters={filters}
-        onFiltersChange={handleFiltersChange}
-        onApplyFilters={handleApplyFilters}
-        loading={loading}
-      />
-      
-      {/* Mobile-specific insights when mobile filter is active */}
-      {isMobileFilter && (
-        <MobileHeatmapInsights 
-          heatmapData={heatmapData}
-          loading={loading}
-        />
-      )}
-      
+      {/* Visualization first; filters refine it below. */}
       {filters.interactionType === 'scroll' ? (
         <ScrollDepthChart
           heatmapData={heatmapData}
@@ -87,6 +73,22 @@ export function HeatmapTab({ siteId, selectedSite, dateRange }: HeatmapTabProps)
           siteId={siteId}
         />
       )}
+
+      <HeatmapFilters 
+        filters={filters}
+        onFiltersChange={handleFiltersChange}
+        onApplyFilters={handleApplyFilters}
+        loading={loading}
+      />
+      
+      {/* Mobile-specific insights when mobile filter is active */}
+      {isMobileFilter && (
+        <MobileHeatmapInsights 
+          heatmapData={heatmapData}
+          loading={loading}
+        />
+      )}
+      
     </div>
   );
 }

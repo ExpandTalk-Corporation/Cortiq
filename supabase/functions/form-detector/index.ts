@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { assertSafeUrl } from '../_shared/safe-url.ts';
 import { detectForms } from '../_shared/form-detection.ts';
+import { detectSentriskForms } from '../_shared/sentrisk-forms.js';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -115,30 +116,22 @@ serve(async (req) => {
       }
     }
 
-    // Detektera Traffikboost formulär
-    const traffikboostMatches = html.match(/\[traffikboost_form[^\]]*type="([^"]*)"/g);
-    if (traffikboostMatches) {
-      for (const match of traffikboostMatches) {
-        const typeMatch = match.match(/type="([^"]*)"/);
-        
-        if (typeMatch) {
-          const formType = typeMatch[1];
-          const formId = `traffikboost_${formType}`;
-          const formName = `Traffikboost ${formType} Form`;
-          
-          detectedForms.push({
-            form_id: formId,
-            form_name: formName,
-            form_type: 'traffikboost',
-            form_url: url,
-            site_id: siteId,
-            detection_method: 'shortcode_scan',
-            last_detected: new Date().toISOString()
-          });
-          
-          console.log(`Detected Traffikboost form: ${formName} (${formId})`);
-        }
-      }
+    // SentriSK forms (formerly Traffikboost): a cross-origin iframe to sentrisk.se/embed/<uuid>.
+    // form_id matches what the tracker reports on submit ('sentrisk_' + formConfigId).
+    for (const hit of detectSentriskForms(html)) {
+      const label = hit.formId.startsWith('slot:') ? `slot "${hit.formId.slice(5)}"`
+        : hit.formId.startsWith('type:') ? `${hit.formId.slice(5)} form`
+        : `${hit.formId.slice(0, 8)}...`;
+      detectedForms.push({
+        form_id: `sentrisk_${hit.formId}`,
+        form_guid: `sentrisk_${hit.formId}`,
+        form_name: `SentriSK Form (${label})`,
+        form_type: 'sentrisk',
+        form_url: url,
+        site_id: siteId,
+        detection_method: `sentrisk_${hit.method}`,
+        last_detected: new Date().toISOString(),
+      });
     }
 
     // Detektera vanliga HTML formulär
