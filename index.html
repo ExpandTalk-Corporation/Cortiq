@@ -94,8 +94,9 @@
   <body>
     <div id="root"><!--app-html--></div>
 
-    <!-- CortIQ self-tracking is disabled. If re-enabled, inject window.cortiqConfig
-         from VITE_CORTIQ_* env vars at build time — never hardcode credentials here. -->
+    <!-- CortIQ self-measurement, injected at build time from VITE_CORTIQ_SITE_ID /
+         VITE_CORTIQ_TRACKING_KEY (see scripts/self-tracking-snippet.mjs). Empty when unset. -->
+    <!--cortiq-self-tracking-->
 
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json" />
