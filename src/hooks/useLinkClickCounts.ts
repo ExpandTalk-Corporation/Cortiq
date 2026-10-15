@@ -12,23 +12,23 @@ export interface LinkClickRow {
   tablet_clicks: number;
 }
 
-export function useLinkClickCounts(siteId: string | null, days: number = 30) {
+/** Per-link click tallies for an inclusive 'YYYY-MM-DD' range (the dashboard's global filter). */
+export function useLinkClickCounts(siteId: string | null, from: string, to: string) {
   const [rows, setRows] = useState<LinkClickRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const reload = async (windowDays: number = days) => {
+  const reload = async () => {
     if (!siteId) { setRows([]); return; }
     setLoading(true);
     setError(null);
     try {
-      const since = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000)
-        .toISOString().slice(0, 10);
       const { data, error: qErr } = await supabase
         .from('link_click_counts')
         .select('page_path, link_kind, link_key, link_label, device_type, click_count, day')
         .eq('site_id', siteId)
-        .gte('day', since);
+        .gte('day', from)
+        .lte('day', to);
       if (qErr) throw qErr;
 
       const map = new Map<string, LinkClickRow>();
@@ -59,7 +59,7 @@ export function useLinkClickCounts(siteId: string | null, days: number = 30) {
     }
   };
 
-  useEffect(() => { reload(days); /* eslint-disable-next-line */ }, [siteId, days]);
+  useEffect(() => { reload(); /* eslint-disable-next-line */ }, [siteId, from, to]);
 
   return { rows, loading, error, reload };
 }

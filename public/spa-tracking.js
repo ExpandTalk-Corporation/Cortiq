@@ -1,7 +1,7 @@
 /**
  * CortIQ Advanced Tracking Script
  * Unified visitor profiling with AI agent detection
- * Version: 5.5.5 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
+ * Version: 5.5.6 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
  *
  * Usage:
  * <script>
@@ -17,7 +17,7 @@
   'use strict';
 
   // Keep in sync with wordpress-plugin/cortiq-analytics.php (CORTIQ_VERSION).
-  const CORTIQ_VERSION = '5.5.5';
+  const CORTIQ_VERSION = '5.5.6';
 
   // Configuration: window.cortiqConfig, overridden by data-* attributes on this script
   // tag, so a single-tag install (<script src=… data-site-id=…>) works and a tag that
@@ -566,6 +566,82 @@
   }
 
   // Track scroll depth milestones (25%, 50%, 75%, 100%)
+  // Content performance: elements marked data-cortiq-content="id" (optional
+  // data-cortiq-content-name / -type). One impression per element per page when at least half
+  // of it is visible, one click per element per page. Batched; only counts leave the browser.
+  function setupContentTracking() {
+    if (!hasInteractionConsent()) {
+      deferUntilInteractionConsent(setupContentTracking);
+      return;
+    }
+    if (typeof document.querySelectorAll !== 'function') return;
+    const SELECTOR = '[data-cortiq-content]';
+    const seen = { impression: new Set(), click: new Set() };
+    let queue = [];
+    let timer = null;
+
+    function describe(el) {
+      const id = (el.getAttribute('data-cortiq-content') || '').trim().slice(0, 100);
+      if (!id) return null;
+      const name = (el.getAttribute('data-cortiq-content-name') || el.getAttribute('aria-label') || el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 80);
+      const type = (el.getAttribute('data-cortiq-content-type') || el.tagName.toLowerCase()).slice(0, 50);
+      return { id: id, name: name, type: type };
+    }
+    function flush() {
+      timer = null;
+      if (!queue.length || !hasInteractionConsent()) { queue = []; return; }
+      const items = queue.splice(0, 50);
+      const apiKey = API_KEY || SITE_ID;
+      try {
+        fetch(`${API_URL}/track-event`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            company_id: SITE_ID, site_id: SITE_ID, session_id: SESSION_ID,
+            event_type: 'content', content_type: 'page', content_id: window.location.pathname,
+            platform: PLATFORM, metadata: { url: window.location.href, items: items }, timestamp: Date.now(),
+          }),
+          keepalive: true,
+        }).catch(function () {});
+      } catch (_) {}
+      if (queue.length) timer = setTimeout(flush, 2000);
+    }
+    function record(el, action) {
+      const d = describe(el);
+      if (!d || seen[action].has(d.id) || !hasInteractionConsent()) return;
+      seen[action].add(d.id);
+      queue.push({ id: d.id, name: d.name, type: d.type, action: action });
+      if (!timer) timer = setTimeout(flush, 2000);
+    }
+
+    const io = typeof IntersectionObserver === 'function'
+      ? new IntersectionObserver(function (entries) {
+          entries.forEach(function (e) { if (e.isIntersecting) record(e.target, 'impression'); });
+        }, { threshold: 0.5 })
+      : null;
+    function scan(root) {
+      if (!io || !root || typeof root.querySelectorAll !== 'function') return;
+      if (root.matches && root.matches(SELECTOR)) io.observe(root);
+      root.querySelectorAll(SELECTOR).forEach(function (el) { io.observe(el); });
+    }
+    scan(document);
+    if (typeof MutationObserver !== 'undefined' && document.body) {
+      new MutationObserver(function (muts) {
+        muts.forEach(function (m) { m.addedNodes.forEach(function (n) { if (n.nodeType === 1) scan(n); }); });
+      }).observe(document.body, { childList: true, subtree: true });
+    }
+    document.addEventListener('click', function (e) {
+      const el = e.target && e.target.closest && e.target.closest(SELECTOR);
+      if (el) record(el, 'click');
+    }, true);
+    window.addEventListener('cortiq:pageview', function () {
+      seen.impression.clear(); seen.click.clear();
+      if (io) { io.disconnect(); setTimeout(function () { scan(document); }, 0); }
+    });
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', function () { if (document.hidden) flush(); });
+  }
+
   function setupScrollTracking() {
     // Scroll tracking is gated both at setup and when each event is captured.
     if (!hasInteractionConsent()) {
@@ -1194,6 +1270,7 @@
       setupClickTracking();
       setupConversionTracking();
       setupScrollTracking();
+      setupContentTracking();
       setupClickHeatmap();
       setupInteractionTracking();
       setupFormAnalytics();

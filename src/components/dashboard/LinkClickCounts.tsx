@@ -1,18 +1,18 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link as LinkIcon, MousePointer } from 'lucide-react';
 import { useLinkClickCounts } from '@/hooks/useLinkClickCounts';
+import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
 
 interface LinkClickCountsProps {
   siteId: string | null;
 }
 
 export function LinkClickCounts({ siteId }: LinkClickCountsProps) {
-  const [days, setDays] = useState(30);
-  const { rows, loading, error } = useLinkClickCounts(siteId, days);
+  const { filters } = useDashboardFilters();
+  const { rows, loading, error } = useLinkClickCounts(siteId, filters.from, filters.to);
 
   return (
     <Card>
@@ -21,14 +21,6 @@ export function LinkClickCounts({ siteId }: LinkClickCountsProps) {
           <CardTitle className="flex items-center gap-2">
             <LinkIcon className="h-5 w-5" /> Link clicks (aggregate)
           </CardTitle>
-          <Select value={days.toString()} onValueChange={(v) => setDays(parseInt(v))}>
-            <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7">7 days</SelectItem>
-              <SelectItem value="30">30 days</SelectItem>
-              <SelectItem value="90">90 days</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
         <p className="text-sm text-muted-foreground">
           Anonymous per-link tallies, counted after analytics consent. Works in cookieless mode.
