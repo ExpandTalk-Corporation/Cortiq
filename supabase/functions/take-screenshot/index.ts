@@ -34,17 +34,24 @@ serve(async (req) => {
       );
     }
 
-    // Only the site's owner may screenshot for it: the service-role client below writes
-    // sites.screenshot_urls, so ownership is checked with the caller's own JWT first.
-    const userClient = createClient(
+    const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
-        auth: { autoRefreshToken: false, persistSession: false } }
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
     );
-    const { data: { user } } = await userClient.auth.getUser();
+
+    // Only the site's owner may screenshot for it: this client writes sites.screenshot_urls
+    // with the service role, so the caller's JWT is verified and ownership checked first.
+    // supabase-js 2.7 reads getUser() from a local session, so the token is passed explicitly.
+    const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
+    const { data: { user } } = token ? await supabase.auth.getUser(token) : { data: { user: null } };
     const { data: ownedSite } = user
-      ? await userClient.from('sites').select('id').eq('id', siteId).eq('user_id', user.id).maybeSingle()
+      ? await supabase.from('sites').select('id').eq('id', siteId).eq('user_id', user.id).maybeSingle()
       : { data: null };
     if (!ownedSite) {
       return new Response(
@@ -61,16 +68,6 @@ serve(async (req) => {
       );
     }
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    );
 
     // Set viewport dimensions based on device type
     const viewports = {
