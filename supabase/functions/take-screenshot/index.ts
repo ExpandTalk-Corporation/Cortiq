@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.3";
 import { assertSafeUrl } from "../_shared/safe-url.ts";
 
 const corsHeaders = {
@@ -47,7 +47,7 @@ serve(async (req) => {
 
     // Only the site's owner may screenshot for it: this client writes sites.screenshot_urls
     // with the service role, so the caller's JWT is verified and ownership checked first.
-    // supabase-js 2.7 reads getUser() from a local session, so the token is passed explicitly.
+    // The token is passed to getUser() explicitly: the client has no session of its own.
     const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
     const { data: { user } } = token ? await supabase.auth.getUser(token) : { data: { user: null } };
     const { data: ownedSite } = user
