@@ -6,7 +6,7 @@
  * Supports country, region, and city level data
  */
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.3';
+import { createClient } from '../_shared/supabase.ts';
 
 const GEOLOCATION_API = 'https://geoip-api.com/api/geoip/';
 

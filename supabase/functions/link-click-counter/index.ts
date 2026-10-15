@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from '../_shared/supabase.ts';
 import { sanitize } from './sanitize.ts';
 import { resolveSite } from "../_shared/resolve-site.ts";
 

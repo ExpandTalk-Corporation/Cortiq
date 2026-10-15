@@ -5,7 +5,7 @@
 // click_id_consent_given = true. Unmatched contacts are dropped (no insert).
 // google-ads-quality-upload re-checks current consent before any export.
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from '../_shared/supabase.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

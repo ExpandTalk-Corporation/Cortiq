@@ -11,7 +11,7 @@
  *   if (segment) metadata.ip_segment_name = segment.name;
  */
 
-import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import type { SupabaseClient } from './supabase.ts';
 
 export interface IPSegmentMatch {
   segment_id: string;

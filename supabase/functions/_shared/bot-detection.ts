@@ -17,7 +17,7 @@
  *   permissive       — raw IP, raw UA stored
  */
 
-import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import type { SupabaseClient } from './supabase.ts';
 import type { PipelineMode } from './jurisdiction.ts';
 import { anonymizeIP } from './jurisdiction.ts';
 

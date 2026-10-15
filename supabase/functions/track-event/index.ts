@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from '../_shared/supabase.ts';
 import { anonymizeIP } from '../_shared/jurisdiction.ts';
 import { countryFromTimeZone } from '../_shared/tz-country.js';
 

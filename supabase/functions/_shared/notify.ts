@@ -14,7 +14,7 @@
  * Supported channels: telegram, webhook.
  */
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.3';
+import { createClient } from './supabase.ts';
 
 type SupabaseClient = ReturnType<typeof createClient>;
 

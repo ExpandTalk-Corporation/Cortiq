@@ -16,7 +16,7 @@
  *   • Legal basis: legitimate interest (fraud/bot detection).
  */
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.3';
+import { createClient } from '../_shared/supabase.ts';
 import { anonymizeIP } from '../_shared/jurisdiction.ts';
 import { deriveUACategory } from '../_shared/bot-detection.ts';
 import { dispatchNotifications } from '../_shared/notify.ts';

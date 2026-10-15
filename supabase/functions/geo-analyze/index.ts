@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.3';
+import { createClient } from '../_shared/supabase.ts';
 import { analyzeCitability as scorePageCitability } from '../_shared/geo/citability.ts';
 import {
   AI_CRAWLERS, CITATION_CRAWLERS, parseRobots, checkLlmsTxt, checkRendering, checkSecurityHeaders,

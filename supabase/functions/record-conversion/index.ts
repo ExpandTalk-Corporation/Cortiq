@@ -10,7 +10,7 @@
 //    row. upload_status is set so the Google Ads upload only ever sends rows where
 //    consent was actually given at capture time.
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from '../_shared/supabase.ts';
 import { getSessionConsent } from '../_shared/session-consent.ts';
 import { resolveSite } from "../_shared/resolve-site.ts";
 

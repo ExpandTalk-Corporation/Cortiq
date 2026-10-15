@@ -3,7 +3,7 @@
 // GDPR: only uploads leads where click_id_consent_given = true on the originating session.
 // Called as a scheduled daily batch (cron or manual trigger from dashboard).
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from '../_shared/supabase.ts';
 import { getSessionConsent } from '../_shared/session-consent.ts';
 
 const corsHeaders = {

@@ -3,7 +3,7 @@
 // the client. The browser can only: check whether a key exists (status), set one,
 // or remove it. Ownership is enforced via the caller's JWT against sites.user_id.
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from '../_shared/supabase.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

@@ -5,7 +5,7 @@
  * Handles media event tracking and analytics aggregation
  */
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.3';
+import { createClient } from '../_shared/supabase.ts';
 
 interface MediaEvent {
   media_id: string;
