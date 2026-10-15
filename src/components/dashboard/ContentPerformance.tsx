@@ -5,8 +5,6 @@
  * Track impressions, clicks, and CTR for specific content elements
  */
 
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -19,81 +17,17 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { ExportButton } from './ExportButton';
 import { Eye, MousePointer, TrendingUp } from 'lucide-react';
-import { toast } from 'sonner';
-
-interface ContentMetrics {
-  content_id: string;
-  content_name: string;
-  content_type: string;
-  impressions: number;
-  clicks: number;
-  hovers: number;
-  ctr: number;
-}
+import { useContentPerformance } from '@/hooks/useContentPerformance';
+import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
 
 interface ContentPerformanceProps {
   siteId: string;
-  dateRange: { from: string; to: string };
 }
 
-export function ContentPerformance({ siteId, dateRange }: ContentPerformanceProps) {
-  const [content, setContent] = useState<ContentMetrics[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadContentPerformance();
-  }, [siteId, dateRange]);
-
-  async function loadContentPerformance() {
-    try {
-      setLoading(true);
-
-      const { data, error } = await supabase
-        .from('content_performance')
-        .select('*')
-        .eq('site_id', siteId)
-        .gte('date', dateRange.from.split('T')[0])
-        .lte('date', dateRange.to.split('T')[0]);
-
-      if (error) throw error;
-
-      // Aggregate by content_id
-      const aggregated = (data || []).reduce((acc, item) => {
-        const existing = acc.find((c: any) => c.content_id === item.content_id);
-        if (existing) {
-          existing.impressions += item.impressions;
-          existing.clicks += item.clicks;
-          existing.hovers += item.hovers;
-        } else {
-          acc.push({
-            content_id: item.content_id,
-            content_name: item.content_name,
-            content_type: item.content_type,
-            impressions: item.impressions,
-            clicks: item.clicks,
-            hovers: item.hovers,
-            ctr: 0
-          });
-        }
-        return acc;
-      }, [] as ContentMetrics[]);
-
-      // Calculate CTR
-      aggregated.forEach((item: ContentMetrics) => {
-        item.ctr = item.impressions > 0 ? (item.clicks / item.impressions) * 100 : 0;
-      });
-
-      // Sort by impressions
-      aggregated.sort((a: ContentMetrics, b: ContentMetrics) => b.impressions - a.impressions);
-
-      setContent(aggregated);
-    } catch (error) {
-      console.error('Error loading content performance:', error);
-      toast.error('Failed to load content performance');
-    } finally {
-      setLoading(false);
-    }
-  }
+export function ContentPerformance({ siteId }: ContentPerformanceProps) {
+  const { filters } = useDashboardFilters();
+  const dateRange = { from: filters.from, to: filters.to };
+  const { data: content = [], isLoading: loading, error } = useContentPerformance(siteId);
 
   const totalImpressions = content.reduce((sum, c) => sum + c.impressions, 0);
   const totalClicks = content.reduce((sum, c) => sum + c.clicks, 0);
@@ -166,10 +100,14 @@ export function ContentPerformance({ siteId, dateRange }: ContentPerformanceProp
           ) : content.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Eye className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p>No content tracked yet</p>
-              <p className="text-sm mt-2">
-                Add <code className="bg-muted px-2 py-1 rounded">data-cortiq-content="id"</code> to elements
-              </p>
+              <p>{error ? 'Failed to load content performance' : 'No content tracked in this period'}</p>
+              {!error && (
+                <p className="text-sm mt-2 max-w-md mx-auto">
+                  Add <code className="bg-muted px-2 py-1 rounded">data-cortiq-content="id"</code> to the elements you want
+                  to measure (see the guide below). Counting needs tracking script 5.5.6 or later (WordPress plugin 5.5.6)
+                  and only includes visitors who accepted analytics cookies.
+                </p>
+              )}
             </div>
           ) : (
             <Table>
@@ -179,7 +117,6 @@ export function ContentPerformance({ siteId, dateRange }: ContentPerformanceProp
                   <TableHead>Type</TableHead>
                   <TableHead className="text-right">Impressions</TableHead>
                   <TableHead className="text-right">Clicks</TableHead>
-                  <TableHead className="text-right">Hovers</TableHead>
                   <TableHead className="text-right">CTR</TableHead>
                 </TableRow>
               </TableHeader>
@@ -197,7 +134,6 @@ export function ContentPerformance({ siteId, dateRange }: ContentPerformanceProp
                     </TableCell>
                     <TableCell className="text-right">{item.impressions.toLocaleString()}</TableCell>
                     <TableCell className="text-right">{item.clicks.toLocaleString()}</TableCell>
-                    <TableCell className="text-right">{item.hovers.toLocaleString()}</TableCell>
                     <TableCell className="text-right">
                       <span className={item.ctr >= 5 ? 'text-green-600 font-medium' : ''}>
                         {item.ctr.toFixed(2)}%
@@ -249,9 +185,9 @@ export function ContentPerformance({ siteId, dateRange }: ContentPerformanceProp
           <div>
             <h4 className="font-semibold mb-2">Tracked Events</h4>
             <ul className="text-sm text-muted-foreground space-y-1">
-              <li>• <strong>Impression:</strong> Element enters viewport</li>
-              <li>• <strong>Click:</strong> Element is clicked</li>
-              <li>• <strong>Hover:</strong> Mouse hovers over element (&gt;1 second)</li>
+              <li>• <strong>Impression:</strong> at least half of the element is visible (once per element per page view)</li>
+              <li>• <strong>Click:</strong> the element or anything inside it is clicked (once per element per page view)</li>
+              <li>• Only aggregate counts per element and day are stored; no visitor identifiers.</li>
             </ul>
           </div>
         </CardContent>

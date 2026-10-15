@@ -54,7 +54,7 @@ const RealTimeWidget               = lazy(() => import('./RealTimeWidget').then(
 
 // Tabs that receive the global date range (directly or as derived start/end dates).
 const DATE_AWARE = new Set([
-  'analytics', 'geolocation', 'campaigns', 'content-performance', 'content-tracking',
+  'analytics', 'geolocation', 'campaigns', 'content-performance', 'content-tracking', 'navigation',
   'paid-ads-server', 'click-fraud', 'cookiefree', 'heatmap', 'forms', 'agent-ops', 'ip-segments',
   'server-logs',
 ]);
@@ -335,13 +335,7 @@ function DashboardTabsInner({ selectedSite, analytics, dateRange, onSiteDeleted,
 
       <TabsContent value="content-performance" className="space-y-6">
         <TabErrorBoundary tabName="Content Performance">
-          <ContentPerformance
-            siteId={selectedSite.id}
-            dateRange={{
-              from: dateRange?.from?.toISOString() ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-              to: dateRange?.to?.toISOString() ?? new Date().toISOString(),
-            }}
-          />
+          <ContentPerformance siteId={selectedSite.id} />
         </TabErrorBoundary>
       </TabsContent>
 

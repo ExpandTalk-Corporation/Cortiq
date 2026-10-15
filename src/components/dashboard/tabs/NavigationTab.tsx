@@ -1,37 +1,18 @@
-import React, { useState } from 'react';
-import { NavigationAnalytics } from '@/components/dashboard/NavigationAnalytics';
+import React from 'react';
+import { NavigationFlow } from '@/components/dashboard/NavigationFlow';
 import { LinkClickCounts } from '@/components/dashboard/LinkClickCounts';
-import { NavigationSync } from '@/components/dashboard/NavigationSync';
-import { DateRangePicker } from '@/components/dashboard/DateRangePicker';
-import { DashboardCard } from '@/components/dashboard/DashboardCard';
-import { DateRange } from 'react-day-picker';
 import type { Site } from '@/types/dashboard';
 
 interface NavigationTabProps {
   selectedSite: Site;
 }
 
+// Both widgets follow the dashboard's global date range. The previous analytics widget
+// read a navigation table that nothing writes, so it is no longer shown.
 export function NavigationTab({ selectedSite }: NavigationTabProps) {
-  const [dateRange, setDateRange] = useState<DateRange | undefined>();
-
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Date Range Picker */}
-      <DashboardCard title="Period" variant={1}>
-        <DateRangePicker 
-          dateRange={dateRange}
-          onDateRangeChange={setDateRange}
-        />
-      </DashboardCard>
-
-      {/* Navigation Sync */}
-      {selectedSite && <NavigationSync selectedSite={selectedSite} />}
-      
-      <NavigationAnalytics
-        siteId={selectedSite?.id || null}
-        selectedSite={selectedSite}
-      />
-
+      <NavigationFlow siteId={selectedSite.id} />
       <LinkClickCounts siteId={selectedSite?.id || null} />
     </div>
   );

@@ -3,7 +3,7 @@ Contributors: cortiq
 Tags: analytics, ai-tracking, heatmap, cookie-free, gdpr, chatgpt, ai-bots
 Requires at least: 5.6
 Tested up to: 6.8
-Stable tag: 5.5.5
+Stable tag: 5.5.6
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -86,6 +86,10 @@ All data is stored in the EU (AWS eu-north-1 via Supabase).
 The tracking script is loaded with `defer` so it does not block rendering.
 
 == Changelog ==
+
+= 5.5.6 =
+* Conversion goals from the CortIQ dashboard (form submits, clicks) are now recorded.
+* Content performance: elements marked data-cortiq-content are counted (impressions and clicks, aggregate only).
 
 = 5.5.5 =
 * The `excludePaths` setting now also skips page views (including single-page-app route changes), not only bot detection.
