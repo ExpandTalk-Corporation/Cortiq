@@ -23,7 +23,6 @@ export const NAV_SECTIONS: NavSection[] = [
     { value: 'navigation', label: 'Navigation flow' },
     { value: 'content-performance', label: 'Content' },
     { value: 'heatmap', label: 'Heatmaps' },
-    { value: 'session-recording', label: 'Session recording' },
     { value: 'forms', label: 'Forms' },
   ] },
   { number: 4, label: 'AI agents', items: [
@@ -36,7 +35,6 @@ export const NAV_SECTIONS: NavSection[] = [
   ] },
   { number: 5, label: 'Conversions', items: [
     { value: 'conversion-goals', label: 'Goals' },
-    { value: 'abtesting', label: 'A/B testing' },
     { value: 'user-ltv', label: 'LTV & cohorts' },
   ] },
   { number: 6, label: 'Reports', items: [
@@ -56,7 +54,6 @@ export const SETTINGS_ITEMS: NavItem[] = [
   { value: 'notifications', label: 'Notifications' },
   { value: 'tag-manager', label: 'Tag manager' },
   { value: 'warehouse', label: 'Data warehouse' },
-  { value: 'advanced-features', label: 'Web vitals & white label' },
   { value: 'segments', label: 'Segments' },
   { value: 'utm-segments', label: 'UTM segments' },
   { value: 'ip-segments', label: 'Network segments' },
@@ -65,5 +62,14 @@ export const SETTINGS_ITEMS: NavItem[] = [
   { value: 'agent-macros', label: 'Agent macros' },
   { value: 'agent-registry', label: 'Agent registry' },
 ];
+
+// Removed from the menu until they collect data (2026-10-15): nothing records sessions
+// (no rrweb), visitors are never assigned an A/B variant, and web vitals aggregates, cohorts
+// and segments have no writer. An old ?tab= link shows this message instead of an empty view.
+export const HIDDEN_TABS: Record<string, string> = {
+  'session-recording': 'Session recording is not available yet.',
+  abtesting: 'A/B testing is not available yet.',
+  'advanced-features': 'Web vitals and white label are not available yet.',
+};
 
 export const numberedLabel = (sectionNumber: number, itemIndex: number) => `${sectionNumber}.${itemIndex + 1}`;

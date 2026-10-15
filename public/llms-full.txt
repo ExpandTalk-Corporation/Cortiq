@@ -102,10 +102,9 @@ The consent banner is required for visitor analytics in both modes:
 
 ### Advanced Features
 
-- **Geolocation maps** — Leaflet.js world map with visitor clusters, country-to-city drill-down
+- **Visitor countries** — Leaflet.js world map and table of sessions per country, estimated from the browser time zone (no IP lookup)
 - **User LTV & cohort analysis** — lifetime value with cohort grouping by first-visit month
 - **Tag manager** — event, pixel, script and HTML tags without code deployment
-- **Web Vitals** — LCP, INP, CLS with historical trends
 - **WordPress plugin** (v5.4.0, same version as the tracking script) — download the zip from the dashboard; choose Cookieless or Full tracking mode
 
 ---
