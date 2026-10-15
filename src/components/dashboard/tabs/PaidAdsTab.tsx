@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -14,15 +13,30 @@ import {
 } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useKPIDashboard } from '@/hooks/useKPIDashboard';
+import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
+import { monthColumns, percentChange } from '@/lib/dashboard/filters';
 
 interface PaidAdsTabProps {
   selectedSite: string;
   kpiData?: any;
 }
 
+/** "+12.3% vs same period last year", or nothing when last year had no data. */
+function YoYBadge({ current, previous }: { current: number; previous: number }) {
+  const pct = percentChange(current, previous);
+  if (pct === null) return null;
+  return (
+    <p className={`text-xs ${pct >= 0 ? 'text-green-600' : 'text-orange-600'}`}>
+      {pct > 0 ? '+' : ''}{pct}% vs same period last year
+    </p>
+  );
+}
+
 export function PaidAdsTab({ selectedSite }: PaidAdsTabProps) {
-  const [selectedYear] = useState(2025);
-  const { data: kpiData } = useKPIDashboard(selectedSite, selectedYear);
+  // Follows the global date range; comparison is the same period one year earlier.
+  const { filters } = useDashboardFilters();
+  const { data: kpiData, loading } = useKPIDashboard(selectedSite, { from: filters.from, to: filters.to });
+  const monthOrder = monthColumns(filters.from, filters.to).months;
 
   if (!selectedSite) {
     return (
@@ -35,9 +49,15 @@ export function PaidAdsTab({ selectedSite }: PaidAdsTabProps) {
     );
   }
 
+  if (loading && !kpiData) {
+    return (
+      <div className="py-12 text-center text-sm text-muted-foreground">Loading advertising data...</div>
+    );
+  }
+
   // Extract paid advertising data
   const paidData = kpiData?.betald_annonsering?.data || [];
-  
+
   if (paidData.length === 0) {
     return (
       <Alert>
@@ -53,8 +73,15 @@ export function PaidAdsTab({ selectedSite }: PaidAdsTabProps) {
   const campaignMetrics: Record<string, any> = {};
   const sourceMetrics: Record<string, any> = {};
   const monthlyMetrics: Record<string, any> = {};
+  const previous = { adCost: 0, revenue: 0, clicks: 0, conversions: 0, sessions: 0 };
 
   paidData.forEach((row: any) => {
+    previous.adCost += row.metrics.advertiserAdCost?.comparison || 0;
+    previous.revenue += row.metrics.totalRevenue?.comparison || 0;
+    previous.clicks += row.metrics.advertiserAdClicks?.comparison || 0;
+    previous.conversions += row.metrics.conversions?.comparison || 0;
+    previous.sessions += row.metrics.sessions?.comparison || 0;
+
     const campaign = row.dimensions.sessionCampaignName || 'Unknown';
     const source = row.dimensions.sessionSource || 'Unknown';
     const medium = row.dimensions.sessionMedium || 'Unknown';
@@ -128,7 +155,10 @@ export function PaidAdsTab({ selectedSite }: PaidAdsTabProps) {
     conversionRate: campaign.sessions > 0 ? (campaign.conversions / campaign.sessions * 100) : 0,
     roas: campaign.adCost > 0 ? (campaign.revenue / campaign.adCost) : 0,
     cpa: campaign.conversions > 0 ? (campaign.adCost / campaign.conversions) : 0
-  })).sort((a, b) => b.adCost - a.adCost);
+  }))
+    // Campaigns that only ran in the comparison period have nothing to show here.
+    .filter((c: any) => c.sessions > 0 || c.adCost > 0 || c.clicks > 0 || c.impressions > 0)
+    .sort((a, b) => b.adCost - a.adCost);
 
   // Calculate source metrics
   const sources = Object.values(sourceMetrics).map((source: any) => ({
@@ -141,7 +171,7 @@ export function PaidAdsTab({ selectedSite }: PaidAdsTabProps) {
   const monthlyData = Object.values(monthlyMetrics).map((month: any) => ({
     ...month,
     roas: month.adCost > 0 ? (month.revenue / month.adCost) : 0
-  })).sort((a: any, b: any) => a.month.localeCompare(b.month));
+  })).sort((a: any, b: any) => monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month));
 
   // Calculate overall totals
   const totalAdCost = campaigns.reduce((sum, c) => sum + c.adCost, 0);
@@ -173,6 +203,7 @@ export function PaidAdsTab({ selectedSite }: PaidAdsTabProps) {
               <div>
                 <p className="text-2xl font-bold">${totalAdCost.toLocaleString('sv-SE', { maximumFractionDigits: 0 })}</p>
                 <p className="text-sm text-muted-foreground">Total ad spend</p>
+                <YoYBadge current={totalAdCost} previous={previous.adCost} />
               </div>
             </div>
           </CardContent>
@@ -185,6 +216,10 @@ export function PaidAdsTab({ selectedSite }: PaidAdsTabProps) {
               <div>
                 <p className="text-2xl font-bold">{overallConversionRate.toFixed(2)}%</p>
                 <p className="text-sm text-muted-foreground">Conversion rate</p>
+                <YoYBadge
+                  current={overallConversionRate}
+                  previous={previous.sessions > 0 ? (previous.conversions / previous.sessions * 100) : 0}
+                />
               </div>
             </div>
           </CardContent>
@@ -197,6 +232,7 @@ export function PaidAdsTab({ selectedSite }: PaidAdsTabProps) {
               <div>
                 <p className="text-2xl font-bold">{totalClicks.toLocaleString()}</p>
                 <p className="text-sm text-muted-foreground">Clicks</p>
+                <YoYBadge current={totalClicks} previous={previous.clicks} />
                 <Badge variant="outline" className="text-xs w-fit mx-auto">
                   CTR: {overallCTR.toFixed(2)}%
                 </Badge>
@@ -216,6 +252,10 @@ export function PaidAdsTab({ selectedSite }: PaidAdsTabProps) {
               <div>
                 <p className="text-2xl font-bold">{overallROAS.toFixed(2)}x</p>
                 <p className="text-sm text-muted-foreground">ROAS</p>
+                <YoYBadge
+                  current={overallROAS}
+                  previous={previous.adCost > 0 ? previous.revenue / previous.adCost : 0}
+                />
                 <Badge 
                   variant={overallROAS >= 1 ? "default" : "secondary"} 
                   className="text-xs w-fit mx-auto"
@@ -232,7 +272,7 @@ export function PaidAdsTab({ selectedSite }: PaidAdsTabProps) {
       <Card>
         <CardHeader>
           <CardTitle>Ad spend and ROAS over time</CardTitle>
-          <CardDescription>Monthly ad spend and return on ad spend</CardDescription>
+          <CardDescription>Monthly ad spend and return on ad spend, {filters.from} to {filters.to}</CardDescription>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>

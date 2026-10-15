@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { startOfDay, subDays } from "date-fns";
+import { rangeBounds } from "@/lib/dashboard/filters";
 
 interface AISearchTrafficData {
   totalSessions: number;
@@ -30,22 +30,24 @@ interface AISearchTrafficData {
   }[];
 }
 
-export const useAISearchTraffic = (siteId: string | null, days: number = 7) => {
+/** `range` is the global dashboard date filter (inclusive YYYY-MM-DD). */
+export const useAISearchTraffic = (siteId: string | null, range: { from: string; to: string }) => {
   return useQuery({
-    queryKey: ['ai-search-traffic', siteId, days],
+    queryKey: ['ai-search-traffic', siteId, range.from, range.to],
     queryFn: async (): Promise<AISearchTrafficData> => {
       if (!siteId) {
         throw new Error('No site ID provided');
       }
 
-      const startDate = startOfDay(subDays(new Date(), days));
+      const { start, end } = rangeBounds(range.from, range.to);
 
       // Fetch AI search traffic
       const { data: traffic, error: trafficError } = await supabase
         .from('ai_search_traffic')
         .select('*')
         .eq('site_id', siteId)
-        .gte('landed_at', startDate.toISOString())
+        .gte('landed_at', start)
+        .lt('landed_at', end)
         .order('landed_at', { ascending: false });
 
       if (trafficError) throw trafficError;

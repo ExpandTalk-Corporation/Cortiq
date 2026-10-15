@@ -16,20 +16,22 @@ const SEARCH_TYPE_LABELS: Record<string, string> = {
   DISCOVER_AI:  'Discover AI',
 };
 
-export function useGSCAIData(siteId: string | null, days = 28) {
+/**
+ * `range` is the global dashboard date filter (inclusive YYYY-MM-DD). gsc_ai_data rows
+ * are synced report periods, so a row is included when its period overlaps the range.
+ */
+export function useGSCAIData(siteId: string | null, range: { from: string; to: string }) {
   return useQuery({
-    queryKey: ['gsc-ai-data', siteId, days],
+    queryKey: ['gsc-ai-data', siteId, range.from, range.to],
     enabled: !!siteId,
     queryFn: async (): Promise<GSCAIDataResult> => {
-      const cutoff = new Date();
-      cutoff.setDate(cutoff.getDate() - days);
-      const cutoffStr = cutoff.toISOString().split('T')[0];
-
-      const { data, error } = await supabase
+      // gsc_ai_data is not in the generated Supabase types yet.
+      const { data, error } = await (supabase as any)
         .from('gsc_ai_data')
         .select('search_type, dimension, value, impressions, period_end')
         .eq('site_id', siteId!)
-        .gte('period_end', cutoffStr)
+        .gte('period_end', range.from)
+        .lte('period_start', range.to)
         .order('period_end', { ascending: false });
 
       if (error) throw error;

@@ -3,8 +3,9 @@ import '@/styles/print.css';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
+import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
+import { percentChange } from '@/lib/dashboard/filters';
+import {
   Users, 
   MousePointer, 
   Clock, 
@@ -28,19 +29,14 @@ import { useToast } from '@/components/ui/use-toast';
 
 interface KPITabProps {
   selectedSite: Site;
+  onNavigateToIntegrations?: () => void;
 }
 
 export function KPITab({ selectedSite }: KPITabProps) {
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  
-  // Debug logging for site selection
-  console.log('🎯 KPI Tab rendered with site:', {
-    siteId: selectedSite.id,
-    siteName: selectedSite.site_name,
-    domain: selectedSite.domain,
-    timestamp: new Date().toISOString()
-  });
-  
+  // The report follows the global date range and compares with the same period last year.
+  const { filters } = useDashboardFilters();
+  const periodLabel = `${filters.from} – ${filters.to}`;
+
   const {
     data,
     loading,
@@ -48,10 +44,13 @@ export function KPITab({ selectedSite }: KPITabProps) {
     hasData,
     usingFallback,
     refetch,
+    comparisonRange,
+    foldedMonths,
+    totals,
     monthlyOverview,
     channelBreakdown,
     aiTrafficInsights
-  } = useKPIDashboard(selectedSite.id, selectedYear);
+  } = useKPIDashboard(selectedSite.id, { from: filters.from, to: filters.to });
 
   const { toast } = useToast();
   const [checkingGA, setCheckingGA] = useState(false);
@@ -60,7 +59,13 @@ export function KPITab({ selectedSite }: KPITabProps) {
     try {
       setCheckingGA(true);
       const { data, error } = await supabase.functions.invoke('ga4-monthly-kpi', {
-        body: { siteId: selectedSite.id, year: selectedYear },
+        body: {
+          siteId: selectedSite.id,
+          startDate: filters.from,
+          endDate: filters.to,
+          comparisonStartDate: comparisonRange.from,
+          comparisonEndDate: comparisonRange.to,
+        },
       });
       if (error || !data?.success) {
         console.error('GA4 permission check failed:', error || data);
@@ -151,10 +156,10 @@ export function KPITab({ selectedSite }: KPITabProps) {
       const { data, error } = await supabase.functions.invoke('ga4-kpi-dashboard-debug', {
         body: { 
           siteId: selectedSite.id,
-          startDate: `${selectedYear}-01-01`,
-          endDate: `${selectedYear}-12-31`,
-          comparisonStartDate: `${selectedYear - 1}-01-01`,
-          comparisonEndDate: `${selectedYear - 1}-12-31`,
+          startDate: filters.from,
+          endDate: filters.to,
+          comparisonStartDate: comparisonRange.from,
+          comparisonEndDate: comparisonRange.to,
           sections: ["overall", "channels", "ai"], // Testa bara några sektioner först
           sectionTimeoutMs: 4000
         }
@@ -225,8 +230,8 @@ export function KPITab({ selectedSite }: KPITabProps) {
     window.print();
   };
   // Helper function to get trend icon
-  const getTrendIcon = (growth?: number): React.ReactNode => {
-    if (growth === undefined) return null;
+  const getTrendIcon = (growth?: number | null): React.ReactNode => {
+    if (growth == null) return null;
     return growth >= 0 ? (
       <TrendingUp className="h-4 w-4 text-green-500" />
     ) : (
@@ -256,7 +261,7 @@ export function KPITab({ selectedSite }: KPITabProps) {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">KPI Dashboard - {selectedYear}</h1>
+            <h1 className="text-2xl font-bold">KPI Dashboard - {periodLabel}</h1>
             <p className="text-muted-foreground">Fetching data from Google Analytics...</p>
           </div>
         </div>
@@ -313,7 +318,7 @@ export function KPITab({ selectedSite }: KPITabProps) {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center text-blue-700">
                 <Users className="h-5 w-5 mr-2" />
-                Active Users (year {selectedYear})
+                Active Users ({periodLabel})
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -325,7 +330,7 @@ export function KPITab({ selectedSite }: KPITabProps) {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center text-green-700">
                 <MousePointer className="h-5 w-5 mr-2" />
-                Sessions (year {selectedYear})
+                Sessions ({periodLabel})
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -337,7 +342,7 @@ export function KPITab({ selectedSite }: KPITabProps) {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center text-purple-700">
                 <BarChart3 className="h-5 w-5 mr-2" />
-                Page Views (year {selectedYear})
+                Page Views ({periodLabel})
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -349,17 +354,18 @@ export function KPITab({ selectedSite }: KPITabProps) {
     );
   }
 
-  // Calculate yearly totals
-  const yearlyTotals = monthlyOverview.reduce((acc, month) => ({
-    users: acc.users + month.uniqueUsers,
-    sessions: acc.sessions + month.sessions,
-    revenue: acc.revenue + month.revenue,
-    avgDuration: acc.avgDuration + month.avgDuration,
-    avgConversionRate: acc.avgConversionRate + month.conversionRate
-  }), { users: 0, sessions: 0, revenue: 0, avgDuration: 0, avgConversionRate: 0 });
+  // Period totals; averages are weighted by sessions.
+  const periodSessions = monthlyOverview.reduce((s, m) => s + m.sessions, 0);
+  const avgDuration = periodSessions > 0
+    ? monthlyOverview.reduce((s, m) => s + m.avgDuration * m.sessions, 0) / periodSessions : 0;
+  const avgConversionRate = periodSessions > 0
+    ? monthlyOverview.reduce((s, m) => s + m.conversions, 0) / periodSessions * 100 : 0;
 
-  const avgDuration = monthlyOverview.length > 0 ? yearlyTotals.avgDuration / monthlyOverview.length : 0;
-  const avgConversionRate = monthlyOverview.length > 0 ? yearlyTotals.avgConversionRate / monthlyOverview.length : 0;
+  // Change against the same period one year earlier.
+  const yoyLabel = (current: number, previous: number) => {
+    const pct = percentChange(current, previous);
+    return pct === null ? 'No data same period last year' : `${pct > 0 ? '+' : ''}${pct}% vs same period last year`;
+  };
 
   return (
     <div className="space-y-6">
@@ -373,7 +379,7 @@ export function KPITab({ selectedSite }: KPITabProps) {
             <div className="flex items-center gap-4">
               <p className="text-lg text-muted-foreground">{selectedSite.site_name}</p>
               <Badge variant="secondary" className="text-sm">
-                Report for {selectedYear}
+                Report for {periodLabel}
               </Badge>
               {usingFallback && (
                 <Badge variant="outline" className="text-sm border-amber-300 text-amber-700">
@@ -383,24 +389,15 @@ export function KPITab({ selectedSite }: KPITabProps) {
             </div>
           </div>
           <div className="flex items-center gap-6">
-            <div className="text-right">
-              <p className="text-sm text-muted-foreground">Report period</p>
-              <p className="font-semibold">Full year {selectedYear}</p>
-            </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 text-right">
               <Calendar className="h-5 w-5 text-primary" />
-              <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(parseInt(value))}>
-                <SelectTrigger className="w-36 h-11">
-                  <SelectValue placeholder="Select year" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="2025">2025</SelectItem>
-                  <SelectItem value="2024">2024</SelectItem>
-                  <SelectItem value="2023">2023</SelectItem>
-                  <SelectItem value="2022">2022</SelectItem>
-                  <SelectItem value="2021">2021</SelectItem>
-                </SelectContent>
-              </Select>
+              <div>
+                <p className="text-sm text-muted-foreground">Report period</p>
+                <p className="font-semibold">{periodLabel}</p>
+                <p className="text-xs text-muted-foreground">
+                  Compared with {comparisonRange.from} – {comparisonRange.to}
+                </p>
+              </div>
             </div>
             <div className="flex gap-2">
               <Button onClick={handleGA4Check} variant="outline" className="h-11" disabled={checkingGA}>
@@ -427,8 +424,8 @@ export function KPITab({ selectedSite }: KPITabProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-blue-900">{formatNumber(yearlyTotals.users)}</div>
-            <p className="text-sm text-blue-600/70 mt-1">Total for {selectedYear}</p>
+            <div className="text-3xl font-bold text-blue-900">{formatNumber(totals.current.users)}</div>
+            <p className="text-sm text-blue-600/70 mt-1">{yoyLabel(totals.current.users, totals.previous.users)}</p>
           </CardContent>
         </Card>
 
@@ -440,8 +437,8 @@ export function KPITab({ selectedSite }: KPITabProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-green-900">{formatNumber(yearlyTotals.sessions)}</div>
-            <p className="text-sm text-green-600/70 mt-1">Total for {selectedYear}</p>
+            <div className="text-3xl font-bold text-green-900">{formatNumber(totals.current.sessions)}</div>
+            <p className="text-sm text-green-600/70 mt-1">{yoyLabel(totals.current.sessions, totals.previous.sessions)}</p>
           </CardContent>
         </Card>
 
@@ -454,7 +451,7 @@ export function KPITab({ selectedSite }: KPITabProps) {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-purple-900">{formatDuration(avgDuration)}</div>
-            <p className="text-sm text-purple-600/70 mt-1">Per session {selectedYear}</p>
+            <p className="text-sm text-purple-600/70 mt-1">Per session</p>
           </CardContent>
         </Card>
 
@@ -467,7 +464,7 @@ export function KPITab({ selectedSite }: KPITabProps) {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-orange-900">{(avgConversionRate || 0).toFixed(1)}%</div>
-            <p className="text-sm text-orange-600/70 mt-1">Average {selectedYear}</p>
+            <p className="text-sm text-orange-600/70 mt-1">Conversions per session</p>
           </CardContent>
         </Card>
       </div>
@@ -478,10 +475,12 @@ export function KPITab({ selectedSite }: KPITabProps) {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-xl font-bold text-foreground">
-                Detailed Monthly Analysis {selectedYear}
+                Detailed Monthly Analysis {periodLabel}
               </CardTitle>
               <CardDescription className="text-base mt-1">
-                Complete KPI overview for board reports and stakeholder presentations
+                Complete KPI overview for board reports and stakeholder presentations.
+                Growth compares each month with the same month one year earlier.
+                {foldedMonths && ' The range touches the same calendar month in two years; that column combines both.'}
               </CardDescription>
             </div>
             <Button 
@@ -606,7 +605,7 @@ export function KPITab({ selectedSite }: KPITabProps) {
                   {monthlyData.map((month) => (
                     <td key={month.month} className="text-center p-2">
                       <div className="flex items-center justify-center gap-1">
-                        {month.growth.users !== undefined && (
+                        {month.growth.users != null && (
                           <>
                             {getTrendIcon(month.growth.users)}
                             <span className={month.growth.users >= 0 ? 'text-green-600' : 'text-red-600'}>
@@ -628,7 +627,7 @@ export function KPITab({ selectedSite }: KPITabProps) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Monthly Users {selectedYear}</CardTitle>
+            <CardTitle>Monthly Users {periodLabel}</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -645,7 +644,7 @@ export function KPITab({ selectedSite }: KPITabProps) {
 
         <Card>
           <CardHeader>
-            <CardTitle>Monthly Sessions {selectedYear}</CardTitle>
+            <CardTitle>Monthly Sessions {periodLabel}</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -667,7 +666,7 @@ export function KPITab({ selectedSite }: KPITabProps) {
           <CardHeader className="border-b bg-gradient-to-r from-blue-50/50 to-transparent">
             <CardTitle className="text-lg font-bold flex items-center text-blue-900">
               <Globe className="h-5 w-5 mr-3" />
-              Traffic sources & Performance {selectedYear}
+              Traffic sources & Performance {periodLabel}
             </CardTitle>
             <CardDescription className="text-blue-700/70">
               Analysis of the most valuable traffic channels
@@ -705,13 +704,13 @@ export function KPITab({ selectedSite }: KPITabProps) {
           <CardHeader>
             <CardTitle className="flex items-center">
               <Share2 className="h-5 w-5 mr-2" />
-              Social Media Traffic {selectedYear}
+              Social Media Traffic {periodLabel}
             </CardTitle>
             <CardDescription>Performance from social platforms</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {data.social_media.data.slice(0, 10).map((social: any, index: number) => (
+              {data.social_media.data.filter((row: any) => (row.metrics.sessions?.current || 0) > 0).slice(0, 10).map((social: any, index: number) => (
                 <div key={social.dimensions.sessionSource} className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
@@ -743,7 +742,7 @@ export function KPITab({ selectedSite }: KPITabProps) {
           <CardHeader>
             <CardTitle className="flex items-center">
               <Bot className="h-5 w-5 mr-2" />
-              AI Traffic {selectedYear}
+              AI Traffic {periodLabel}
             </CardTitle>
             <CardDescription>Traffic from AI platforms</CardDescription>
           </CardHeader>
@@ -777,13 +776,13 @@ export function KPITab({ selectedSite }: KPITabProps) {
           <CardHeader>
             <CardTitle className="flex items-center">
               <Mail className="h-5 w-5 mr-2" />
-              Events & Newsletter {selectedYear}
+              Events & Newsletter {periodLabel}
             </CardTitle>
             <CardDescription>Event performance and newsletter engagement</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {data.nyhetsbrev_events.data.slice(0, 10).map((event: any, index: number) => (
+              {data.nyhetsbrev_events.data.filter((row: any) => (row.metrics.eventCount?.current || 0) > 0).slice(0, 10).map((event: any, index: number) => (
                 <div key={event.dimensions.eventName || index} className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
