@@ -29,3 +29,18 @@ test('sidebar opens the section of the active tab whenever the tab changes', () 
   const sidebar = readFileSync(new URL('../../src/components/dashboard/nav/DashboardSidebar.tsx', import.meta.url), 'utf8');
   assert.match(sidebar, /useEffect\(\(\) => \{[\s\S]*owning[\s\S]*\}, \[owning\]\)/);
 });
+
+test('hidden tabs are out of the menu and not rendered, but explain themselves', async () => {
+  const { HIDDEN_TABS } = await import('../../src/components/dashboard/nav/navSections.ts');
+  const all = [...NAV_SECTIONS.flatMap((s) => s.items), ...SETTINGS_ITEMS].map((i) => i.value);
+  for (const v of ['session-recording', 'abtesting', 'advanced-features']) {
+    assert.ok(HIDDEN_TABS[v], `${v} has a message`);
+    assert.ok(!all.includes(v), `${v} not in menu`);
+    assert.ok(!rendered.has(v), `${v} not rendered`);
+  }
+});
+
+test('settings and live tabs show no filter-scope notice', () => {
+  const set = tabsSource.match(/NO_FILTER_NOTICE = new Set\(\[([\s\S]*?)\]\)/)[1];
+  for (const v of ['setup', 'integrations', 'realtime', 'alerts', 'gdpr']) assert.match(set, new RegExp(`'${v}'`));
+});

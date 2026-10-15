@@ -3,6 +3,7 @@ import { TabErrorBoundary } from './TabErrorBoundary';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { OverviewTab } from './tabs/OverviewTab';
 import { FilterScopeNotice } from './FilterScopeNotice';
+import { HIDDEN_TABS } from './nav/navSections';
 import type { Site, Analytics } from '@/types/dashboard';
 
 const HeatmapTab               = lazy(() => import('./tabs/HeatmapTab').then(m => ({ default: m.HeatmapTab })));
@@ -10,7 +11,6 @@ const AnalyticsTab             = lazy(() => import('./tabs/AnalyticsTab').then(m
 const PaidAdsTab               = lazy(() => import('./tabs/PaidAdsTab').then(m => ({ default: m.PaidAdsTab })));
 const ServerSidePaidAdsTab     = lazy(() => import('./tabs/ServerSidePaidAdsTab').then(m => ({ default: m.ServerSidePaidAdsTab })));
 const FormAnalyticsTab         = lazy(() => import('./tabs/FormAnalyticsTab').then(m => ({ default: m.FormAnalyticsTab })));
-const ABTestingTab             = lazy(() => import('./tabs/ABTestingTab').then(m => ({ default: m.ABTestingTab })));
 const AITab                    = lazy(() => import('./tabs/AITab').then(m => ({ default: m.AITab })));
 const AIBotTab                 = lazy(() => import('./tabs/AIBotTab').then(m => ({ default: m.AIBotTab })));
 const KPITab                   = lazy(() => import('./tabs/KPITab').then(m => ({ default: m.KPITab })));
@@ -28,10 +28,8 @@ const BehavioralAlertsTab      = lazy(() => import('./tabs/BehavioralAlertsTab')
 const UserLTVTab               = lazy(() => import('./tabs/UserLTVTab').then(m => ({ default: m.UserLTVTab })));
 const ClickFraudTab            = lazy(() => import('./tabs/ClickFraudTab').then(m => ({ default: m.ClickFraudTab })));
 const TagManager               = lazy(() => import('./TagManager').then(m => ({ default: m.TagManager })));
-const SessionRecordingList     = lazy(() => import('./SessionRecordingList').then(m => ({ default: m.SessionRecordingList })));
 const GeolocationDashboard     = lazy(() => import('./GeolocationDashboard').then(m => ({ default: m.GeolocationDashboard })));
 const WarehouseConnectorManager = lazy(() => import('./WarehouseConnectorManager').then(m => ({ default: m.WarehouseConnectorManager })));
-const FinalFas3Features        = lazy(() => import('./FinalFas3Features').then(m => ({ default: m.FinalFas3Features })));
 const IPSegmentsTab                = lazy(() => import('./tabs/IPSegmentsTab').then(m => ({ default: m.IPSegmentsTab })));
 const AgentOpsTab                  = lazy(() => import('./tabs/AgentOpsTab').then(m => ({ default: m.AgentOpsTab })));
 const ZeroClickRiskIndex           = lazy(() => import('./ZeroClickRiskIndex').then(m => ({ default: m.ZeroClickRiskIndex })));
@@ -59,6 +57,14 @@ const DATE_AWARE = new Set([
   'server-logs',
 ]);
 
+// Tabs where the global filters have no meaning (settings, live view, latest alerts):
+// no "does not apply the filter" notice.
+const NO_FILTER_NOTICE = new Set([
+  'overview', 'realtime', 'alerts',
+  'setup', 'integrations', 'cortiq-api', 'api-keys', 'gdpr', 'notifications', 'tag-manager',
+  'warehouse', 'utm-segments', 'agent-macros', 'agent-registry', 'conversion-goals', 'report-builder',
+]);
+
 interface DashboardTabsProps {
   selectedSite: Site;
   analytics: Analytics | null;
@@ -75,7 +81,12 @@ function DashboardTabsInner({ selectedSite, analytics, dateRange, onSiteDeleted,
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 w-full">
-      {activeTab !== 'overview' && <FilterScopeNotice supports={{ date: DATE_AWARE.has(activeTab) }} />}
+      {!NO_FILTER_NOTICE.has(activeTab) && !HIDDEN_TABS[activeTab] && <FilterScopeNotice supports={{ date: DATE_AWARE.has(activeTab) }} />}
+      {HIDDEN_TABS[activeTab] && (
+        <div role="note" className="rounded-md border bg-muted/40 px-4 py-6 text-sm text-muted-foreground">
+          {HIDDEN_TABS[activeTab]}
+        </div>
+      )}
       <TabsContent value="overview" className="space-y-6">
         <TabErrorBoundary tabName="Overview">
           <OverviewTab selectedSite={selectedSite} onNavigate={setActiveTab} />
@@ -93,12 +104,6 @@ function DashboardTabsInner({ selectedSite, analytics, dateRange, onSiteDeleted,
       <TabsContent value="forms" className="space-y-6">
         <TabErrorBoundary tabName="Forms">
           <FormAnalyticsTab selectedSite={selectedSite} dateRange={dateRange} />
-        </TabErrorBoundary>
-      </TabsContent>
-
-      <TabsContent value="abtesting" className="space-y-6">
-        <TabErrorBoundary tabName="A/B Testing">
-          <ABTestingTab siteId={selectedSite.id} />
         </TabErrorBoundary>
       </TabsContent>
 
@@ -240,12 +245,6 @@ function DashboardTabsInner({ selectedSite, analytics, dateRange, onSiteDeleted,
         </TabErrorBoundary>
       </TabsContent>
 
-      <TabsContent value="session-recording" className="space-y-6">
-        <TabErrorBoundary tabName="Session Recording">
-          <SessionRecordingList siteId={selectedSite.id} />
-        </TabErrorBoundary>
-      </TabsContent>
-
       <TabsContent value="geolocation" className="space-y-6">
         <TabErrorBoundary tabName="Geolocation">
           <GeolocationDashboard siteId={selectedSite.id} />
@@ -261,15 +260,6 @@ function DashboardTabsInner({ selectedSite, analytics, dateRange, onSiteDeleted,
       <TabsContent value="user-ltv" className="space-y-6">
         <TabErrorBoundary tabName="User LTV & Cohorts">
           <UserLTVTab selectedSiteId={selectedSite.id} />
-        </TabErrorBoundary>
-      </TabsContent>
-
-      <TabsContent value="advanced-features" className="space-y-6">
-        <TabErrorBoundary tabName="Web Vitals & White Label">
-          <FinalFas3Features
-            siteId={selectedSite.id}
-            companyId={selectedSite.company_id || selectedSite.id}
-          />
         </TabErrorBoundary>
       </TabsContent>
 
