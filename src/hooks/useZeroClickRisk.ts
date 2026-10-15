@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { subDays, startOfDay, startOfWeek, format } from "date-fns";
+import { startOfWeek, format } from "date-fns";
+import { rangeBounds } from "@/lib/dashboard/filters";
 
 export interface ZeroClickRiskPage {
   url: string;
@@ -28,19 +29,21 @@ export interface ZeroClickRiskData {
   summary: ZeroClickRiskSummary;
 }
 
-export const useZeroClickRisk = (siteId: string | null, days = 84) => {
+/** `range` is the global dashboard date filter (inclusive YYYY-MM-DD). */
+export const useZeroClickRisk = (siteId: string | null, range: { from: string; to: string }) => {
   return useQuery({
-    queryKey: ['zero-click-risk', siteId, days],
+    queryKey: ['zero-click-risk', siteId, range.from, range.to],
     queryFn: async (): Promise<ZeroClickRiskData> => {
       if (!siteId) throw new Error('No site ID');
 
-      const startDate = startOfDay(subDays(new Date(), days));
+      const { start, end } = rangeBounds(range.from, range.to);
 
       const { data: traffic, error } = await supabase
         .from('ai_bot_traffic')
         .select('url, bot_name, bot_type, request_type, detected_at')
         .eq('site_id', siteId)
-        .gte('detected_at', startDate.toISOString());
+        .gte('detected_at', start)
+        .lt('detected_at', end);
 
       if (error) throw error;
 
@@ -77,7 +80,7 @@ export const useZeroClickRisk = (siteId: string | null, days = 84) => {
         // Weighted score: training has biggest displacement potential
         const weighted = training * 3 + citation * 2 + general * 1;
         const riskScore = Math.min(100, Math.round((weighted / (maxVisits * 3)) * 100));
-        const riskLevel =
+        const riskLevel: ZeroClickRiskPage['riskLevel'] =
           riskScore >= 75 ? 'critical' :
           riskScore >= 50 ? 'high' :
           riskScore >= 25 ? 'medium' : 'low';
@@ -90,15 +93,16 @@ export const useZeroClickRisk = (siteId: string | null, days = 84) => {
         });
         const topBot = Object.entries(botFreq).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'Unknown';
 
-        // Weekly trend buckets (last 4 weeks)
+        // Weekly trend buckets across the selected range, keyed by ISO date so they sort
+        // chronologically (an 'MMM d' key sorts Apr before Jan).
         const byWeek: Record<string, number> = {};
         visits.forEach(v => {
-          const week = format(startOfWeek(new Date(v.detected_at)), 'MMM d');
+          const week = format(startOfWeek(new Date(v.detected_at)), 'yyyy-MM-dd');
           byWeek[week] = (byWeek[week] || 0) + 1;
         });
         const weeklyTrend = Object.entries(byWeek)
           .sort((a, b) => a[0].localeCompare(b[0]))
-          .map(([week, v]) => ({ week, visits: v }));
+          .map(([week, v]) => ({ week: format(new Date(`${week}T00:00:00`), 'MMM d'), visits: v }));
 
         let trend: ZeroClickRiskPage['trend'] = 'stable';
         if (weeklyTrend.length >= 2) {

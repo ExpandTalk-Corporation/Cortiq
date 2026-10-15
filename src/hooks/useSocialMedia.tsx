@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { sameRangeLastYear, trendBuckets } from '@/lib/dashboard/filters';
 
 // ── Platform definitions ───────────────────────────────────────────────────
 export interface SocialPlatformDef {
@@ -46,8 +47,10 @@ export interface PlatformStats {
   bounceRate: number;    // percent
   // UTM campaigns from this platform
   campaigns: Array<{ name: string; sessions: number }>;
-  // Monthly trend — 12 values (Jan–Dec of selected year)
-  monthlyTrend: number[];
+  // Sessions per trend bucket (see SocialMediaResult.trendKeys)
+  trend: number[];
+  // Sessions in the same period one year earlier
+  previousSessions: number;
 }
 
 export interface SocialSummary {
@@ -55,12 +58,37 @@ export interface SocialSummary {
   totalUniqueUsers: number;
   topPlatform: string | null;
   hasDarkSocial: boolean; // if many sessions have no referrer at all
+  // Same period one year earlier
+  previousSessions: number;
+  previousUniqueUsers: number;
+}
+
+type SocialRow = {
+  day: string; referrer: string; utm_source: string; utm_campaign: string;
+  sessions: number; unique_users: number; page_views: number; avg_duration: number; bounces: number;
+};
+
+async function fetchSocialRows(siteId: string, from: string, to: string): Promise<SocialRow[]> {
+  const { data, error } = await (supabase as any)
+    .rpc('get_social_daily', { p_site_id: siteId, p_from: from, p_to: to });
+  if (error) throw error;
+  return (data ?? []) as SocialRow[];
 }
 
 // ── Hook ───────────────────────────────────────────────────────────────────
-export function useSocialMedia(siteId: string, year: number) {
+/**
+ * Social traffic for the global dashboard date range (inclusive YYYY-MM-DD), compared with
+ * the same period one year earlier. The trend is per day for short ranges and per month
+ * for long ones (see trendBuckets).
+ */
+export function useSocialMedia(siteId: string, range: { from: string; to: string }) {
   const [platforms, setPlatforms] = useState<PlatformStats[]>([]);
-  const [summary, setSummary] = useState<SocialSummary>({ totalSessions: 0, totalUniqueUsers: 0, topPlatform: null, hasDarkSocial: false });
+  const [summary, setSummary] = useState<SocialSummary>({
+    totalSessions: 0, totalUniqueUsers: 0, topPlatform: null, hasDarkSocial: false,
+    previousSessions: 0, previousUniqueUsers: 0,
+  });
+  const [trendKeys, setTrendKeys] = useState<string[]>([]);
+  const [granularity, setGranularity] = useState<'day' | 'month'>('day');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -70,10 +98,13 @@ export function useSocialMedia(siteId: string, year: number) {
     setError(null);
 
     try {
-      const { data: rows, error: rpcErr } = await supabase
-        .rpc('get_social_monthly', { p_site_id: siteId, p_year: year });
-
-      if (rpcErr) throw rpcErr;
+      const previous = sameRangeLastYear(range.from, range.to);
+      const [rows, previousRows] = await Promise.all([
+        fetchSocialRows(siteId, range.from, range.to),
+        fetchSocialRows(siteId, previous.from, previous.to),
+      ]);
+      const buckets = trendBuckets(range.from, range.to);
+      const bucketIdx = new Map(buckets.keys.map((k, i) => [k, i]));
 
       // Per-platform accumulators
       type Acc = {
@@ -83,16 +114,21 @@ export function useSocialMedia(siteId: string, year: number) {
         totalDuration: number;
         bounces: number;
         campaigns: Record<string, number>;
-        monthly: number[];
+        trend: number[];
+        previousSessions: number;
+        previousUsers: number;
       };
       const acc: Record<string, Acc> = {};
       for (const p of SOCIAL_PLATFORMS) {
-        acc[p.key] = { sessions: 0, users: 0, pageViews: 0, totalDuration: 0, bounces: 0, campaigns: {}, monthly: Array(12).fill(0) };
+        acc[p.key] = {
+          sessions: 0, users: 0, pageViews: 0, totalDuration: 0, bounces: 0, campaigns: {},
+          trend: Array(buckets.keys.length).fill(0), previousSessions: 0, previousUsers: 0,
+        };
       }
 
       let directCount = 0;
 
-      (rows ?? []).forEach((row: any) => {
+      rows.forEach((row) => {
         const key = detectPlatform(row.referrer || null, row.utm_source || null);
         if (!key) {
           if (!row.referrer && !row.utm_source) directCount += Number(row.sessions);
@@ -101,17 +137,25 @@ export function useSocialMedia(siteId: string, year: number) {
         const a = acc[key];
         if (!a) return;
 
-        const monthIdx = parseInt(row.month, 10) - 1;
         const s = Number(row.sessions);
         a.sessions    += s;
         a.users       += Number(row.unique_users);
         a.pageViews   += Number(row.page_views);
         a.totalDuration += Number(row.avg_duration) * s;
         a.bounces     += Number(row.bounces);
-        if (monthIdx >= 0 && monthIdx < 12) a.monthly[monthIdx] += s;
+        const idx = bucketIdx.get(buckets.keyOf(row.day));
+        if (idx !== undefined) a.trend[idx] += s;
 
         const campaign = (row.utm_campaign as string) || '(no campaign)';
         a.campaigns[campaign] = (a.campaigns[campaign] ?? 0) + s;
+      });
+
+      previousRows.forEach((row) => {
+        const key = detectPlatform(row.referrer || null, row.utm_source || null);
+        const a = key ? acc[key] : undefined;
+        if (!a) return;
+        a.previousSessions += Number(row.sessions);
+        a.previousUsers    += Number(row.unique_users);
       });
 
       const result: PlatformStats[] = SOCIAL_PLATFORMS
@@ -130,7 +174,8 @@ export function useSocialMedia(siteId: string, year: number) {
               .sort((x, y) => y[1] - x[1])
               .slice(0, 5)
               .map(([name, sessions]) => ({ name, sessions })),
-            monthlyTrend: a.monthly,
+            trend: a.trend,
+            previousSessions: a.previousSessions,
           };
         })
         .filter(p => p.sessions > 0)
@@ -140,20 +185,24 @@ export function useSocialMedia(siteId: string, year: number) {
       const totalUsers    = result.reduce((s, p) => s + p.uniqueUsers, 0);
 
       setPlatforms(result);
+      setTrendKeys(buckets.keys);
+      setGranularity(buckets.granularity);
       setSummary({
         totalSessions,
         totalUniqueUsers: totalUsers,
         topPlatform: result[0]?.platformKey ?? null,
         hasDarkSocial: directCount > totalSessions * 0.3,
+        previousSessions: Object.values(acc).reduce((s, a) => s + a.previousSessions, 0),
+        previousUniqueUsers: Object.values(acc).reduce((s, a) => s + a.previousUsers, 0),
       });
     } catch (err: any) {
       setError(err?.message ?? err?.error_description ?? 'Could not fetch social media data');
     } finally {
       setLoading(false);
     }
-  }, [siteId, year]);
+  }, [siteId, range.from, range.to]);
 
   useEffect(() => { fetch(); }, [fetch]);
 
-  return { platforms, summary, loading, error, refetch: fetch };
+  return { platforms, summary, trendKeys, granularity, loading, error, refetch: fetch };
 }

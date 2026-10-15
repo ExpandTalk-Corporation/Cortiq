@@ -7,6 +7,7 @@ import { Target, TrendingUp, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAIBotTracking } from "@/hooks/useAIBotTracking";
 import { useAITraffic } from "@/hooks/useAITraffic";
+import { useDashboardFilters } from "@/contexts/DashboardFiltersContext";
 import type { Site } from "@/types/dashboard";
 
 interface KPICatalogTabProps {
@@ -20,9 +21,11 @@ export const KPICatalogTab = ({ selectedSite }: KPICatalogTabProps) => {
     toggleMetric,
   } = useKPIMetrics();
 
-  // Fetch real AI data
-  const { data: aiBotData, isLoading: aiBotLoading } = useAIBotTracking(selectedSite.id, 30);
-  const { data: aiTrafficData, loading: aiTrafficLoading } = useAITraffic(selectedSite.id, 30);
+  // Fetch real AI data for the global date range
+  const { filters } = useDashboardFilters();
+  const range = { from: filters.from, to: filters.to };
+  const { data: aiBotData, isLoading: aiBotLoading } = useAIBotTracking(selectedSite.id, range);
+  const { data: aiTrafficData, loading: aiTrafficLoading } = useAITraffic(selectedSite.id, range);
 
   // Map real data to KPI metrics
   const getKPIValue = (metricId: string): number | string => {

@@ -11,17 +11,20 @@ interface AIBotTrafficData {
   topUrls: { url: string; visits: number }[];
 }
 
-export const useAIBotTracking = (siteId: string | null, days: number = 7) => {
+/** `range` is the global dashboard date filter (inclusive YYYY-MM-DD). */
+export const useAIBotTracking = (siteId: string | null, range: { from: string; to: string }) => {
   return useQuery({
-    queryKey: ['ai-bot-tracking', siteId, days],
+    queryKey: ['ai-bot-tracking', siteId, range.from, range.to],
     queryFn: async (): Promise<AIBotTrafficData> => {
       if (!siteId) {
         throw new Error('No site ID provided');
       }
 
-      // Aggregated server-side (get_ai_bot_tracking RPC): breakdown by category stored
-      // at ingest, daily trend, and top non-asset URLs — no raw-row fetch/JS reduce.
-      const { data, error } = await supabase.rpc('get_ai_bot_tracking', { p_site_id: siteId, p_days: days });
+      // Aggregated server-side (get_ai_bot_tracking date-range overload): breakdown by
+      // category stored at ingest, daily trend, and top non-asset URLs.
+      const { data, error } = await (supabase as any).rpc('get_ai_bot_tracking', {
+        p_site_id: siteId, p_from: range.from, p_to: range.to,
+      });
       if (error) throw error;
 
       const j = (data ?? {}) as {

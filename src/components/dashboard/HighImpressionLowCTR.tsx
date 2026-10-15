@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useHighImpressionLowCTR } from '@/hooks/useHighImpressionLowCTR';
+import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -40,7 +41,8 @@ function fmtUrl(url: string, max = 52) {
 export function HighImpressionLowCTR({ siteId }: Props) {
   const [minImp, setMinImp] = useState(500);
   const [maxCtr, setMaxCtr] = useState(0.005);
-  const { data: pages, isLoading } = useHighImpressionLowCTR(siteId, minImp, maxCtr);
+  const { filters } = useDashboardFilters();
+  const { data: pages, isLoading } = useHighImpressionLowCTR(siteId, { from: filters.from, to: filters.to }, minImp, maxCtr);
 
   return (
     <Card>
@@ -52,6 +54,7 @@ export function HighImpressionLowCTR({ siteId }: Props) {
             </CardTitle>
             <CardDescription className="mt-1">
               Pages Google shows often but users rarely click — prime targets for title/description optimisation.
+              Uses the latest Search Console sync that overlaps the selected period.
             </CardDescription>
           </div>
           <div className="flex gap-2 shrink-0">
@@ -85,7 +88,7 @@ export function HighImpressionLowCTR({ siteId }: Props) {
           </div>
         ) : !pages || pages.length === 0 ? (
           <div className="py-10 text-center text-sm text-muted-foreground">
-            No pages match the current thresholds.
+            No pages match the current thresholds in the selected period.
           </div>
         ) : (
           <div className="overflow-x-auto">

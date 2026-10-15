@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { startOfDay, subDays } from "date-fns";
+import { rangeBounds } from "@/lib/dashboard/filters";
 
 interface AgentSession {
   id: string;
@@ -51,32 +51,34 @@ interface AgentJourneyData {
   botTypeBreakdown: { type: string; count: number; percentage: number }[];
 }
 
-export const useAIAgentJourney = (siteId: string | null, days: number = 7) => {
+/** `range` is the global dashboard date filter (inclusive YYYY-MM-DD). */
+export const useAIAgentJourney = (siteId: string | null, range: { from: string; to: string }) => {
   return useQuery({
-    queryKey: ['ai-agent-journey', siteId, days],
+    queryKey: ['ai-agent-journey', siteId, range.from, range.to],
     queryFn: async (): Promise<AgentJourneyData> => {
       if (!siteId) {
         throw new Error('No site ID provided');
       }
 
-      const startDate = startOfDay(subDays(new Date(), days));
+      const { start, end } = rangeBounds(range.from, range.to);
 
       // Fetch agent sessions
       const { data: sessions, error: sessionsError } = await supabase
         .from('ai_agent_sessions')
         .select('*')
         .eq('site_id', siteId)
-        .gte('started_at', startDate.toISOString())
+        .gte('started_at', start)
+        .lt('started_at', end)
         .order('started_at', { ascending: false });
 
       if (sessionsError) throw sessionsError;
 
-      // Fetch funnel data using RPC
+      // Fetch funnel data using RPC (its end bound is inclusive)
       const { data: funnel, error: funnelError } = await supabase
         .rpc('get_ai_agent_funnel', {
           p_site_id: siteId,
-          p_start_date: startDate.toISOString(),
-          p_end_date: new Date().toISOString()
+          p_start_date: start,
+          p_end_date: `${range.to}T23:59:59.999Z`
         });
 
       if (funnelError) {

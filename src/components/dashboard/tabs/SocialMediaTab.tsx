@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
+import { percentChange } from '@/lib/dashboard/filters';
 import {
   Users, MousePointer, Clock, TrendingUp, TrendingDown,
   AlertCircle, RefreshCw, ChevronDown, ChevronUp, ExternalLink,
@@ -29,6 +30,23 @@ function fmtDur(s: number): string {
 
 const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
+/** 'YYYY-MM-DD' → 'Sep 3', 'YYYY-MM' → 'Sep 26'. */
+function fmtBucket(key: string): string {
+  const month = MONTH_SHORT[Number(key.slice(5, 7)) - 1] ?? key;
+  return key.length > 7 ? `${month} ${Number(key.slice(8, 10))}` : `${month} ${key.slice(2, 4)}`;
+}
+
+/** Year-over-year change badge; nothing when last year had no traffic. */
+function YoY({ current, previous }: { current: number; previous: number }) {
+  const pct = percentChange(current, previous);
+  if (pct === null) return <span className="text-[11px] text-muted-foreground">No data same period last year</span>;
+  return (
+    <span className={`text-[11px] font-medium ${pct >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+      {pct > 0 ? '+' : ''}{pct}% vs same period last year
+    </span>
+  );
+}
+
 // ── Platform icon initials ─────────────────────────────────────────────────
 function PlatformBadge({ platform, size = 'md' }: { platform: PlatformStats; size?: 'sm' | 'md' }) {
   const sz = size === 'sm' ? 'w-6 h-6 text-[10px]' : 'w-9 h-9 text-sm';
@@ -43,8 +61,8 @@ function PlatformBadge({ platform, size = 'md' }: { platform: PlatformStats; siz
 }
 
 // ── Sparkline ─────────────────────────────────────────────────────────────
-function Sparkline({ data, color }: { data: number[]; color: string }) {
-  const chartData = data.map((v, i) => ({ m: MONTH_SHORT[i], v }));
+function Sparkline({ data, labels, color }: { data: number[]; labels: string[]; color: string }) {
+  const chartData = data.map((v, i) => ({ m: fmtBucket(labels[i] ?? ''), v }));
   return (
     <ResponsiveContainer width="100%" height={48}>
       <LineChart data={chartData} margin={{ top: 2, right: 2, left: 0, bottom: 0 }}>
@@ -55,7 +73,7 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
 }
 
 // ── Platform card ─────────────────────────────────────────────────────────
-function PlatformCard({ p, rank, totalSessions }: { p: PlatformStats; rank: number; totalSessions: number }) {
+function PlatformCard({ p, rank, totalSessions, trendKeys }: { p: PlatformStats; rank: number; totalSessions: number; trendKeys: string[] }) {
   const [open, setOpen] = useState(false);
   const share = totalSessions > 0 ? (p.sessions / totalSessions * 100) : 0;
 
@@ -78,6 +96,7 @@ function PlatformCard({ p, rank, totalSessions }: { p: PlatformStats; rank: numb
               <p className="text-xs text-muted-foreground mt-0.5">
                 {fmt(p.sessions)} sessions · {fmt(p.uniqueUsers)} visitors
               </p>
+              <YoY current={p.sessions} previous={p.previousSessions} />
             </div>
           </div>
           <button
@@ -110,7 +129,7 @@ function PlatformCard({ p, rank, totalSessions }: { p: PlatformStats; rank: numb
         </div>
 
         {/* Trend sparkline */}
-        <Sparkline data={p.monthlyTrend} color={p.color} />
+        <Sparkline data={p.trend} labels={trendKeys} color={p.color} />
 
         {/* Expandable detail */}
         {open && (
@@ -139,13 +158,13 @@ function PlatformCard({ p, rank, totalSessions }: { p: PlatformStats; rank: numb
               </div>
             )}
 
-            {/* Monthly bar chart */}
+            {/* Traffic over the selected period */}
             <div>
               <p className="text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1">
-                <BarChart3 className="h-3 w-3" /> Monthly traffic
+                <BarChart3 className="h-3 w-3" /> Traffic over time
               </p>
               <ResponsiveContainer width="100%" height={100}>
-                <BarChart data={p.monthlyTrend.map((v, i) => ({ m: MONTH_SHORT[i], v }))}
+                <BarChart data={p.trend.map((v, i) => ({ m: fmtBucket(trendKeys[i] ?? ''), v }))}
                   margin={{ top: 2, right: 2, left: -20, bottom: 0 }}>
                   <XAxis dataKey="m" tick={{ fontSize: 9 }} />
                   <YAxis tick={{ fontSize: 9 }} width={30} />
@@ -167,10 +186,9 @@ interface SocialMediaTabProps {
 }
 
 export function SocialMediaTab({ selectedSite }: SocialMediaTabProps) {
-  const currentYear = new Date().getFullYear();
-  const [selectedYear, setSelectedYear] = useState(currentYear);
-
-  const { platforms, summary, loading, error, refetch } = useSocialMedia(selectedSite.id, selectedYear);
+  const { filters } = useDashboardFilters();
+  const { platforms, summary, trendKeys, granularity, loading, error, refetch } =
+    useSocialMedia(selectedSite.id, { from: filters.from, to: filters.to });
 
   if (loading) {
     return (
@@ -202,10 +220,10 @@ export function SocialMediaTab({ selectedSite }: SocialMediaTabProps) {
     fill: p.color,
   }));
 
-  // Monthly stacked data
-  const stackedMonthly = MONTH_SHORT.map((m, i) => {
-    const row: Record<string, unknown> = { month: m };
-    platforms.forEach(p => { row[p.label] = p.monthlyTrend[i]; });
+  // Stacked trend data, one row per day or month of the selected range
+  const stackedTrend = trendKeys.map((key, i) => {
+    const row: Record<string, unknown> = { bucket: fmtBucket(key) };
+    platforms.forEach(p => { row[p.label] = p.trend[i]; });
     return row;
   });
 
@@ -226,14 +244,6 @@ export function SocialMediaTab({ selectedSite }: SocialMediaTabProps) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Select value={selectedYear.toString()} onValueChange={v => setSelectedYear(+v)}>
-            <SelectTrigger className="w-28 h-9"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {[currentYear, currentYear-1, currentYear-2].map(y => (
-                <SelectItem key={y} value={String(y)}>{y}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
           <Button variant="outline" size="sm" onClick={refetch}>
             <RefreshCw className="h-4 w-4" />
           </Button>
@@ -243,8 +253,10 @@ export function SocialMediaTab({ selectedSite }: SocialMediaTabProps) {
       {/* ── Summary cards ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Social sessions', value: fmt(summary.totalSessions), icon: MousePointer, color: 'pink' },
-          { label: 'Unique visitors', value: fmt(summary.totalUniqueUsers), icon: Users, color: 'purple' },
+          { label: 'Social sessions', value: fmt(summary.totalSessions), icon: MousePointer, color: 'pink',
+            yoy: { current: summary.totalSessions, previous: summary.previousSessions } },
+          { label: 'Unique visitors', value: fmt(summary.totalUniqueUsers), icon: Users, color: 'purple',
+            yoy: { current: summary.totalUniqueUsers, previous: summary.previousUniqueUsers } },
           { label: 'Active platforms', value: String(platforms.length), icon: Share2, color: 'blue' },
           {
             label: 'Top channel',
@@ -252,7 +264,7 @@ export function SocialMediaTab({ selectedSite }: SocialMediaTabProps) {
             icon: TrendingUp,
             color: 'emerald'
           },
-        ].map(({ label, value, icon: Icon, color }) => (
+        ].map(({ label, value, icon: Icon, color, yoy }) => (
           <Card key={label} className={`border-l-4 border-l-${color}-400`}>
             <CardHeader className="pb-1 pt-4 px-4">
               <CardTitle className="text-xs text-muted-foreground flex items-center gap-1.5 font-medium">
@@ -261,6 +273,7 @@ export function SocialMediaTab({ selectedSite }: SocialMediaTabProps) {
             </CardHeader>
             <CardContent className="px-4 pb-4">
               <div className="text-2xl font-bold">{value}</div>
+              {yoy && <YoY current={yoy.current} previous={yoy.previous} />}
             </CardContent>
           </Card>
         ))}
@@ -271,7 +284,7 @@ export function SocialMediaTab({ selectedSite }: SocialMediaTabProps) {
         <Card>
           <CardContent className="py-14 text-center">
             <Share2 className="h-10 w-10 mx-auto mb-4 opacity-30" />
-            <h3 className="font-semibold mb-1">No social traffic detected for {selectedYear}</h3>
+            <h3 className="font-semibold mb-1">No social traffic in the selected period</h3>
             <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">
               Social traffic is identified via referrer (the visitor's previous page) or UTM parameters. Make sure to tag your social links with UTM tags for best tracking results.
             </p>
@@ -307,20 +320,20 @@ export function SocialMediaTab({ selectedSite }: SocialMediaTabProps) {
             </CardContent>
           </Card>
 
-          {/* ── Monthly stacked trend ── */}
+          {/* ── Stacked trend ── */}
           {platforms.length > 1 && (
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                  Monthly traffic by platform — {selectedYear}
+                  {granularity === 'day' ? 'Daily' : 'Monthly'} traffic by platform — {filters.from} to {filters.to}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={stackedMonthly} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                  <BarChart data={stackedTrend} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                    <XAxis dataKey="bucket" tick={{ fontSize: 11 }} />
                     <YAxis tickFormatter={v => fmt(Number(v))} tick={{ fontSize: 11 }} width={40} />
                     <Tooltip formatter={(v: number) => fmt(v)} />
                     <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
@@ -342,7 +355,7 @@ export function SocialMediaTab({ selectedSite }: SocialMediaTabProps) {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {platforms.map((p, i) => (
-                <PlatformCard key={p.platformKey} p={p} rank={i + 1} totalSessions={summary.totalSessions} />
+                <PlatformCard key={p.platformKey} p={p} rank={i + 1} totalSessions={summary.totalSessions} trendKeys={trendKeys} />
               ))}
             </div>
           </div>

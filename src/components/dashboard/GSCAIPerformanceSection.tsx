@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Sparkles, Globe, FileText, TrendingUp, Info, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
 
 interface Props {
   siteId: string;
@@ -12,7 +13,8 @@ interface Props {
 }
 
 export function GSCAIPerformanceSection({ siteId, onNavigateToIntegrations }: Props) {
-  const { data, isLoading } = useGSCAIData(siteId);
+  const { filters } = useDashboardFilters();
+  const { data, isLoading } = useGSCAIData(siteId, { from: filters.from, to: filters.to });
 
   if (isLoading) {
     return (

@@ -3,32 +3,29 @@ import { DollarSign, ShoppingCart, TrendingUp, Users } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DateRangePicker } from "../DateRangePicker";
-import { useState } from "react";
-import { startOfMonth, endOfDay } from "date-fns";
+import { useDashboardFilters } from "@/contexts/DashboardFiltersContext";
+import { rangeBounds } from "@/lib/dashboard/filters";
 
 interface EcommerceTabProps {
   selectedSiteId: string | null;
 }
 
 export const EcommerceTab = ({ selectedSiteId }: EcommerceTabProps) => {
-  const [dateRange, setDateRange] = useState({
-    from: startOfMonth(new Date()),
-    to: endOfDay(new Date()),
-  });
+  const { filters } = useDashboardFilters();
 
   const { data: ecommerceData, isLoading } = useQuery({
-    queryKey: ['ecommerce-analytics', selectedSiteId, dateRange],
+    queryKey: ['ecommerce-analytics', selectedSiteId, filters.from, filters.to],
     queryFn: async () => {
       if (!selectedSiteId) return null;
 
+      const { start, end } = rangeBounds(filters.from, filters.to);
       const { data, error } = await supabase
         .from('ecommerce_events')
         .select('*')
         .eq('site_id', selectedSiteId)
         .eq('consent_granted', true)
-        .gte('created_at', dateRange.from.toISOString())
-        .lte('created_at', dateRange.to.toISOString());
+        .gte('created_at', start)
+        .lt('created_at', end);
 
       if (error) throw error;
 
@@ -106,12 +103,9 @@ export const EcommerceTab = ({ selectedSiteId }: EcommerceTabProps) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold">E-commerce Analytics</h2>
-          <p className="text-muted-foreground">GDPR-compatible e-commerce tracking</p>
-        </div>
-        <DateRangePicker dateRange={dateRange} onDateRangeChange={(range) => range && setDateRange({ from: range.from!, to: range.to! })} />
+      <div>
+        <h2 className="text-2xl font-bold">E-commerce Analytics</h2>
+        <p className="text-muted-foreground">GDPR-compatible e-commerce tracking</p>
       </div>
 
       {/* Metrics Overview */}

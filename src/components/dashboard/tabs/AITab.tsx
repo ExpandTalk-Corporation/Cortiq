@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Bot, Brain, Lightbulb, TrendingUp, TrendingDown, BarChart3, Users, MousePointer, DollarSign, Clock, Zap } from 'lucide-react';
 import { useAITraffic } from '@/hooks/useAITraffic';
@@ -14,13 +14,14 @@ interface AITabProps {
 }
 
 export function AITab({ selectedSite }: AITabProps) {
-  const [timeRange, setTimeRange] = useState('30');
-  
+  const { filters } = useDashboardFilters();
+  const range = { from: filters.from, to: filters.to };
+
   // Try native AI search tracking first (cookiefree, independent)
-  const nativeResult = useAISearchTraffic(selectedSite?.id, parseInt(timeRange));
-  
+  const nativeResult = useAISearchTraffic(selectedSite?.id, range);
+
   // Fallback to GA4 if native has no data (requires GA4 integration)
-  const ga4Result = useAITraffic(selectedSite.id, parseInt(timeRange));
+  const ga4Result = useAITraffic(selectedSite.id, range);
   
   // Use native data if it loaded without error; fall back to GA4 only if native also failed
   const hasNativeData = nativeResult.data && nativeResult.data.totalSessions > 0;
@@ -113,16 +114,6 @@ export function AITab({ selectedSite }: AITabProps) {
             </Badge>
           )}
         </div>
-        <Select value={timeRange} onValueChange={setTimeRange}>
-          <SelectTrigger className="w-48">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="7">Last 7 days</SelectItem>
-            <SelectItem value="30">Last 30 days</SelectItem>
-            <SelectItem value="90">Last 90 days</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       {/* Overview Cards */}

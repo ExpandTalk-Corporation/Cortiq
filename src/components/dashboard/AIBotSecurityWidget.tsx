@@ -3,23 +3,29 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Shield, AlertTriangle, CheckCircle, TrendingUp, Bot, Activity } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 
 interface AIBotSecurityWidgetProps {
   siteId: string;
+  /** Global dashboard date filter, inclusive YYYY-MM-DD. */
+  from: string;
+  to: string;
 }
 
-export function AIBotSecurityWidget({ siteId }: AIBotSecurityWidgetProps) {
+export function AIBotSecurityWidget({ siteId, from, to }: AIBotSecurityWidgetProps) {
   const [analyzing, setAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<any>(null);
+
+  // A result belongs to the range it was run for; drop it when the site or range changes.
+  useEffect(() => { setAnalysis(null); }, [siteId, from, to]);
 
   const runAnalysis = async () => {
     setAnalyzing(true);
     try {
       const { data, error } = await supabase.functions.invoke('ai-bot-behavior-analysis', {
-        body: { siteId, days: 7 }
+        body: { siteId, startDate: from, endDate: to }
       });
 
       if (error) throw error;
@@ -97,7 +103,7 @@ export function AIBotSecurityWidget({ siteId }: AIBotSecurityWidgetProps) {
                 <div>
                   <h3 className="text-lg font-bold">Threat Level</h3>
                   <p className="text-sm text-muted-foreground">
-                    Based on {analysis.summary.totalVisits} bot visits
+                    Based on {analysis.summary.totalVisits} bot visits, {from} to {to}
                   </p>
                 </div>
                 <Badge className={`${getThreatLevel(analysis.threatScore).color} text-white text-lg px-4 py-2`}>

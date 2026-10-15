@@ -6,6 +6,7 @@ import { AlertTriangle, TrendingUp, TrendingDown, Minus, Bot, Info, ExternalLink
 import { LineChart, Line, ResponsiveContainer, Tooltip } from "recharts";
 import { useZeroClickRisk, type ZeroClickRiskPage } from "@/hooks/useZeroClickRisk";
 import { useGSCData } from "@/hooks/useGSCData";
+import { useDashboardFilters } from "@/contexts/DashboardFiltersContext";
 
 interface ZeroClickRiskIndexProps {
   siteId: string;
@@ -66,7 +67,8 @@ function ScoreBar({ score }: { score: number }) {
 }
 
 export function ZeroClickRiskIndex({ siteId }: ZeroClickRiskIndexProps) {
-  const { data, isLoading, error } = useZeroClickRisk(siteId);
+  const { filters } = useDashboardFilters();
+  const { data, isLoading, error } = useZeroClickRisk(siteId, { from: filters.from, to: filters.to });
   const { isConnected: gscConnected } = useGSCData(siteId);
 
   if (isLoading) {
@@ -144,7 +146,7 @@ export function ZeroClickRiskIndex({ siteId }: ZeroClickRiskIndexProps) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{summary.totalCrawlerVisits.toLocaleString('sv-SE')}</div>
-            <p className="text-xs text-muted-foreground mt-1">Last 12 weeks</p>
+            <p className="text-xs text-muted-foreground mt-1">{filters.from} to {filters.to}</p>
           </CardContent>
         </Card>
 
@@ -169,7 +171,7 @@ export function ZeroClickRiskIndex({ siteId }: ZeroClickRiskIndexProps) {
           {isEmpty ? (
             <div className="text-center py-12">
               <Bot className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No AI crawler activity detected yet.</p>
+              <p className="text-muted-foreground">No AI crawler activity in the selected period.</p>
               <p className="text-xs text-muted-foreground mt-2">
                 Go to <span className="font-medium">Settings → Setup</span> to install the tracking script.
               </p>
@@ -186,7 +188,7 @@ export function ZeroClickRiskIndex({ siteId }: ZeroClickRiskIndexProps) {
                     <th className="text-right py-2 pr-4 font-medium">Citation</th>
                     <th className="text-right py-2 pr-4 font-medium">Total</th>
                     <th className="text-left py-2 pr-4 font-medium">Trend</th>
-                    <th className="text-left py-2 font-medium">12 weeks</th>
+                    <th className="text-left py-2 font-medium">Weekly</th>
                   </tr>
                 </thead>
                 <tbody>

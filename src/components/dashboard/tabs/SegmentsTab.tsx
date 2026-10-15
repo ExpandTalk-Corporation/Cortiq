@@ -26,10 +26,9 @@ import {
 import type { Site } from '@/types/dashboard';
 import { useSegmentAnalytics } from '@/hooks/useSegmentAnalytics';
 import { useGASegmentAnalytics } from '@/hooks/useGASegmentAnalytics';
-import { DateRangePicker } from '@/components/dashboard/DateRangePicker';
 import { CustomSegmentCreator } from '@/components/dashboard/CustomSegmentCreator';
 import { PrioritySegmentConfig } from '@/components/dashboard/PrioritySegmentConfig';
-import { DateRange } from 'react-day-picker';
+import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
 
 interface SegmentsTabProps {
   selectedSite: Site;
@@ -38,10 +37,8 @@ interface SegmentsTabProps {
 export function SegmentsTab({ selectedSite }: SegmentsTabProps) {
   const [activeView, setActiveView] = useState('overview');
   const [performanceCategory, setPerformanceCategory] = useState<string | null>(null);
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-    to: new Date()
-  });
+  const { filters } = useDashboardFilters();
+  const range = { from: filters.from, to: filters.to };
   const [selectedSegments, setSelectedSegments] = useState<string[]>([]);
   const [showCustomSegmentDialog, setShowCustomSegmentDialog] = useState(false);
   const [showPriorityConfig, setShowPriorityConfig] = useState(false);
@@ -53,11 +50,9 @@ export function SegmentsTab({ selectedSite }: SegmentsTabProps) {
     'low-variance': true
   });
   
-  const startDate = dateRange?.from?.toISOString().split('T')[0];
-  const endDate = dateRange?.to?.toISOString().split('T')[0];
-  
-  const { segmentMetrics: internalMetrics, insights, isLoading: internalLoading } = useSegmentAnalytics(selectedSite.id);
-  const { segmentMetrics: gaMetrics, isLoading: gaLoading, hasGAIntegration } = useGASegmentAnalytics(selectedSite.id, startDate, endDate);
+  // Both sources follow the global date range.
+  const { segmentMetrics: internalMetrics, insights, isLoading: internalLoading } = useSegmentAnalytics(selectedSite.id, range);
+  const { segmentMetrics: gaMetrics, isLoading: gaLoading, hasGAIntegration } = useGASegmentAnalytics(selectedSite.id, range);
   
   // Använd GA-data om tillgängligt, annars intern data
   const segmentMetrics = hasGAIntegration && gaMetrics.length > 0 ? 
@@ -136,19 +131,6 @@ export function SegmentsTab({ selectedSite }: SegmentsTabProps) {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Date Range Picker */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Period</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <DateRangePicker 
-            dateRange={dateRange}
-            onDateRangeChange={setDateRange}
-          />
-        </CardContent>
-      </Card>
-
       {/* Segment Health Overview */}
       <Card>
         <CardHeader>
