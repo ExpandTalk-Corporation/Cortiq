@@ -1,6 +1,19 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from '../_shared/supabase.ts'
-import { google } from 'npm:googleapis'
+
+// Plain REST calls instead of npm:googleapis: the full client (hundreds of APIs) no longer
+// bundles on Supabase Edge ("Function deploy failed due to an internal error"), and only
+// three endpoints are used. Same requests and response fields as the googleapis client.
+async function googleApi(url: string, apiKey: string, body?: unknown): Promise<any> {
+  const u = new URL(url)
+  u.searchParams.set('key', apiKey)
+  const res = await fetch(u, body === undefined
+    ? { signal: AbortSignal.timeout(60_000) }
+    : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(60_000) })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(`Google API ${res.status}: ${data?.error?.message ?? res.statusText}`)
+  return data
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -164,35 +177,26 @@ async function syncSearchConsoleData(siteUrl: string, apiKey: string, settings?:
   const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   
   try {
-    const searchConsole = google.webmasters({
-      version: 'v3',
-      auth: apiKey
-    })
-    
-    // Hämta query data
-    const queryResponse = await searchConsole.searchanalytics.query({
-      siteUrl: siteUrl,
-      requestBody: {
-        startDate,
-        endDate,
-        dimensions: ['query'],
-        rowLimit: settings?.queryLimit || 100
-      }
+    const endpoint = `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`
+
+    // Query data
+    const queryResponse = await googleApi(endpoint, apiKey, {
+      startDate,
+      endDate,
+      dimensions: ['query'],
+      rowLimit: settings?.queryLimit || 100
     })
 
-    // Hämta page data
-    const pageResponse = await searchConsole.searchanalytics.query({
-      siteUrl: siteUrl,
-      requestBody: {
-        startDate,
-        endDate,
-        dimensions: ['page'],
-        rowLimit: settings?.pageLimit || 50
-      }
+    // Page data
+    const pageResponse = await googleApi(endpoint, apiKey, {
+      startDate,
+      endDate,
+      dimensions: ['page'],
+      rowLimit: settings?.pageLimit || 50
     })
-    
-    const queryData = queryResponse.data.rows || []
-    const pageData = pageResponse.data.rows || []
+
+    const queryData: any[] = queryResponse.rows || []
+    const pageData: any[] = pageResponse.rows || []
     
     let totalClicks = 0
     let totalImpressions = 0
@@ -252,14 +256,8 @@ async function syncAnalyticsData(propertyId: string, apiKey: string, settings?: 
   const startDate = new Date(Date.now() - (settings?.dayRange || 30) * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   
   try {
-    const analyticsData = google.analyticsdata({
-      version: 'v1beta',
-      auth: apiKey
-    })
-    
-    const response = await analyticsData.properties.runReport({
-      property: `properties/${propertyId}`,
-      requestBody: {
+    const report = await googleApi(
+      `https://analyticsdata.googleapis.com/v1beta/properties/${encodeURIComponent(propertyId)}:runReport`, apiKey, {
         dateRanges: [{ startDate, endDate }],
         metrics: [
           { name: 'sessions' },
@@ -274,10 +272,9 @@ async function syncAnalyticsData(propertyId: string, apiKey: string, settings?: 
           { name: 'deviceCategory' },
           { name: 'sourceMedium' }
         ] : []
-      }
-    })
-    
-    const metrics = response.data.rows?.[0]?.metricValues || []
+      })
+
+    const metrics = report.rows?.[0]?.metricValues || []
     
     return {
       sessions: parseInt(metrics[0]?.value || '0'),
@@ -287,7 +284,7 @@ async function syncAnalyticsData(propertyId: string, apiKey: string, settings?: 
       sessionDuration: parseInt(metrics[4]?.value || '0'),
       engagementRate: parseFloat(metrics[5]?.value || '0'),
       conversions: parseInt(metrics[6]?.value || '0'),
-      dimensions: response.data.rows || []
+      dimensions: report.rows || []
     }
   } catch (error) {
     console.error('Analytics sync error:', error)
@@ -306,26 +303,14 @@ async function syncAnalyticsData(propertyId: string, apiKey: string, settings?: 
 
 async function syncPageSpeedData(siteUrl: string, apiKey: string) {
   try {
-    const pagespeedapi = google.pagespeedonline({
-      version: 'v5',
-      auth: apiKey
-    })
-    
-    const [mobileResponse, desktopResponse] = await Promise.all([
-      pagespeedapi.pagespeedapi.runpagespeed({
-        url: siteUrl,
-        strategy: 'mobile',
-        category: ['PERFORMANCE', 'ACCESSIBILITY', 'BEST_PRACTICES', 'SEO']
-      }),
-      pagespeedapi.pagespeedapi.runpagespeed({
-        url: siteUrl,
-        strategy: 'desktop',
-        category: ['PERFORMANCE', 'ACCESSIBILITY', 'BEST_PRACTICES', 'SEO']
-      })
-    ])
-    
-    const mobileData = mobileResponse.data
-    const desktopData = desktopResponse.data
+    const run = (strategy: 'mobile' | 'desktop') => {
+      const u = new URL('https://www.googleapis.com/pagespeedonline/v5/runPagespeed')
+      u.searchParams.set('url', siteUrl)
+      u.searchParams.set('strategy', strategy)
+      for (const c of ['PERFORMANCE', 'ACCESSIBILITY', 'BEST_PRACTICES', 'SEO']) u.searchParams.append('category', c)
+      return googleApi(u.toString(), apiKey)
+    }
+    const [mobileData, desktopData] = await Promise.all([run('mobile'), run('desktop')])
     
     return {
       mobileScore: Math.round((mobileData.lighthouseResult?.categories?.performance?.score || 0) * 100),
