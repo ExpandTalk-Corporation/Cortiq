@@ -1,5 +1,5 @@
 // Drains the Tracking Check queue. Called by tracking-check-start, by itself and by the status nudge.
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from '../_shared/supabase.ts';
 import { processBatch, type Probes } from '../_shared/tracking-check/worker-core.ts';
 import { fetchProbe } from '../_shared/tracking-check/fetch-probe.ts';
 import { DEFAULT_BROWSERLESS_URL, runBrowserProbe } from '../_shared/tracking-check/browserless.ts';

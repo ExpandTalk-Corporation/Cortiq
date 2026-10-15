@@ -1,5 +1,5 @@
 // Internal Tracking Check API: access check, page suggestions, run creation, status and sharing.
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from '../_shared/supabase.ts';
 import { assertSafeUrl } from '../_shared/safe-url.ts';
 import { fetchSitemapUrls, suggestPages } from '../_shared/tracking-check/pages.ts';
 import { randomToken, seal } from '../_shared/tracking-check/secret-box.ts';

@@ -51,7 +51,7 @@ function endpoint({ validUser = true, allowedSite = true, siteError = null, summ
     Deno: { env: { get: key => ({ SUPABASE_URL: 'https://example.invalid', SUPABASE_ANON_KEY: 'anon', SUPABASE_SERVICE_ROLE_KEY: 'service', ANTHROPIC_API_KEY: 'test' })[key] } },
     require(name) {
       if (name.includes('http/server')) return { serve: fn => { handler = fn; } };
-      if (name.includes('supabase-js')) return { createClient: (_url, key, options) => {
+      if (name.includes('supabase-js') || name.endsWith('/_shared/supabase.ts')) return { createClient: (_url, key, options) => {
         if (key === 'service') return service;
         assert.equal(options.global.headers.Authorization, 'Bearer session');
         return userClient;

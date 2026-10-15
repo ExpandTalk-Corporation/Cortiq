@@ -5,7 +5,7 @@
  * Handles element interactions, form analytics, and content heatmaps
  */
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.3';
+import { createClient } from '../_shared/supabase.ts';
 
 interface ContentInteraction {
   element_id: string;

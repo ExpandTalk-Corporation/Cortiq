@@ -20,7 +20,7 @@
  *
  * Body: { hits: [{ url, userAgent, method?, status?, referrer?, ip? }] }  (max 25, ≤ 64 KB)
  */
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.3";
+import { createClient } from "../_shared/supabase.ts";
 import { anonymizeIP } from "../_shared/jurisdiction.ts";
 import { classifyBot } from "../_shared/ai-bot-registry.ts";
 

@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { createClient } from "../_shared/supabase.ts";
 import { resolveSite } from "../_shared/resolve-site.ts";
 
 // AI-referral measurement: a human visitor arriving from ChatGPT, Perplexity, Claude, …

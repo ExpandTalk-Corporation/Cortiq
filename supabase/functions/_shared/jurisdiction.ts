@@ -8,7 +8,7 @@
  *   const safePayload = sanitizeForMode(mode, rawPayload);
  */
 
-import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import type { SupabaseClient } from './supabase.ts';
 
 export type PipelineMode = 'eu_strict' | 'global_standard' | 'permissive';
 

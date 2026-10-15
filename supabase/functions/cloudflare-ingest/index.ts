@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.3";
+import { createClient } from "../_shared/supabase.ts";
 // Canonical AI-bot classifier — shared with ai-bot-tracker so server-log hits are
 // classified identically to JS-tag hits and merge cleanly in the dashboard.
 import { classifyBot } from "../_shared/ai-bot-registry.ts";

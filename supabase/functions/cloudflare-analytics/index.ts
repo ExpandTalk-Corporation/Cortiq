@@ -3,7 +3,7 @@
 // Analytics API for a site's zone and upserts daily aggregates into cloudflare_analytics.
 // Auth: the API token is a project-level Supabase secret (CLOUDFLARE_API_TOKEN) — NOT
 // per-site yet (waiting on encrypted secret storage). Zone ID lives on sites.
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from '../_shared/supabase.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

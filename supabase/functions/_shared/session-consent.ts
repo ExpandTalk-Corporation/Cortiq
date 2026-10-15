@@ -1,4 +1,4 @@
-import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import type { SupabaseClient } from './supabase.ts';
 
 // Never filter expired/denied rows before selecting the latest decision: doing so
 // could resurrect an older grant after withdrawal. A profile flag is not consent.
