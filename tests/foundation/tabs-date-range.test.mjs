@@ -195,3 +195,10 @@ test('edge functions accept a date range and keep their legacy inputs', () => {
   assert.match(behaviour, /body\.days \?\? 7/);
   assert.match(src('src/components/dashboard/AIBotSecurityWidget.tsx'), /startDate: from, endDate: to/);
 });
+
+test('ai-bot-behavior-analysis checks site ownership before its service-role reads', () => {
+  const src = readFileSync(new URL('../../supabase/functions/ai-bot-behavior-analysis/index.ts', import.meta.url), 'utf8');
+  const guard = src.indexOf("Not authorised for this site");
+  assert.ok(guard > 0, 'ownership guard present');
+  assert.ok(guard < src.indexOf(".from('ai_bot_traffic')"), 'guard runs before the traffic query');
+});

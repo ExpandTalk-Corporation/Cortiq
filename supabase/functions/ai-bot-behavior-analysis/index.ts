@@ -21,6 +21,18 @@ serve(async (req) => {
 
     const body = await req.json();
     const { siteId } = body;
+
+    // The service-role client below reads any site's traffic and writes ai_bot_analysis, so
+    // the caller's JWT is verified and site ownership checked first.
+    const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
+    const { data: { user } } = token ? await supabase.auth.getUser(token) : { data: { user: null } };
+    const { data: ownedSite } = user && typeof siteId === 'string'
+      ? await supabase.from('sites').select('id').eq('id', siteId).eq('user_id', user.id).maybeSingle()
+      : { data: null };
+    if (!ownedSite) {
+      return new Response(JSON.stringify({ error: 'Not authorised for this site' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
     // An explicit startDate/endDate (the dashboard date filter) wins over the legacy
     // "last N days" input.
     const range = validRange(body.startDate, body.endDate);
