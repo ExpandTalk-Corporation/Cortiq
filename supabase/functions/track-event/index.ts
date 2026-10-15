@@ -296,6 +296,9 @@ Deno.serve(async (req) => {
             p_device: metadata.device_type ?? null,
             p_referrer: metadata.referrer ?? null,
             p_viewed_at: body.timestamp ? new Date(body.timestamp).toISOString() : new Date().toISOString(),
+            // Country only (ISO alpha-2, set by Cloudflare in front of Supabase Edge);
+            // ingest_pageview drops XX/T1/non-ISO values.
+            p_country: req.headers.get('cf-ipcountry'),
           });
         } else if (resolvedSiteId) {
           console.warn('page_view bridge: domain-resolved site not owned by caller; skipping', {

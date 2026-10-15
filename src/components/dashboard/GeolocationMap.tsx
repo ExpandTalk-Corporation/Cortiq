@@ -7,15 +7,16 @@ import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-interface MapCluster {
+export interface MapCluster {
+  label: string;
   latitude: number;
   longitude: number;
   sessions: number;
-  unique_visitors: number;
+  page_views: number;
   conversions: number;
 }
 
-interface HeatmapPoint {
+export interface HeatmapPoint {
   latitude: number;
   longitude: number;
   intensity: number;
@@ -122,8 +123,9 @@ export default function GeolocationMap({
 
       const popup = L.popup().setContent(`
         <div style="padding: 8px; font-size: 12px;">
+          <strong>${cluster.label}</strong><br/>
           <strong>Sessions:</strong> ${cluster.sessions.toLocaleString()}<br/>
-          <strong>Visitors:</strong> ${cluster.unique_visitors.toLocaleString()}<br/>
+          <strong>Page views:</strong> ${cluster.page_views.toLocaleString()}<br/>
           <strong>Conversions:</strong> ${cluster.conversions.toLocaleString()}
         </div>
       `);
@@ -149,12 +151,14 @@ export default function GeolocationMap({
 
   // Add heatmap layer
   useEffect(() => {
-    if (!mapRef.current || !mapLoaded || heatmapData.length === 0) return;
+    if (!mapRef.current || !mapLoaded) return;
 
     // Remove existing heatmap layer
     if (heatmapLayerRef.current) {
       mapRef.current.removeLayer(heatmapLayerRef.current);
+      heatmapLayerRef.current = null;
     }
+    if (heatmapData.length === 0) return;
 
     // Create heatmap layer using circles
     const heatmapGroup = new L.FeatureGroup();
@@ -164,7 +168,7 @@ export default function GeolocationMap({
       const color = `rgba(255, ${100 - point.intensity}, 0, ${opacity})`;
 
       L.circleMarker([point.latitude, point.longitude], {
-        radius: 5 + (point.intensity / 100) * 10,
+        radius: 8 + (point.intensity / 100) * 30,
         fillColor: color,
         color: color,
         weight: 0,

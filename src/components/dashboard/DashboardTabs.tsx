@@ -248,13 +248,7 @@ function DashboardTabsInner({ selectedSite, analytics, dateRange, onSiteDeleted,
 
       <TabsContent value="geolocation" className="space-y-6">
         <TabErrorBoundary tabName="Geolocation">
-          <GeolocationDashboard
-            siteId={selectedSite.id}
-            dateRange={{
-              from: dateRange?.from?.toISOString() ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-              to: dateRange?.to?.toISOString() ?? new Date().toISOString()
-            }}
-          />
+          <GeolocationDashboard siteId={selectedSite.id} />
         </TabErrorBoundary>
       </TabsContent>
 
