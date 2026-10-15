@@ -66,6 +66,8 @@ export function FormAnalyticsTab({ selectedSite, dateRange }: FormAnalyticsTabPr
         return 'Gravity Forms';
       case 'woocommerce_checkout':
         return 'WooCommerce Checkout';
+      case 'sentrisk':
+        return 'SentriSK';
       default:
         return 'Custom form';
     }
@@ -77,7 +79,7 @@ export function FormAnalyticsTab({ selectedSite, dateRange }: FormAnalyticsTabPr
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Form Analytics</h2>
           <p className="text-muted-foreground">
-            Analyze performance for Contact Form 7, Gravity Forms, and other forms
+            Analyze performance for Contact Form 7, Gravity Forms, SentriSK and other forms
           </p>
         </div>
         

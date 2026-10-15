@@ -53,10 +53,10 @@ const formTypes: FormType[] = [
     examples: ['Checkout', 'Customer registration', 'Product reviews']
   },
   {
-    id: 'traffikboost',
-    name: 'Traffikboost',
+    id: 'sentrisk',
+    name: 'SentriSK',
     icon: <Users className="h-5 w-5" />,
-    description: 'Lead generation and conversion',
+    description: 'SentriSK lead forms (embedded via plugin, block or sentrisk-embed.js)',
     color: 'bg-orange-100 text-orange-700',
     examples: ['Lead capture', 'Newsletter signup', 'Demo booking']
   },

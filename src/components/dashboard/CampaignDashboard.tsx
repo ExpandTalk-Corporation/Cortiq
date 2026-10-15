@@ -1,12 +1,10 @@
 /**
- * Campaign Dashboard
- * Task #14: UTM Campaign Tracking
+ * Campaigns tab: sessions per UTM source / medium / campaign.
  *
- * Track and analyze UTM parameters for marketing campaigns
+ * UTM tags are parsed from the landing URL onto the session by ingest_pageview (first touch).
  */
 
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -20,7 +18,8 @@ import { Badge } from '@/components/ui/badge';
 import { ExportButton } from './ExportButton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TrendingUp, Target } from 'lucide-react';
-import { toast } from 'sonner';
+import { useCampaignBreakdown } from '@/hooks/useCampaignBreakdown';
+import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
 
 interface CampaignMetrics {
   utm_source: string;
@@ -34,92 +33,84 @@ interface CampaignMetrics {
 
 interface CampaignDashboardProps {
   siteId: string;
-  dateRange: { from: string; to: string };
+  domain?: string;
 }
 
-export function CampaignDashboard({ siteId, dateRange }: CampaignDashboardProps) {
-  const [campaigns, setCampaigns] = useState<CampaignMetrics[]>([]);
-  const [topSources, setTopSources] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+function siteOrigin(domain?: string): string {
+  const host = (domain ?? '').replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  return host ? `https://${host}` : 'https://example.com';
+}
 
-  useEffect(() => {
-    loadCampaignData();
-  }, [siteId, dateRange]);
+export function CampaignDashboard({ siteId, domain }: CampaignDashboardProps) {
+  const { filters } = useDashboardFilters();
+  const dateRange = { from: filters.from, to: filters.to };
+  const { data, isLoading: loading, error } = useCampaignBreakdown(siteId);
 
-  async function loadCampaignData() {
-    try {
-      setLoading(true);
+  const campaigns = useMemo<CampaignMetrics[]>(
+    () =>
+      (data?.campaigns ?? []).map((c) => ({
+        utm_source: c.utm_source ?? '(not set)',
+        utm_medium: c.utm_medium ?? '(not set)',
+        utm_campaign: c.utm_campaign ?? '(not set)',
+        sessions: c.sessions,
+        pageviews: c.page_views,
+        conversions: c.conversions,
+        conversion_rate: c.sessions > 0 ? (c.conversions / c.sessions) * 100 : 0,
+      })),
+    [data],
+  );
 
-      const { data, error } = await supabase
-        .from('campaign_performance')
-        .select('*')
-        .eq('site_id', siteId)
-        .gte('date', dateRange.from.split('T')[0])
-        .lte('date', dateRange.to.split('T')[0]);
-
-      if (error) throw error;
-
-      // Aggregate by campaign
-      const aggregated = (data || []).reduce((acc: any[], item: any) => {
-        const key = `${item.utm_source}|${item.utm_medium}|${item.utm_campaign}`;
-        const existing = acc.find((c) => c.key === key);
-
-        if (existing) {
-          existing.sessions += item.sessions;
-          existing.pageviews += item.pageviews;
-          existing.conversions += item.conversions;
-        } else {
-          acc.push({
-            key,
-            utm_source: item.utm_source,
-            utm_medium: item.utm_medium,
-            utm_campaign: item.utm_campaign,
-            sessions: item.sessions,
-            pageviews: item.pageviews,
-            conversions: item.conversions,
-            conversion_rate: 0
-          });
-        }
-        return acc;
-      }, []);
-
-      // Calculate conversion rates
-      aggregated.forEach((campaign: any) => {
-        campaign.conversion_rate = campaign.sessions > 0
-          ? (campaign.conversions / campaign.sessions) * 100
-          : 0;
-      });
-
-      setCampaigns(aggregated.sort((a, b) => b.sessions - a.sessions));
-
-      // Get top sources
-      const sources = (data || []).reduce((acc: any[], item: any) => {
-        const existing = acc.find((s) => s.source === item.utm_source);
-        if (existing) {
-          existing.sessions += item.sessions;
-          existing.conversions += item.conversions;
-        } else {
-          acc.push({
-            source: item.utm_source,
-            sessions: item.sessions,
-            conversions: item.conversions
-          });
-        }
-        return acc;
-      }, []);
-
-      setTopSources(sources.sort((a, b) => b.sessions - a.sessions).slice(0, 5));
-    } catch (error) {
-      console.error('Error loading campaign data:', error);
-      toast.error('Failed to load campaign data');
-    } finally {
-      setLoading(false);
+  const topSources = useMemo(() => {
+    const bySource = new Map<string, { source: string; sessions: number; conversions: number }>();
+    for (const c of campaigns) {
+      const row = bySource.get(c.utm_source) ?? { source: c.utm_source, sessions: 0, conversions: 0 };
+      row.sessions += c.sessions;
+      row.conversions += c.conversions;
+      bySource.set(c.utm_source, row);
     }
-  }
+    return [...bySource.values()].sort((a, b) => b.sessions - a.sessions).slice(0, 5);
+  }, [campaigns]);
 
   const totalSessions = campaigns.reduce((sum, c) => sum + c.sessions, 0);
   const totalConversions = campaigns.reduce((sum, c) => sum + c.conversions, 0);
   const avgConversionRate = totalSessions > 0 ? (totalConversions / totalSessions) * 100 : 0;
+
+  const exampleLink = `${siteOrigin(domain)}/?utm_source=newsletter&utm_medium=email&utm_campaign=october-launch`;
+  const emptyState = (
+    <div className="py-8 text-muted-foreground max-w-2xl mx-auto">
+      <div className="text-center">
+        <Target className="h-12 w-12 mx-auto mb-3 opacity-50" />
+        <p className="font-medium text-foreground">
+          {error ? 'Failed to load campaign data' : 'No campaign traffic in this period'}
+        </p>
+        {!error && data && (
+          <p className="text-sm mt-1">
+            0 of {data.total_sessions.toLocaleString()} sessions in this period arrived through a UTM-tagged link.
+          </p>
+        )}
+      </div>
+      {!error && (
+        <div className="mt-6 text-sm space-y-3">
+          <p>Campaigns are read from the UTM tags on the link a visitor arrives through. To see data here:</p>
+          <ol className="list-decimal pl-5 space-y-2">
+            <li>
+              Add UTM parameters to the links in your ads, newsletters and social posts. At minimum{' '}
+              <code>utm_source</code>, <code>utm_medium</code> and <code>utm_campaign</code>, for example:
+              <code className="block mt-1 p-2 rounded bg-muted text-xs break-all">{exampleLink}</code>
+            </li>
+            <li>
+              Make sure the CortIQ tracking script runs on the landing page (Setup tab). Visits are recorded only
+              for visitors who accept analytics cookies.
+            </li>
+            <li>
+              Tagged visits appear here shortly after they happen. Untagged traffic (search, direct, referrals) is
+              in the Overview and Analytics tabs.
+            </li>
+          </ol>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -133,7 +124,9 @@ export function CampaignDashboard({ siteId, dateRange }: CampaignDashboardProps)
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{new Set((campaigns ?? []).map(c => c.utm_campaign)).size}</div>
+            <div className="text-3xl font-bold">
+              {new Set(campaigns.filter((c) => c.utm_campaign !== '(not set)').map((c) => c.utm_campaign)).size}
+            </div>
           </CardContent>
         </Card>
 
@@ -146,6 +139,11 @@ export function CampaignDashboard({ siteId, dateRange }: CampaignDashboardProps)
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">{totalSessions.toLocaleString()}</div>
+            {data && data.total_sessions > 0 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {((totalSessions / data.total_sessions) * 100).toFixed(1)}% of all sessions
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -191,11 +189,7 @@ export function CampaignDashboard({ siteId, dateRange }: CampaignDashboardProps)
                   Loading campaigns...
                 </div>
               ) : campaigns.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Target className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p>No campaigns tracked yet</p>
-                  <p className="text-sm">UTM parameters will appear here</p>
-                </div>
+                emptyState
               ) : (
                 <Table>
                   <TableHeader>
@@ -209,8 +203,8 @@ export function CampaignDashboard({ siteId, dateRange }: CampaignDashboardProps)
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {campaigns.map((campaign, idx) => (
-                      <TableRow key={idx}>
+                    {campaigns.map((campaign) => (
+                      <TableRow key={`${campaign.utm_source}|${campaign.utm_medium}|${campaign.utm_campaign}`}>
                         <TableCell>
                           <Badge variant="outline">{campaign.utm_campaign}</Badge>
                         </TableCell>
@@ -243,28 +237,34 @@ export function CampaignDashboard({ siteId, dateRange }: CampaignDashboardProps)
               <CardTitle>Top Traffic Sources</CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Source</TableHead>
-                    <TableHead className="text-right">Sessions</TableHead>
-                    <TableHead className="text-right">Conversions</TableHead>
-                    <TableHead className="text-right">Conv. Rate</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {topSources.map((source, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell className="font-medium">{source.source || 'Direct'}</TableCell>
-                      <TableCell className="text-right">{source.sessions.toLocaleString()}</TableCell>
-                      <TableCell className="text-right">{source.conversions}</TableCell>
-                      <TableCell className="text-right">
-                        {((source.conversions / source.sessions) * 100).toFixed(2)}%
-                      </TableCell>
+              {topSources.length === 0 ? (
+                <p className="text-center py-8 text-sm text-muted-foreground">
+                  No UTM-tagged sessions in this period. See the Campaigns tab for how to tag links.
+                </p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Source</TableHead>
+                      <TableHead className="text-right">Sessions</TableHead>
+                      <TableHead className="text-right">Conversions</TableHead>
+                      <TableHead className="text-right">Conv. Rate</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {topSources.map((source) => (
+                      <TableRow key={source.source}>
+                        <TableCell className="font-medium">{source.source}</TableCell>
+                        <TableCell className="text-right">{source.sessions.toLocaleString()}</TableCell>
+                        <TableCell className="text-right">{source.conversions}</TableCell>
+                        <TableCell className="text-right">
+                          {((source.conversions / source.sessions) * 100).toFixed(2)}%
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

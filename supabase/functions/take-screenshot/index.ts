@@ -1,13 +1,16 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.3";
+import { assertSafeUrl } from "../_shared/safe-url.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Use Browserless API for screenshots
+// Browserless v2 (same account/region as tracking-check). The legacy chrome.browserless.io
+// host and v1 options (quality on PNG, waitFor) fail, which left every heatmap with a placeholder.
 const BROWSERLESS_API_KEY = Deno.env.get('BROWSERLESS_API_KEY');
+const BROWSERLESS_URL = (Deno.env.get('BROWSERLESS_URL') || 'https://production-ams.browserless.io').replace(/\/$/, '');
 
 serve(async (req) => {
   console.log('=== Take Screenshot Function Started ===');
@@ -31,7 +34,6 @@ serve(async (req) => {
       );
     }
 
-    // Initialize Supabase client
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -42,6 +44,30 @@ serve(async (req) => {
         }
       }
     );
+
+    // Only the site's owner may screenshot for it: this client writes sites.screenshot_urls
+    // with the service role, so the caller's JWT is verified and ownership checked first.
+    // The token is passed to getUser() explicitly: the client has no session of its own.
+    const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
+    const { data: { user } } = token ? await supabase.auth.getUser(token) : { data: { user: null } };
+    const { data: ownedSite } = user
+      ? await supabase.from('sites').select('id').eq('id', siteId).eq('user_id', user.id).maybeSingle()
+      : { data: null };
+    if (!ownedSite) {
+      return new Response(
+        JSON.stringify({ error: 'Not authorised for this site' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    try {
+      await assertSafeUrl(url);
+    } catch (e) {
+      return new Response(
+        JSON.stringify({ error: (e as Error).message }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
 
     // Set viewport dimensions based on device type
     const viewports = {
@@ -64,19 +90,13 @@ serve(async (req) => {
       }
 
       // Use Browserless API for screenshots
-      const browserlessUrl = `https://chrome.browserless.io/screenshot?token=${BROWSERLESS_API_KEY}`;
+      const browserlessUrl = `${BROWSERLESS_URL}/screenshot?token=${encodeURIComponent(BROWSERLESS_API_KEY)}&timeout=60000`;
       const screenshotData = {
         url: url,
-        options: {
-          fullPage: true,
-          type: 'png',
-          quality: 80
-        },
-        viewport: {
-          width: viewport.width,
-          height: viewport.height
-        },
-        waitFor: 2000 // Wait 2 seconds for page to load
+        options: { fullPage: true, type: 'png' },
+        viewport: { width: viewport.width, height: viewport.height },
+        gotoOptions: { waitUntil: 'networkidle2', timeout: 45000 },
+        waitForTimeout: 1500,
       };
       
       console.log(`Calling Browserless API for: ${url}`);
@@ -86,7 +106,8 @@ serve(async (req) => {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(screenshotData)
+        body: JSON.stringify(screenshotData),
+        signal: AbortSignal.timeout(70_000),
       });
       
       if (screenshotResponse.ok) {
@@ -99,31 +120,14 @@ serve(async (req) => {
         throw new Error(`Browserless API failed: ${screenshotResponse.status}`);
       }
     } catch (error) {
-      console.log('Screenshot API error:', error.message);
-      screenshotSuccess = false;
+      // Report the failure instead of saving a placeholder over an existing screenshot.
+      console.log('Screenshot API error:', (error as Error).message);
+      return new Response(
+        JSON.stringify({ error: `Screenshot failed: ${(error as Error).message}` }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // If Screenshot API failed, create a simple colored placeholder
-    if (!screenshotSuccess) {
-      console.log('Creating simple colored placeholder');
-      
-      // Create a simple SVG placeholder
-      const hostname = new URL(url).hostname;
-      const svgContent = `
-        <svg width="${viewport.width}" height="${viewport.height}" xmlns="http://www.w3.org/2000/svg">
-          <rect width="100%" height="100%" fill="#e2e8f0"/>
-          <text x="50%" y="50%" font-family="Arial, sans-serif" font-size="24" fill="#64748b" text-anchor="middle" dominant-baseline="middle">
-            ${hostname}
-          </text>
-          <text x="50%" y="60%" font-family="Arial, sans-serif" font-size="16" fill="#94a3b8" text-anchor="middle" dominant-baseline="middle">
-            Skärmdump inte tillgänglig
-          </text>
-        </svg>
-      `;
-      
-      screenshotBuffer = new TextEncoder().encode(svgContent).buffer;
-    }
-    
     console.log('Screenshot/placeholder ready, uploading to Supabase Storage...');
 
     // Generate filename
@@ -177,6 +181,7 @@ serve(async (req) => {
     const updatedScreenshots = {
       ...currentScreenshots,
       [url]: {
+        ...(currentScreenshots[url] || {}),
         [deviceType]: screenshotData
       }
     };

@@ -36,8 +36,14 @@ export function useScreenshots() {
       });
 
       if (error) {
-        console.error('Supabase function error:', error);
-        throw error;
+        // Non-2xx: surface the function's own reason (e.g. Browserless failure) instead of
+        // the generic "Edge Function returned a non-2xx status code".
+        let reason = error.message;
+        try {
+          const body = await (error as any).context?.json?.();
+          if (body?.error) reason = body.error;
+        } catch { /* keep generic message */ }
+        throw new Error(reason);
       }
 
       console.log('Screenshot function response:', data);
@@ -87,25 +93,14 @@ export function useScreenshots() {
   };
 
   const getScreenshotForPage = (screenshots: SiteScreenshots, url: string, deviceType: string = 'desktop'): ScreenshotData | null => {
-    // First try the specified device type, then fall back to 'all', then 'desktop'
+    // Requested device type, then 'all', then 'desktop'. Placeholder SVGs saved by the old
+    // screenshot function are not screenshots: skip them so the UI offers "Take screenshot".
     const urlData = screenshots[url];
     if (!urlData) return null;
-    
-    // Try the requested device type first
-    if (urlData[deviceType]) {
-      return urlData[deviceType];
+    for (const key of [deviceType, 'all', 'desktop']) {
+      const shot = urlData[key];
+      if (shot && !shot.placeholder) return shot;
     }
-    
-    // Fall back to 'all' if available
-    if (urlData['all']) {
-      return urlData['all'];
-    }
-    
-    // Fall back to 'desktop' if available
-    if (urlData['desktop']) {
-      return urlData['desktop'];
-    }
-    
     return null;
   };
 

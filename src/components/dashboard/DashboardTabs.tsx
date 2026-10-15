@@ -329,13 +329,7 @@ function DashboardTabsInner({ selectedSite, analytics, dateRange, onSiteDeleted,
 
       <TabsContent value="campaigns" className="space-y-6">
         <TabErrorBoundary tabName="Campaigns">
-          <CampaignDashboard
-            siteId={selectedSite.id}
-            dateRange={{
-              from: dateRange?.from?.toISOString() ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-              to: dateRange?.to?.toISOString() ?? new Date().toISOString(),
-            }}
-          />
+          <CampaignDashboard siteId={selectedSite.id} domain={selectedSite.domain} />
         </TabErrorBoundary>
       </TabsContent>
 

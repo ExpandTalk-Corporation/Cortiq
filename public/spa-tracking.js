@@ -1,7 +1,7 @@
 /**
  * CortIQ Advanced Tracking Script
  * Unified visitor profiling with AI agent detection
- * Version: 5.5.3 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
+ * Version: 5.5.4 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
  *
  * Usage:
  * <script>
@@ -17,7 +17,7 @@
   'use strict';
 
   // Keep in sync with wordpress-plugin/cortiq-analytics.php (CORTIQ_VERSION).
-  const CORTIQ_VERSION = '5.5.3';
+  const CORTIQ_VERSION = '5.5.4';
 
   // Configuration: window.cortiqConfig, overridden by data-* attributes on this script
   // tag, so a single-tag install (<script src=… data-site-id=…>) works and a tag that
@@ -180,6 +180,10 @@
     return 'desktop';
   }
 
+  function getTimeZone() {
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone || null; } catch (_) { return null; }
+  }
+
   // Identify visitor (called once on page load)
   async function identifyVisitor() {
     if (COOKIELESS || !hasStoredAnalyticsConsent()) return null;
@@ -286,6 +290,9 @@
         visitor_id: VISITOR_ID,
         visitor_type: VISITOR_PROFILE?.visitorType,
         traffic_segment: getTrafficSegment(),
+        // Browser time zone (e.g. "Europe/Stockholm"): the server maps it to a country for the
+        // Locations tab, so no IP lookup is needed.
+        timezone: getTimeZone(),
         // Include click IDs in all events so conversion events carry attribution context
         ...(storedClickIds && { click_ids: storedClickIds }),
         ...(TENANT_ID && { tenant_id: TENANT_ID }),
@@ -834,7 +841,13 @@
       const type = (e.data.type || e.data.event || '').replace(/^cortiq:/, '');
       const tenant = e.data.tenantId || e.data.companyId || TENANT_ID || null;
       const formIdVal = e.data.formId || e.data.form_id || null;
-      if (type === 'formSubmit') trackEvent('conversion', window.location.pathname, { conversion_type: 'form_submit', ...(formIdVal && { form_id: formIdVal }), ...(tenant && { tenant_id: tenant }) });
+      // SentriSK forms run in a cross-origin iframe and announce a submit with
+      // { type: 'sentrisk-form-submitted', formConfigId }. Only trusted from sentrisk.se.
+      if (type === 'sentrisk-form-submitted') {
+        if (!/^https:\/\/(www\.)?sentrisk\.se$/.test(e.origin || '')) return;
+        const sentriskId = typeof e.data.formConfigId === 'string' ? e.data.formConfigId.slice(0, 64) : null;
+        trackEvent('conversion', window.location.pathname, { conversion_type: 'form_submit', form_provider: 'sentrisk', ...(sentriskId && { form_id: 'sentrisk_' + sentriskId }), ...(tenant && { tenant_id: tenant }) });
+      } else if (type === 'formSubmit') trackEvent('conversion', window.location.pathname, { conversion_type: 'form_submit', ...(formIdVal && { form_id: formIdVal }), ...(tenant && { tenant_id: tenant }) });
       else if (type === 'login') trackEvent('conversion', window.location.pathname, { conversion_type: 'login', ...(tenant && { tenant_id: tenant }) });
       else if (type === 'leadCreated') trackEvent('conversion', window.location.pathname, { conversion_type: 'lead_created', ...(tenant && { tenant_id: tenant }) });
     });

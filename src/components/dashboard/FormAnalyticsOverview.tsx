@@ -66,7 +66,9 @@ export function FormAnalyticsOverview({ selectedSite, dateRange }: FormAnalytics
               For Contact Form 7: Make sure shortcodes like [contact-form-7 id="15a2a0e" title="Contact form 1"] exist on the page.
             </p>
             <p className="text-muted-foreground mb-4">
-              For Traffikboost: Make sure shortcodes like [traffikboost_form type="contact"] exist on the page.
+              For SentriSK: embed the form with the SentriSK WordPress plugin ([sentrisk_form id="..."]), the
+              SentriSK block or sentrisk-embed.js. Submissions are counted as conversions once the CortIQ
+              tracking script (5.5.4 or later) runs on the same page.
             </p>
             <Button
               variant="outline"
