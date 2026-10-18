@@ -1,6 +1,7 @@
 import { createClient } from '../_shared/supabase.ts';
 import { anonymizeIP } from '../_shared/jurisdiction.ts';
 import { countryFromTimeZone } from '../_shared/tz-country.js';
+import { normalizeGoals, clientGoals, matchPageVisitGoals } from '../_shared/conversion-goals.js';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -235,6 +236,38 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Conversions into conversion_events (Attribution, Goals health, conversion counts in
+    // Locations/Campaigns, HubSpot → Google Ads). Sources: a goal hit the tracker reports
+    // (goal_id), a SentriSK submit, an iframe formSubmit/lead postMessage, or a
+    // data-wfa-conversion element in cookieless mode (server_record; in full mode
+    // record-conversion already stores it, with the click-ID context).
+    if (body.event_type === 'conversion') {
+      const m = body.metadata || {};
+      const siteId = await resolveOwnedSite();
+      if (siteId) {
+        let conv: { name: string; type: string; selector: string | null; value: number | null } | null = null;
+        if (typeof m.goal_id === 'string') {
+          const { data: siteRow } = await supabase.from('sites').select('conversion_goals').eq('id', siteId).maybeSingle();
+          const goal = normalizeGoals(siteRow?.conversion_goals).find((g) => g.id === m.goal_id);
+          if (goal) conv = { name: goal.name, type: goal.type, selector: goal.selector, value: num(goal.value) };
+        } else if (m.form_provider === 'sentrisk') {
+          conv = { name: 'SentriSK form', type: 'form_submission', selector: typeof m.form_id === 'string' ? m.form_id : null, value: null };
+        } else if (m.conversion_type === 'form_submit' || m.conversion_type === 'lead_created') {
+          conv = { name: m.conversion_type === 'form_submit' ? 'Embedded form' : 'Lead', type: 'form_submission', selector: null, value: null };
+        } else if (m.server_record === true) {
+          conv = { name: String(body.content_id || 'Conversion').slice(0, 200), type: 'conversion',
+                   selector: typeof m.form_id === 'string' ? m.form_id : null, value: num(m.value) };
+        }
+        if (conv) {
+          const { error: convError } = await supabase.rpc('record_conversion_event', {
+            p_site_id: siteId, p_session: body.session_id ?? null, p_event_name: conv.name,
+            p_event_type: conv.type, p_selector: conv.selector, p_value: conv.value,
+          });
+          if (convError) console.error('record_conversion_event failed (non-fatal):', convError);
+        }
+      }
+    }
+
     // Generate UUID from content_id if it's not already a UUID
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     let contentIdUuid = body.content_id;
@@ -327,6 +360,8 @@ Deno.serve(async (req) => {
     // but the dashboard reads page_views, keyed by the real sites.id — which
     // ingest_pageview resolves from the URL's domain. Best-effort: never fail the
     // event if the bridge errors.
+    let viewSiteId: string | null = null;
+    let goalsForTracker: ReturnType<typeof clientGoals> | undefined;
     if (body.content_type === 'page' && body.event_type === 'view') {
       // Normalize IDN/host form to punycode so domain resolution matches sites.domain.
       // Browsers send location.href with the Unicode host (e.g. "båtguide.nu"); the
@@ -351,6 +386,7 @@ Deno.serve(async (req) => {
         }
 
         if (ownedByCaller) {
+          viewSiteId = resolvedSiteId;
           await supabase.rpc('ingest_pageview', {
             p_url: pageUrl,
             p_session: body.session_id ?? null,
@@ -371,12 +407,32 @@ Deno.serve(async (req) => {
       } catch (bridgeErr) {
         console.error('page_view bridge failed (non-fatal):', bridgeErr);
       }
+
+      // Conversion goals: page_visit goals are matched here; form/click goals go back to
+      // the tracker, which needs the DOM to evaluate their selectors.
+      if (viewSiteId && pageUrl) {
+        try {
+          const { data: siteRow } = await supabase.from('sites').select('conversion_goals').eq('id', viewSiteId).maybeSingle();
+          const goals = normalizeGoals(siteRow?.conversion_goals);
+          for (const goal of matchPageVisitGoals(goals, pageUrl)) {
+            const { error: convError } = await supabase.rpc('record_conversion_event', {
+              p_site_id: viewSiteId, p_session: body.session_id ?? null, p_event_name: goal.name,
+              p_event_type: 'page_visit', p_selector: goal.selector, p_value: num(goal.value),
+            });
+            if (convError) console.error('page_visit goal failed (non-fatal):', convError);
+          }
+          goalsForTracker = clientGoals(goals);
+        } catch (goalErr) {
+          console.error('conversion goals failed (non-fatal):', goalErr);
+        }
+      }
     }
 
     return new Response(
       JSON.stringify({
         success: true,
-        event_id: event.id
+        event_id: event.id,
+        ...(goalsForTracker && { goals: goalsForTracker }),
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
