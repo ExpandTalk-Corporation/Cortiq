@@ -1,7 +1,7 @@
 /**
  * CortIQ Advanced Tracking Script
  * Unified visitor profiling with AI agent detection
- * Version: 5.5.4 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
+ * Version: 5.5.5 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
  *
  * Usage:
  * <script>
@@ -17,7 +17,7 @@
   'use strict';
 
   // Keep in sync with wordpress-plugin/cortiq-analytics.php (CORTIQ_VERSION).
-  const CORTIQ_VERSION = '5.5.4';
+  const CORTIQ_VERSION = '5.5.5';
 
   // Configuration: window.cortiqConfig, overridden by data-* attributes on this script
   // tag, so a single-tag install (<script src=… data-site-id=…>) works and a tag that
@@ -333,7 +333,14 @@
   }
 
   // Track page view
+  function isExcludedPath() {
+    const p = window.location.pathname;
+    return EXCLUDE_PATHS.some(function (x) { return p.startsWith(x); });
+  }
+
   function trackPageView() {
+    // excludePaths (e.g. "/dashboard,/auth") also covers page views, including SPA route changes.
+    if (isExcludedPath()) return;
     trackEvent('view', window.location.pathname);
   }
 
@@ -1106,10 +1113,7 @@
   function startSecurityLayer() {
     if (securityStarted) return;
     if (EXCLUDE_IFRAMES && window.self !== window.top) return;
-    if (EXCLUDE_PATHS.length > 0) {
-      const p = window.location.pathname;
-      if (EXCLUDE_PATHS.some(function (x) { return p.startsWith(x); })) return;
-    }
+    if (isExcludedPath()) return;
     securityStarted = true;
     try { runBotProbe(); } catch (_) {}
     try { setupHoneypot(); } catch (_) {}
