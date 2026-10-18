@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { rangeBounds } from '@/lib/dashboard/filters';
 
 export interface Segment {
   id: string;
@@ -30,7 +31,8 @@ export interface SegmentInsight {
   metric: string;
 }
 
-export function useSegmentAnalytics(siteId: string | null) {
+/** `range` is the global dashboard date filter (inclusive YYYY-MM-DD). */
+export function useSegmentAnalytics(siteId: string | null, range: { from: string; to: string }) {
   const [segmentMetrics, setSegmentMetrics] = useState<SegmentMetric[]>([]);
   const [insights, setInsights] = useState<SegmentInsight[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -52,21 +54,25 @@ export function useSegmentAnalytics(siteId: string | null) {
   const loadSegmentAnalytics = async (siteId: string) => {
     setIsLoading(true);
     try {
-      // Hämta sessionsdata för segment-analys
+      const { start, end } = rangeBounds(range.from, range.to);
+
+      // Sessions in the selected range for the segment analysis
       const { data: sessions, error: sessionError } = await supabase
         .from('tracking_sessions')
         .select('device_type, duration_seconds, page_views, started_at, referrer, session_id')
         .eq('site_id', siteId)
-        .gte('started_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
+        .gte('started_at', start)
+        .lt('started_at', end);
 
       if (sessionError) throw sessionError;
 
-      // Hämta konverteringsdata
+      // Conversions in the same range
       const { data: conversions, error: conversionError } = await supabase
         .from('conversion_events')
         .select('event_type, event_value, session_id, created_at')
         .eq('site_id', siteId)
-        .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
+        .gte('created_at', start)
+        .lt('created_at', end);
 
       if (conversionError) throw conversionError;
 
@@ -225,7 +231,7 @@ export function useSegmentAnalytics(siteId: string | null) {
       setSegmentMetrics([]);
       setInsights([]);
     }
-  }, [siteId]);
+  }, [siteId, range.from, range.to]);
 
   return { segmentMetrics, insights, isLoading };
 }

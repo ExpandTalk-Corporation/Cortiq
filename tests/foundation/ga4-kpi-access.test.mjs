@@ -101,6 +101,21 @@ for (const name of FUNCTIONS) {
   });
 }
 
+test('ga4-kpi-dashboard rejects a request with neither a date range nor a year, after the access check', async () => {
+  const { handler, calls } = endpoint('ga4-kpi-dashboard');
+  const response = await handler(request({ siteId, startDate: '2026-12-31', endDate: '2026-01-01' }));
+  assert.equal(response.status, 400);
+  assert.deepEqual(calls.getUserTokens, ['session'], 'access is checked first');
+  assert.deepEqual(calls.service, []);
+  assert.equal(calls.google, 0);
+});
+
+test('ga4-kpi-dashboard still accepts the legacy year input', async () => {
+  const { handler, calls } = endpoint('ga4-kpi-dashboard');
+  await handler(request({ siteId, year: 2025 }));
+  assert.ok(calls.service.includes('sites'), 'year-only request reaches the site config lookup');
+});
+
 test('config.toml requires a JWT for the GA4 dashboard functions', () => {
   const toml = readFileSync(new URL('../../supabase/config.toml', import.meta.url), 'utf8');
   for (const name of FUNCTIONS) {

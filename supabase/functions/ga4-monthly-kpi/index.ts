@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from '../_shared/supabase.ts';
+import { mergeDateRangeRows, resolveRange, validRange } from '../_shared/report-range.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -24,8 +25,18 @@ serve(async (req) => {
       return new Response('Unauthorized', { status: 401, headers: corsHeaders });
     }
 
-    const { siteId, year }: { siteId: string; year?: number } = await req.json();
-    const targetYear = year || new Date().getFullYear();
+    const body: {
+      siteId: string;
+      startDate?: string; endDate?: string;
+      comparisonStartDate?: string; comparisonEndDate?: string;
+      /** Legacy: whole calendar year, used only when startDate/endDate are absent. */
+      year?: number;
+    } = await req.json();
+    const { siteId } = body;
+    const today = new Date();
+    // Explicit dates win, then `year`, then the current year (the original default).
+    const range = resolveRange(body, today) ?? resolveRange({ year: today.getUTCFullYear() }, today)!;
+    const comparison = validRange(body.comparisonStartDate, body.comparisonEndDate);
 
     // Fetch site and verify ownership
     const { data: site, error: siteError } = await supabase
@@ -64,16 +75,12 @@ serve(async (req) => {
       });
     }
 
-    // Date range for the given year
-    const today = new Date();
-    const startDate = `${targetYear}-01-01`;
-    const endDate = targetYear === today.getFullYear() ? today.toISOString().split('T')[0] : `${targetYear}-12-31`;
-
+    const { startDate, endDate } = range;
     const accessToken = await getGoogleAccessToken(serviceAccountKey);
 
     const requestBody = {
       property: `properties/${site.ga_property_id}`,
-      dateRanges: [ { startDate, endDate } ],
+      dateRanges: comparison ? [ range, comparison ] : [ range ],
       dimensions: [ { name: 'month' } ],
       metrics: [ { name: 'activeUsers' }, { name: 'sessions' }, { name: 'screenPageViews' } ],
       orderBys: [ { metric: { metricName: 'activeUsers' }, desc: true } ],
@@ -111,15 +118,22 @@ serve(async (req) => {
       };
     }
 
-    (gaData.rows || []).forEach((row: any) => {
-      const month = row.dimensionValues?.[0]?.value || '01';
-      const activeUsers = parseInt(row.metricValues?.[0]?.value || '0', 10);
-      const sessions = parseInt(row.metricValues?.[1]?.value || '0', 10);
-      const pageViews = parseInt(row.metricValues?.[2]?.value || '0', 10);
+    // Rows come back per date range when a comparison is requested; months hold the
+    // current period, comparisonTotals the comparison period.
+    const merged = mergeDateRangeRows(gaData);
+    const comparisonTotals = comparison ? { uniqueUsers: 0, sessions: 0, pageViews: 0 } : null;
+    merged.rows.forEach((row) => {
+      const month = row.dimensions.month || '01';
+      const [activeUsers = 0, sessions = 0, pageViews = 0] = row.current;
       if (monthsMap[month]) {
         monthsMap[month].uniqueUsers += activeUsers;
         monthsMap[month].sessions += sessions;
         monthsMap[month].pageViews += pageViews;
+      }
+      if (comparisonTotals && row.comparison) {
+        comparisonTotals.uniqueUsers += row.comparison[0] ?? 0;
+        comparisonTotals.sessions += row.comparison[1] ?? 0;
+        comparisonTotals.pageViews += row.comparison[2] ?? 0;
       }
     });
 
@@ -135,11 +149,14 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       success: true,
       site: { id: siteId, name: site.site_name, propertyId: site.ga_property_id },
-      year: targetYear,
+      year: Number(startDate.slice(0, 4)),
       startDate,
       endDate,
+      comparisonStartDate: comparison?.startDate ?? null,
+      comparisonEndDate: comparison?.endDate ?? null,
       months,
       totals,
+      comparisonTotals,
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (err: any) {

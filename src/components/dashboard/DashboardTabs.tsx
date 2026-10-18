@@ -54,7 +54,8 @@ const RealTimeWidget               = lazy(() => import('./RealTimeWidget').then(
 const DATE_AWARE = new Set([
   'analytics', 'geolocation', 'campaigns', 'content-performance', 'content-tracking',
   'paid-ads-server', 'click-fraud', 'cookiefree', 'heatmap', 'forms', 'agent-ops', 'ip-segments',
-  'server-logs',
+  'server-logs', 'ai-bots', 'ai', 'ai-visibility', 'zero-click-risk', 'kpi-catalog', 'segments',
+  'ecommerce', 'social-media', 'kpi', 'paid-ads',
 ]);
 
 // Tabs where the global filters have no meaning (settings, live view, latest alerts):
@@ -115,7 +116,7 @@ function DashboardTabsInner({ selectedSite, analytics, dateRange, onSiteDeleted,
 
       <TabsContent value="ai-bots" className="space-y-6">
         <TabErrorBoundary tabName="AI Agents">
-          <AIBotTab selectedSite={selectedSite} dateRange={dateRange} />
+          <AIBotTab selectedSite={selectedSite} />
         </TabErrorBoundary>
       </TabsContent>
 

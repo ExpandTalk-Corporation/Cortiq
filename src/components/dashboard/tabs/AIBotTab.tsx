@@ -1,8 +1,7 @@
-import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useDashboardFilters } from "@/contexts/DashboardFiltersContext";
 import { Bot, TrendingUp, FileText, Route, Monitor, Target, ClipboardList } from "lucide-react";
 import { useAIBotTracking } from "@/hooks/useAIBotTracking";
 import { useAIAgentJourney } from "@/hooks/useAIAgentJourney";
@@ -22,9 +21,10 @@ interface AIBotTabProps {
 }
 
 export const AIBotTab = ({ selectedSite }: AIBotTabProps) => {
-  const [days, setDays] = useState(30);
-  const { data, isLoading, error } = useAIBotTracking(selectedSite?.id, days);
-  const { data: journeyData, isLoading: journeyLoading } = useAIAgentJourney(selectedSite?.id);
+  const { filters } = useDashboardFilters();
+  const range = { from: filters.from, to: filters.to };
+  const { data, isLoading, error } = useAIBotTracking(selectedSite?.id, range);
+  const { data: journeyData, isLoading: journeyLoading } = useAIAgentJourney(selectedSite?.id, range);
 
   if (isLoading) {
     return (
@@ -50,7 +50,7 @@ export const AIBotTab = ({ selectedSite }: AIBotTabProps) => {
   return (
     <div className="space-y-6">
       {/* AI Security Widget */}
-      <AIBotSecurityWidget siteId={selectedSite.id} />
+      <AIBotSecurityWidget siteId={selectedSite.id} from={filters.from} to={filters.to} />
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -61,16 +61,6 @@ export const AIBotTab = ({ selectedSite }: AIBotTabProps) => {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Select value={String(days)} onValueChange={(v) => setDays(Number(v))}>
-            <SelectTrigger className="w-44">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7">Last 7 days</SelectItem>
-              <SelectItem value="30">Last 30 days</SelectItem>
-              <SelectItem value="90">Last 90 days</SelectItem>
-            </SelectContent>
-          </Select>
           <Badge variant="outline" className="flex items-center gap-2">
             <span className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
             Live Monitoring
@@ -84,7 +74,7 @@ export const AIBotTab = ({ selectedSite }: AIBotTabProps) => {
           <Bot className="h-4 w-4" />
           <AlertDescription>
             <div className="space-y-2">
-              <p className="font-semibold">No AI bot activity detected yet</p>
+              <p className="font-semibold">No AI bot activity in the selected period</p>
               <p>
                 The CortIQ tracking script already includes AI bot detection — install it from{' '}
                 <strong>Settings → Setup &amp; tracking script</strong> (or use the WordPress plugin).

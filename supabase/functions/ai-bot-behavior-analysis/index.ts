@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "../_shared/supabase.ts";
+import { rangeBounds, rangeDays, validRange } from "../_shared/report-range.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,19 +19,42 @@ serve(async (req) => {
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { siteId, days = 7 } = await req.json();
+    const body = await req.json();
+    const { siteId } = body;
+
+    // The service-role client below reads any site's traffic and writes ai_bot_analysis, so
+    // the caller's JWT is verified and site ownership checked first.
+    const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
+    const { data: { user } } = token ? await supabase.auth.getUser(token) : { data: { user: null } };
+    const { data: ownedSite } = user && typeof siteId === 'string'
+      ? await supabase.from('sites').select('id').eq('id', siteId).eq('user_id', user.id).maybeSingle()
+      : { data: null };
+    if (!ownedSite) {
+      return new Response(JSON.stringify({ error: 'Not authorised for this site' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    // An explicit startDate/endDate (the dashboard date filter) wins over the legacy
+    // "last N days" input.
+    const range = validRange(body.startDate, body.endDate);
+    const days: number = range ? rangeDays(range) : (body.days ?? 7);
 
     console.log('🤖 AI Bot Behavior Analysis started for site:', siteId);
 
-    // Fetch bot traffic from last N days
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
-
-    const { data: botTraffic, error: trafficError } = await supabase
+    let trafficQuery = supabase
       .from('ai_bot_traffic')
       .select('*')
-      .eq('site_id', siteId)
-      .gte('detected_at', startDate.toISOString())
+      .eq('site_id', siteId);
+    if (range) {
+      const bounds = rangeBounds(range);
+      trafficQuery = trafficQuery.gte('detected_at', bounds.start).lt('detected_at', bounds.end);
+    } else {
+      // Fetch bot traffic from last N days
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+      trafficQuery = trafficQuery.gte('detected_at', startDate.toISOString());
+    }
+
+    const { data: botTraffic, error: trafficError } = await trafficQuery
       .order('detected_at', { ascending: false })
       .limit(500);
 

@@ -40,10 +40,19 @@ interface AITrafficData {
   };
 }
 
-export function useAITraffic(siteId: string, days: number = 30) {
+/**
+ * `period` is either an inclusive YYYY-MM-DD range (the global dashboard date filter) or,
+ * for widgets outside the date-aware tabs, a number of days back from today.
+ */
+export function useAITraffic(siteId: string, period: number | { from: string; to: string } = 30) {
   const [data, setData] = useState<AITrafficData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const formatDate = (date: Date) => date.toISOString().split('T')[0];
+  const { startDate, endDate } = typeof period === 'number'
+    ? { startDate: formatDate(new Date(Date.now() - period * 86_400_000)), endDate: formatDate(new Date()) }
+    : { startDate: period.from, endDate: period.to };
 
   const fetchAITraffic = async () => {
     if (!siteId) return;
@@ -53,20 +62,11 @@ export function useAITraffic(siteId: string, days: number = 30) {
     setError(null);
 
     try {
-      // Calculate date range
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
-
-      const formatDate = (date: Date) => {
-        return date.toISOString().split('T')[0];
-      };
-
       const { data: aiData, error: functionError } = await supabase.functions.invoke('ga4-ai-traffic', {
         body: {
           siteId,
-          startDate: formatDate(startDate),
-          endDate: formatDate(endDate)
+          startDate,
+          endDate
         }
       });
 
@@ -88,7 +88,7 @@ export function useAITraffic(siteId: string, days: number = 30) {
 
   useEffect(() => {
     fetchAITraffic();
-  }, [siteId, days]);
+  }, [siteId, startDate, endDate]);
 
   // Helper functions for data analysis
   const getTopAIPlatform = () => {

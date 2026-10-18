@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { rangeBounds } from '@/lib/dashboard/filters';
 
 export interface GASegment {
   id: string;
@@ -21,7 +22,9 @@ export interface GASegmentMetric {
   segments: GASegment[];
 }
 
-export function useGASegmentAnalytics(siteId: string | null, startDate?: string, endDate?: string) {
+/** `range` is the global dashboard date filter (inclusive YYYY-MM-DD). */
+export function useGASegmentAnalytics(siteId: string | null, range: { from: string; to: string }) {
+  const { from: startDate, to: endDate } = range;
   const [segmentMetrics, setSegmentMetrics] = useState<GASegmentMetric[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasGAIntegration, setHasGAIntegration] = useState(false);
@@ -50,8 +53,8 @@ export function useGASegmentAnalytics(siteId: string | null, startDate?: string,
       const { data: gaData, error } = await supabase.functions.invoke('ga4-segment-data', {
         body: {
           siteId,
-          startDate: startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          endDate: endDate || new Date().toISOString().split('T')[0]
+          startDate,
+          endDate
         }
       });
 
@@ -151,16 +154,15 @@ export function useGASegmentAnalytics(siteId: string | null, startDate?: string,
   };
 
   const loadFallbackSegmentData = async (siteId: string) => {
-    // Använd intern tracking data som fallback
-    const defaultStartDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    const defaultEndDate = new Date().toISOString();
+    // First-party tracking data as fallback, same range (end day inclusive)
+    const { start, end } = rangeBounds(startDate, endDate);
 
     const { data: sessions } = await supabase
       .from('tracking_sessions')
       .select('device_type, duration_seconds, referrer, session_id')
       .eq('site_id', siteId)
-      .gte('started_at', startDate || defaultStartDate)
-      .lte('started_at', endDate || defaultEndDate);
+      .gte('started_at', start)
+      .lt('started_at', end);
 
     if (!sessions || sessions.length === 0) {
       setSegmentMetrics([]);

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from '../_shared/supabase.ts'
 import { requireSiteAccess } from '../_shared/site-access.ts'
+import { mergeDateRangeRows, resolveRange, sameRangeLastYear, validRange } from '../_shared/report-range.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,10 +17,12 @@ function json(body: unknown, status = 200) {
 
 interface KPIRequest {
   siteId: string;
-  startDate: string;
-  endDate: string;
-  comparisonStartDate: string;
-  comparisonEndDate: string;
+  startDate?: string;
+  endDate?: string;
+  comparisonStartDate?: string;
+  comparisonEndDate?: string;
+  /** Legacy: whole calendar year, used only when startDate/endDate are absent. */
+  year?: number;
 }
 
 serve(async (req) => {
@@ -37,7 +40,7 @@ serve(async (req) => {
     } catch {
       return json({ error: 'Invalid JSON body' }, 400);
     }
-    const { siteId, startDate, endDate, comparisonStartDate, comparisonEndDate } = body;
+    const { siteId } = body;
 
     // Caller must be signed in and have access to the site (RLS on sites).
     const authorization = req.headers.get('Authorization');
@@ -48,6 +51,14 @@ serve(async (req) => {
     );
     const access = await requireSiteAccess(userClient, authorization, siteId);
     if (!access.ok) return json({ error: access.error }, access.status);
+
+    // startDate/endDate (or the legacy `year`) pick the period; the comparison period
+    // defaults to the same dates one year earlier.
+    const range = resolveRange(body, new Date());
+    if (!range) return json({ error: 'Provide startDate and endDate (YYYY-MM-DD, max 366 days) or year' }, 400);
+    const comparison = validRange(body.comparisonStartDate, body.comparisonEndDate) ?? sameRangeLastYear(range);
+    const { startDate, endDate } = range;
+    const { startDate: comparisonStartDate, endDate: comparisonEndDate } = comparison;
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -588,24 +599,21 @@ function formatResponse(response: any, type: string) {
     return formattedData;
   }
 
-  response.rows.forEach((row: any) => {
+  // GA4 returns one row per date range (tagged with a "dateRange" dimension); fold them so
+  // each row carries current and comparison values for the same dimension tuple.
+  const merged = mergeDateRangeRows(response);
+
+  merged.rows.forEach((row) => {
     const rowData: any = {
-      dimensions: {},
+      dimensions: row.dimensions,
       metrics: {}
     };
 
-    // Add dimensions
-    response.dimensionHeaders?.forEach((header: any, index: number) => {
-      rowData.dimensions[header.name] = row.dimensionValues[index]?.value || '';
-    });
+    merged.metricNames.forEach((name, index) => {
+      const currentValue = row.current[index];
+      const comparisonValue = row.comparison ? row.comparison[index] : null;
 
-    // Add metrics for both periods
-    response.metricHeaders?.forEach((header: any, index: number) => {
-      const currentValue = parseFloat(row.metricValues[index]?.value || '0');
-      const comparisonValue = row.metricValues[index + response.metricHeaders.length] ? 
-        parseFloat(row.metricValues[index + response.metricHeaders.length].value) : null;
-
-      rowData.metrics[header.name] = {
+      rowData.metrics[name] = {
         current: currentValue,
         comparison: comparisonValue,
         growth: comparisonValue ? ((currentValue - comparisonValue) / comparisonValue * 100) : null
