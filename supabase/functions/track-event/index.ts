@@ -1,6 +1,7 @@
 import { createClient } from '../_shared/supabase.ts';
 import { anonymizeIP } from '../_shared/jurisdiction.ts';
 import { countryFromTimeZone } from '../_shared/tz-country.js';
+import { storedReferrer } from '../_shared/referrer.js';
 import { normalizeGoals, clientGoals, matchPageVisitGoals } from '../_shared/conversion-goals.js';
 
 const corsHeaders = {
@@ -325,9 +326,9 @@ Deno.serve(async (req) => {
       delete metadata.user_agent;
     }
     
-    if (!consentSettings.gdpr_settings?.store_referrer) {
-      delete metadata.referrer;
-    }
+    const referrer = storedReferrer(metadata.referrer, consentSettings.gdpr_settings);
+    if (referrer) metadata.referrer = referrer;
+    else delete metadata.referrer;
 
     // Rate limiting check (simple version - 10k events per hour)
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
