@@ -12,7 +12,7 @@ interface TrackingEventRequest {
   company_id: string;
   content_type: 'image' | 'form' | 'event' | 'survey' | 'chatbot' | 'page';
   content_id: string;
-  event_type: 'view' | 'click' | 'conversion' | 'submission' | 'heatmap' | 'form_session';
+  event_type: 'view' | 'click' | 'conversion' | 'submission' | 'heatmap' | 'form_session' | 'content';
   platform?: string;
   session_id: string;
   metadata?: {
@@ -121,7 +121,7 @@ Deno.serve(async (req) => {
 
     // Check consent settings
     const consentSettings = company.consent_settings || {};
-    const allowedEventTypes = consentSettings.gdpr_settings?.allowed_event_types || ['view', 'click', 'conversion', 'submission', 'heatmap', 'form_session'];
+    const allowedEventTypes = consentSettings.gdpr_settings?.allowed_event_types || ['view', 'click', 'conversion', 'submission', 'heatmap', 'form_session', 'content'];
     
     if (!allowedEventTypes.includes(body.event_type)) {
       console.log('Event type not allowed by consent settings:', body.event_type);
@@ -213,6 +213,25 @@ Deno.serve(async (req) => {
       if (formError) {
         console.error('Failed to record form session:', formError);
         return new Response(JSON.stringify({ success: false, error: 'Failed to store form session' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      return new Response(JSON.stringify({ success: true }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // Content elements marked data-cortiq-content: batched impressions and clicks from the
+    // tracker (5.5.6+) → today's content_performance counters. Aggregates only.
+    if (body.event_type === 'content') {
+      const siteId = await resolveOwnedSite();
+      const items = Array.isArray(body.metadata?.items) ? body.metadata.items.slice(0, 50) : [];
+      if (!siteId || items.length === 0) {
+        return new Response(JSON.stringify({ success: false, error: 'Invalid content event' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      const { error: contentError } = await supabase.rpc('record_content_metrics', { p_site_id: siteId, p_items: items });
+      if (contentError) {
+        console.error('Failed to record content metrics:', contentError);
+        return new Response(JSON.stringify({ success: false, error: 'Failed to store content metrics' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
       return new Response(JSON.stringify({ success: true }),
