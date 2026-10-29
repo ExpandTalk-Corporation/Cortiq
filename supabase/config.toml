@@ -120,3 +120,6 @@ verify_jwt = false
 
 [functions.tracking-check-report]
 verify_jwt = false
+
+[functions.aggregate-hit]
+verify_jwt = false
