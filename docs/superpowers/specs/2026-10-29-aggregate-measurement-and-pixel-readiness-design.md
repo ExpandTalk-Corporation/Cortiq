@@ -205,3 +205,20 @@ No deduplication between the layers is needed.
 - Server-side-adapter-only aggregate counting (strictest option).
 - Feeding aggregate totals into other tabs (Sources, Campaigns, Locations).
 - Optional hidden-field source capture for customers' CRMs.
+
+---
+
+## 10. Amendments (2026-10-30, during planning)
+1. **Separate beacon instead of a tracker change (§4.3).** The dashboard snippet and self-tracking load
+   `spa-tracking.js` only after consent (`src/lib/consent-loader.js`), so aggregate logic cannot live in the
+   tracker. It ships as a small standalone script, `src/lib/aggregate-beacon.js`, inlined into the snippet when
+   aggregate is on and bundled into the WP plugin as `assets/cortiq-aggregate.js`. `spa-tracking.js` is unchanged
+   and its "nothing before consent" tests stay valid. Form goals configured in the Goals tab are matched by the
+   beacon using selectors returned in the pageview response.
+2. **Stricter visitor-map retention (§4.1).** The day is part of the key and the salt changes daily, so a visit
+   crossing midnight UTC splits regardless. `aggregate_visitors` rows are therefore deleted as soon as their UTC
+   day has ended (≤ 24 h + up to one hour for the cron), not after 48 h.
+3. **Pageview response (§4.2).** `kind: 'pageview'` returns `200 { goals: [{ id, selector }] }` (form goals only,
+   no names or values); other successful hits return `204`.
+4. **Server-side summary (§4.4).** Dashboard reads go through `get_aggregate_summary(site, from, to)` (SECURITY
+   INVOKER, RLS-enforced) so totals are never truncated by the PostgREST row cap.
