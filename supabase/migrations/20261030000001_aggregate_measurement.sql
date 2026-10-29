@@ -137,39 +137,50 @@ BEGIN
   -- Goal hits never change the visit's source.
   IF p_kind = 'goal' THEN v_ref := ''; v_src := ''; v_med := ''; v_cmp := ''; END IF;
 
-  SELECT * INTO v_row FROM public.aggregate_visitors v
-    WHERE v.site_id = p_site_id AND v.day = v_day AND v.visitor_hash = p_hash
-    FOR UPDATE;
+  -- Decide "new visitor" at the serialization point: attempt to create the row first. If this
+  -- call wins the insert, it is unambiguously the first hit for this hash today. If it loses
+  -- (ON CONFLICT DO NOTHING, no row returned), the row already exists — SELECT ... FOR UPDATE
+  -- then either waits for a concurrent creator's insert to commit, or reads the existing row,
+  -- so two concurrent first hits for the same hash can never both see "new visitor".
+  INSERT INTO public.aggregate_visitors AS v
+    (site_id, day, visitor_hash, visit_started_at, last_seen_at, referrer_domain, utm_source, utm_medium, utm_campaign, device, goals_hit)
+  VALUES (p_site_id, v_day, p_hash, p_now, p_now, v_ref, v_src, v_med, v_cmp, v_dev, '{}')
+  ON CONFLICT (site_id, day, visitor_hash) DO NOTHING
+  RETURNING * INTO v_row;
   v_found := FOUND;
 
-  IF NOT v_found THEN
+  IF v_found THEN
     v_new_visitor := true; v_new_visit := true;
-  ELSIF v_row.last_seen_at < p_now - interval '30 minutes' THEN
-    v_new_visit := true;
-  ELSIF (v_ref <> '' OR v_src <> '')
-    AND (v_ref, v_src, v_med, v_cmp) IS DISTINCT FROM (v_row.referrer_domain, v_row.utm_source, v_row.utm_medium, v_row.utm_campaign) THEN
-    v_new_visit := true;
+  ELSE
+    SELECT * INTO v_row FROM public.aggregate_visitors v
+      WHERE v.site_id = p_site_id AND v.day = v_day AND v.visitor_hash = p_hash
+      FOR UPDATE;
+
+    IF v_row.last_seen_at < p_now - interval '30 minutes' THEN
+      v_new_visit := true;
+    ELSIF (v_ref <> '' OR v_src <> '')
+      AND (v_ref, v_src, v_med, v_cmp) IS DISTINCT FROM (v_row.referrer_domain, v_row.utm_source, v_row.utm_medium, v_row.utm_campaign) THEN
+      v_new_visit := true;
+    END IF;
+
+    IF v_new_visit THEN
+      UPDATE public.aggregate_visitors v SET
+        visit_started_at = p_now, last_seen_at = p_now, referrer_domain = v_ref, utm_source = v_src,
+        utm_medium = v_med, utm_campaign = v_cmp, device = v_dev, goals_hit = '{}'
+        WHERE v.site_id = p_site_id AND v.day = v_day AND v.visitor_hash = p_hash
+      RETURNING * INTO v_row;
+    ELSE
+      UPDATE public.aggregate_visitors v SET last_seen_at = p_now
+        WHERE v.site_id = p_site_id AND v.day = v_day AND v.visitor_hash = p_hash;
+    END IF;
   END IF;
 
   IF v_new_visit THEN
-    INSERT INTO public.aggregate_visitors AS v
-      (site_id, day, visitor_hash, visit_started_at, last_seen_at, referrer_domain, utm_source, utm_medium, utm_campaign, device, goals_hit)
-    VALUES (p_site_id, v_day, p_hash, p_now, p_now, v_ref, v_src, v_med, v_cmp, v_dev, '{}')
-    ON CONFLICT (site_id, day, visitor_hash) DO UPDATE SET
-      visit_started_at = EXCLUDED.visit_started_at, last_seen_at = EXCLUDED.last_seen_at,
-      referrer_domain = EXCLUDED.referrer_domain, utm_source = EXCLUDED.utm_source,
-      utm_medium = EXCLUDED.utm_medium, utm_campaign = EXCLUDED.utm_campaign,
-      device = EXCLUDED.device, goals_hit = '{}'
-    RETURNING * INTO v_row;
-
     INSERT INTO public.aggregate_sources_daily AS s
       (site_id, day, referrer_domain, utm_source, utm_medium, utm_campaign, device, visits, visitors)
     VALUES (p_site_id, v_day, v_ref, v_src, v_med, v_cmp, v_dev, 1, CASE WHEN v_new_visitor THEN 1 ELSE 0 END)
     ON CONFLICT (site_id, day, referrer_domain, utm_source, utm_medium, utm_campaign, device) DO UPDATE SET
       visits = s.visits + 1, visitors = s.visitors + EXCLUDED.visitors;
-  ELSE
-    UPDATE public.aggregate_visitors v SET last_seen_at = p_now
-      WHERE v.site_id = p_site_id AND v.day = v_day AND v.visitor_hash = p_hash;
   END IF;
 
   IF p_kind = 'pageview' THEN

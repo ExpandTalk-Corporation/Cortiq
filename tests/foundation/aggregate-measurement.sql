@@ -15,6 +15,7 @@ INSERT INTO sites VALUES ('11111111-1111-4111-8111-111111111111','aaaaaaaa-aaaa-
 DO $$
 DECLARE
   s1 uuid := '11111111-1111-4111-8111-111111111111';
+  s2 uuid := '22222222-2222-4222-8222-222222222222';
   t0 timestamptz := '2026-10-30 10:00:00+00';
   salt text;
   sig text := 'public.ingest_aggregate_hit(uuid,text,text,text,text,text,text,text,text,text,text,numeric,timestamptz)';
@@ -57,6 +58,20 @@ BEGIN
   PERFORM public.ingest_aggregate_hit(s1, 'hashN1', 'pageview', '/', '', '', '', '', 'desktop', NULL, NULL, NULL, '2026-10-30 23:59:00+00');
   PERFORM public.ingest_aggregate_hit(s1, 'hashN2', 'pageview', '/', '', '', '', '', 'desktop', NULL, NULL, NULL, '2026-10-31 00:01:00+00');
   ASSERT (SELECT visitors FROM public.aggregate_sources_daily WHERE site_id = s1 AND day = '2026-10-31') = 1, 'next day counted on its own';
+
+  -- Concurrency hardening: a second "first hit" for a never-seen-before hash (simulated
+  -- sequentially here — PGlite is single-connection, so the actual race cannot be exercised)
+  -- must not double-count the visitor or the visit.
+  PERFORM public.ingest_aggregate_hit(s2, 'hashRace', 'pageview', '/', '', '', '', '', 'desktop', NULL, NULL, NULL, t0);
+  PERFORM public.ingest_aggregate_hit(s2, 'hashRace', 'pageview', '/', '', '', '', '', 'desktop', NULL, NULL, NULL, t0 + interval '10 seconds');
+  ASSERT (SELECT visitors FROM public.aggregate_sources_daily
+          WHERE site_id = s2 AND day = '2026-10-30' AND referrer_domain = '' AND utm_source = ''
+            AND utm_medium = '' AND utm_campaign = '' AND device = 'desktop') = 1,
+    'second first-hit for the same hash does not double-count the visitor';
+  ASSERT (SELECT visits FROM public.aggregate_sources_daily
+          WHERE site_id = s2 AND day = '2026-10-30' AND referrer_domain = '' AND utm_source = ''
+            AND utm_medium = '' AND utm_campaign = '' AND device = 'desktop') = 1,
+    'second first-hit within 30 minutes and same source does not start a new visit';
 
   -- Invalid input is refused without writes
   ASSERT NOT public.ingest_aggregate_hit(s1, '', 'pageview', '/', '', '', '', '', '', NULL, NULL, NULL, t0), 'empty hash';
