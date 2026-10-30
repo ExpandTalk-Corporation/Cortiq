@@ -21,7 +21,7 @@ export function GDPRTab({ selectedSite }: GDPRTabProps) {
       </TabsContent>
       
       <TabsContent value="cmp">
-        <CMPDashboard selectedSite={selectedSite} />
+        <CMPDashboard key={selectedSite.id} selectedSite={selectedSite} />
       </TabsContent>
     </Tabs>
   );

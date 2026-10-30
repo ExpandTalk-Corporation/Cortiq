@@ -35,8 +35,8 @@ export function AggregateOverview({ siteId, from, to }: { siteId: string; from: 
               <table className="w-full text-sm">
                 <thead><tr className="text-left text-muted-foreground"><th className="py-1">Source</th><th className="py-1 text-right">Visits</th><th className="py-1 text-right">Visitors</th></tr></thead>
                 <tbody>
-                  {data.topSources.map((r) => (
-                    <tr key={r.label} className="border-t"><td className="py-1 break-all">{r.label}</td><td className="py-1 text-right">{fmt(r.visits)}</td><td className="py-1 text-right">{fmt(r.visitors)}</td></tr>
+                  {data.topSources.map((r, i) => (
+                    <tr key={`${i}:${r.label}`} className="border-t"><td className="py-1 break-all">{r.label}</td><td className="py-1 text-right">{fmt(r.visits)}</td><td className="py-1 text-right">{fmt(r.visitors)}</td></tr>
                   ))}
                 </tbody>
               </table>
@@ -50,8 +50,8 @@ export function AggregateOverview({ siteId, from, to }: { siteId: string; from: 
               <table className="w-full text-sm">
                 <thead><tr className="text-left text-muted-foreground"><th className="py-1">Goal</th><th className="py-1">Source</th><th className="py-1 text-right">Conversions</th></tr></thead>
                 <tbody>
-                  {data.conversions.map((r) => (
-                    <tr key={`${r.goalId} ${r.source}`} className="border-t"><td className="py-1">{r.goalName}</td><td className="py-1 break-all">{r.source}</td><td className="py-1 text-right">{fmt(r.conversions)}</td></tr>
+                  {data.conversions.map((r, i) => (
+                    <tr key={`${i}:${r.goalId}:${r.source}`} className="border-t"><td className="py-1">{r.goalName}</td><td className="py-1 break-all">{r.source}</td><td className="py-1 text-right">{fmt(r.conversions)}</td></tr>
                   ))}
                 </tbody>
               </table>
