@@ -4,6 +4,7 @@ import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { OverviewTab } from './tabs/OverviewTab';
 import { FilterScopeNotice } from './FilterScopeNotice';
 import { HIDDEN_TABS } from './nav/navSections';
+import { PixelReadinessCard } from './PixelReadinessCard';
 import type { Site, Analytics } from '@/types/dashboard';
 
 const HeatmapTab               = lazy(() => import('./tabs/HeatmapTab').then(m => ({ default: m.HeatmapTab })));
@@ -344,7 +345,10 @@ function DashboardTabsInner({ selectedSite, analytics, dateRange, onSiteDeleted,
 
       <TabsContent value="conversion-goals" className="space-y-6">
         <TabErrorBoundary tabName="Conversion Goals">
-          <ConversionGoalsConfig selectedSite={selectedSite} />
+          <div className="space-y-6">
+            <PixelReadinessCard selectedSite={selectedSite} />
+            <ConversionGoalsConfig selectedSite={selectedSite} />
+          </div>
         </TabErrorBoundary>
       </TabsContent>
 

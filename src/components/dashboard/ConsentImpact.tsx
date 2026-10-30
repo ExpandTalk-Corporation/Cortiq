@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Cloud, Eye, BarChart3, RefreshCw, TrendingDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { fetchAnalyticsAcceptance } from '@/lib/consentAcceptance';
 import type { Site } from '@/types/dashboard';
 
 // The coverage-gap story in three layers:
@@ -26,18 +27,7 @@ export function ConsentImpact({ selectedSite }: { selectedSite: Site }) {
     setLoading(true);
     try {
       // Banner acceptance (analytics) over 30 days.
-      const { data: consents } = await supabase
-        .from('cookie_consents')
-        .select('consent_types, created_at')
-        .eq('site_id', selectedSite.id)
-        .gte('created_at', since)
-        .limit(2000);
-      if (consents && consents.length > 0) {
-        const granted = consents.filter((c) => (c.consent_types as any)?.analytics).length;
-        setAcceptRate(granted / consents.length);
-      } else {
-        setAcceptRate(null);
-      }
+      setAcceptRate(await fetchAnalyticsAcceptance(supabase, selectedSite.id, since));
 
       // CortIQ page views (cookieless — all visitors) over 30 days.
       const { count: pv } = await supabase
