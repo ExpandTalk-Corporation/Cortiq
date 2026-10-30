@@ -35,7 +35,7 @@ export function assessPixelReadiness(input: ReadinessInput): ReadinessResult {
   const acceptanceAssumed = input.acceptanceRate === null || !Number.isFinite(input.acceptanceRate);
   const acceptanceUsed = acceptanceAssumed ? ASSUMED_ACCEPTANCE : Math.min(1, Math.max(0, input.acceptanceRate as number));
   const conversions = Math.max(0, Number.isFinite(input.primaryConversions30d) ? input.primaryConversions30d : 0);
-  const effectiveConversions = Math.floor(conversions * acceptanceUsed);
+  const effectiveConversions = Math.floor(conversions * acceptanceUsed + 1e-9);
   const result = (state: ReadinessState, reasons: string[]): ReadinessResult =>
     ({ state, effectiveConversions, acceptanceUsed, acceptanceAssumed, reasons });
 

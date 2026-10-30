@@ -41,6 +41,12 @@ test('brand-new empty site: assumption + short history reasons, no NaN (Review F
   assert.equal(r.reasons.some((x) => x.includes('NaN')), false);
 });
 
+test('floating-point precision: 110 conversions × (3/11) acceptance must not misclassify', () => {
+  const r = assessPixelReadiness({ ...base, primaryConversions30d: 110, acceptanceRate: 3/11 });
+  assert.equal(r.effectiveConversions, 30);
+  assert.equal(r.state, 'borderline');
+});
+
 test('out-of-range inputs are clamped', () => {
   const r = assessPixelReadiness({ ...base, primaryConversions30d: -5, acceptanceRate: 3 });
   assert.equal(r.effectiveConversions, 0);
