@@ -286,8 +286,9 @@ function cortiq_enqueue() {
 }
 
 function cortiq_add_script_attrs( $tag, $handle ) {
-    if ( 'cortiq-tracking' !== $handle ) return $tag;
-    // Config travels via window.cortiqConfig (injected above); just defer the load.
+    if ( 'cortiq-tracking' !== $handle && 'cortiq-aggregate' !== $handle ) return $tag;
+    // Config travels via window.cortiqConfig (injected above, 'before'); just defer the load —
+    // both the tracker and the aggregate beacon still see it since the inline script prints first.
     return str_replace( ' src=', ' defer src=', $tag );
 }
 
