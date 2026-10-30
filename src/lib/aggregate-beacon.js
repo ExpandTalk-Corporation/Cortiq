@@ -13,6 +13,16 @@
   var formGoals = [];
   var lastPath = null;
   var firstView = true;
+  // Same prefix semantics as spa-tracking.js: comma-separated, trimmed, empty entries ignored.
+  var excludePaths = String(cfg.excludePaths || '').split(',')
+    .map(function (s) { return s.trim(); }).filter(Boolean);
+
+  function isExcludedPath(path) {
+    for (var i = 0; i < excludePaths.length; i++) {
+      if (path.indexOf(excludePaths[i]) === 0) return true;
+    }
+    return false;
+  }
 
   function refused() {
     if (refusedLive !== null) return refusedLive;
@@ -62,6 +72,7 @@
     var path = location.pathname;
     if (path === lastPath) return;
     lastPath = path;
+    if (isExcludedPath(path)) { firstView = false; return; }
     var body = { kind: 'pageview', url: location.origin + path, referrer: firstView ? (document.referrer || '') : '', utm: utm() };
     firstView = false;
     send(body).then(function (res) {
@@ -76,6 +87,7 @@
   }
 
   document.addEventListener('submit', function (e) {
+    if (isExcludedPath(location.pathname)) return;
     var target = e.target;
     var url = location.origin + location.pathname;
     var hits = formGoals.filter(function (g) { return matches(target, g.selector); });

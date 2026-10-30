@@ -48,4 +48,6 @@ test('aggregate self-tracking inlines the beacon only when VITE_CORTIQ_AGGREGATE
   const html = buildSelfTrackingSnippet({ ...env, VITE_CORTIQ_AGGREGATE: 'true' }, files);
   assert.ok(html.includes('aggregate-hit'));
   assert.ok(html.includes('"aggregate":true'));
+  assert.ok(html.startsWith('<!-- CortIQ self-measurement: counts page views without consent'));
+  assert.ok(buildSelfTrackingSnippet(env, files).startsWith('<!-- CortIQ self-measurement: loads only after analytics consent -->'));
 });

@@ -9,7 +9,7 @@ const settle = async () => { for (let i = 0; i < 8; i++) await new Promise((r) =
 
 function browser({ config = { siteId: 'site-1', apiKey: 'tk_key', aggregate: true }, stored = null, gpc = false,
                    cookiebot, dataLayer, referrer = 'https://www.linkedin.com/feed/', search = '?utm_source=linkedin&utm_campaign=q4',
-                   goals = [{ id: 'g-form', selector: '#demo' }] } = {}) {
+                   goals = [{ id: 'g-form', selector: '#demo' }], pathname = '/start' } = {}) {
   const calls = [];
   const storageTouches = [];
   const listeners = new Map();
@@ -23,7 +23,7 @@ function browser({ config = { siteId: 'site-1', apiKey: 'tk_key', aggregate: tru
     ...(cookiebot && { Cookiebot: cookiebot }),
     ...(dataLayer && { dataLayer }),
   });
-  const location = { origin: 'https://shop.test', pathname: '/start', search };
+  const location = { origin: 'https://shop.test', pathname, search };
   const history = {
     pushState(_s, _t, path) { location.pathname = path; },
     replaceState(_s, _t, path) { location.pathname = path; },
@@ -126,4 +126,19 @@ test('loaded twice on one page still counts once (Review Focus 1)', async () => 
   b.run();
   await settle();
   assert.equal(b.calls.length, 1);
+});
+
+test('excludePaths: no page views or goal hits on excluded path prefixes', async () => {
+  const b = browser({ config: { siteId: 'site-1', apiKey: 'tk_key', aggregate: true, excludePaths: ' /dashboard, ,/tracking-check' },
+                      pathname: '/dashboard/x' });
+  await settle();
+  assert.equal(b.calls.length, 0, 'initial excluded page sends nothing');
+  b.ctx.history.pushState({}, '', '/pricing');
+  await settle();
+  assert.equal(b.calls.length, 1);
+  assert.equal(b.calls[0].body.url, 'https://shop.test/pricing');
+  b.ctx.history.pushState({}, '', '/tracking-check/r/abc');
+  b.submit(form(['#demo'], { 'data-wfa-conversion': '' }));
+  await settle();
+  assert.equal(b.calls.length, 1, 'excluded page view and goal send nothing');
 });

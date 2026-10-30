@@ -39,7 +39,10 @@ export function buildSelfTrackingSnippet(env, { loaderSource, beaconSource = '',
     .trim();
   const strip = (src) => src.split('\n').filter((line) => !line.trimStart().startsWith('//')).join('\n').trim();
   const beacon = aggregate && beaconSource ? `${strip(beaconSource)}\n` : '';
-  return `<!-- CortIQ self-measurement: loads only after analytics consent -->\n<script>\nwindow.cortiqConfig = ${JSON.stringify(config)};\n${beacon}${loader}\n</script>`;
+  const header = beacon
+    ? '<!-- CortIQ self-measurement: counts page views without consent (no cookies, no device storage, no IDs); full tracking loads only after analytics consent -->'
+    : '<!-- CortIQ self-measurement: loads only after analytics consent -->';
+  return `${header}\n<script>\nwindow.cortiqConfig = ${JSON.stringify(config)};\n${beacon}${loader}\n</script>`;
 }
 
 export function readSelfTrackingFiles(root) {
