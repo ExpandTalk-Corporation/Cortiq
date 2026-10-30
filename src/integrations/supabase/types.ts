@@ -283,6 +283,115 @@ export type Database = {
           },
         ]
       }
+      agent_definitions: {
+        Row: {
+          agent_name: string
+          company_id: string
+          created_at: string
+          default_model: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          tags: string[]
+        }
+        Insert: {
+          agent_name: string
+          company_id: string
+          created_at?: string
+          default_model?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          tags?: string[]
+        }
+        Update: {
+          agent_name?: string
+          company_id?: string
+          created_at?: string
+          default_model?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          tags?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_definitions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_hourly_stats: {
+        Row: {
+          agent_name: string
+          company_id: string
+          escalations: number
+          estimated_cost_usd: number
+          hallucination_flags: number
+          hour: string
+          input_tokens: number
+          model: string
+          output_tokens: number
+          p50_duration_ms: number | null
+          p95_duration_ms: number | null
+          p99_duration_ms: number | null
+          tasks_with_retry: number
+          tool_calls_ok: number
+          tool_calls_total: number
+          total_spans: number
+          total_tasks: number
+        }
+        Insert: {
+          agent_name: string
+          company_id: string
+          escalations?: number
+          estimated_cost_usd?: number
+          hallucination_flags?: number
+          hour: string
+          input_tokens?: number
+          model?: string
+          output_tokens?: number
+          p50_duration_ms?: number | null
+          p95_duration_ms?: number | null
+          p99_duration_ms?: number | null
+          tasks_with_retry?: number
+          tool_calls_ok?: number
+          tool_calls_total?: number
+          total_spans?: number
+          total_tasks?: number
+        }
+        Update: {
+          agent_name?: string
+          company_id?: string
+          escalations?: number
+          estimated_cost_usd?: number
+          hallucination_flags?: number
+          hour?: string
+          input_tokens?: number
+          model?: string
+          output_tokens?: number
+          p50_duration_ms?: number | null
+          p95_duration_ms?: number | null
+          p99_duration_ms?: number | null
+          tasks_with_retry?: number
+          tool_calls_ok?: number
+          tool_calls_total?: number
+          total_spans?: number
+          total_tasks?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_hourly_stats_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_macros: {
         Row: {
           config: Json
@@ -326,6 +435,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      agent_model_pricing: {
+        Row: {
+          effective_from: string
+          input_cost_per_1m: number
+          model_id: string
+          notes: string | null
+          output_cost_per_1m: number
+          provider: string
+        }
+        Insert: {
+          effective_from?: string
+          input_cost_per_1m?: number
+          model_id: string
+          notes?: string | null
+          output_cost_per_1m?: number
+          provider: string
+        }
+        Update: {
+          effective_from?: string
+          input_cost_per_1m?: number
+          model_id?: string
+          notes?: string | null
+          output_cost_per_1m?: number
+          provider?: string
+        }
+        Relationships: []
       }
       agent_registry: {
         Row: {
@@ -454,6 +590,131 @@ export type Database = {
             columns: ["site_id"]
             isOneToOne: false
             referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_spans: {
+        Row: {
+          attributes: Json
+          company_id: string
+          data_source_id: string | null
+          duration_ms: number | null
+          end_time: string | null
+          escalated: boolean
+          estimated_cost_usd: number | null
+          eval_score: number | null
+          gen_ai_agent_id: string | null
+          gen_ai_agent_name: string | null
+          gen_ai_agent_version: string | null
+          gen_ai_conversation_id: string | null
+          gen_ai_operation_name: string | null
+          gen_ai_provider_name: string | null
+          gen_ai_request_model: string | null
+          gen_ai_usage_input_tokens: number | null
+          gen_ai_usage_output_tokens: number | null
+          gen_ai_usage_total_tokens: number | null
+          had_retry: boolean
+          has_hallucination_flag: boolean
+          id: string
+          mcp_server: string | null
+          parent_span_id: string | null
+          received_at: string
+          resource_attributes: Json
+          retrieval_score: number | null
+          span_id: string
+          span_kind: string | null
+          span_name: string
+          start_time: string
+          status_code: string
+          status_message: string | null
+          tool_call_id: string | null
+          tool_name: string | null
+          trace_id: string
+          web_session_id: string | null
+        }
+        Insert: {
+          attributes?: Json
+          company_id: string
+          data_source_id?: string | null
+          duration_ms?: number | null
+          end_time?: string | null
+          escalated?: boolean
+          estimated_cost_usd?: number | null
+          eval_score?: number | null
+          gen_ai_agent_id?: string | null
+          gen_ai_agent_name?: string | null
+          gen_ai_agent_version?: string | null
+          gen_ai_conversation_id?: string | null
+          gen_ai_operation_name?: string | null
+          gen_ai_provider_name?: string | null
+          gen_ai_request_model?: string | null
+          gen_ai_usage_input_tokens?: number | null
+          gen_ai_usage_output_tokens?: number | null
+          gen_ai_usage_total_tokens?: number | null
+          had_retry?: boolean
+          has_hallucination_flag?: boolean
+          id?: string
+          mcp_server?: string | null
+          parent_span_id?: string | null
+          received_at?: string
+          resource_attributes?: Json
+          retrieval_score?: number | null
+          span_id: string
+          span_kind?: string | null
+          span_name: string
+          start_time: string
+          status_code?: string
+          status_message?: string | null
+          tool_call_id?: string | null
+          tool_name?: string | null
+          trace_id: string
+          web_session_id?: string | null
+        }
+        Update: {
+          attributes?: Json
+          company_id?: string
+          data_source_id?: string | null
+          duration_ms?: number | null
+          end_time?: string | null
+          escalated?: boolean
+          estimated_cost_usd?: number | null
+          eval_score?: number | null
+          gen_ai_agent_id?: string | null
+          gen_ai_agent_name?: string | null
+          gen_ai_agent_version?: string | null
+          gen_ai_conversation_id?: string | null
+          gen_ai_operation_name?: string | null
+          gen_ai_provider_name?: string | null
+          gen_ai_request_model?: string | null
+          gen_ai_usage_input_tokens?: number | null
+          gen_ai_usage_output_tokens?: number | null
+          gen_ai_usage_total_tokens?: number | null
+          had_retry?: boolean
+          has_hallucination_flag?: boolean
+          id?: string
+          mcp_server?: string | null
+          parent_span_id?: string | null
+          received_at?: string
+          resource_attributes?: Json
+          retrieval_score?: number | null
+          span_id?: string
+          span_kind?: string | null
+          span_name?: string
+          start_time?: string
+          status_code?: string
+          status_message?: string | null
+          tool_call_id?: string | null
+          tool_name?: string | null
+          trace_id?: string
+          web_session_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_spans_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -1841,6 +2102,50 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "campaign_performance_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      canary_hits: {
+        Row: {
+          canary_type: string
+          country: string | null
+          detected_at: string
+          id: string
+          ip_anon: string | null
+          referrer: string | null
+          site_id: string
+          token: string
+          ua_category: string | null
+        }
+        Insert: {
+          canary_type?: string
+          country?: string | null
+          detected_at?: string
+          id?: string
+          ip_anon?: string | null
+          referrer?: string | null
+          site_id: string
+          token: string
+          ua_category?: string | null
+        }
+        Update: {
+          canary_type?: string
+          country?: string | null
+          detected_at?: string
+          id?: string
+          ip_anon?: string | null
+          referrer?: string | null
+          site_id?: string
+          token?: string
+          ua_category?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canary_hits_site_id_fkey"
             columns: ["site_id"]
             isOneToOne: false
             referencedRelation: "sites"
@@ -9650,6 +9955,14 @@ export type Database = {
       }
       cleanup_old_tracking_data: { Args: never; Returns: undefined }
       cleanup_rate_limit_buckets: { Args: never; Returns: undefined }
+      compute_span_cost: {
+        Args: {
+          p_input_tokens: number
+          p_model: string
+          p_output_tokens: number
+        }
+        Returns: number
+      }
       effective_pipeline_mode: {
         Args: { p_company_id: string; p_visitor_country?: string }
         Returns: string
@@ -9659,6 +9972,56 @@ export type Database = {
         Returns: undefined
       }
       generate_tracking_id: { Args: never; Returns: string }
+      get_agent_conversions: {
+        Args: { p_company_id: string; p_from?: string; p_to?: string }
+        Returns: {
+          agent_name: string
+          conversion_rate: number
+          conversions: number
+          sessions_with_agent: number
+        }[]
+      }
+      get_agent_overview: {
+        Args: { p_company_id: string; p_from?: string; p_to?: string }
+        Returns: {
+          agent_name: string
+          escalation_rate: number
+          estimated_cost_usd: number
+          first_pass_rate: number
+          hallucination_flags: number
+          last_active: string
+          p50_latency_ms: number
+          p95_latency_ms: number
+          task_completion_rate: number
+          tool_success_rate: number
+          total_input_tokens: number
+          total_output_tokens: number
+          total_tasks: number
+        }[]
+      }
+      get_agent_trace: {
+        Args: { p_company_id: string; p_trace_id: string }
+        Returns: {
+          attributes: Json
+          duration_ms: number
+          escalated: boolean
+          estimated_cost_usd: number
+          eval_score: number
+          gen_ai_agent_name: string
+          gen_ai_operation_name: string
+          gen_ai_request_model: string
+          gen_ai_usage_input_tokens: number
+          gen_ai_usage_output_tokens: number
+          had_retry: boolean
+          mcp_server: string
+          parent_span_id: string
+          span_id: string
+          span_name: string
+          start_time: string
+          status_code: string
+          tool_name: string
+        }[]
+      }
       get_aggregate_summary: {
         Args: { p_from: string; p_site_id: string; p_to: string }
         Returns: Json
@@ -10115,8 +10478,13 @@ export type Database = {
         }
         Returns: undefined
       }
+      refresh_agent_hourly_stats: {
+        Args: { p_company_id: string; p_hour: string }
+        Returns: undefined
+      }
       refresh_analytics_views: { Args: never; Returns: undefined }
       resolve_site_by_domain: { Args: { p_url: string }; Returns: string }
+      run_agent_telemetry_retention: { Args: never; Returns: Json }
       run_bot_detection_retention: { Args: never; Returns: Json }
       run_canary_retention: { Args: never; Returns: Json }
       run_data_retention: { Args: never; Returns: Json }
@@ -10129,6 +10497,7 @@ export type Database = {
         }
         Returns: string
       }
+      seed_cyber_alerts: { Args: { p_site_id: string }; Returns: Json }
       should_rotate_session: {
         Args: { p_session_id: string; p_site_id: string }
         Returns: boolean
