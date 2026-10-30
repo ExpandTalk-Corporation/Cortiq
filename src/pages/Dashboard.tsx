@@ -19,7 +19,7 @@ export default function Dashboard() {
 }
 
 function DashboardBody() {
-  const { sites, selectedSite, setSelectedSite, loadSites, loading } = useSites();
+  const { sites, selectedSite, setSelectedSite, loadSites, patchSite, loading } = useSites();
   const { dateRange } = useDashboardFilters();
   const { analytics } = useAnalytics(selectedSite?.id || null, dateRange);
   // Active tab lives in the URL (?tab=) so it deep-links, survives refresh and works with Back.
@@ -70,6 +70,7 @@ function DashboardBody() {
                   activeTab={activeTab}
                   onTabChange={setActiveTab}
                   onSiteDeleted={() => { setSelectedSite(null); loadSites(); }}
+                  onSiteUpdated={(patch) => patchSite(selectedSite.id, patch)}
                 />
               </main>
               <div className="lg:col-span-2 xl:col-span-1 xl:sticky xl:top-4 xl:self-start">

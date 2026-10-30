@@ -6,6 +6,7 @@ import { FilterScopeNotice } from './FilterScopeNotice';
 import { HIDDEN_TABS } from './nav/navSections';
 import { PixelReadinessCard } from './PixelReadinessCard';
 import type { Site, Analytics } from '@/types/dashboard';
+import type { SitePatch } from '@/hooks/useSites';
 
 const HeatmapTab               = lazy(() => import('./tabs/HeatmapTab').then(m => ({ default: m.HeatmapTab })));
 const AnalyticsTab             = lazy(() => import('./tabs/AnalyticsTab').then(m => ({ default: m.AnalyticsTab })));
@@ -72,11 +73,12 @@ interface DashboardTabsProps {
   analytics: Analytics | null;
   dateRange?: import('react-day-picker').DateRange;
   onSiteDeleted?: () => void;
+  onSiteUpdated?: (patch: SitePatch) => void;
   activeTab: string;
   onTabChange: (value: string) => void;
 }
 
-function DashboardTabsInner({ selectedSite, analytics, dateRange, onSiteDeleted, activeTab, onTabChange }: DashboardTabsProps) {
+function DashboardTabsInner({ selectedSite, analytics, dateRange, onSiteDeleted, onSiteUpdated, activeTab, onTabChange }: DashboardTabsProps) {
   // Active tab lives in the URL (?tab=); Dashboard.tsx owns it so the numbered sidebar
   // (DashboardSidebar) and this content switch share one value.
   const setActiveTab = onTabChange;
@@ -230,7 +232,7 @@ function DashboardTabsInner({ selectedSite, analytics, dateRange, onSiteDeleted,
 
       <TabsContent value="gdpr" className="space-y-6">
         <TabErrorBoundary tabName="GDPR">
-          <GDPRTab selectedSite={selectedSite} />
+          <GDPRTab selectedSite={selectedSite} onSiteUpdated={onSiteUpdated} />
         </TabErrorBoundary>
       </TabsContent>
 

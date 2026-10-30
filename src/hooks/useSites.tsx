@@ -3,6 +3,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Site } from '@/types/dashboard';
 
+/** Columns changed locally after a successful write (some are not on the Site type yet). */
+export type SitePatch = Partial<Site> & Record<string, unknown>;
+
 export function useSites() {
   const [sites, setSites] = useState<Site[]>([]);
   const [selectedSite, setSelectedSite] = useState<Site | null>(null);
@@ -54,6 +57,12 @@ export function useSites() {
     }
   };
 
+  // Apply a successful write to the shared site state, so every tab sees the new value.
+  const patchSite = (siteId: string, patch: SitePatch) => {
+    setSites((prev) => prev.map((s) => (s.id === siteId ? ({ ...s, ...patch } as Site) : s)));
+    setSelectedSite((prev) => (prev && prev.id === siteId ? ({ ...prev, ...patch } as Site) : prev));
+  };
+
   useEffect(() => {
     loadSites();
   }, []);
@@ -63,6 +72,7 @@ export function useSites() {
     selectedSite,
     setSelectedSite,
     loadSites,
+    patchSite,
     deleteSite,
     loading
   };
