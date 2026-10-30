@@ -1,7 +1,7 @@
 /**
  * CortIQ Advanced Tracking Script
  * Unified visitor profiling with AI agent detection
- * Version: 5.5.6 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
+ * Version: 5.5.7 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
  *
  * Usage:
  * <script>
@@ -17,7 +17,7 @@
   'use strict';
 
   // Keep in sync with wordpress-plugin/cortiq-analytics.php (CORTIQ_VERSION).
-  const CORTIQ_VERSION = '5.5.6';
+  const CORTIQ_VERSION = '5.5.7';
 
   // Configuration: window.cortiqConfig, overridden by data-* attributes on this script
   // tag, so a single-tag install (<script src=… data-site-id=…>) works and a tag that

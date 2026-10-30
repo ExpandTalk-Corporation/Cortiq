@@ -12,10 +12,10 @@ const DEFAULT_API = 'https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1';
 
 /**
  * @param {Record<string, string | undefined>} env
- * @param {{ loaderSource: string, version: string }} files
+ * @param {{ loaderSource: string, beaconSource?: string, version: string }} files
  * @returns {string} the <script> block, or '' when self-tracking is not configured
  */
-export function buildSelfTrackingSnippet(env, { loaderSource, version }) {
+export function buildSelfTrackingSnippet(env, { loaderSource, beaconSource = '', version }) {
   const siteId = (env.VITE_CORTIQ_SITE_ID || '').trim();
   const key = (env.VITE_CORTIQ_TRACKING_KEY || '').trim();
   if (!siteId || !key) return '';
@@ -29,17 +29,25 @@ export function buildSelfTrackingSnippet(env, { loaderSource, version }) {
     cookieless: true,
     excludePaths: SELF_TRACKING_EXCLUDE,
   };
+  const aggregate = (env.VITE_CORTIQ_AGGREGATE || '').trim() === 'true';
+  if (aggregate) config.aggregate = true;
   const loader = loaderSource
     .split('\n')
     .filter((line) => !line.trimStart().startsWith('//'))
     .join('\n')
     .replace('__CORTIQ_SRC__', `/cortiq.js?ver=${version}`)
     .trim();
-  return `<!-- CortIQ self-measurement: loads only after analytics consent -->\n<script>\nwindow.cortiqConfig = ${JSON.stringify(config)};\n${loader}\n</script>`;
+  const strip = (src) => src.split('\n').filter((line) => !line.trimStart().startsWith('//')).join('\n').trim();
+  const beacon = aggregate && beaconSource ? `${strip(beaconSource)}\n` : '';
+  const header = beacon
+    ? '<!-- CortIQ self-measurement: counts page views without consent (no cookies, no device storage, no IDs); full tracking loads only after analytics consent -->'
+    : '<!-- CortIQ self-measurement: loads only after analytics consent -->';
+  return `${header}\n<script>\nwindow.cortiqConfig = ${JSON.stringify(config)};\n${beacon}${loader}\n</script>`;
 }
 
 export function readSelfTrackingFiles(root) {
   const loaderSource = readFileSync(`${root}/src/lib/consent-loader.js`, 'utf8');
+  const beaconSource = readFileSync(`${root}/src/lib/aggregate-beacon.js`, 'utf8');
   const version = readFileSync(`${root}/src/lib/plugin-version.ts`, 'utf8').match(/PLUGIN_VERSION = '([^']+)'/)[1];
-  return { loaderSource, version };
+  return { loaderSource, beaconSource, version };
 }

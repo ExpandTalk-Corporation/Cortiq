@@ -23,6 +23,9 @@
 import { createClient } from "../_shared/supabase.ts";
 import { anonymizeIP } from "../_shared/jurisdiction.ts";
 import { classifyBot } from "../_shared/ai-bot-registry.ts";
+import { normHost, ownsHost } from "../_shared/site-host.ts";
+
+export { normHost };
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -59,16 +62,6 @@ function readKey(req: Request): string {
 }
 
 const clip = (v: unknown, n: number) => (typeof v === 'string' && v ? v.slice(0, n) : null);
-
-/** Hostname as the browser sees it: lowercase, punycode, no www., no port/path/scheme. */
-export function normHost(value: string): string | null {
-  const raw = String(value || '').trim();
-  if (!raw) return null;
-  try {
-    const host = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`).hostname.toLowerCase();
-    return host.replace(/^www\./, '').replace(/\.$/, '') || null;
-  } catch { return null; }
-}
 
 /** Origin + path of a referrer; query strings can carry tokens, emails or search terms. */
 function cleanReferrer(v: unknown): string | null {
@@ -108,7 +101,6 @@ Deno.serve(async (req) => {
 
   // Ownership is checked against THIS key's site (its domain or a subdomain), not a global
   // domain lookup — duplicate domains on other sites can't steal or block the hits.
-  const ownsHost = (host: string) => host === siteHost || host.endsWith('.' + siteHost);
   const hosts = new Set<string>();
 
   const rows: Record<string, unknown>[] = [];
@@ -118,7 +110,7 @@ Deno.serve(async (req) => {
     try { url = new URL(String(raw?.url ?? '')); } catch { rejected++; continue; }
     if (url.protocol !== 'https:' && url.protocol !== 'http:') { rejected++; continue; }
     const host = normHost(url.hostname);
-    if (!host || !ownsHost(host)) { rejected++; continue; }
+    if (!host || !ownsHost(siteHost, host)) { rejected++; continue; }
     hosts.add(host);
     if (hosts.size > MAX_HOSTS_PER_BATCH) return json({ error: 'Too many hosts in one batch' }, 400);
 

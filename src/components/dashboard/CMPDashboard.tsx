@@ -11,17 +11,21 @@ import { useGDPRSettings, useUpdateGDPRSettings } from '@/hooks/useGDPR';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { Site } from '@/types/dashboard';
+import type { SitePatch } from '@/hooks/useSites';
 import { ConsentImpact } from '@/components/dashboard/ConsentImpact';
 
 interface CMPDashboardProps {
   selectedSite: Site;
+  /** Called after a successful write to sites, so the shared site state (and Setup's snippet) stays current. */
+  onSiteUpdated?: (patch: SitePatch) => void;
 }
 
-export function CMPDashboard({ selectedSite }: CMPDashboardProps) {
+export function CMPDashboard({ selectedSite, onSiteUpdated }: CMPDashboardProps) {
   const { data: gdprSettings } = useGDPRSettings(selectedSite.id);
   const updateGDPRSettings = useUpdateGDPRSettings();
   const [serverSideConfig, setServerSideConfig] = useState<any>((selectedSite as any).server_side_tracking_config || {});
   const [trackingMode, setTrackingMode] = useState<string>((selectedSite as any).tracking_mode || 'full');
+  const [aggregateOn, setAggregateOn] = useState<boolean>((selectedSite as any).aggregate_measurement === true);
   const [consentStats, setConsentStats] = useState<any>(null);
   const [recentValidations, setRecentValidations] = useState<any[]>([]);
 
@@ -86,13 +90,29 @@ export function CMPDashboard({ selectedSite }: CMPDashboardProps) {
 
   const updateTrackingMode = async (mode: 'cookieless' | 'full') => {
     try {
-      await supabase.from('sites').update({ tracking_mode: mode } as any).eq('id', selectedSite.id);
+      const { error } = await supabase.from('sites').update({ tracking_mode: mode } as any).eq('id', selectedSite.id);
+      if (error) throw error;
       setTrackingMode(mode);
+      onSiteUpdated?.({ tracking_mode: mode });
       toast.success(mode === 'cookieless' ? 'Switched to cookieless mode' : 'Switched to full tracking');
     } catch (error) {
       console.error('Error updating tracking mode:', error);
       toast.error('Could not update tracking mode');
     }
+  };
+
+  const updateAggregate = async (enabled: boolean) => {
+    const { error } = await supabase.from('sites').update({ aggregate_measurement: enabled } as any).eq('id', selectedSite.id);
+    if (error) {
+      console.error('Error updating aggregate measurement:', error);
+      toast.error('Could not update aggregate measurement');
+      return;
+    }
+    setAggregateOn(enabled);
+    onSiteUpdated?.({ aggregate_measurement: enabled });
+    toast.success(enabled
+      ? 'Aggregate measurement on — the Setup snippet now includes aggregate counting. Update the snippet on your site or the plugin setting too.'
+      : 'Aggregate measurement off — the Setup snippet no longer includes aggregate counting.');
   };
 
   const testConsentFlow = async () => {
@@ -266,6 +286,27 @@ export function CMPDashboard({ selectedSite }: CMPDashboardProps) {
                   {' '}Make sure the tracking script sends the matching mode — in the WordPress plugin, set Tracking mode to the same value.
                 </AlertDescription>
               </Alert>
+              <div className="flex items-center justify-between border-t pt-4">
+                <div className="space-y-0.5 pr-4">
+                  <Label>Aggregate measurement (no consent required)</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Counts page views, visits, sources and form goals for every visitor — no cookies, no device
+                    storage, no persistent IDs. A daily-rotating hash, deleted after the day, groups a visitor's
+                    pages. Designed to not require consent; your own legal assessment decides. Visitors who refuse
+                    analytics or send Global Privacy Control are not counted.
+                  </p>
+                </div>
+                <Switch checked={aggregateOn} onCheckedChange={updateAggregate} />
+              </div>
+              {aggregateOn && (
+                <Alert>
+                  <Shield className="h-4 w-4" />
+                  <AlertDescription>
+                    Copy the updated snippet from Setup, or tick "Aggregate measurement" in the WordPress plugin.
+                    Without it, nothing is counted.
+                  </AlertDescription>
+                </Alert>
+              )}
             </CardContent>
           </Card>
 

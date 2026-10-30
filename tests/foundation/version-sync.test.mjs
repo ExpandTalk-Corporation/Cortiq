@@ -48,6 +48,12 @@ test('served plugin zip matches wordpress-plugin/ sources', async () => {
   const tracker = zip.file('cortiq-analytics/assets/cortiq.js');
   assert.ok(tracker, 'zip is missing the bundled tracker assets/cortiq.js');
   assert.equal(lf(await tracker.async('string')), lf(read('public/cortiq.js')), 'bundled tracker is stale — run npm run build');
+
+  const beacon = zip.file('cortiq-analytics/assets/cortiq-aggregate.js');
+  assert.ok(beacon, 'zip is missing the bundled aggregate beacon assets/cortiq-aggregate.js');
+  assert.equal(await beacon.async('string'),
+    readFileSync(new URL('../../src/lib/aggregate-beacon.js', import.meta.url), 'utf8'),
+    'zip copy of the aggregate beacon is stale — run node scripts/build-plugin.mjs');
 });
 
 // ── Plugin banner ↔ tracker consent contract ────────────────────────────────

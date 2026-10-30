@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { BarChart2, TrendingDown, TrendingUp, Upload, Shield } from 'lucide-react';
 import { useAttributionGap } from '@/hooks/useAttributionGap';
+import { PixelReadinessCard } from '@/components/dashboard/PixelReadinessCard';
 import type { Site } from '@/types/dashboard';
 
 interface AttributionTabProps {
@@ -28,7 +29,7 @@ export function AttributionTab({ selectedSite }: AttributionTabProps) {
     return <div className="py-12 text-center text-sm text-muted-foreground">Loading attribution data...</div>;
   }
 
-  if (!data) return null;
+  if (!data) return <PixelReadinessCard selectedSite={selectedSite} />;
 
   const { cortiqConversions, hubspotMQLs, gapPercent, pendingUpload, uploaded, bySource, periodDays } = data;
 
@@ -40,6 +41,8 @@ export function AttributionTab({ selectedSite }: AttributionTabProps) {
           Last {periodDays} days — comparing what CortIQ tracks vs. what reaches qualified pipeline
         </p>
       </div>
+
+      <PixelReadinessCard selectedSite={selectedSite} />
 
       {/* Three-column comparison */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
