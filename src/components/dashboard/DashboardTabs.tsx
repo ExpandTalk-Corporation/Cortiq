@@ -126,7 +126,7 @@ function DashboardTabsInner({ selectedSite, analytics, dateRange, onSiteDeleted,
       <TabsContent value="agent-ops" className="space-y-6">
         <TabErrorBoundary tabName="Agent Ops">
           <AgentOpsTab
-            companyId={selectedSite.company_id ?? null}
+            companyId={selectedSite.user_id ?? null}
             dateRange={dateRange}
           />
         </TabErrorBoundary>

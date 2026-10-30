@@ -1,5 +1,7 @@
 export interface Site {
   id: string;
+  /** Owner. In this data model the owner's user id is also the company id (companies.id). */
+  user_id?: string;
   site_name: string;
   domain: string;
   tracking_id: string;
