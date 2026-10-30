@@ -41,3 +41,11 @@ test('tracker skips page views on excludePaths, not only bot detection', () => {
   const src = readFileSync(`${ROOT}/public/spa-tracking.js`, 'utf8');
   assert.match(src, /function trackPageView\(\) \{\s*\/\/[^\n]*\n\s*if \(isExcludedPath\(\)\) return;/);
 });
+
+test('aggregate self-tracking inlines the beacon only when VITE_CORTIQ_AGGREGATE=true', () => {
+  const env = { VITE_CORTIQ_SITE_ID: SITE, VITE_CORTIQ_TRACKING_KEY: 'abcDEF123_-key' };
+  assert.equal(buildSelfTrackingSnippet(env, files).includes('aggregate-hit'), false);
+  const html = buildSelfTrackingSnippet({ ...env, VITE_CORTIQ_AGGREGATE: 'true' }, files);
+  assert.ok(html.includes('aggregate-hit'));
+  assert.ok(html.includes('"aggregate":true'));
+});

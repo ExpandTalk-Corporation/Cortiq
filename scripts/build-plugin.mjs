@@ -43,6 +43,9 @@ addDirPrefixed(zip, pluginDir, pluginDir, PLUGIN_FOLDER);
 // tracker built by scripts/minify-tracker.mjs, which runs before this script in `npm run build`.
 zip.file(`${PLUGIN_FOLDER}/assets/cortiq.js`, readFileSync(join(outputDir, 'cortiq.js')));
 
+// Consent-free aggregate beacon, enqueued only when the site owner enables Aggregate measurement.
+zip.file(`${PLUGIN_FOLDER}/assets/cortiq-aggregate.js`, readFileSync(join(root, 'src', 'lib', 'aggregate-beacon.js')));
+
 const buf = await zip.generateAsync({
   type: 'nodebuffer',
   compression: 'DEFLATE',

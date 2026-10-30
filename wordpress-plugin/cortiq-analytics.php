@@ -3,7 +3,7 @@
  * Plugin Name: CortIQ Analytics
  * Plugin URI: https://cortiq.se
  * Description: Analytics for the agentic web. Classifies AI crawlers and agent fetches (GPTBot, ClaudeBot, ChatGPT-User, PerplexityBot…) and measures human visitors after consent — cookieless mode, heatmaps, conversions and a built-in consent banner.
- * Version: 5.5.6
+ * Version: 5.5.7
  * Author: CortIQ
  * Author URI: https://cortiq.se
  * Requires at least: 5.6
@@ -21,7 +21,7 @@ if ( defined( 'CORTIQ_LOADED' ) ) return;
 define( 'CORTIQ_LOADED', true );
 
 // Shared with public/spa-tracking.js (CORTIQ_VERSION) — also the ?ver= cache-bust for it.
-define( 'CORTIQ_VERSION',    '5.5.6' );
+define( 'CORTIQ_VERSION',    '5.5.7' );
 define( 'CORTIQ_OPTION_KEY', 'cortiq_options' );
 define( 'CORTIQ_CDN',        'https://cortiq.se' );
 // Supabase Edge Functions base — used for the GDPR consent ledger (store-consent).
@@ -53,6 +53,7 @@ function cortiq_defaults() {
         'consent_region'        => 'eea',    // 'eea' (region-scoped defaults) | 'global'
         'geo_gating'            => false,    // show the banner only to EEA/UK/CH visitors
         'server_side'           => true,     // server-side AI agent measurement (needs tracking_id)
+        'aggregate'             => false,   // consent-free aggregate counts (assets/cortiq-aggregate.js)
     );
 }
 
@@ -267,8 +268,19 @@ function cortiq_enqueue() {
         // Cookieless mode: no fingerprint and no cross-visit profile. Like everything
         // in spa-tracking.js (including in-browser bot detection) it waits for consent.
         'cookieless'  => ( 'cookieless' === $opts['tracking_mode'] ),
+        'aggregate'   => ! empty( $opts['aggregate'] ),
     ) );
     wp_add_inline_script( 'cortiq-tracking', 'window.cortiqConfig = ' . $config . ';', 'before' );
+
+    // Aggregate measurement: counts page views, sources and form goals without consent —
+    // no cookies, no device storage, no identifiers. Only when the site owner enabled it.
+    if ( ! empty( $opts['aggregate'] ) ) {
+        $agg = plugin_dir_path( __FILE__ ) . 'assets/cortiq-aggregate.js';
+        if ( file_exists( $agg ) ) {
+            wp_enqueue_script( 'cortiq-aggregate', plugins_url( 'assets/cortiq-aggregate.js', __FILE__ ), array(), CORTIQ_VERSION, false );
+            wp_add_inline_script( 'cortiq-aggregate', 'window.cortiqConfig = ' . $config . ';', 'before' );
+        }
+    }
 
     add_filter( 'script_loader_tag', 'cortiq_add_script_attrs', 10, 2 );
 }
@@ -788,6 +800,7 @@ function cortiq_sanitize_options( $input ) {
     $clean['consent_region']   = ( isset( $input['consent_region'] ) && 'global' === $input['consent_region'] ) ? 'global' : 'eea';
     $clean['geo_gating']       = ! empty( $input['geo_gating'] );
     $clean['server_side']      = ! empty( $input['server_side'] );
+    $clean['aggregate']        = ! empty( $input['aggregate'] );
     return $clean;
 }
 
@@ -939,6 +952,17 @@ function cortiq_settings_page() {
                             <strong>Full</strong> — device fingerprint + returning-visitor profiling. Requires analytics consent.
                         </label>
                         <p class="description">Both modes need analytics consent before the tracking script does anything, including in-browser bot detection. AI crawlers are measured server-side instead (see Server-side agent measurement).</p>
+                    </td>
+                </tr>
+
+                <tr>
+                    <th scope="row">Aggregate measurement</th>
+                    <td>
+                        <label>
+                            <input type="checkbox" name="<?php echo CORTIQ_OPTION_KEY; ?>[aggregate]" value="1" <?php checked( ! empty( $opts['aggregate'] ) ); ?> />
+                            Count page views, sources and form goals without consent
+                        </label>
+                        <p class="description">No cookies, no device storage, no persistent identifiers. Designed to not require consent; your own legal assessment decides. Also switch it on in the CortIQ dashboard (Consent → Tracking mode), otherwise hits are ignored.</p>
                     </td>
                 </tr>
 

@@ -3,15 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { ServerSideSetup } from '@/components/dashboard/ServerSideSetup';
 import { buildTrackingSnippet } from '@/lib/trackingSnippet';
-
-interface Site {
-  id: string;
-  site_name: string;
-  domain: string;
-  tracking_id: string;
-  is_active: boolean;
-  created_at: string;
-}
+import type { Site } from '@/types/dashboard';
 
 interface InstallationGuideProps {
   selectedSite: Site | null;
@@ -53,7 +45,8 @@ export function InstallationGuide({ selectedSite }: InstallationGuideProps) {
         <div>
           <Label>Tracking snippet (Recommended)</Label>
           <div className="bg-muted text-foreground p-4 rounded-md font-mono text-xs mt-2 overflow-x-auto whitespace-pre-wrap break-all">
-            {buildTrackingSnippet({ apiUrl: apiBase, siteId: selectedSite.id, trackingKey: selectedSite.tracking_id, scriptSrc })}
+            {buildTrackingSnippet({ apiUrl: apiBase, siteId: selectedSite.id, trackingKey: selectedSite.tracking_id, scriptSrc,
+              aggregate: (selectedSite as Site & { aggregate_measurement?: boolean }).aggregate_measurement === true })}
           </div>
           <p className="text-xs text-muted-foreground mt-2">
             ✅ The snippet requests the tracker only after the visitor gives analytics consent (CortIQ banner,
