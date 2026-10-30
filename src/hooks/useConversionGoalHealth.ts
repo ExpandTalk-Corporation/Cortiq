@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { matchesGoal } from '@/lib/goalMatching';
 
 export type GoalHealthStatus = 'healthy' | 'fires_too_often' | 'silent' | 'duplicate_primary';
 
@@ -48,10 +49,7 @@ export function useConversionGoalHealth(siteId: string) {
 
       const totalSessions = sessionCount || 1;
 
-      // Count conversion events per goal in last 30 days.
-      // record-conversion (the only writer of conversion_events) stores event_name
-      // + event_type and never element_selector, so match primarily on event_name ==
-      // goal.name; keep element_selector as a fallback for any legacy click-based rows.
+      // Count conversion events per goal in last 30 days (see matchesGoal for the matching rule).
       const { data: convEvents } = await supabase
         .from('conversion_events')
         .select('event_name, element_selector, created_at')
@@ -63,11 +61,7 @@ export function useConversionGoalHealth(siteId: string) {
       const hasDuplicatePrimary = primaryGoals.length > 1;
 
       return goals.map((goal): GoalHealth => {
-        const selectorHead = goal.selector ? goal.selector.split(',')[0].trim() : '';
-        const matching = (convEvents || []).filter(e =>
-          (e.event_name && e.event_name === goal.name) ||
-          (e.element_selector && selectorHead && e.element_selector.includes(selectorHead))
-        );
+        const matching = (convEvents || []).filter(e => matchesGoal(e, goal));
 
         const count = matching.length;
         const firingRate = count / totalSessions;
