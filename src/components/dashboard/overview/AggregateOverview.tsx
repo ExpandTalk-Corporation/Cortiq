@@ -32,14 +32,16 @@ export function AggregateOverview({ siteId, from, to }: { siteId: string; from: 
             {data.topSources.length === 0 ? (
               <p className="text-sm text-muted-foreground">No data in this period.</p>
             ) : (
-              <table className="w-full text-sm">
-                <thead><tr className="text-left text-muted-foreground"><th className="py-1">Source</th><th className="py-1 text-right">Visits</th><th className="py-1 text-right">Visitors</th></tr></thead>
-                <tbody>
-                  {data.topSources.map((r, i) => (
-                    <tr key={`${i}:${r.label}`} className="border-t"><td className="py-1 break-all">{r.label}</td><td className="py-1 text-right">{fmt(r.visits)}</td><td className="py-1 text-right">{fmt(r.visitors)}</td></tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead><tr className="text-left text-muted-foreground"><th className="py-1">Source</th><th className="py-1 text-right">Visits</th><th className="py-1 text-right">Visitors</th></tr></thead>
+                  <tbody>
+                    {data.topSources.map((r, i) => (
+                      <tr key={`${i}:${r.label}`} className="border-t"><td className="py-1 break-all">{r.label}</td><td className="py-1 text-right">{fmt(r.visits)}</td><td className="py-1 text-right">{fmt(r.visitors)}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
           <div>
@@ -47,14 +49,16 @@ export function AggregateOverview({ siteId, from, to }: { siteId: string; from: 
             {data.conversions.length === 0 ? (
               <p className="text-sm text-muted-foreground">No goal conversions in this period.</p>
             ) : (
-              <table className="w-full text-sm">
-                <thead><tr className="text-left text-muted-foreground"><th className="py-1">Goal</th><th className="py-1">Source</th><th className="py-1 text-right">Conversions</th></tr></thead>
-                <tbody>
-                  {data.conversions.map((r, i) => (
-                    <tr key={`${i}:${r.goalId}:${r.source}`} className="border-t"><td className="py-1">{r.goalName}</td><td className="py-1 break-all">{r.source}</td><td className="py-1 text-right">{fmt(r.conversions)}</td></tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead><tr className="text-left text-muted-foreground"><th className="py-1">Goal</th><th className="py-1">Source</th><th className="py-1 text-right">Conversions</th></tr></thead>
+                  <tbody>
+                    {data.conversions.map((r, i) => (
+                      <tr key={`${i}:${r.goalId}:${r.source}`} className="border-t"><td className="py-1">{r.goalName}</td><td className="py-1 break-all">{r.source}</td><td className="py-1 text-right">{fmt(r.conversions)}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </div>
