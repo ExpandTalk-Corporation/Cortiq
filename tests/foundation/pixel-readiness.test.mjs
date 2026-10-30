@@ -52,3 +52,42 @@ test('out-of-range inputs are clamped', () => {
   assert.equal(r.effectiveConversions, 0);
   assert.equal(r.acceptanceUsed, 1);
 });
+
+test('readinessSource: aggregate only for page_visit/form_submission when aggregate is on', async () => {
+  const { readinessSource } = await import('../../src/lib/pixelReadiness.ts');
+  const expected = {
+    page_visit: ['aggregate', 'consented'],
+    form_submission: ['aggregate', 'consented'],
+    element_click: ['consented', 'consented'],
+    phone_click: ['consented', 'consented'],
+    [undefined]: ['consented', 'consented'],
+  };
+  for (const type of ['page_visit', 'form_submission', 'element_click', 'phone_click', undefined]) {
+    assert.equal(readinessSource(type, true), expected[type][0], `${type} on`);
+    assert.equal(readinessSource(type, false), expected[type][1], `${type} off`);
+  }
+});
+
+test('effectiveGoalStatus: silent is ignored only for the aggregate source', async () => {
+  const { effectiveGoalStatus } = await import('../../src/lib/pixelReadiness.ts');
+  assert.equal(effectiveGoalStatus('silent', 'aggregate'), 'healthy');
+  assert.equal(effectiveGoalStatus('silent', 'consented'), 'silent');
+  for (const s of ['fires_too_often', 'duplicate_primary', 'healthy', null]) {
+    assert.equal(effectiveGoalStatus(s, 'aggregate'), s);
+    assert.equal(effectiveGoalStatus(s, 'consented'), s);
+  }
+});
+
+test('conversionsAlreadyConsented: no acceptance factor applied twice', () => {
+  const r = assessPixelReadiness({ ...base, primaryConversions30d: 80, acceptanceRate: 0.55, conversionsAlreadyConsented: true });
+  assert.equal(r.effectiveConversions, 80);
+  assert.equal(r.state, 'attribution_pays');
+  assert.equal(r.acceptanceUsed, 0.55);
+  assert.ok(r.reasons.some((x) => x.startsWith('80 conversions from consented sessions')));
+  assert.equal(r.reasons.some((x) => x.includes('× ')), false);
+
+  const n = assessPixelReadiness({ ...base, primaryConversions30d: 80, acceptanceRate: null, conversionsAlreadyConsented: true });
+  assert.equal(n.effectiveConversions, 80);
+  assert.equal(n.acceptanceAssumed, true);
+  assert.equal(n.reasons.some((x) => x.includes('assumed')), false);
+});

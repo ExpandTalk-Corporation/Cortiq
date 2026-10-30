@@ -4,7 +4,10 @@ import { useConversionGoalHealth } from '@/hooks/useConversionGoalHealth';
 import { fetchAnalyticsAcceptance } from '@/lib/consentAcceptance';
 import { toAggregateSummary } from '@/lib/aggregateStats';
 import { matchesGoal } from '@/lib/goalMatching';
-import { assessPixelReadiness, type PrimaryGoalStatus, type ReadinessResult } from '@/lib/pixelReadiness';
+import {
+  assessPixelReadiness, effectiveGoalStatus, readinessSource,
+  type PrimaryGoalStatus, type ReadinessResult, type ReadinessSource,
+} from '@/lib/pixelReadiness';
 import type { Site } from '@/types/dashboard';
 
 type ReadinessSite = Site & {
@@ -14,13 +17,13 @@ type ReadinessSite = Site & {
   google_ads_enabled?: boolean | null;
 };
 
-type ReadinessGoal = { id?: string; name?: string; selector?: string; is_primary?: boolean };
+type ReadinessGoal = { id?: string; name?: string; type?: string; selector?: string; is_primary?: boolean };
 
 export interface PixelReadiness extends ReadinessResult {
   primaryGoalName: string | null;
   conversions: number;
   acceptanceRate: number | null;
-  source: 'aggregate' | 'consented';
+  source: ReadinessSource;
 }
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -33,9 +36,10 @@ export function usePixelReadiness(selectedSite: Site) {
   const primary = goals.find((g) => g?.is_primary && typeof g.id === 'string' && typeof g.name === 'string') ?? null;
   const aggregate = site.aggregate_measurement === true;
   const primaryStatus = (health.data ?? []).find((h) => h.goalId === primary?.id)?.status ?? null;
+  const source = readinessSource(primary?.type, aggregate);
 
   const query = useQuery({
-    queryKey: ['pixel-readiness', site.id, primary?.id ?? null, aggregate, primaryStatus],
+    queryKey: ['pixel-readiness', site.id, primary?.id ?? null, source, primaryStatus],
     enabled: !!site.id && !health.isLoading,
     staleTime: 5 * 60 * 1000,
     queryFn: async (): Promise<PixelReadiness> => {
@@ -45,9 +49,10 @@ export function usePixelReadiness(selectedSite: Site) {
 
       let conversions = 0;
       let daysOfData = Math.min(30, Math.floor((now - new Date(site.created_at).getTime()) / DAY));
-      if (primary && aggregate) {
+      if (primary && source === 'aggregate') {
+        // Last 30 days inclusive of today (UTC dates, as the aggregate tables are keyed).
         const { data, error } = await rpc.call(supabase, 'get_aggregate_summary', {
-          p_site_id: site.id, p_from: sinceIso.slice(0, 10), p_to: new Date(now).toISOString().slice(0, 10),
+          p_site_id: site.id, p_from: new Date(now - 29 * DAY).toISOString().slice(0, 10), p_to: new Date(now).toISOString().slice(0, 10),
         });
         if (error) throw new Error(error.message);
         const summary = toAggregateSummary(data);
@@ -66,13 +71,17 @@ export function usePixelReadiness(selectedSite: Site) {
 
       const result = assessPixelReadiness({
         hasPrimaryGoal: !!primary,
-        primaryGoalStatus: primaryStatus as PrimaryGoalStatus,
+        primaryGoalStatus: effectiveGoalStatus(primaryStatus as PrimaryGoalStatus, source),
         primaryConversions30d: conversions,
         acceptanceRate: acceptance,
         adsConnected: !!site.google_ads_customer_id || site.google_ads_enabled === true,
         daysOfData: Number.isFinite(daysOfData) ? daysOfData : 0,
+        conversionsAlreadyConsented: source === 'consented',
       });
-      return { ...result, primaryGoalName: primary?.name ?? null, conversions, acceptanceRate: acceptance, source: aggregate ? 'aggregate' : 'consented' };
+      if (primary && aggregate && source === 'consented') {
+        result.reasons.push('Click goals are only measured after consent, so this uses consented sessions.');
+      }
+      return { ...result, primaryGoalName: primary?.name ?? null, conversions, acceptanceRate: acceptance, source };
     },
   });
 

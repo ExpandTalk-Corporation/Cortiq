@@ -12,6 +12,8 @@ export interface ReadinessInput {
   acceptanceRate: number | null;
   adsConnected: boolean;
   daysOfData: number;
+  /** True when the conversions were counted from consented sessions only (already behind the banner). */
+  conversionsAlreadyConsented?: boolean;
 }
 
 export interface ReadinessResult {
@@ -31,11 +33,26 @@ export const SMART_BIDDING_COMFORTABLE = 50;
 export const ASSUMED_ACCEPTANCE = 0.5;
 export const MIN_DAYS_OF_DATA = 7;
 
+export type ReadinessSource = 'aggregate' | 'consented';
+
+// The aggregate beacon sees page views and form submissions, not clicks. Click goals are
+// therefore always counted from consented sessions.
+export function readinessSource(goalType: string | undefined, aggregateOn: boolean): ReadinessSource {
+  return aggregateOn && (goalType === 'page_visit' || goalType === 'form_submission') ? 'aggregate' : 'consented';
+}
+
+// Aggregate counts already show zero conversions; "silent" is measured on consented events and
+// says nothing about the aggregate count, so it is not a reason to block the recommendation.
+export function effectiveGoalStatus(status: PrimaryGoalStatus, source: ReadinessSource): PrimaryGoalStatus {
+  return source === 'aggregate' && status === 'silent' ? 'healthy' : status;
+}
+
 export function assessPixelReadiness(input: ReadinessInput): ReadinessResult {
   const acceptanceAssumed = input.acceptanceRate === null || !Number.isFinite(input.acceptanceRate);
   const acceptanceUsed = acceptanceAssumed ? ASSUMED_ACCEPTANCE : Math.min(1, Math.max(0, input.acceptanceRate as number));
   const conversions = Math.max(0, Number.isFinite(input.primaryConversions30d) ? input.primaryConversions30d : 0);
-  const effectiveConversions = Math.floor(conversions * acceptanceUsed + 1e-9);
+  const alreadyConsented = input.conversionsAlreadyConsented === true;
+  const effectiveConversions = Math.floor((alreadyConsented ? conversions : conversions * acceptanceUsed) + 1e-9);
   const result = (state: ReadinessState, reasons: string[]): ReadinessResult =>
     ({ state, effectiveConversions, acceptanceUsed, acceptanceAssumed, reasons });
 
@@ -47,9 +64,11 @@ export function assessPixelReadiness(input: ReadinessInput): ReadinessResult {
   }
 
   const reasons: string[] = [];
-  if (acceptanceAssumed) reasons.push(`No banner data yet — assumed ${Math.round(ASSUMED_ACCEPTANCE * 100)}% consent acceptance.`);
+  if (acceptanceAssumed && !alreadyConsented) reasons.push(`No banner data yet — assumed ${Math.round(ASSUMED_ACCEPTANCE * 100)}% consent acceptance.`);
   if (input.daysOfData < MIN_DAYS_OF_DATA) reasons.push(`Only ${Math.max(0, input.daysOfData)} days of data — the recommendation will firm up.`);
-  reasons.push(`${conversions} conversions × ${Math.round(acceptanceUsed * 100)}% acceptance ≈ ${effectiveConversions} an ad platform would see per 30 days.`);
+  reasons.push(alreadyConsented
+    ? `${effectiveConversions} conversions from consented sessions — roughly what an ad platform sees behind your banner.`
+    : `${conversions} conversions × ${Math.round(acceptanceUsed * 100)}% acceptance ≈ ${effectiveConversions} an ad platform would see per 30 days.`);
 
   if (effectiveConversions < SMART_BIDDING_MIN) {
     reasons.push(`Below ~${SMART_BIDDING_MIN} per month, Smart Bidding has too little to learn from.`);
