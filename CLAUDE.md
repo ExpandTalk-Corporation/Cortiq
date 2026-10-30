@@ -135,6 +135,25 @@ All new tables use: `site_id IN (SELECT id FROM public.sites WHERE user_id = aut
 
 ---
 
+## Aggregate measurement & pixel readiness (added 2026-10-30)
+
+Spec: `docs/superpowers/specs/2026-10-29-aggregate-measurement-and-pixel-readiness-design.md`.
+
+- **Opt-in per site** (`sites.aggregate_measurement`, default false; Consent → Tracking mode). Counts page views,
+  visits, daily visitors, sources/UTM and form/page-visit goals **without consent**.
+- **Browser:** `src/lib/aggregate-beacon.js` — no storage, no IDs, no fingerprint signals; honours explicit refusal and
+  GPC. Inlined by the install snippet when enabled; bundled in the WP plugin as `assets/cortiq-aggregate.js`.
+  `spa-tracking.js` is unchanged and still waits for consent.
+- **Server:** `aggregate-hit` Edge Function → daily-salted SHA-256 of salt|site|IP|UA → `ingest_aggregate_hit`.
+  Salts and `aggregate_visitors` are deleted when the UTC day ends (`aggregate_retention`, hourly cron).
+- **Reads:** `get_aggregate_summary(site, from, to)` (RLS, SECURITY INVOKER). Overview shows it when enabled.
+- **Pixel readiness:** `src/lib/pixelReadiness.ts` + `PixelReadinessCard` (Ads → Attribution, Conversion Goals).
+  Effective conversions = conversions × banner acceptance; thresholds ~30/~50 per 30 days are a rule of thumb.
+- **Copy rule:** "designed to not require consent" — never "GDPR-compliant without consent" or "no banner needed".
+  Legal review (jurist agent + DPA 1.4) before any public claim.
+
+---
+
 ## Deployment
 
 ```bash

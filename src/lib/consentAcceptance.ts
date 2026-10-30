@@ -9,6 +9,7 @@ export function acceptanceRate(rows: Array<{ consent_types: unknown }>): number 
 }
 
 // deno-lint-ignore no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function fetchAnalyticsAcceptance(client: any, siteId: string, sinceIso: string): Promise<number | null> {
   const { data } = await client
     .from('cookie_consents')

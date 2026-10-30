@@ -24,3 +24,7 @@ All 56 tests pass. `server-consent.test.mjs` checks missing, expired and withdra
 For a manual browser check, run `node tests/foundation/browser-smoke-server.mjs` and open http://127.0.0.1:8097. This fixture serves the actual standalone banner and tracker with mocked APIs, without production credentials. Verify no tracking before consent, grant, reopening settings, withdrawal and a probe after withdrawal. This sequence passed in the in-app browser: tracking requests stayed at 5 through reopening, withdrawal and the subsequent probe; visitor identity and stored session were cleared. Consent controls themselves did not generate tracking events.
 
 This is not a production end-to-end check. The React banner's server journal integration, third-party CMP adapters, all tracking bundles, production RLS and the complete migration history are not covered. A successful Vite build does not establish that the repository-wide TypeScript check passes.
+
+## Aggregate measurement (2026-10-30)
+
+`aggregate-measurement.test.mjs` runs the migration in PGlite: visit rule, once-per-visit goals, midnight split, retention, privileges and tenant isolation of `get_aggregate_summary`. `aggregate-hit.test.mjs` covers the endpoint (sanitizing, skips, auth incl. WordPress account keys; IP/UA never reach the RPC). `aggregate-beacon.test.mjs` runs the beacon in a VM: no storage writes, refusal/GPC/Consent Mode suppression, SPA navigation, double-load guard. These do not prove the legal position; that review is separate.
