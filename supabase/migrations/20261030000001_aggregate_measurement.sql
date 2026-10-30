@@ -106,8 +106,8 @@ END;
 $$;
 
 -- One hit. A new visit starts when the hash is new for the day, after 30 minutes of inactivity,
--- or when a page view arrives from a different external source. Goals count once per goal per
--- visit and are attributed to the visit's entry source.
+-- or when a page view arrives from a different external source. Only page views start visits on
+-- an existing row. Goals count once per goal per visit and are attributed to the visit's entry source.
 CREATE OR REPLACE FUNCTION public.ingest_aggregate_hit(
   p_site_id uuid, p_hash text, p_kind text, p_path text,
   p_referrer_domain text, p_utm_source text, p_utm_medium text, p_utm_campaign text, p_device text,
@@ -156,7 +156,11 @@ BEGIN
       WHERE v.site_id = p_site_id AND v.day = v_day AND v.visitor_hash = p_hash
       FOR UPDATE;
 
-    IF v_row.last_seen_at < p_now - interval '30 minutes' THEN
+    -- A goal hit on an existing row never starts a visit: it stays with the row's current source
+    -- (otherwise a late conversion would be credited to Direct and add a visit without a page view).
+    IF p_kind = 'goal' THEN
+      v_new_visit := false;
+    ELSIF v_row.last_seen_at < p_now - interval '30 minutes' THEN
       v_new_visit := true;
     ELSIF (v_ref <> '' OR v_src <> '')
       AND (v_ref, v_src, v_med, v_cmp) IS DISTINCT FROM (v_row.referrer_domain, v_row.utm_source, v_row.utm_medium, v_row.utm_campaign) THEN

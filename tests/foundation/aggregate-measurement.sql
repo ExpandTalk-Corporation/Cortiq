@@ -73,6 +73,18 @@ BEGIN
             AND utm_medium = '' AND utm_campaign = '' AND device = 'desktop') = 1,
     'second first-hit within 30 minutes and same source does not start a new visit';
 
+  -- A goal 40 minutes after the last page view stays with the visit's source and does not
+  -- start a new visit (site s2, fresh hash: s1 sums above are unaffected).
+  PERFORM public.ingest_aggregate_hit(s2, 'hashLate', 'pageview', '/pris', 'linkedin.com', 'linkedin', 'paid', 'q4', 'desktop', NULL, NULL, NULL, t0);
+  PERFORM public.ingest_aggregate_hit(s2, 'hashLate', 'goal', '/tack', '', '', '', '', 'desktop', 'g9', 'Late demo', NULL, t0 + interval '40 minutes');
+  ASSERT (SELECT conversions FROM public.aggregate_conversions_daily
+          WHERE site_id = s2 AND goal_id = 'g9' AND utm_source = 'linkedin') = 1,
+    'late goal attributed to linkedin';
+  ASSERT (SELECT count(*) FROM public.aggregate_conversions_daily WHERE site_id = s2 AND goal_id = 'g9') = 1,
+    'late goal not credited to direct';
+  ASSERT (SELECT sum(visits) FROM public.aggregate_sources_daily WHERE site_id = s2 AND day = '2026-10-30') = 2,
+    'hashRace 1 + hashLate 1: the late goal added no visit';
+
   -- Invalid input is refused without writes
   ASSERT NOT public.ingest_aggregate_hit(s1, '', 'pageview', '/', '', '', '', '', '', NULL, NULL, NULL, t0), 'empty hash';
   ASSERT NOT public.ingest_aggregate_hit(s1, 'h', 'click', '/', '', '', '', '', '', NULL, NULL, NULL, t0), 'unknown kind';
