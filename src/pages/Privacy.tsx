@@ -8,7 +8,7 @@ import { useSEO } from "@/hooks/useSEO";
 import { seoFor } from "@/marketing-routes";
 import { Shield, CheckCircle, Mail, FileText, Database, Users, BarChart3, Megaphone } from "lucide-react";
 
-const LAST_UPDATED = "October 14, 2026";
+const LAST_UPDATED = "November 5, 2026";
 
 const Privacy = () => {
   useSEO(seoFor("/privacy/"));
@@ -422,13 +422,12 @@ const Privacy = () => {
                 <h5 className="font-semibold text-sm mb-1">Necessary (always active)</h5>
                 <ul className="text-muted-foreground space-y-1 ml-4 mb-3">
                   <li>• <code>site_cookie_consent</code> (localStorage) - Your consent choices, read by the tracking script before anything is measured (Lifetime: 12 months; you are then asked again)</li>
-                  <li>• <code>site_consent</code> (cookie) - Mirror of your consent choices, set by the consent banner (Lifetime: 12 months)</li>
                   <li>• <code>user_consent</code> (sessionStorage) - Copy of your consent choices for the current tab, set by the consent banner (Lifetime: tab session)</li>
-                  <li>• <code>_ciq_adp</code> (sessionStorage) - Page-depth counter, written only for clients classified as automated (Lifetime: tab session)</li>
                 </ul>
-                <h5 className="font-semibold text-sm mb-1">Analytical (requires analytics consent, Full mode only)</h5>
+                <h5 className="font-semibold text-sm mb-1">Analytical (requires analytics consent)</h5>
                 <ul className="text-muted-foreground space-y-1 ml-4 mb-3">
-                  <li>• <code>cortiq_session_id</code> (sessionStorage) - Per-session identifier (Lifetime: tab session). In Cookieless mode it is held in memory only and nothing is written.</li>
+                  <li>• <code>cortiq_session_id</code> (sessionStorage, Full mode only) - Per-session identifier (Lifetime: tab session). In Cookieless mode it is held in memory only and nothing is written.</li>
+                  <li>• <code>_ciq_adp</code> (sessionStorage) - Page-depth counter, written after analytics consent, in either mode, only for clients classified as automated (Lifetime: tab session)</li>
                 </ul>
                 <h5 className="font-semibold text-sm mb-1">Marketing (requires marketing consent, Full mode only)</h5>
                 <ul className="text-muted-foreground space-y-1 ml-4">
@@ -442,15 +441,16 @@ const Privacy = () => {
                   script. It sets only:
                 </p>
                 <ul className="text-muted-foreground space-y-1 ml-4">
-                  <li>• <code>site_cookie_consent</code> (localStorage), <code>site_consent</code> (cookie) and <code>user_consent</code> (sessionStorage) - Your consent choices, as above</li>
+                  <li>• <code>site_cookie_consent</code> (localStorage), <code>site_consent</code> (cookie, 12 months) and <code>user_consent</code> (sessionStorage) - Your consent choices on cortiq.se</li>
                   <li>• <code>theme</code> (localStorage) - Light/dark theme, only if you switch theme</li>
                   <li>• <code>sb-…-auth-token</code> (localStorage) - Login session for the dashboard, only when you log in</li>
                 </ul>
               </div>
               <p className="text-sm text-muted-foreground">
-                The CortIQ tracking script sets no cookies, in either mode. In Full mode it keeps a session
-                identifier in sessionStorage; in Cookieless mode it writes nothing. The only cookie in CortIQ&apos;s
-                products is the consent-choice mirror <code>site_consent</code>, set by the CortIQ consent banner.
+                The CortIQ tracking script and the CortIQ consent banner set no cookies, in either mode. In Full mode
+                the script keeps a session identifier in sessionStorage. In Cookieless mode it stores nothing for human
+                visitors; only clients classified as automated get the <code>_ciq_adp</code> counter. The
+                <code> site_consent</code> cookie above is set only by cortiq.se&apos;s own banner.
                 Analytical and marketing storage is written only after the corresponding consent. Withdrawing consent removes
                 <code> cortiq_session_id</code> and <code>cortiq_click_ids</code>.
               </p>
