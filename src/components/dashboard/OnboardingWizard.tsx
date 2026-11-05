@@ -1,4 +1,4 @@
-import { buildTrackingSnippet } from '@/lib/trackingSnippet';
+import { TrackingSnippetSetup } from '@/components/dashboard/TrackingSnippetSetup';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -76,16 +76,6 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
     }
   };
 
-  // Same snippet as InstallationGuide (consent-gated loader).
-  const scriptTag = newSiteId
-    ? buildTrackingSnippet({
-        apiUrl: `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`,
-        siteId: newSiteId,
-        trackingKey: newTrackingId,
-        scriptSrc: 'https://cortiq.se/spa-tracking.js',
-      })
-    : '';
-
   return (
     <div className="max-w-2xl mx-auto py-12 space-y-8">
       {/* Progress indicator */}
@@ -162,7 +152,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
               <div className="grid grid-cols-1 gap-1.5 text-xs text-muted-foreground">
                 <div className="flex items-center gap-2"><Bot className="h-3.5 w-3.5 text-primary" /> AI agent tracking (ChatGPT, Perplexity, Claude)</div>
                 <div className="flex items-center gap-2"><CheckCircle className="h-3.5 w-3.5 text-green-500" /> Cookie-free, consent-first analytics</div>
-                <div className="flex items-center gap-2"><BarChart3 className="h-3.5 w-3.5 text-primary" /> Heatmaps, A/B testing, session recording</div>
+                <div className="flex items-center gap-2"><BarChart3 className="h-3.5 w-3.5 text-primary" /> Heatmaps, A/B testing, conversion goals</div>
               </div>
             </div>
           </CardContent>
@@ -182,22 +172,13 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="relative">
-              <pre className="bg-muted rounded-lg p-4 text-xs overflow-x-auto font-mono select-all">
-                {scriptTag}
-              </pre>
-              <Button
-                variant="outline"
-                size="sm"
-                className="absolute top-2 right-2 text-xs"
-                onClick={() => {
-                  navigator.clipboard.writeText(scriptTag);
-                  toast.success('Copied to clipboard!');
-                }}
-              >
-                Copy
-              </Button>
-            </div>
+            <TrackingSnippetSetup
+              siteId={newSiteId}
+              trackingKey={newTrackingId}
+              aggregateMeasurement={false}
+              apiBase={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1`}
+              scriptOrigin="https://cortiq.se"
+            />
 
             <div className="border rounded-lg p-4 bg-muted/30 space-y-2">
               <p className="text-xs font-medium">WordPress?</p>
@@ -241,8 +222,8 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                 <p className="text-xs text-muted-foreground">First data</p>
               </div>
               <div className="border rounded-lg p-3 bg-muted/30">
-                <p className="text-2xl font-bold text-primary">100%</p>
-                <p className="text-xs text-muted-foreground">GDPR-safe</p>
+                <p className="text-2xl font-bold text-primary">Consent</p>
+                <p className="text-xs text-muted-foreground">first</p>
               </div>
               <div className="border rounded-lg p-3 bg-muted/30">
                 <p className="text-2xl font-bold text-primary">AI</p>

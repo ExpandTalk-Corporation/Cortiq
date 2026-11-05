@@ -1,0 +1,222 @@
+<?php
+/**
+ * CortIQ server-side agent measurement for Apache / shared hosting (static sites, no framework).
+ *
+ * Measures AI crawlers and agents without any code in the visitor's browser:
+ *   - requests from bot/agent user agents (AGENT_UA below),
+ *   - fetches of /robots.txt, /llms.txt and /llms-full.txt (any user agent),
+ *   - hits on the hidden honeypot link (/cortiq-trap/) that only robots.txt-ignoring bots follow.
+ *
+ * Privacy: the IP is truncated (IPv4 /24, IPv6 /48) before it leaves your server, query strings
+ * are dropped from the URL and the referrer is reduced to origin + path. Human visitors never
+ * reach this file — Apache only routes the requests above to it.
+ *
+ * Install:
+ *   1. Save this file as cortiq-server.php (it is published as cortiq-server-php.txt so the
+ *      CortIQ host never executes it), set CORTIQ_SITE_KEY below and upload it to your web root.
+ *   2. Add these lines to the TOP of .htaccess in the web root:
+ *
+ *      # CortIQ server-side agent measurement
+ *      <IfModule mod_rewrite.c>
+ *      RewriteEngine On
+ *      RewriteCond %{REQUEST_URI} !^/cortiq-server\.php$
+ *      RewriteCond %{REQUEST_URI} !\.(php|phtml|phar)$ [NC]
+ *      RewriteCond %{HTTP:X-Cortiq-Edge} ^$
+ *      RewriteCond %{HTTP_USER_AGENT} (GPTBot|ChatGPT|OAI-SearchBot|Claude-User|Claude-SearchBot|ClaudeBot|anthropic-ai|Perplexity|Google-Extended|GoogleOther|Googlebot|bingbot|BingPreview|Meta-ExternalAgent|FacebookBot|facebookexternalhit|Applebot|YouBot|DuckAssistBot|Grok|Amazonbot|Bytespider|CCBot|Diffbot|cohere-ai|DeepSeek|MistralAI) [NC,OR]
+ *      RewriteCond %{REQUEST_URI} ^/(robots\.txt|llms\.txt|llms-full\.txt)$ [NC,OR]
+ *      RewriteCond %{REQUEST_URI} ^/cortiq-trap(/|$) [NC]
+ *      RewriteRule ^ /cortiq-server.php [L]
+ *      </IfModule>
+ *
+ *   3. Put the honeypot link once in your HTML template (e.g. the footer):
+ *      <a href="/cortiq-trap/" rel="nofollow" tabindex="-1" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden">.</a>
+ *      robots.txt gets "Disallow: /cortiq-trap/" automatically when it is served through this file.
+ *
+ * The file then serves the requested static file itself (same bytes, status and content type
+ * as Apache would), so crawlers see the normal site. Requires PHP 7.4+ with curl or allow_url_fopen.
+ */
+
+// ── Configuration ────────────────────────────────────────────────────────────
+const CORTIQ_SITE_KEY = 'tk_YOUR_TRACKING_KEY';
+const CORTIQ_API = 'https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1';
+// true for single-page apps without prerendered HTML: unknown paths get /index.html with 200.
+const CORTIQ_SPA_FALLBACK = false;
+
+// Keep in sync with public/cortiq-server.mjs (tests/foundation/server-adapters.test.mjs checks it).
+define( 'CORTIQ_AGENT_UA', '/GPTBot|ChatGPT|OAI-SearchBot|Claude-User|Claude-SearchBot|ClaudeBot|anthropic-ai|Perplexity|Google-Extended|GoogleOther|Googlebot|bingbot|BingPreview|Meta-ExternalAgent|FacebookBot|facebookexternalhit|Applebot|YouBot|DuckAssistBot|Grok|Amazonbot|Bytespider|CCBot|Diffbot|cohere-ai|DeepSeek|MistralAI/i' );
+define( 'CORTIQ_TRAP_PATH', '/cortiq-trap/' );
+
+const CORTIQ_WATCHED = array( '/robots.txt', '/llms.txt', '/llms-full.txt' );
+const CORTIQ_MIME = array(
+	'html' => 'text/html; charset=utf-8', 'htm' => 'text/html; charset=utf-8',
+	'txt' => 'text/plain; charset=utf-8', 'md' => 'text/markdown; charset=utf-8',
+	'xml' => 'application/xml; charset=utf-8', 'json' => 'application/json; charset=utf-8',
+	'webmanifest' => 'application/manifest+json', 'css' => 'text/css; charset=utf-8',
+	'js' => 'text/javascript; charset=utf-8', 'mjs' => 'text/javascript; charset=utf-8',
+	'svg' => 'image/svg+xml', 'png' => 'image/png', 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg',
+	'gif' => 'image/gif', 'webp' => 'image/webp', 'avif' => 'image/avif', 'ico' => 'image/x-icon',
+	'woff' => 'font/woff', 'woff2' => 'font/woff2', 'pdf' => 'application/pdf',
+	'mp4' => 'video/mp4', 'webm' => 'video/webm', 'mp3' => 'audio/mpeg',
+);
+// Never served from disk: server code and configuration.
+const CORTIQ_BLOCKED_EXT = array( 'php', 'phtml', 'phar', 'inc', 'ini', 'env', 'htaccess', 'htpasswd', 'log', 'sql', 'sh', 'bak' );
+
+function cortiq_truncate_ip( $ip ) {
+	$ip = trim( (string) $ip );
+	if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 ) ) {
+		$o = explode( '.', $ip );
+		return $o[0] . '.' . $o[1] . '.' . $o[2] . '.0';
+	}
+	if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 ) ) {
+		// Keep the first 48 bits; inet_pton handles compressed forms like 2001:db8::1.
+		return inet_ntop( substr( inet_pton( $ip ), 0, 6 ) . str_repeat( "\0", 10 ) );
+	}
+	return null;
+}
+
+// Origin + path only: referrer query strings can carry tokens, emails or search terms.
+function cortiq_clean_referrer() {
+	if ( empty( $_SERVER['HTTP_REFERER'] ) ) return null;
+	$parts = parse_url( (string) $_SERVER['HTTP_REFERER'] );
+	if ( empty( $parts['scheme'] ) || empty( $parts['host'] ) || ! in_array( strtolower( $parts['scheme'] ), array( 'http', 'https' ), true ) ) return null;
+	$port = isset( $parts['port'] ) ? ':' . (int) $parts['port'] : '';
+	return $parts['scheme'] . '://' . $parts['host'] . $port . ( isset( $parts['path'] ) ? $parts['path'] : '/' );
+}
+
+function cortiq_request_path() {
+	$path = parse_url( isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : '/', PHP_URL_PATH );
+	return is_string( $path ) && $path !== '' ? $path : '/';
+}
+
+function cortiq_is_https() {
+	return ( ! empty( $_SERVER['HTTPS'] ) && $_SERVER['HTTPS'] !== 'off' )
+		|| ( isset( $_SERVER['HTTP_X_FORWARDED_PROTO'] ) && strtolower( $_SERVER['HTTP_X_FORWARDED_PROTO'] ) === 'https' );
+}
+
+function cortiq_hit( $status ) {
+	$host = isset( $_SERVER['HTTP_HOST'] ) ? preg_replace( '/[^A-Za-z0-9.\-:\[\]]/', '', (string) $_SERVER['HTTP_HOST'] ) : '';
+	return array(
+		'url'       => ( cortiq_is_https() ? 'https' : 'http' ) . '://' . $host . cortiq_request_path(),
+		'method'    => isset( $_SERVER['REQUEST_METHOD'] ) ? substr( preg_replace( '/[^A-Z]/', '', (string) $_SERVER['REQUEST_METHOD'] ), 0, 10 ) : 'GET',
+		'status'    => (int) $status,
+		'userAgent' => isset( $_SERVER['HTTP_USER_AGENT'] ) ? substr( (string) $_SERVER['HTTP_USER_AGENT'], 0, 512 ) : '',
+		'referrer'  => cortiq_clean_referrer(),
+		'ip'        => cortiq_truncate_ip( isset( $_SERVER['REMOTE_ADDR'] ) ? $_SERVER['REMOTE_ADDR'] : '' ),
+	);
+}
+
+// Sent after the response: the crawler gets the page first, the report follows.
+function cortiq_send( array $hit ) {
+	if ( strlen( CORTIQ_SITE_KEY ) < 20 || strpos( CORTIQ_SITE_KEY, 'YOUR_' ) !== false ) return;
+	if ( function_exists( 'fastcgi_finish_request' ) ) {
+		fastcgi_finish_request();
+	} else {
+		@ob_end_flush();
+		flush();
+	}
+	$body    = json_encode( array( 'hits' => array( $hit ) ) );
+	$headers = array( 'Content-Type: application/json', 'Authorization: Bearer ' . CORTIQ_SITE_KEY );
+	$url     = CORTIQ_API . '/server-hit';
+	if ( function_exists( 'curl_init' ) ) {
+		$ch = curl_init( $url );
+		curl_setopt_array( $ch, array(
+			CURLOPT_POST => true, CURLOPT_POSTFIELDS => $body, CURLOPT_HTTPHEADER => $headers,
+			CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 2, CURLOPT_CONNECTTIMEOUT => 2,
+		) );
+		curl_exec( $ch );
+		curl_close( $ch );
+		return;
+	}
+	@file_get_contents( $url, false, stream_context_create( array( 'http' => array(
+		'method' => 'POST', 'header' => implode( "\r\n", $headers ), 'content' => $body,
+		'timeout' => 2, 'ignore_errors' => true,
+	) ) ) );
+}
+
+/** Add "Disallow: /cortiq-trap/" to every user-agent group (bots obey only their own group). */
+function cortiq_add_trap_rule( $robots ) {
+	$text = (string) $robots;
+	if ( strpos( $text, 'Disallow: ' . CORTIQ_TRAP_PATH ) !== false ) return $text;
+	$lines  = preg_split( '/\r?\n/', $text );
+	$out    = array();
+	$groups = 0;
+	foreach ( $lines as $i => $line ) {
+		$out[]    = $line;
+		$is_ua    = preg_match( '/^\s*user-agent\s*:/i', $line );
+		$next_ua  = isset( $lines[ $i + 1 ] ) && preg_match( '/^\s*user-agent\s*:/i', $lines[ $i + 1 ] );
+		if ( $is_ua && ! $next_ua ) { $out[] = 'Disallow: ' . CORTIQ_TRAP_PATH; $groups++; }
+	}
+	if ( $groups ) return implode( "\n", $out );
+	return rtrim( $text ) . ( trim( $text ) !== '' ? "\n\n" : '' ) . "User-agent: *\nDisallow: " . CORTIQ_TRAP_PATH . "\n";
+}
+
+/** Resolve the request to a file inside the web root, or null. */
+function cortiq_resolve_file( $path ) {
+	$root = realpath( isset( $_SERVER['DOCUMENT_ROOT'] ) && $_SERVER['DOCUMENT_ROOT'] !== '' ? $_SERVER['DOCUMENT_ROOT'] : __DIR__ );
+	if ( $root === false ) return null;
+	$decoded = rawurldecode( $path );
+	if ( strpos( $decoded, "\0" ) !== false ) return null;
+	foreach ( explode( '/', $decoded ) as $segment ) {
+		if ( $segment !== '' && $segment[0] === '.' && $segment !== '.well-known' ) return null; // dotfiles, ..
+	}
+	$candidate = $root . $decoded;
+	if ( is_dir( $candidate ) ) $candidate = rtrim( $candidate, '/\\' ) . '/index.html';
+	$file = realpath( $candidate );
+	if ( $file === false || ! is_file( $file ) ) return null;
+	if ( strpos( $file, $root . DIRECTORY_SEPARATOR ) !== 0 ) return null;
+	if ( in_array( strtolower( pathinfo( $file, PATHINFO_EXTENSION ) ), CORTIQ_BLOCKED_EXT, true ) ) return null;
+	return $file;
+}
+
+function cortiq_send_body( $status, $type, $body, $is_head, array $extra = array() ) {
+	http_response_code( $status );
+	header( 'Content-Type: ' . $type );
+	header( 'Content-Length: ' . strlen( $body ) );
+	foreach ( $extra as $h ) header( $h );
+	if ( ! $is_head ) echo $body;
+}
+
+function cortiq_main() {
+	$path    = cortiq_request_path();
+	$lower   = strtolower( $path );
+	$ua      = isset( $_SERVER['HTTP_USER_AGENT'] ) ? (string) $_SERVER['HTTP_USER_AGENT'] : '';
+	$is_head = isset( $_SERVER['REQUEST_METHOD'] ) && $_SERVER['REQUEST_METHOD'] === 'HEAD';
+	$edge    = ! empty( $_SERVER['HTTP_X_CORTIQ_EDGE'] ); // the CortIQ Cloudflare Worker reported it already
+
+	if ( $lower === rtrim( CORTIQ_TRAP_PATH, '/' ) || strpos( $lower, CORTIQ_TRAP_PATH ) === 0 ) {
+		cortiq_send_body( 404, 'text/plain; charset=utf-8', 'Not found', $is_head,
+			array( 'X-Robots-Tag: noindex, nofollow', 'Cache-Control: no-store' ) );
+		if ( ! $edge ) cortiq_send( cortiq_hit( 404 ) );
+		return;
+	}
+
+	$file   = cortiq_resolve_file( $path );
+	$status = 200;
+	if ( $file === null && CORTIQ_SPA_FALLBACK && ! preg_match( '/\.[a-z0-9]+$/i', $lower ) ) {
+		$file = cortiq_resolve_file( '/index.html' );
+	}
+
+	if ( $lower === '/robots.txt' ) {
+		$body = cortiq_add_trap_rule( $file !== null ? file_get_contents( $file ) : '' );
+		cortiq_send_body( 200, 'text/plain; charset=utf-8', $body, $is_head );
+	} elseif ( $file !== null ) {
+		$ext  = strtolower( pathinfo( $file, PATHINFO_EXTENSION ) );
+		$size = filesize( $file );
+		http_response_code( 200 );
+		header( 'Content-Type: ' . ( array_key_exists( $ext, CORTIQ_MIME ) ? CORTIQ_MIME[ $ext ] : 'application/octet-stream' ) );
+		header( 'Content-Length: ' . $size );
+		header( 'Last-Modified: ' . gmdate( 'D, d M Y H:i:s', filemtime( $file ) ) . ' GMT' );
+		if ( ! $is_head ) readfile( $file );
+	} else {
+		$status   = 404;
+		$notFound = cortiq_resolve_file( '/404.html' );
+		cortiq_send_body( 404, 'text/html; charset=utf-8', $notFound !== null ? file_get_contents( $notFound ) : '<h1>Not found</h1>', $is_head );
+	}
+
+	if ( $edge ) return;
+	if ( in_array( $lower, CORTIQ_WATCHED, true ) || preg_match( CORTIQ_AGENT_UA, $ua ) ) {
+		cortiq_send( cortiq_hit( $status ) );
+	}
+}
+
+cortiq_main();
