@@ -3,6 +3,8 @@
 // so no request — and no IP address — reaches cortiq.se before the visitor has chosen.
 // Reads the CortIQ banner (site_cookie_consent + siteConsentUpdated), Cookiebot and Google Consent Mode.
 // Deliberately permissive about the stored record: the tracker itself validates consent strictly.
+// With the CortIQ banner on the page, a stored choice counts only for its data-policy-version: after a
+// bump the banner asks again and the tracker waits for the new answer.
 (function () {
   var done = false;
   function load() {
@@ -13,10 +15,16 @@
     s.defer = true;
     document.head.appendChild(s);
   }
+  function bannerVersion() {
+    var b = document.querySelector && document.querySelector('script[src*="consent-banner"]');
+    return b ? String(b.getAttribute('data-policy-version') || '1').slice(0, 20) : null;
+  }
   function stored() {
     try {
       var c = JSON.parse(localStorage.getItem('site_cookie_consent') || 'null');
       if (!c || c.analytics !== true) return false;
+      var v = bannerVersion();
+      if (v !== null && String(c.policyVersion) !== v) return false;
       var e = typeof c.expiresAt === 'number' ? c.expiresAt : Date.parse(c.expiresAt);
       return !(e <= Date.now());
     } catch (err) { return false; }

@@ -25,7 +25,7 @@ test('worker, WordPress plugin and PHP adapter use the same pre-filter and trap 
   assert.equal(worker, src);
   assert.equal(php, src);
   assert.equal(standalone.match(/define\( 'CORTIQ_AGENT_UA',\s*'\/(.+)\/i' \);/)[1], src, 'cortiq-server-php.txt');
-  assert.equal(standalone.match(/RewriteCond %\{HTTP_USER_AGENT\} \((.+)\) \[NC,OR\]/)[1], src, '.htaccess rule in cortiq-server-php.txt');
+  assert.equal(standalone.match(/RewriteCond %\{HTTP_USER_AGENT\} \((.+)\) \[NC\]/)[1], src, '.htaccess rule in cortiq-server-php.txt');
   assert.match(standalone, new RegExp(`'CORTIQ_TRAP_PATH',\\s*'${TRAP_PATH}'`));
   assert.match(read('public/cloudflare-worker.js'), new RegExp(`TRAP_PATH = '${TRAP_PATH}'`));
   assert.match(read('wordpress-plugin/cortiq-analytics.php'), new RegExp(`'CORTIQ_TRAP_PATH',\\s*'${TRAP_PATH}'`));

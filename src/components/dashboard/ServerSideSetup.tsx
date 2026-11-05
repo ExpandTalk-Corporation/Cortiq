@@ -86,11 +86,12 @@ app.use(cortiqExpress(createCortiq({ siteKey: process.env.CORTIQ_SITE_KEY, endpo
      const CORTIQ_SITE_KEY = '${trackingKey}';
      const CORTIQ_API = '${apiBase}';
 2. Upload it to your web root (next to index.html).
-3. Paste the .htaccess block from the top of that file at the TOP of your .htaccess.
+3. Paste the .htaccess block from the top of that file into your .htaccess, after your redirect
+   rules (http→https, www) and before any other rewrites.
 4. Put the honeypot link below once in your HTML template.
 
-Apache routes only bot/agent requests, robots.txt / llms.txt and /cortiq-trap/ to the file;
-it serves the same static file and reports after the response. Human visitors never reach it.
+Apache routes only bot/agent requests for existing files, robots.txt / llms.txt and /cortiq-trap/
+to the file; it serves the same static file and reports after the response. Human visitors never reach it.
 robots.txt gets "Disallow: /cortiq-trap/" automatically. Needs PHP 7.4+ and mod_rewrite.
 Single-page app without prerendered HTML? Set CORTIQ_SPA_FALLBACK = true.`;
 

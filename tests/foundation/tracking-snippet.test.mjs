@@ -24,11 +24,11 @@ test('aggregate snippet: flag set, beacon inlined before the loader, comments st
   assert.match(html, /counts page views without consent/);
 });
 
-test('cortiq-banner setup: banner tag after the gated loader, with site id, api url and escaped company', () => {
+test('cortiq-banner setup: banner tag before the gated loader (it reads data-policy-version), with site id, api url and escaped company', () => {
   const html = renderTrackingSnippet(
     { ...opts, consentSetup: 'cortiq-banner', bannerSrc: 'https://cortiq.se/consent-banner.js', company: 'Viking "Age"' },
     { loader, beacon });
-  assert.ok(html.indexOf('spa-tracking.js') < html.indexOf('consent-banner.js'));
+  assert.ok(html.indexOf('consent-banner.js') < html.indexOf('spa-tracking.js'));
   assert.match(html, /data-site-id="site-1"/);
   assert.match(html, /data-api-url="https:\/\/api\.test\/functions\/v1"/);
   assert.match(html, /data-company="Viking &quot;Age&quot;"/);
@@ -37,7 +37,7 @@ test('cortiq-banner setup: banner tag after the gated loader, with site id, api 
 });
 
 test('own-cmp is the default and adds no banner', () => {
-  assert.equal(renderTrackingSnippet(opts, { loader, beacon }).includes('consent-banner'), false);
+  assert.equal(renderTrackingSnippet(opts, { loader, beacon }).includes('consent-banner.js'), false);
 });
 
 test('no-banner setup: aggregate beacon only, never the tracker', () => {

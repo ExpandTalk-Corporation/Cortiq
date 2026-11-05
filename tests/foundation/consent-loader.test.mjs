@@ -10,7 +10,7 @@ import { runInNewContext } from 'node:vm';
 const source = readFileSync(new URL('../../src/lib/consent-loader.js', import.meta.url), 'utf8')
   .replace('__CORTIQ_SRC__', 'https://cortiq.se/spa-tracking.js');
 
-function page({ stored = null, cookiebot = null, dataLayer } = {}) {
+function page({ stored = null, cookiebot = null, dataLayer, bannerVersion } = {}) {
   const appended = [];
   const listeners = {};
   const window = {
@@ -18,7 +18,13 @@ function page({ stored = null, cookiebot = null, dataLayer } = {}) {
     ...(cookiebot !== null && { Cookiebot: { consent: { statistics: cookiebot } } }),
     ...(dataLayer && { dataLayer }),
   };
-  const document = { createElement: () => ({}), head: { appendChild: el => appended.push(el.src) } };
+  const banner = bannerVersion === undefined ? null
+    : { getAttribute: n => (n === 'data-policy-version' ? bannerVersion : null) };
+  const document = {
+    createElement: () => ({}),
+    head: { appendChild: el => appended.push(el.src) },
+    querySelector: sel => (sel.includes('consent-banner') ? banner : null),
+  };
   const localStorage = { getItem: () => (stored ? JSON.stringify(stored) : null) };
   runInNewContext(source, { window, document, localStorage, Date, JSON, Array });
   const fire = (name, detail) => (listeners[name] || []).forEach(f => f({ detail }));
@@ -65,4 +71,19 @@ test('Google Consent Mode: an analytics_storage grant loads it, a default or den
   p.window.dataLayer.push(['consent', 'update', { analytics_storage: 'granted' }]);
   assert.equal(p.appended.length, 1);
   assert.equal(p.window.dataLayer.length, 2, 'pushes still reach the dataLayer');
+});
+
+test('with the CortIQ banner, stored consent counts only for its current policy version', () => {
+  const ok = { analytics: true, expiresAt: '2099-01-01T00:00:00Z' };
+  assert.equal(page({ stored: { ...ok, policyVersion: '2' }, bannerVersion: '2' }).appended.length, 1);
+  assert.deepEqual(page({ stored: { ...ok, policyVersion: '1' }, bannerVersion: '2' }).appended, [], 'bumped version waits');
+  assert.deepEqual(page({ stored: ok, bannerVersion: '1' }).appended, [], 'pre-version record waits for a new answer');
+  assert.equal(page({ stored: { ...ok, policyVersion: '1' }, bannerVersion: null }).appended.length, 1, 'attribute missing = "1"');
+  const p = page({ stored: { ...ok, policyVersion: '1' }, bannerVersion: '2' });
+  p.fire('siteConsentUpdated', { analytics: true });
+  assert.equal(p.appended.length, 1, 'the new answer loads it');
+});
+
+test('without the CortIQ banner (own CMP) the stored record needs no policy version', () => {
+  assert.equal(page({ stored: { analytics: true, expiresAt: '2099-01-01T00:00:00Z' } }).appended.length, 1);
 });

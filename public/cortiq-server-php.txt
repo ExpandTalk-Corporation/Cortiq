@@ -14,17 +14,26 @@
  * Install:
  *   1. Save this file as cortiq-server.php (it is published as cortiq-server-php.txt so the
  *      CortIQ host never executes it), set CORTIQ_SITE_KEY below and upload it to your web root.
- *   2. Add these lines to the TOP of .htaccess in the web root:
+ *   2. Add these lines to .htaccess in the web root, AFTER your redirect rules (http→https, www,
+ *      trailing slash) and BEFORE any other rewrites, so crawlers get the same redirects as people:
  *
  *      # CortIQ server-side agent measurement
  *      <IfModule mod_rewrite.c>
  *      RewriteEngine On
- *      RewriteCond %{REQUEST_URI} !^/cortiq-server\.php$
- *      RewriteCond %{REQUEST_URI} !\.(php|phtml|phar)$ [NC]
- *      RewriteCond %{HTTP:X-Cortiq-Edge} ^$
- *      RewriteCond %{HTTP_USER_AGENT} (GPTBot|ChatGPT|OAI-SearchBot|Claude-User|Claude-SearchBot|ClaudeBot|anthropic-ai|Perplexity|Google-Extended|GoogleOther|Googlebot|bingbot|BingPreview|Meta-ExternalAgent|FacebookBot|facebookexternalhit|Applebot|YouBot|DuckAssistBot|Grok|Amazonbot|Bytespider|CCBot|Diffbot|cohere-ai|DeepSeek|MistralAI) [NC,OR]
+ *      # robots.txt, llms.txt and the honeypot, for any user agent
  *      RewriteCond %{REQUEST_URI} ^/(robots\.txt|llms\.txt|llms-full\.txt)$ [NC,OR]
  *      RewriteCond %{REQUEST_URI} ^/cortiq-trap(/|$) [NC]
+ *      RewriteRule ^ /cortiq-server.php [L]
+ *      # Bot and agent requests, only for files that exist (or a directory with index.html);
+ *      # everything else - pretty URLs, redirects, 404s - Apache handles as usual (and never on an
+ *      # internal re-pass after another rewrite: REQUEST_URI would still be the pretty URL)
+ *      RewriteCond %{REQUEST_URI} !^/cortiq-server\.php$
+ *      RewriteCond %{REQUEST_URI} !\.(php\d?|pht|phtml|phar|phps|cgi|pl|py|asp|aspx|shtml)$ [NC]
+ *      RewriteCond %{HTTP:X-Cortiq-Edge} ^$
+ *      RewriteCond %{ENV:REDIRECT_STATUS} ^$
+ *      RewriteCond %{HTTP_USER_AGENT} (GPTBot|ChatGPT|OAI-SearchBot|Claude-User|Claude-SearchBot|ClaudeBot|anthropic-ai|Perplexity|Google-Extended|GoogleOther|Googlebot|bingbot|BingPreview|Meta-ExternalAgent|FacebookBot|facebookexternalhit|Applebot|YouBot|DuckAssistBot|Grok|Amazonbot|Bytespider|CCBot|Diffbot|cohere-ai|DeepSeek|MistralAI) [NC]
+ *      RewriteCond %{REQUEST_FILENAME} -f [OR]
+ *      RewriteCond %{REQUEST_FILENAME}index.html -f
  *      RewriteRule ^ /cortiq-server.php [L]
  *      </IfModule>
  *
@@ -58,8 +67,6 @@ const CORTIQ_MIME = array(
 	'woff' => 'font/woff', 'woff2' => 'font/woff2', 'pdf' => 'application/pdf',
 	'mp4' => 'video/mp4', 'webm' => 'video/webm', 'mp3' => 'audio/mpeg',
 );
-// Never served from disk: server code and configuration.
-const CORTIQ_BLOCKED_EXT = array( 'php', 'phtml', 'phar', 'inc', 'ini', 'env', 'htaccess', 'htpasswd', 'log', 'sql', 'sh', 'bak' );
 
 function cortiq_truncate_ip( $ip ) {
 	$ip = trim( (string) $ip );
@@ -108,10 +115,11 @@ function cortiq_hit( $status ) {
 // Sent after the response: the crawler gets the page first, the report follows.
 function cortiq_send( array $hit ) {
 	if ( strlen( CORTIQ_SITE_KEY ) < 20 || strpos( CORTIQ_SITE_KEY, 'YOUR_' ) !== false ) return;
+	ignore_user_abort( true );
 	if ( function_exists( 'fastcgi_finish_request' ) ) {
 		fastcgi_finish_request();
 	} else {
-		@ob_end_flush();
+		while ( ob_get_level() > 0 && @ob_end_flush() ) {}
 		flush();
 	}
 	$body    = json_encode( array( 'hits' => array( $hit ) ) );
@@ -121,12 +129,13 @@ function cortiq_send( array $hit ) {
 		$ch = curl_init( $url );
 		curl_setopt_array( $ch, array(
 			CURLOPT_POST => true, CURLOPT_POSTFIELDS => $body, CURLOPT_HTTPHEADER => $headers,
-			CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 2, CURLOPT_CONNECTTIMEOUT => 2,
+			CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 2, CURLOPT_CONNECTTIMEOUT => 1,
 		) );
 		curl_exec( $ch );
 		curl_close( $ch );
 		return;
 	}
+	ini_set( 'default_socket_timeout', '2' ); // 'timeout' below covers reads only, not the connect
 	@file_get_contents( $url, false, stream_context_create( array( 'http' => array(
 		'method' => 'POST', 'header' => implode( "\r\n", $headers ), 'content' => $body,
 		'timeout' => 2, 'ignore_errors' => true,
@@ -164,7 +173,8 @@ function cortiq_resolve_file( $path ) {
 	$file = realpath( $candidate );
 	if ( $file === false || ! is_file( $file ) ) return null;
 	if ( strpos( $file, $root . DIRECTORY_SEPARATOR ) !== 0 ) return null;
-	if ( in_array( strtolower( pathinfo( $file, PATHINFO_EXTENSION ) ), CORTIQ_BLOCKED_EXT, true ) ) return null;
+	// Static files only: anything else (.php5, .cgi, .shtml, config) would leak source Apache would run.
+	if ( ! array_key_exists( strtolower( pathinfo( $file, PATHINFO_EXTENSION ) ), CORTIQ_MIME ) ) return null;
 	return $file;
 }
 
@@ -203,7 +213,7 @@ function cortiq_main() {
 		$ext  = strtolower( pathinfo( $file, PATHINFO_EXTENSION ) );
 		$size = filesize( $file );
 		http_response_code( 200 );
-		header( 'Content-Type: ' . ( array_key_exists( $ext, CORTIQ_MIME ) ? CORTIQ_MIME[ $ext ] : 'application/octet-stream' ) );
+		header( 'Content-Type: ' . CORTIQ_MIME[ $ext ] );
 		header( 'Content-Length: ' . $size );
 		header( 'Last-Modified: ' . gmdate( 'D, d M Y H:i:s', filemtime( $file ) ) . ' GMT' );
 		if ( ! $is_head ) readfile( $file );

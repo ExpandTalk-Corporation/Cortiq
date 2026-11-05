@@ -58,9 +58,9 @@ ${beacon}
   const header = aggregate
     ? '<!-- CortIQ Analytics: counts page views without consent (no cookies, no device storage, no IDs); full tracking loads only after analytics consent -->'
     : '<!-- CortIQ Analytics: loads only after analytics consent -->';
+  // The banner tag comes first so the loader can read its data-policy-version.
   const banner = consentSetup === 'cortiq-banner'
-    ? `
-<!-- CortIQ consent banner. Set data-company to your legal company name and data-policy-url to your
+    ? `<!-- CortIQ consent banner. Set data-company to your legal company name and data-policy-url to your
      privacy policy, list only the purposes you use in data-categories (analytics, marketing,
      preferences) and bump data-policy-version when either changes. -->
 <script src="${bannerSrc ?? 'https://cortiq.se/consent-banner.js'}"
@@ -70,9 +70,10 @@ ${beacon}
   data-policy-url="/privacy"
   data-categories="analytics"
   data-policy-version="1"
-  defer></script>`
+  defer></script>
+`
     : '';
-  return `${header}
+  return `${banner}${header}
 <script>
   window.cortiqConfig = {
     apiUrl: '${apiUrl}',
@@ -81,5 +82,5 @@ ${beacon}
     cookieless: true${aggregate ? ',\n    aggregate: true' : ''}
   };
 ${aggregate ? beacon + '\n' : ''}${indent(loader)}
-</script>${banner}`;
+</script>`;
 }
