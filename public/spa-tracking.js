@@ -1,7 +1,7 @@
 /**
  * CortIQ Advanced Tracking Script
  * Unified visitor profiling with AI agent detection
- * Version: 5.5.7 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
+ * Version: 5.5.8 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
  *
  * Usage:
  * <script>
@@ -17,7 +17,7 @@
   'use strict';
 
   // Keep in sync with wordpress-plugin/cortiq-analytics.php (CORTIQ_VERSION).
-  const CORTIQ_VERSION = '5.5.7';
+  const CORTIQ_VERSION = '5.5.8';
 
   // Configuration: window.cortiqConfig, overridden by data-* attributes on this script
   // tag, so a single-tag install (<script src=… data-site-id=…>) works and a tag that
@@ -1155,7 +1155,11 @@
     const known = detectKnownAgent(ua);
     const signals = getBotSignals();
     const capScore = Object.values(signals).filter(Boolean).length;
-    if (!known && capScore < 3) return; // looks like a real browser — no probe, no canary
+    // Only automation evidence counts. The soft signals (no plugins, no chrome.runtime,
+    // no deviceMemory, one language, no Notification) are normal in Safari and Firefox —
+    // iOS Safari scores 5+ on them, so a capScore threshold logged every iPhone as a bot.
+    const automated = signals.webdriver || signals.headless || signals.zeroScreen || signals.defaultScreen;
+    if (!known && !automated) return; // looks like a real browser — no probe, no canary
     const fp = getAgentFingerprint();
     let depth = 1;
     try { depth = parseInt(sessionStorage.getItem('_ciq_adp') || '0') + 1; sessionStorage.setItem('_ciq_adp', depth); } catch (_) {}
