@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { supabase } from '@/integrations/supabase/client';
-import { buildTrackingSnippet, type ConsentSetup } from '@/lib/trackingSnippet';
+import { bannerDetailsProblem, buildTrackingSnippet, type ConsentSetup } from '@/lib/trackingSnippet';
 import { toast } from 'sonner';
 
 interface TrackingSnippetSetupProps {
@@ -38,8 +39,25 @@ export function TrackingSnippetSetup({ siteId, trackingKey, aggregateMeasurement
   const [consentSetup, setConsentSetup] = useState<ConsentSetup>('own-cmp');
   const [aggregateOn, setAggregateOn] = useState(aggregateMeasurement);
   const [saving, setSaving] = useState(false);
+  const [company, setCompany] = useState('');
+  const [policyUrl, setPolicyUrl] = useState('');
+  const [policyVersion, setPolicyVersion] = useState('1');
 
-  const snippet = buildTrackingSnippet({
+  // Prefill the banner's policy link and version from the site's GDPR settings, if set.
+  useEffect(() => {
+    let cancelled = false;
+    supabase.from('gdpr_settings').select('privacy_policy_url, policy_version').eq('site_id', siteId).maybeSingle()
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        if (data.privacy_policy_url) setPolicyUrl(url => url || data.privacy_policy_url!);
+        if (data.policy_version) setPolicyVersion(data.policy_version);
+      });
+    return () => { cancelled = true; };
+  }, [siteId]);
+
+  // The banner names the controller and links the policy, so no snippet until both are real.
+  const bannerProblem = consentSetup === 'cortiq-banner' ? bannerDetailsProblem({ company, policyUrl }) : null;
+  const snippet = bannerProblem ? '' : buildTrackingSnippet({
     apiUrl: apiBase,
     siteId,
     trackingKey,
@@ -47,6 +65,9 @@ export function TrackingSnippetSetup({ siteId, trackingKey, aggregateMeasurement
     bannerSrc: `${scriptOrigin}/consent-banner.js`,
     aggregate: aggregateOn,
     consentSetup,
+    company,
+    policyUrl,
+    policyVersion,
   });
 
   const enableAggregate = async () => {
@@ -87,24 +108,42 @@ export function TrackingSnippetSetup({ siteId, trackingKey, aggregateMeasurement
         </div>
       )}
 
+      {consentSetup === 'cortiq-banner' && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1">
+            <Label htmlFor="banner-company">Legal company name</Label>
+            <Input id="banner-company" value={company} maxLength={120} placeholder="As registered, e.g. Example AB"
+              onChange={e => setCompany(e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="banner-policy">Privacy policy URL</Label>
+            <Input id="banner-policy" value={policyUrl} maxLength={500} placeholder="https://example.com/privacy"
+              onChange={e => setPolicyUrl(e.target.value)} />
+          </div>
+        </div>
+      )}
+
       <div>
         <div className="flex items-center justify-between">
           <Label>Tracking snippet — paste before &lt;/body&gt; on every page</Label>
-          <Button variant="outline" size="sm" className="text-xs" onClick={() => {
+          <Button variant="outline" size="sm" className="text-xs" disabled={!snippet} onClick={() => {
             navigator.clipboard.writeText(snippet);
             toast.success('Copied to clipboard!');
           }}>Copy</Button>
         </div>
-        <pre className="bg-muted text-foreground p-4 rounded-md font-mono text-xs mt-2 overflow-x-auto whitespace-pre-wrap break-all">
-          {snippet}
-        </pre>
+        {bannerProblem ? (
+          <p className="mt-2 rounded-md border border-dashed p-4 text-sm text-muted-foreground">{bannerProblem}</p>
+        ) : (
+          <pre className="bg-muted text-foreground p-4 rounded-md font-mono text-xs mt-2 overflow-x-auto whitespace-pre-wrap break-all">
+            {snippet}
+          </pre>
+        )}
       </div>
 
       {consentSetup === 'cortiq-banner' && (
         <ul className="text-xs text-muted-foreground list-disc pl-5 space-y-1">
-          <li>Set <code>data-company</code> to your legal company name — the banner names you as responsible for the data.</li>
-          <li>Set <code>data-policy-url</code> to your privacy policy and describe CortIQ there as your processor, with how
-            long you keep the data.</li>
+          <li>The banner names your company as responsible for the data and links your privacy policy. Describe CortIQ
+            there as your processor, with how long you keep the data.</li>
           <li>List only the purposes you use in <code>data-categories</code>: <code>analytics</code>, plus <code>marketing</code> if you
             measure ad clicks and send lead quality to Google Ads, and <code>preferences</code> only if the site has such
             features and gates them on this choice.</li>
