@@ -19,8 +19,22 @@ export interface TrackingSnippetOptions {
   consentSetup?: ConsentSetup;
   /** URL of consent-banner.js; required for `cortiq-banner`. */
   bannerSrc?: string;
-  /** Controller name for the banner text; the site owner replaces it with the legal name. */
+  /** Controller's legal name for the banner text; required for `cortiq-banner`. */
   company?: string;
+  /** Privacy policy URL (https:// or a root-relative path); required for `cortiq-banner`. */
+  policyUrl?: string;
+  /** Banner data-policy-version; bump to ask visitors again. */
+  policyVersion?: string;
+}
+
+/** Why the CortIQ banner snippet cannot be rendered yet, or null. No placeholder may reach a live site. */
+export function bannerDetailsProblem({ company, policyUrl }: { company?: string; policyUrl?: string }): string | null {
+  if (!company?.trim()) return 'Enter your legal company name: the banner names it as responsible for the data.';
+  if (!policyUrl?.trim()) return 'Enter the URL of your privacy policy.';
+  if (!/^(https:\/\/[^\s"'<>]+|\/(?!\/)[^\s"'<>]*)$/i.test(policyUrl.trim())) {
+    return 'The privacy policy URL must start with https:// or / (a path on your site).';
+  }
+  return null;
 }
 
 function stripLineComments(source: string): string {
@@ -34,10 +48,20 @@ function stripLineComments(source: string): string {
 const escapeAttr = (value: string) =>
   value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+// For values inside single-quoted JS strings in an inline <script>: no quote, backslash, line break or </script>.
+const escapeJs = (value: string) =>
+  value.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/</g, '\\x3c').replace(/[\r\n\u2028\u2029]/g, '');
+
 export function renderTrackingSnippet(
-  { apiUrl, siteId, trackingKey, scriptSrc, aggregate = false, consentSetup = 'own-cmp', bannerSrc, company }: TrackingSnippetOptions,
+  {
+    apiUrl, siteId, trackingKey, scriptSrc, aggregate = false, consentSetup = 'own-cmp',
+    bannerSrc, company, policyUrl, policyVersion,
+  }: TrackingSnippetOptions,
   sources: { loader: string; beacon: string },
 ): string {
+  const config = `    apiUrl: '${escapeJs(apiUrl)}',
+    siteId: '${escapeJs(siteId)}',
+    apiKey: '${escapeJs(trackingKey)}'`;
   const indent = (code: string) => code.split('\n').map(l => '  ' + l).join('\n');
   const beacon = indent(stripLineComments(sources.beacon));
 
@@ -45,40 +69,39 @@ export function renderTrackingSnippet(
     return `<!-- CortIQ Analytics: aggregate measurement without a consent banner (no cookies, no device storage, no IDs). Requires Aggregate measurement under Consent → Tracking mode. -->
 <script>
   window.cortiqConfig = {
-    apiUrl: '${apiUrl}',
-    siteId: '${siteId}',
-    apiKey: '${trackingKey}',
+${config},
     aggregate: true
   };
 ${beacon}
 </script>`;
   }
 
-  const loader = stripLineComments(sources.loader).replace('__CORTIQ_SRC__', scriptSrc);
+  const loader = stripLineComments(sources.loader).replace('__CORTIQ_SRC__', () => escapeJs(scriptSrc));
   const header = aggregate
     ? '<!-- CortIQ Analytics: counts page views without consent (no cookies, no device storage, no IDs); full tracking loads only after analytics consent -->'
     : '<!-- CortIQ Analytics: loads only after analytics consent -->';
+  if (consentSetup === 'cortiq-banner') {
+    const problem = bannerDetailsProblem({ company, policyUrl });
+    if (problem) throw new Error(problem);
+  }
   // The banner tag comes first so the loader can read its data-policy-version.
   const banner = consentSetup === 'cortiq-banner'
-    ? `<!-- CortIQ consent banner. Set data-company to your legal company name and data-policy-url to your
-     privacy policy, list only the purposes you use in data-categories (analytics, marketing,
-     preferences) and bump data-policy-version when either changes. -->
-<script src="${bannerSrc ?? 'https://cortiq.se/consent-banner.js'}"
-  data-site-id="${siteId}"
-  data-api-url="${apiUrl}"
-  data-company="${escapeAttr(company || 'Your Company AB')}"
-  data-policy-url="/privacy"
+    ? `<!-- CortIQ consent banner. List only the purposes you use in data-categories (analytics, marketing,
+     preferences) and bump data-policy-version when the policy or the categories change. -->
+<script src="${escapeAttr(bannerSrc ?? 'https://cortiq.se/consent-banner.js')}"
+  data-site-id="${escapeAttr(siteId)}"
+  data-api-url="${escapeAttr(apiUrl)}"
+  data-company="${escapeAttr(company!.trim())}"
+  data-policy-url="${escapeAttr(policyUrl!.trim())}"
   data-categories="analytics"
-  data-policy-version="1"
+  data-policy-version="${escapeAttr(policyVersion?.trim() || '1')}"
   defer></script>
 `
     : '';
   return `${banner}${header}
 <script>
   window.cortiqConfig = {
-    apiUrl: '${apiUrl}',
-    siteId: '${siteId}',
-    apiKey: '${trackingKey}',
+${config},
     cookieless: true${aggregate ? ',\n    aggregate: true' : ''}
   };
 ${aggregate ? beacon + '\n' : ''}${indent(loader)}
