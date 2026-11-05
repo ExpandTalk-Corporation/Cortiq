@@ -87,7 +87,9 @@ ${beacon}
   // The banner tag comes first so the loader can read its data-policy-version.
   const banner = consentSetup === 'cortiq-banner'
     ? `<!-- CortIQ consent banner. List only the purposes you use in data-categories (analytics, marketing,
-     preferences) and bump data-policy-version when the policy or the categories change. -->
+     preferences) and bump data-policy-version when the policy or the categories change.
+     It sends Google Consent Mode v2 signals: with Google tags (gtag.js, GTM) on the page, move this tag
+     into <head> above them and drop defer. -->
 <script src="${escapeAttr(bannerSrc ?? 'https://cortiq.se/consent-banner.js')}"
   data-site-id="${escapeAttr(siteId)}"
   data-api-url="${escapeAttr(apiUrl)}"

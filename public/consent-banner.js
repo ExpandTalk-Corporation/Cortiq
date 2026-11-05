@@ -29,6 +29,13 @@
  *                                then browser)
  *   data-position="bottom"       | "top"   (default: bottom)
  *   data-theme="light"           | "dark"  (default: auto)
+ *   data-consent-mode="off"      Do not send Google Consent Mode v2 signals (default: on —
+ *                                denied by default, then analytics → analytics_storage,
+ *                                marketing → ad_storage/ad_user_data/ad_personalization,
+ *                                preferences → functionality/personalization_storage)
+ *
+ * With Google tags (gtag.js, GTM) on the page, put this tag in <head> above them, without
+ * defer, so the Consent Mode default is set before any Google tag fires.
  *
  * List "preferences" only if the site itself has such features and gates them on this choice.
  */
@@ -353,6 +360,7 @@
     // localStorage only: no server code reads a consent cookie, so none is set.
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(payload)); } catch (e) {}
     postConsent(types, payload);
+    pushConsentMode('update', types);
     dispatchConsent(types);
     removeBanner();
   }
@@ -538,6 +546,33 @@
     });
   }
 
+  // ── Google Consent Mode v2 ─────────────────────────────────────────────
+  // Google tags (gtag.js, GTM) on the page follow the visitor's choice: everything denied
+  // until they choose, then an update per category. gtag commands must be pushed as an
+  // arguments object, not an array. data-consent-mode="off" leaves Consent Mode to the site.
+  function consentModeState(types) {
+    function g(on) { return on ? 'granted' : 'denied'; }
+    return {
+      analytics_storage       : g(types.analytics),
+      ad_storage              : g(types.marketing),
+      ad_user_data            : g(types.marketing),
+      ad_personalization      : g(types.marketing),
+      functionality_storage   : g(types.preferences),
+      personalization_storage : g(types.preferences),
+      security_storage        : 'granted'
+    };
+  }
+
+  function pushConsentMode(command, types, extra) {
+    if (attr('data-consent-mode') === 'off') return;
+    var state = consentModeState(types);
+    for (var key in extra) if (Object.prototype.hasOwnProperty.call(extra, key)) state[key] = extra[key];
+    try {
+      var dl = window.dataLayer = window.dataLayer || [];
+      (function () { dl.push(arguments); })('consent', command, state);
+    } catch (e) {}
+  }
+
   // ── Entry point ────────────────────────────────────────────────────────
   function init() {
     if (otherCMPDetected())    return;
@@ -570,6 +605,13 @@
       buildBanner();
       wireToggles();
     }, 800);
+  }
+
+  // The default runs as soon as this file executes: Google tags must see it before they fire,
+  // so on pages with Google tags the banner tag belongs in <head>, above them.
+  if (!otherCMPDetected()) {
+    pushConsentMode('default', {}, { wait_for_update: 500 });
+    if (consentAlreadyGiven()) pushConsentMode('update', readStored());
   }
 
   if (document.readyState === 'loading') {

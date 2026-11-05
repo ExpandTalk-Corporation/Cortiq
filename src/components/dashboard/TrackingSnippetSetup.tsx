@@ -148,6 +148,10 @@ export function TrackingSnippetSetup({ siteId, trackingKey, aggregateMeasurement
             measure ad clicks and send lead quality to Google Ads, and <code>preferences</code> only if the site has such
             features and gates them on this choice.</li>
           <li>Bump <code>data-policy-version</code> when the policy or the categories change — visitors are asked again.</li>
+          <li>Google Analytics, Google Ads or Tag Manager on the site? The banner sends Google Consent Mode v2 signals
+            (denied until the visitor chooses). Move the banner tag into <code>&lt;head&gt;</code> above your Google tags
+            and remove <code>defer</code>, so they wait for the choice. Marketing grants the ad signals only if it is
+            listed in <code>data-categories</code>.</li>
           <li>Languages: Swedish, English, German, French, Portuguese (from <code>&lt;html lang&gt;</code>, or set <code>data-lang</code>).</li>
           <li>The banner helps you collect and document consent. You remain responsible for your policy text and the
             purposes you list.</li>

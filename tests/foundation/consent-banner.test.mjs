@@ -19,7 +19,7 @@ function makeElement(id) {
   };
 }
 
-function page({ attrs = {}, stored = null, htmlLang = '', hostname = 'www.vikingage.se', cortiqConfig } = {}) {
+function page({ attrs = {}, stored = null, htmlLang = '', hostname = 'www.vikingage.se', cortiqConfig, extraWindow = {} } = {}) {
   const store = new Map(stored ? [['site_cookie_consent', JSON.stringify(stored)]] : []);
   const byId = new Map();
   const events = [];
@@ -46,7 +46,7 @@ function page({ attrs = {}, stored = null, htmlLang = '', hostname = 'www.viking
     querySelector: () => null,
     querySelectorAll: () => [],
   };
-  const window = { cortiqConfig, dispatchEvent: e => events.push(e.detail), matchMedia: () => ({ matches: false }) };
+  const window = { cortiqConfig, dispatchEvent: e => events.push(e.detail), matchMedia: () => ({ matches: false }), ...extraWindow };
   const context = {
     window, document, navigator: { language: 'en-US' }, location: { hostname },
     localStorage: { getItem: k => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) },
@@ -59,7 +59,8 @@ function page({ attrs = {}, stored = null, htmlLang = '', hostname = 'www.viking
   runInNewContext(source, context);
   timers.splice(0).forEach(fn => fn());
   return {
-    byId, events, posts,
+    byId, events, posts, window,
+    consent: () => (window.dataLayer || []).map(a => Array.from(a)),
     saved: () => JSON.parse(store.get('site_cookie_consent') || 'null'),
     flush: () => new Promise(r => setImmediate(r)),
   };
@@ -166,4 +167,53 @@ test('standard mode explains device recognition; marketing names the email hash 
 test('data-tracking-mode overrides the tracker config', () => {
   const p = page({ htmlLang: 'en', cortiqConfig: { cookieless: true }, attrs: { 'data-tracking-mode': 'standard' } });
   assert.match(p.byId.get('crtq-consent-banner').innerHTML, /recognise returning visits, information about your browser/);
+});
+
+test('Google Consent Mode v2: denied default at load, then an update per category on the choice', () => {
+  const p = page({ attrs: { 'data-categories': 'analytics,marketing' } });
+  const [def] = p.consent();
+  assert.equal(def[0], 'consent');
+  assert.equal(def[1], 'default');
+  assert.equal(Object.prototype.toString.call(p.window.dataLayer[0]), '[object Arguments]', 'gtag needs an arguments object');
+  for (const k of ['analytics_storage', 'ad_storage', 'ad_user_data', 'ad_personalization', 'functionality_storage', 'personalization_storage']) {
+    assert.equal(def[2][k], 'denied', k);
+  }
+  assert.equal(def[2].security_storage, 'granted');
+  assert.equal(def[2].wait_for_update, 500);
+
+  p.byId.get('crtq-toggle-analytics').checked = true;
+  p.byId.get('crtq-cb-save').click();
+  const update = p.consent().at(-1);
+  assert.equal(update[1], 'update');
+  assert.equal(update[2].analytics_storage, 'granted');
+  assert.equal(update[2].ad_storage, 'denied');
+  assert.equal(update[2].ad_user_data, 'denied');
+  assert.equal('wait_for_update' in update[2], false);
+});
+
+test('Google Consent Mode v2: accept all grants ads signals only when marketing is a listed category', () => {
+  const only = page();
+  only.byId.get('crtq-cb-accept').click();
+  assert.equal(only.consent().at(-1)[2].analytics_storage, 'granted');
+  assert.equal(only.consent().at(-1)[2].ad_storage, 'denied');
+  const ads = page({ attrs: { 'data-categories': 'analytics,marketing' } });
+  ads.byId.get('crtq-cb-accept').click();
+  for (const k of ['ad_storage', 'ad_user_data', 'ad_personalization']) assert.equal(ads.consent().at(-1)[2][k], 'granted', k);
+});
+
+test('Google Consent Mode v2: a stored choice is replayed as an update on the next page', () => {
+  const stored = { necessary: true, analytics: true, marketing: false, preferences: false, policyVersion: '1',
+    expiresAt: '2099-01-01T00:00:00Z' };
+  const p = page({ stored });
+  const [def, update] = p.consent();
+  assert.equal(def[1], 'default');
+  assert.equal(update[1], 'update');
+  assert.equal(update[2].analytics_storage, 'granted');
+  const bumped = page({ stored, attrs: { 'data-policy-version': '2' } });
+  assert.equal(bumped.consent().length, 1, 'a bumped policy version replays nothing');
+});
+
+test('Google Consent Mode v2: off switch and another CMP send nothing', () => {
+  assert.deepEqual(page({ attrs: { 'data-consent-mode': 'off' } }).consent(), []);
+  assert.deepEqual(page({ extraWindow: { Cookiebot: {} } }).consent(), []);
 });
