@@ -82,6 +82,19 @@ app.use(cortiqExpress(createCortiq({ siteKey: process.env.CORTIQ_SITE_KEY, endpo
 // …your routes. CORTIQ_SITE_KEY=${trackingKey}
 // Behind a proxy, make sure X-Forwarded-For reaches the app (IP is truncated before sending).`;
 
+  const php = `1. Download ${origin}/cortiq-server-php.txt, save it as cortiq-server.php and set at the top:
+     const CORTIQ_SITE_KEY = '${trackingKey}';
+     const CORTIQ_API = '${apiBase}';
+2. Upload it to your web root (next to index.html).
+3. Paste the .htaccess block from the top of that file into your .htaccess, after your redirect
+   rules (http→https, www) and before any other rewrites.
+4. Put the honeypot link below once in your HTML template.
+
+Apache routes only bot/agent requests for existing files, robots.txt / llms.txt and /cortiq-trap/
+to the file; it serves the same static file and reports after the response. Human visitors never reach it.
+robots.txt gets "Disallow: /cortiq-trap/" automatically. Needs PHP 7.4+ and mod_rewrite.
+Single-page app without prerendered HTML? Set CORTIQ_SPA_FALLBACK = true.`;
+
   const http = `curl -X POST '${endpoint}' \\
   -H 'Authorization: Bearer ${trackingKey}' \\
   -H 'Content-Type: application/json' \\
@@ -118,6 +131,7 @@ app.use(cortiqExpress(createCortiq({ siteKey: process.env.CORTIQ_SITE_KEY, endpo
           <TabsTrigger value="cloudflare">Cloudflare</TabsTrigger>
           <TabsTrigger value="node">Node / Express</TabsTrigger>
           <TabsTrigger value="wordpress">WordPress</TabsTrigger>
+          <TabsTrigger value="php">PHP / Apache</TabsTrigger>
           <TabsTrigger value="http">Any server</TabsTrigger>
         </TabsList>
         <TabsContent value="nextjs"><Code>{nextjs}</Code></TabsContent>
@@ -133,11 +147,12 @@ app.use(cortiqExpress(createCortiq({ siteKey: process.env.CORTIQ_SITE_KEY, endpo
             out the honeypot link; add <code>Disallow: /cortiq-trap/</code> to that file to enable it.
           </p>
         </TabsContent>
+        <TabsContent value="php"><Code>{php}</Code></TabsContent>
         <TabsContent value="http"><Code>{http}</Code></TabsContent>
       </Tabs>
 
       <div>
-        <Label className="text-xs">Honeypot link (Next.js, Netlify, Node, any server — put it once in your HTML template)</Label>
+        <Label className="text-xs">Honeypot link (Next.js, Netlify, Node, PHP / Apache, any server — put it once in your HTML template)</Label>
         <Code>{HONEYPOT}</Code>
       </div>
 

@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { ServerSideSetup } from '@/components/dashboard/ServerSideSetup';
-import { buildTrackingSnippet } from '@/lib/trackingSnippet';
+import { TrackingSnippetSetup } from '@/components/dashboard/TrackingSnippetSetup';
 import type { Site } from '@/types/dashboard';
 
 interface InstallationGuideProps {
@@ -14,7 +14,6 @@ export function InstallationGuide({ selectedSite }: InstallationGuideProps) {
   // the instance the user actually runs. Hardcoding cortiq.se / the origin Supabase would
   // pipe a self-hoster's visitor data into the origin project — never hardcode these.
   const apiBase = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
-  const scriptSrc = `${window.location.origin}/spa-tracking.js`;
 
   if (!selectedSite) {
     return (
@@ -42,21 +41,14 @@ export function InstallationGuide({ selectedSite }: InstallationGuideProps) {
         <CardDescription>Add the tracking script to your website</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div>
-          <Label>Tracking snippet (Recommended)</Label>
-          <div className="bg-muted text-foreground p-4 rounded-md font-mono text-xs mt-2 overflow-x-auto whitespace-pre-wrap break-all">
-            {buildTrackingSnippet({ apiUrl: apiBase, siteId: selectedSite.id, trackingKey: selectedSite.tracking_id, scriptSrc,
-              aggregate: (selectedSite as Site & { aggregate_measurement?: boolean }).aggregate_measurement === true })}
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            ✅ The snippet requests the tracker only after the visitor gives analytics consent (CortIQ banner,
-            Cookiebot or Google Consent Mode), so nothing — not even the file request — reaches CortIQ before that.
-            Page views, sessions, AI referrals, heatmaps, click/scroll, conversions and in-browser agent signals all
-            wait for consent, also with <code>cookieless: true</code> (which drops fingerprinting and persistent IDs).
-            Paid-ads click IDs need marketing consent. With another CMP or GTM, load the script from its analytics
-            category instead; see the integration guide.
-          </p>
-        </div>
+        <TrackingSnippetSetup
+          key={selectedSite.id}
+          siteId={selectedSite.id}
+          trackingKey={selectedSite.tracking_id}
+          aggregateMeasurement={(selectedSite as Site & { aggregate_measurement?: boolean }).aggregate_measurement === true}
+          apiBase={apiBase}
+          scriptOrigin={window.location.origin}
+        />
 
         <ServerSideSetup
           siteId={selectedSite.id}
