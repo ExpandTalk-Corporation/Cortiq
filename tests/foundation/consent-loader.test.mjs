@@ -10,13 +10,15 @@ import { runInNewContext } from 'node:vm';
 const source = readFileSync(new URL('../../src/lib/consent-loader.js', import.meta.url), 'utf8')
   .replace('__CORTIQ_SRC__', 'https://cortiq.se/spa-tracking.js');
 
-function page({ stored = null, cookiebot = null, dataLayer, bannerVersion } = {}) {
+function page({ stored = null, cookiebot = null, dataLayer, bannerVersion, googleTagData } = {}) {
   const appended = [];
+  let interval = null;
   const listeners = {};
   const window = {
     addEventListener: (n, f) => { (listeners[n] ||= []).push(f); },
     ...(cookiebot !== null && { Cookiebot: { consent: { statistics: cookiebot } } }),
     ...(dataLayer && { dataLayer }),
+    ...(googleTagData && { google_tag_data: googleTagData }),
   };
   const banner = bannerVersion === undefined ? null
     : { getAttribute: n => (n === 'data-policy-version' ? bannerVersion : null) };
@@ -26,9 +28,10 @@ function page({ stored = null, cookiebot = null, dataLayer, bannerVersion } = {}
     querySelector: sel => (sel.includes('consent-banner') ? banner : null),
   };
   const localStorage = { getItem: () => (stored ? JSON.stringify(stored) : null) };
-  runInNewContext(source, { window, document, localStorage, Date, JSON, Array });
+  runInNewContext(source, { window, document, localStorage, Date, JSON, Array, setInterval: fn => { interval = fn; return 1; }, clearInterval: () => { interval = null; } });
   const fire = (name, detail) => (listeners[name] || []).forEach(f => f({ detail }));
-  return { appended, fire, window };
+  const tick = () => interval && interval();
+  return { appended, fire, window, tick, polling: () => interval !== null };
 }
 
 test('no request before any consent', () => {
@@ -86,4 +89,40 @@ test('with the CortIQ banner, stored consent counts only for its current policy 
 
 test('without the CortIQ banner (own CMP) the stored record needs no policy version', () => {
   assert.equal(page({ stored: { analytics: true, expiresAt: '2099-01-01T00:00:00Z' } }).appended.length, 1);
+});
+
+test('Consent Mode: gtag arguments objects count like arrays', () => {
+  const p = page({ dataLayer: [] });
+  (function () { p.window.dataLayer.push(arguments); })('consent', 'update', { analytics_storage: 'granted' });
+  assert.equal(p.appended.length, 1);
+});
+
+test('Consent Mode: a replaced dataLayer or push is caught by the poll', () => {
+  const replaced = page({ dataLayer: [] });
+  replaced.window.dataLayer = [['consent', 'update', { analytics_storage: 'granted' }]];
+  assert.deepEqual(replaced.appended, []);
+  replaced.tick();
+  assert.equal(replaced.appended.length, 1);
+
+  const newPush = page({ dataLayer: [] });
+  const dl = newPush.window.dataLayer;
+  dl.push = function () { return Array.prototype.push.apply(dl, arguments); };
+  dl.push(['consent', 'update', { analytics_storage: 'denied' }]);
+  newPush.tick();
+  assert.deepEqual(newPush.appended, []);
+  dl.push(['consent', 'update', { analytics_storage: 'granted' }]);
+  newPush.tick();
+  assert.equal(newPush.appended.length, 1);
+  newPush.tick();
+  assert.equal(newPush.polling(), false, 'poll stops after loading');
+});
+
+test("Consent Mode: Google's own update state counts, its default does not", () => {
+  const state = update => ({ ics: { entries: { analytics_storage: { default: true, update } } } });
+  assert.equal(page({ googleTagData: state(true) }).appended.length, 1);
+  const p = page({ googleTagData: state(undefined) });
+  assert.deepEqual(p.appended, []);
+  p.window.google_tag_data.ics.entries.analytics_storage.update = true;
+  p.tick();
+  assert.equal(p.appended.length, 1);
 });
