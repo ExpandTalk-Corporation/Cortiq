@@ -176,6 +176,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
               siteId={newSiteId}
               trackingKey={newTrackingId}
               aggregateMeasurement={false}
+              trackingMode="full"
               apiBase={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1`}
               scriptOrigin="https://cortiq.se"
             />

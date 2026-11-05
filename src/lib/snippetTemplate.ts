@@ -27,6 +27,10 @@ export interface TrackingSnippetOptions {
   policyVersion?: string;
   /** Banner sends Google Consent Mode v2 signals (data-consent-mode="google"). Opt-in. */
   googleConsentMode?: boolean;
+  /** sites.tracking_mode. Cookieless (default) keeps the session id in memory and has no marketing features. */
+  trackingMode?: 'cookieless' | 'full';
+  /** Ask for marketing consent in the banner (click IDs, hashed email). Full mode only, ignored otherwise. */
+  marketing?: boolean;
 }
 
 /** Why the CortIQ banner snippet cannot be rendered yet, or null. No placeholder may reach a live site. */
@@ -58,6 +62,7 @@ export function renderTrackingSnippet(
   {
     apiUrl, siteId, trackingKey, scriptSrc, aggregate = false, consentSetup = 'own-cmp',
     bannerSrc, company, policyUrl, policyVersion, googleConsentMode = false,
+    trackingMode = 'cookieless', marketing = false,
   }: TrackingSnippetOptions,
   sources: { loader: string; beacon: string },
 ): string {
@@ -86,6 +91,9 @@ ${beacon}
     const problem = bannerDetailsProblem({ company, policyUrl });
     if (problem) throw new Error(problem);
   }
+  // Cookieless switches off every marketing feature, so the banner must not ask for it.
+  const full = trackingMode === 'full';
+  const categories = full && marketing ? 'analytics,marketing' : 'analytics';
   // The banner tag comes first so the loader can read its data-policy-version.
   const banner = consentSetup === 'cortiq-banner'
     ? `<!-- CortIQ consent banner. List only the purposes you use in data-categories (analytics, marketing,
@@ -97,7 +105,7 @@ ${beacon}
   data-api-url="${escapeAttr(apiUrl)}"
   data-company="${escapeAttr(company!.trim())}"
   data-policy-url="${escapeAttr(policyUrl!.trim())}"
-  data-categories="analytics"
+  data-categories="${categories}"
   data-policy-version="${escapeAttr(policyVersion?.trim() || '1')}"${googleConsentMode ? '\n  data-consent-mode="google"' : ''}
   defer></script>
 `
@@ -105,8 +113,7 @@ ${beacon}
   return `${banner}${header}
 <script>
   window.cortiqConfig = {
-${config},
-    cookieless: true${aggregate ? ',\n    aggregate: true' : ''}
+${config}${full ? '' : ',\n    cookieless: true'}${aggregate ? ',\n    aggregate: true' : ''}
   };
 ${aggregate ? beacon + '\n' : ''}${indent(loader)}
 </script>`;

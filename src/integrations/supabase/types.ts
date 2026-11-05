@@ -5671,6 +5671,53 @@ export type Database = {
           },
         ]
       }
+      policy_confirmations: {
+        Row: {
+          checklist: Json
+          checklist_version: string
+          confirmed_at: string
+          consent_setup: string
+          id: string
+          marketing: boolean
+          policy_url: string | null
+          site_id: string
+          tracking_mode: string
+          user_id: string
+        }
+        Insert: {
+          checklist: Json
+          checklist_version: string
+          confirmed_at?: string
+          consent_setup: string
+          id?: string
+          marketing?: boolean
+          policy_url?: string | null
+          site_id: string
+          tracking_mode: string
+          user_id?: string
+        }
+        Update: {
+          checklist?: Json
+          checklist_version?: string
+          confirmed_at?: string
+          consent_setup?: string
+          id?: string
+          marketing?: boolean
+          policy_url?: string | null
+          site_id?: string
+          tracking_mode?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "policy_confirmations_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       polymarket_markets: {
         Row: {
           category: string | null

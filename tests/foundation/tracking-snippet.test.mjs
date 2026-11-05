@@ -80,6 +80,23 @@ test('no-banner setup: aggregate beacon only, never the tracker', () => {
   assert.equal(html.includes('consent-banner'), false);
 });
 
+test('tracking mode: cookieless by default, full drops the flag', () => {
+  for (const consentSetup of ['own-cmp', 'cortiq-banner']) {
+    const base = { ...opts, consentSetup, company: 'Ex AB', policyUrl: '/p' };
+    assert.match(renderTrackingSnippet(base, { loader, beacon }), /cookieless: true/, consentSetup);
+    const full = renderTrackingSnippet({ ...base, trackingMode: 'full', aggregate: true }, { loader, beacon });
+    assert.equal(full.includes('cookieless'), false, consentSetup);
+    assert.match(full, /apiKey: 'tk_key',\n    aggregate: true/, consentSetup);
+  }
+});
+
+test('marketing is asked for only in full mode', () => {
+  const banner = { ...opts, consentSetup: 'cortiq-banner', company: 'Ex AB', policyUrl: '/p', marketing: true };
+  assert.match(renderTrackingSnippet(banner, { loader, beacon }), /data-categories="analytics"/);
+  assert.match(renderTrackingSnippet({ ...banner, trackingMode: 'full' }, { loader, beacon }), /data-categories="analytics,marketing"/);
+  assert.match(renderTrackingSnippet({ ...banner, trackingMode: 'full', marketing: false }, { loader, beacon }), /data-categories="analytics"/);
+});
+
 test('Google Consent Mode v2 is opt-in in the banner snippet', () => {
   const banner = { ...opts, consentSetup: 'cortiq-banner', company: 'Ex AB', policyUrl: '/p' };
   const off = renderTrackingSnippet(banner, { loader, beacon });

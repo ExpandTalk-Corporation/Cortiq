@@ -46,6 +46,7 @@ export function InstallationGuide({ selectedSite }: InstallationGuideProps) {
           siteId={selectedSite.id}
           trackingKey={selectedSite.tracking_id}
           aggregateMeasurement={(selectedSite as Site & { aggregate_measurement?: boolean }).aggregate_measurement === true}
+          trackingMode={(selectedSite as Site & { tracking_mode?: string }).tracking_mode === 'cookieless' ? 'cookieless' : 'full'}
           apiBase={apiBase}
           scriptOrigin={window.location.origin}
         />
