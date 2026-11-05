@@ -70,6 +70,14 @@ function detectBrowserType(probeData: any, assetsLoaded: boolean): { isVisual: b
   return { isVisual: false, browserType: 'unknown' };
 }
 
+// Evidence that a UA the registry does not know is still automated. Soft signals
+// (no plugins, no chrome.runtime, no deviceMemory, one language) are normal in Safari
+// and Firefox; trackers before 5.5.8 probed on them and logged real iPhones as bots.
+function hasAutomationEvidence(probeData: any): boolean {
+  const s = probeData?.signals ?? {};
+  return !!(s.webdriver || s.headless || s.zeroScreen || s.defaultScreen || s.honeypotTriggered || probeData?.knownAgent);
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -99,6 +107,14 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Valid siteId is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
+    // Unregistered UA with no citation and no automation evidence = an ordinary browser.
+    // Acknowledge without writing, so cached old trackers stop inflating AI visits.
+    const reqUa = req.headers.get('user-agent') || userAgent || '';
+    if (!classifyBot(reqUa).botCategory && !citationData && !hasAutomationEvidence(probeData)) {
+      return new Response(JSON.stringify({ success: true, skipped: 'no_bot_evidence' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     // Two-dimensional throttle: per-site (blunt dashboard pollution) AND per-IP
     // (stop one source rotating siteId to flood many tenants). Either tripping = 429.
     const ip = clientIp(req);

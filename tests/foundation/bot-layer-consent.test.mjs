@@ -13,7 +13,10 @@ const settle = async () => { for (let i = 0; i < 12; i++) await new Promise(reso
 
 const DEVICE_PROPS = new Set(['plugins', 'deviceMemory', 'hardwareConcurrency', 'languages', 'webdriver', 'platform']);
 
+// human: false = automation-like device, true = desktop browser, 'iphone' = iOS Safari
+// (no plugins, no deviceMemory, no window.chrome, no Notification — all normal there).
 function browser(userAgent, human = false) {
+  const iphone = human === 'iphone';
   const deviceReads = [];
   const appended = [];
   const requests = [];
@@ -29,7 +32,8 @@ function browser(userAgent, human = false) {
   const navigatorRaw = {
     userAgent, language: 'sv', languages: ['sv'], platform: 'Linux', plugins: { length: 0 },
     hardwareConcurrency: 2, webdriver: true,
-    ...(human && { plugins: { length: 5 }, languages: ['sv', 'en'], hardwareConcurrency: 8, webdriver: false, deviceMemory: 8 }),
+    ...(human && !iphone && { plugins: { length: 5 }, languages: ['sv', 'en'], hardwareConcurrency: 8, webdriver: false, deviceMemory: 8 }),
+    ...(iphone && { platform: 'iPhone', languages: ['sv-SE'], hardwareConcurrency: 4, webdriver: false }),
     sendBeacon: (url, body) => { requests.push({ url, body }); return true; },
   };
   const created = [];
@@ -47,7 +51,7 @@ function browser(userAgent, human = false) {
     innerWidth: 1200, innerHeight: 800, scrollY: 0,
   });
   window.self = window; window.top = window;
-  if (human) window.chrome = { runtime: {} };
+  if (human && !iphone) window.chrome = { runtime: {} };
   const document = Object.assign(surface(), {
     readyState: 'complete', referrer: '', title: 'Start', documentElement: { scrollHeight: 4000 },
     body: { appendChild: el => appended.push(el) },
@@ -56,10 +60,10 @@ function browser(userAgent, human = false) {
   });
   runInNewContext(script, {
     window, document, history: { pushState() {}, replaceState() {} }, crypto: webcrypto, URL, URLSearchParams, TextEncoder, btoa,
-    screen: watch(human ? { width: 1920, height: 1080, colorDepth: 24 } : { width: 800, height: 600, colorDepth: 24 }, 'screen'), navigator: watch(navigatorRaw, 'navigator'),
+    screen: watch(iphone ? { width: 390, height: 844, colorDepth: 24 } : human ? { width: 1920, height: 1080, colorDepth: 24 } : { width: 800, height: 600, colorDepth: 24 }, 'screen'), navigator: watch(navigatorRaw, 'navigator'),
     localStorage: { getItem: () => null }, sessionStorage: { getItem: () => null, setItem() {}, removeItem() {} },
     performance: { now: () => 0 },
-    ...(human && { Notification: function Notification() {}, SpeechSynthesis: function SpeechSynthesis() {} }),
+    ...(human && !iphone && { Notification: function Notification() {}, SpeechSynthesis: function SpeechSynthesis() {} }),
     CustomEvent: class { constructor(type, options) { this.type = type; this.detail = options.detail; } },
     console: { log() {}, warn() {}, error() {} },
     setTimeout: () => 0, setInterval: () => 0, clearInterval() {}, requestAnimationFrame: fn => fn(),
@@ -105,6 +109,21 @@ test('a normal consented visitor gets no canary pixel and no bot beacon', async 
   await settle();
   assert.equal(b.requests.some(r => String(r.url).includes('ai-bot-tracker')), false);
   assert.equal(b.appended.length, 1, 'only the honeypot link (reports on interaction only)');
+});
+
+test('a consented iPhone Safari visitor is not reported as a bot', async () => {
+  const b = browser('Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.5.2 Mobile/15E148 Safari/604.1', 'iphone');
+  b.choose(true);
+  await settle();
+  assert.equal(b.requests.some(r => String(r.url).includes('ai-bot-tracker')), false);
+  assert.equal(b.appended.length, 1, 'only the honeypot link');
+});
+
+test('a known AI agent UA is probed even without automation signals', async () => {
+  const b = browser('Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; ChatGPT-User/1.0; +https://openai.com/bot)', true);
+  b.choose(true);
+  await settle();
+  assert.ok(b.requests.some(r => String(r.url).endsWith('/ai-bot-tracker')));
 });
 
 test('revoking consent removes the traps; a later honeypot focus reports nothing', async () => {
