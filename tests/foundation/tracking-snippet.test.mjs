@@ -79,3 +79,13 @@ test('no-banner setup: aggregate beacon only, never the tracker', () => {
   assert.equal(html.includes('spa-tracking.js'), false);
   assert.equal(html.includes('consent-banner'), false);
 });
+
+test('Google Consent Mode v2 is opt-in in the banner snippet', () => {
+  const banner = { ...opts, consentSetup: 'cortiq-banner', company: 'Ex AB', policyUrl: '/p' };
+  const off = renderTrackingSnippet(banner, { loader, beacon });
+  assert.equal(off.includes('data-consent-mode'), false);
+  assert.equal(off.includes('<head>'), false, 'no head-placement note without it');
+  const on = renderTrackingSnippet({ ...banner, googleConsentMode: true }, { loader, beacon });
+  assert.match(on, /data-consent-mode="google"/);
+  assert.match(on, /<head> above your Google tags/);
+});

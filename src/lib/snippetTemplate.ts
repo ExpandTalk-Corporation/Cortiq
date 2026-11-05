@@ -25,6 +25,8 @@ export interface TrackingSnippetOptions {
   policyUrl?: string;
   /** Banner data-policy-version; bump to ask visitors again. */
   policyVersion?: string;
+  /** Banner sends Google Consent Mode v2 signals (data-consent-mode="google"). Opt-in. */
+  googleConsentMode?: boolean;
 }
 
 /** Why the CortIQ banner snippet cannot be rendered yet, or null. No placeholder may reach a live site. */
@@ -55,7 +57,7 @@ const escapeJs = (value: string) =>
 export function renderTrackingSnippet(
   {
     apiUrl, siteId, trackingKey, scriptSrc, aggregate = false, consentSetup = 'own-cmp',
-    bannerSrc, company, policyUrl, policyVersion,
+    bannerSrc, company, policyUrl, policyVersion, googleConsentMode = false,
   }: TrackingSnippetOptions,
   sources: { loader: string; beacon: string },
 ): string {
@@ -87,16 +89,16 @@ ${beacon}
   // The banner tag comes first so the loader can read its data-policy-version.
   const banner = consentSetup === 'cortiq-banner'
     ? `<!-- CortIQ consent banner. List only the purposes you use in data-categories (analytics, marketing,
-     preferences) and bump data-policy-version when the policy or the categories change.
-     It sends Google Consent Mode v2 signals: with Google tags (gtag.js, GTM) on the page, move this tag
-     into <head> above them and drop defer. -->
+     preferences) and bump data-policy-version when the policy or the categories change.${googleConsentMode ? `
+     It sends Google Consent Mode v2 signals: move this tag into <head> above your Google tags (gtag.js,
+     GTM) and drop defer, so they wait for the choice.` : ''} -->
 <script src="${escapeAttr(bannerSrc ?? 'https://cortiq.se/consent-banner.js')}"
   data-site-id="${escapeAttr(siteId)}"
   data-api-url="${escapeAttr(apiUrl)}"
   data-company="${escapeAttr(company!.trim())}"
   data-policy-url="${escapeAttr(policyUrl!.trim())}"
   data-categories="analytics"
-  data-policy-version="${escapeAttr(policyVersion?.trim() || '1')}"
+  data-policy-version="${escapeAttr(policyVersion?.trim() || '1')}"${googleConsentMode ? '\n  data-consent-mode="google"' : ''}
   defer></script>
 `
     : '';

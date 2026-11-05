@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -42,6 +43,7 @@ export function TrackingSnippetSetup({ siteId, trackingKey, aggregateMeasurement
   const [company, setCompany] = useState('');
   const [policyUrl, setPolicyUrl] = useState('');
   const [policyVersion, setPolicyVersion] = useState('1');
+  const [googleConsentMode, setGoogleConsentMode] = useState(false);
 
   // Prefill the banner's policy link and version from the site's GDPR settings, if set.
   useEffect(() => {
@@ -68,6 +70,7 @@ export function TrackingSnippetSetup({ siteId, trackingKey, aggregateMeasurement
     company,
     policyUrl,
     policyVersion,
+    googleConsentMode,
   });
 
   const enableAggregate = async () => {
@@ -120,6 +123,15 @@ export function TrackingSnippetSetup({ siteId, trackingKey, aggregateMeasurement
             <Input id="banner-policy" value={policyUrl} maxLength={500} placeholder="https://example.com/privacy"
               onChange={e => setPolicyUrl(e.target.value)} />
           </div>
+          <label htmlFor="banner-gcm" className="flex items-start gap-3 sm:col-span-2 cursor-pointer">
+            <Checkbox id="banner-gcm" checked={googleConsentMode} onCheckedChange={v => setGoogleConsentMode(v === true)}
+              className="mt-0.5" />
+            <span>
+              <span className="block text-sm font-medium">Send Google Consent Mode v2 signals</span>
+              <span className="block text-xs text-muted-foreground">Only if the site runs Google Analytics, Google Ads or
+                Tag Manager and nothing else sets Consent Mode. Google tags then wait for the visitor's choice.</span>
+            </span>
+          </label>
         </div>
       )}
 
@@ -148,10 +160,11 @@ export function TrackingSnippetSetup({ siteId, trackingKey, aggregateMeasurement
             measure ad clicks and send lead quality to Google Ads, and <code>preferences</code> only if the site has such
             features and gates them on this choice.</li>
           <li>Bump <code>data-policy-version</code> when the policy or the categories change — visitors are asked again.</li>
-          <li>Google Analytics, Google Ads or Tag Manager on the site? The banner sends Google Consent Mode v2 signals
-            (denied until the visitor chooses). Move the banner tag into <code>&lt;head&gt;</code> above your Google tags
-            and remove <code>defer</code>, so they wait for the choice. Marketing grants the ad signals only if it is
-            listed in <code>data-categories</code>.</li>
+          {googleConsentMode && (
+            <li>Google Consent Mode v2 is on: move the banner tag into <code>&lt;head&gt;</code> above your Google tags
+              and remove <code>defer</code>, so they wait for the choice (denied until then). Marketing grants the ad
+              signals only if it is listed in <code>data-categories</code>.</li>
+          )}
           <li>Languages: Swedish, English, German, French, Portuguese (from <code>&lt;html lang&gt;</code>, or set <code>data-lang</code>).</li>
           <li>The banner helps you collect and document consent. You remain responsible for your policy text and the
             purposes you list.</li>
