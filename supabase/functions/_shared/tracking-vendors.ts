@@ -17,6 +17,8 @@ export interface Vendor {
   impact: string;
   /** 'cmp': consent management platform; 'infrastructure': neither a tag nor tracking (fonts, captcha). Default 'tag'. */
   kind?: 'tag' | 'cmp' | 'infrastructure';
+  /** Functional tool whose consent need depends on how it is configured: reported as "verify" when it loads before consent, never pass/fail. */
+  verify?: string;
 }
 
 const param = (name: string, prefix: string) => (u: URL): string | null => {
@@ -50,6 +52,7 @@ export const TRACKING_VENDORS: Vendor[] = [
       { host: /^www\.googletagmanager\.com$/, path: /^\/gtag\/js/, query: /[?&]id=AW-/ },
       { host: /^(googleads\.g\.doubleclick\.net|www\.googleadservices\.com|ad\.doubleclick\.net)$/ },
       { host: /^www\.google\.com$/, path: /^\/(pagead|ccm|rmkt)\// },
+      { host: /^(pagead2|ade)\.googlesyndication\.com$|^adservice\.google\.com$/ },
     ],
     cookies: [/^_gcl_/, /^IDE$/, /^test_cookie$/],
     idFrom: (u) => {
@@ -63,11 +66,19 @@ export const TRACKING_VENDORS: Vendor[] = [
   },
   {
     id: 'hubspot', name: 'HubSpot tracking code', category: 'analytics', googleTag: false,
-    requests: [{ host: /^(js(-eu1)?\.hs-(scripts|analytics|banner)\.(com|net)|js\.hscollectedforms\.net|js\.hsadspixel\.net|track(-eu1)?\.hubspot\.com|js(-eu1)?\.usemessages\.com)$/ }],
+    requests: [{ host: /^(js(-eu1)?\.hs-(scripts|analytics|banner)\.(com|net)|js\.hscollectedforms\.net|track(-eu1)?\.hubspot\.com|js(-eu1)?\.usemessages\.com)$/ }],
     cookies: [/^__hstc$/, /^hubspotutk$/, /^__hssc$/, /^__hssrc$/],
     idFrom: (u) => (/^js(-eu1)?\.hs-scripts\.com$/.test(u.hostname) ? u.pathname.match(/^\/(\d+)\.js/)?.[1] ?? null : null),
-    csp: { 'script-src': ['js.hs-scripts.com', 'js.hs-analytics.net', 'js.hs-banner.com', 'js.hscollectedforms.net', 'js.hsadspixel.net', 'js.usemessages.com'], 'connect-src': ['*.hubspot.com', 'forms.hscollectedforms.net'], 'img-src': ['track.hubspot.com'] },
+    csp: { 'script-src': ['js.hs-scripts.com', 'js.hs-analytics.net', 'js.hs-banner.com', 'js.hscollectedforms.net', 'js.usemessages.com'], 'connect-src': ['*.hubspot.com', 'forms.hscollectedforms.net'], 'img-src': ['track.hubspot.com'] },
     impact: 'HubSpot cannot link form submissions to page views or traffic source (Original Source falls back to Direct or Offline), and cannot capture gclid for Google Ads offline conversions.',
+  },
+  {
+    // Loaded by the HubSpot tracking code when HubSpot Ads is connected.
+    id: 'hubspot-ads', name: 'HubSpot ads pixel', category: 'marketing', googleTag: false,
+    requests: [{ host: /^js\.hsadspixel\.net$/ }],
+    cookies: [],
+    csp: { 'script-src': ['js.hsadspixel.net'] },
+    impact: 'HubSpot Ads cannot attribute contacts to ads or build ad audiences.',
   },
   {
     id: 'hubspot-forms', name: 'HubSpot forms', category: 'necessary', googleTag: false,
@@ -140,6 +151,52 @@ export const TRACKING_VENDORS: Vendor[] = [
     cookies: [/^cortiq_/, /^heatmap_/],
     csp: { 'connect-src': ['*.supabase.co'] },
     impact: 'CortIQ records no visits.',
+  },
+  // B2B visitor identification. Verified 2026-11-06 against www.paligo.net (GTM-THF7LWZ).
+  {
+    id: 'leadfeeder', name: 'Leadfeeder (Dealfront)', category: 'marketing', googleTag: false,
+    requests: [{ host: /(^|\.)lfeeder\.com$/ }],
+    cookies: [/^_lfa/],
+    csp: { 'script-src': ['sc.lfeeder.com'], 'connect-src': ['*.lfeeder.com'] },
+    impact: 'Leadfeeder cannot identify visiting companies.',
+  },
+  {
+    id: 'zoominfo', name: 'ZoomInfo WebSights', category: 'marketing', googleTag: false,
+    requests: [{ host: /(^|\.)zi-scripts\.com$|(^|\.)zoominfo\.com$/ }],
+    cookies: [/^_zitok$/],
+    csp: { 'script-src': ['js.zi-scripts.com', 'ws-assets.zoominfo.com'], 'connect-src': ['*.zoominfo.com', '*.zi-scripts.com'] },
+    impact: 'ZoomInfo cannot identify visiting companies.',
+  },
+  {
+    id: 'claydar', name: 'Claydar', category: 'marketing', googleTag: false,
+    requests: [{ host: /(^|\.)claydar\.com$/ }],
+    cookies: [],
+    csp: { 'script-src': ['static.claydar.com'], 'connect-src': ['*.claydar.com'] },
+    impact: 'Claydar cannot identify visiting companies.',
+  },
+  {
+    id: 'inzynk', name: 'Inzynk', category: 'marketing', googleTag: false,
+    requests: [{ host: /(^|\.)inzynk\.io$/ }],
+    cookies: [],
+    csp: { 'script-src': ['tags.inzynk.io'], 'connect-src': ['*.inzynk.io'] },
+    impact: 'Inzynk cannot identify visiting companies.',
+  },
+  // Functional widgets: whether they need consent depends on what they store and send.
+  {
+    id: 'chilipiper', name: 'Chili Piper', category: 'preferences', googleTag: false,
+    requests: [{ host: /(^|\.)chilipiper\.com$/ }],
+    cookies: [],
+    csp: { 'script-src': ['js.chilipiper.com'], 'connect-src': ['*.chilipiper.com'], 'frame-src': ['*.chilipiper.com'] },
+    impact: 'Meeting booking after form submission does not work.',
+    verify: 'A meeting scheduler is functional when a visitor books, but loaded on every page it can also track visitors and set cookies before anyone uses it.',
+  },
+  {
+    id: '1mind', name: '1mind', category: 'preferences', googleTag: false,
+    requests: [{ host: /(^|\.)1mind\.com$/ }],
+    cookies: [],
+    csp: { 'script-src': ['launcher.1mind.com'], 'connect-src': ['*.1mind.com'], 'frame-src': ['*.1mind.com'] },
+    impact: 'The 1mind AI assistant does not appear.',
+    verify: 'An AI sales assistant is functional when a visitor talks to it, but it processes what visitors type and may identify or track them before anyone uses it.',
   },
   // Consent management platforms
   {

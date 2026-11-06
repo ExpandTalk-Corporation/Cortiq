@@ -180,7 +180,35 @@ function choiceCheck({ mode, policy }: AssessInput, pages: PageObservation[], st
     const googleSeen = evaluated.some((p) => stateOf(p, state)!.requests.some((r) => isGoogleHost(r.url)));
     if (!googleSeen) out.push(googleCommitment(state, key, evaluated));
   }
-  return out;
+  return [...out, ...verifyWidgets(evaluated, state, key, label)];
+}
+
+/** Functional widgets (vendor.verify) that load without consent: neither pass nor fail, the controller decides. */
+function verifyWidgets(evaluated: PageObservation[], state: 'none' | 'reject', key: string, label: string): Finding[] {
+  const seen = new Map<string, { vendor: Vendor; pages: Set<string>; details: Set<string> }>();
+  const add = (v: Vendor, path: string, detail: string) => {
+    if (!seen.has(v.id)) seen.set(v.id, { vendor: v, pages: new Set(), details: new Set() });
+    const s = seen.get(v.id)!; s.pages.add(path); s.details.add(detail);
+  };
+  for (const p of evaluated) {
+    const st = stateOf(p, state)!;
+    for (const r of st.requests) {
+      const v = vendorForUrl(r.url);
+      if (!v?.verify) continue;
+      try { add(v, p.path, `requests to ${new URL(r.url).hostname}`); } catch { /* unparseable URL */ }
+    }
+    for (const name of [...st.cookies.map((c) => c.name), ...st.storageKeys]) {
+      const v = vendorForName(name);
+      if (v?.verify) add(v, p.path, `stored ${name}`);
+    }
+  }
+  return [...seen].map(([id, s]) => finding({
+    scope: 'Consent', checkKey: `${key}.verify.${id}`, status: 'manual', priority: 'medium',
+    title: `Verify ${s.vendor.name}: it loads ${label}`,
+    explanation: `${s.vendor.name} loaded ${label} on ${[...s.pages].join(', ')}. ${s.vendor.verify} Whether it needs consent depends on its configuration; this is assessed by the controller.`,
+    fix: `Check what ${s.vendor.name} stores and sends before the visitor uses it. If it is not strictly necessary, load it only after consent, or only when the visitor opens it.`,
+    typicalOwner: 'legal', evidence: { pages: [...s.pages], details: [...s.details] },
+  }));
 }
 
 function categoryCheck({ mode, policy }: AssessInput, pages: PageObservation[]): Finding[] {
