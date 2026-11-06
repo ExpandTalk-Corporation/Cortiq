@@ -31,6 +31,11 @@ const allFlags = () => Object.fromEntries(FLAGS.map((f) => [f.key, true])) as Re
 
 interface PageChoice { path: string; selected: boolean; note?: string }
 
+function normalisePath(raw: string): string {
+  const path = raw.trim();
+  return !path ? '' : path.startsWith('/') ? path : `/${path}`;
+}
+
 export function StartForm({ prefill }: { prefill?: RunRow }) {
   const navigate = useNavigate();
   const suggest = useSuggestPages();
@@ -38,7 +43,8 @@ export function StartForm({ prefill }: { prefill?: RunRow }) {
   const [mode, setMode] = useState<Mode>(prefill?.mode ?? 'policy');
   const [baselineUrl, setBaselineUrl] = useState(prefill?.baseline_url ?? '');
   const [targetUrl, setTargetUrl] = useState(prefill?.target_url ?? '');
-  const [pages, setPages] = useState<PageChoice[]>((prefill?.pages.pages ?? []).map((path) => ({ path, selected: true })));
+  // The homepage is preselected so a first check can start without any page setup.
+  const [pages, setPages] = useState<PageChoice[]>((prefill?.pages.pages ?? ['/']).map((path) => ({ path, selected: true })));
   const [extraPath, setExtraPath] = useState('');
   const [legacy, setLegacy] = useState((prefill?.pages.legacy ?? []).join('\n'));
   const [username, setUsername] = useState('');
@@ -47,7 +53,9 @@ export function StartForm({ prefill }: { prefill?: RunRow }) {
   const [expectedIds, setExpectedIds] = useState((prefill?.policy?.expectedIds ?? []).join(', '));
   const [manual, setManual] = useState<string[]>(prefill?.policy?.manualItems.map((i) => i.key) ?? MANUAL_ITEMS.map((i) => i.key));
 
-  const selected = pages.filter((p) => p.selected).map((p) => p.path);
+  const typedPath = normalisePath(extraPath);
+  // A path typed but not yet added still counts: the visitor should not have to know about the Add button.
+  const selected = [...new Set([...pages.filter((p) => p.selected).map((p) => p.path), ...(typedPath ? [typedPath] : [])])];
   const limit = LIMIT[mode];
   const browserLoads = selected.length * (mode === 'comparison' ? 2 : 1);
   const minutes = Math.max(1, Math.ceil((browserLoads * 40) / 60));
@@ -63,12 +71,17 @@ export function StartForm({ prefill }: { prefill?: RunRow }) {
 
   const toggle = (path: string) => setPages((list) => list.map((p) => (p.path === path ? { ...p, selected: !p.selected } : p)));
   const addPath = () => {
-    const path = extraPath.trim();
-    if (!path) return;
-    const normalised = path.startsWith('/') ? path : `/${path}`;
-    setPages((list) => (list.some((p) => p.path === normalised) ? list : [...list, { path: normalised, selected: true }]));
+    if (!typedPath) return;
+    setPages((list) => (list.some((p) => p.path === typedPath)
+      ? list.map((p) => (p.path === typedPath ? { ...p, selected: true } : p))
+      : [...list, { path: typedPath, selected: true }]));
     setExtraPath('');
   };
+
+  const missing = !targetUrl.trim() ? (mode === 'comparison' ? 'Enter the new site’s address.' : 'Enter the address of the site to check.')
+    : mode === 'comparison' && !baselineUrl.trim() ? 'Enter the current site’s address.'
+    : !selected.length ? 'Choose at least one page: tick one in the list, or type a path and press Add.'
+    : null;
 
   const submit = () => {
     if (selected.length > limit) { toast.error(`Select at most ${limit} pages.`); return; }
@@ -130,6 +143,7 @@ export function StartForm({ prefill }: { prefill?: RunRow }) {
               {suggest.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}Suggest from sitemap
             </Button>
           </div>
+          <p className="text-xs text-muted-foreground">The homepage is a good start. Add pages with forms (contact, demo), or click Suggest from sitemap to choose from the site's pages.</p>
           {pages.length > 0 && (
             <div className="max-h-64 space-y-1 overflow-y-auto rounded-md border p-3">
               {pages.map((p) => (
@@ -142,7 +156,7 @@ export function StartForm({ prefill }: { prefill?: RunRow }) {
             </div>
           )}
           <div className="flex gap-2">
-            <Input aria-label="Add a page path" placeholder="/pricing/" value={extraPath} onChange={(e) => setExtraPath(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addPath(); } }} />
+            <Input aria-label="Add a page path" placeholder="Type a page path, then press Add" value={extraPath} onChange={(e) => setExtraPath(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addPath(); } }} />
             <Button type="button" variant="outline" onClick={addPath}>Add</Button>
           </div>
         </div>
@@ -175,10 +189,13 @@ export function StartForm({ prefill }: { prefill?: RunRow }) {
           </div>
         )}
 
-        <Button className="w-full" disabled={!targetUrl || (mode === 'comparison' && !baselineUrl) || !selected.length || create.isPending} onClick={submit}>
-          {create.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}
-          Start check · about {minutes} min
-        </Button>
+        <div className="space-y-2">
+          <Button className="w-full" disabled={!!missing || create.isPending} aria-describedby={missing ? 'tc-missing' : undefined} onClick={submit}>
+            {create.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}
+            Start check · about {minutes} min
+          </Button>
+          {missing && <p id="tc-missing" className="text-center text-sm text-muted-foreground">{missing}</p>}
+        </div>
       </CardContent>
     </Card>
   );
