@@ -78,8 +78,8 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   },
   {
     path: '/tracking-check/',
-    title: 'Tracking Check: Cookie Consent & Site Migration Test — CortIQ',
-    description: 'Test what any website loads before and after the cookie banner, and check that a new site keeps redirects, UTM and click IDs, tags and consent behaviour before launch.',
+    title: 'Free Website Tracking Audit: Cookie Consent & Migration Check — CortIQ',
+    description: 'Is your website tracking visitors before they consent? See which cookies, pixels and tags load before the banner and after "Reject all", with evidence and a fix for each finding.',
     changefreq: 'monthly',
     priority: 0.8,
     source: 'src/pages/TrackingCheckLanding.tsx',
