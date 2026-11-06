@@ -119,4 +119,4 @@ export function createApp({ launch, token, maxConcurrent = 2, maxQueue = 8 }) {
   });
 }
 
-export const redactUrls = (text) => String(text).replace(/(?:https?|wss?|data|file):\S+/gi, '<url>');
+export const redactUrls = (text) => String(text).replace(/\b(?:https?|wss?|data|file):\S+/gi, '<url>');
