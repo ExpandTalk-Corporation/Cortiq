@@ -25,6 +25,8 @@ import GSCCallbackPage from "./pages/auth/GSCCallbackPage";
 import Navigation from "./pages/Navigation";
 import TrackingCheck from "./pages/TrackingCheck";
 import TrackingCheckLanding from "./pages/TrackingCheckLanding";
+import CookieConsentChecker from "./pages/CookieConsentChecker";
+import WebsiteMigrationCheck from "./pages/WebsiteMigrationCheck";
 import TrackingCheckRun from "./pages/TrackingCheckRun";
 import TrackingCheckShared from "./pages/TrackingCheckShared";
 import NotFound from "./pages/NotFound";
@@ -94,6 +96,8 @@ const App = () => (
                 </ProtectedRoute>
               } />
               <Route path="/tracking-check" element={<TrackingCheckLanding />} />
+              <Route path="/cookie-consent-checker" element={<CookieConsentChecker />} />
+              <Route path="/website-migration-check" element={<WebsiteMigrationCheck />} />
               <Route path="/tracking-check/new" element={
                 <ProtectedRoute>
                   <TrackingCheck />
