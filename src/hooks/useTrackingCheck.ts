@@ -45,8 +45,15 @@ const toFinding = (r: any): FindingRow => ({
   explanation: r.explanation, fix: r.fix, typicalOwner: r.typical_owner, evidence: r.evidence, verifiedAt: r.verified_at,
 });
 
+export interface TrackingCheckAccess {
+  allowed: boolean;
+  tier: 'full' | 'standard';
+  limits: { runsPerDay: number; policyPages: number; comparisonPages: number };
+  runsToday: number;
+}
+
 export const useTrackingCheckAccess = () =>
-  useQuery({ queryKey: ['tracking-check', 'access'], queryFn: () => call<{ allowed: boolean }>({ action: 'access' }), staleTime: 5 * 60_000 });
+  useQuery({ queryKey: ['tracking-check', 'access'], queryFn: () => call<TrackingCheckAccess>({ action: 'access' }), staleTime: 5 * 60_000 });
 
 export const useSuggestPages = () =>
   useMutation({ mutationFn: (url: string) => call<{ pages: SuggestedPage[] }>({ action: 'suggest', url }) });
@@ -55,7 +62,7 @@ export function useCreateRun() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateRunInput) => call<{ runId: string }>({ action: 'create', ...input }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['tracking-check', 'runs'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tracking-check'] }),
   });
 }
 

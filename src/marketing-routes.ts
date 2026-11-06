@@ -77,6 +77,15 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
     footer: { group: 'product', label: 'Consent banner (CMP)' },
   },
   {
+    path: '/tracking-check/',
+    title: 'Tracking Check: Cookie Consent & Site Migration Test — CortIQ',
+    description: 'Test what any website loads before and after the cookie banner, and check that a new site keeps redirects, UTM and click IDs, tags and consent behaviour before launch.',
+    changefreq: 'monthly',
+    priority: 0.8,
+    source: 'src/pages/TrackingCheckLanding.tsx',
+    footer: { group: 'product', label: 'Tracking Check' },
+  },
+  {
     path: '/pricing/',
     title: 'Pricing — CortIQ Analytics',
     description: 'CortIQ is free during beta: AI agent analytics, cookie-free tracking and a built-in consent banner. Create a free account, or contact us about Enterprise.',

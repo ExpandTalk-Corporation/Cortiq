@@ -121,7 +121,7 @@ export function DashboardHeader({ selectedSite, sites, onSiteSelect, dateRange, 
           <Button
             variant="outline"
             size="sm"
-            onClick={() => navigate('/tracking-check')}
+            onClick={() => navigate('/tracking-check/new')}
             className="font-mono text-sm gap-2"
           >
             <ShieldCheck className="w-4 h-4" />

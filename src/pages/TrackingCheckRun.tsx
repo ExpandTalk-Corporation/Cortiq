@@ -27,12 +27,12 @@ function TrackingCheckRunBody() {
         <p className="text-destructive">Could not load this run: {(run.error as Error).message}</p>
         <div className="mt-4 flex gap-2">
           <Button variant="outline" onClick={() => run.refetch()}>Retry</Button>
-          <Link to="/tracking-check" className="self-center text-sm underline">Back</Link>
+          <Link to="/tracking-check/new" className="self-center text-sm underline">Back</Link>
         </div>
       </main>
     );
   }
-  if (!run.data) return <main className="container mx-auto px-4 py-16"><p>Run not found.</p><Link to="/tracking-check" className="underline">Back</Link></main>;
+  if (!run.data) return <main className="container mx-auto px-4 py-16"><p>Run not found.</p><Link to="/tracking-check/new" className="underline">Back</Link></main>;
   const r = run.data;
 
   const downloadCsv = () => {
@@ -51,7 +51,7 @@ function TrackingCheckRunBody() {
 
   return (
     <main className="container mx-auto max-w-4xl space-y-6 px-4 py-10">
-      <Link to="/tracking-check" className="text-sm text-muted-foreground hover:underline">← Tracking Check</Link>
+      <Link to="/tracking-check/new" className="text-sm text-muted-foreground hover:underline">← Tracking Check</Link>
       {active && (
         <>
           {status.isError && (
@@ -78,7 +78,7 @@ function TrackingCheckRunBody() {
             <Button variant="outline" onClick={downloadCsv}><Download className="mr-2 h-4 w-4" aria-hidden />Export CSV</Button>
             <Button variant="outline" onClick={copyShare} disabled={share.isPending}><Link2 className="mr-2 h-4 w-4" aria-hidden />{r.share_token ? 'Copy share link' : 'Create share link'}</Button>
             {r.share_token && <Button variant="ghost" onClick={() => revoke.mutate()}><Unlink className="mr-2 h-4 w-4" aria-hidden />Revoke link</Button>}
-            <Button variant="ghost" onClick={() => navigate('/tracking-check', { state: { prefill: r } })}><RotateCcw className="mr-2 h-4 w-4" aria-hidden />Run again</Button>
+            <Button variant="ghost" onClick={() => navigate('/tracking-check/new', { state: { prefill: r } })}><RotateCcw className="mr-2 h-4 w-4" aria-hidden />Run again</Button>
           </>}
         />
       )}

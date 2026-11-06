@@ -51,12 +51,24 @@ function edge(name, db, { env = ENV } = {}) {
 const post = (handler, body) => handler(new Request('https://x.example/', { method: 'POST', headers: { Authorization: 'Bearer t', 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));
 const createBody = (extra = {}) => ({ action: 'create', mode: 'comparison', baselineUrl: 'https://old.example/some/path', targetUrl: 'https://new.example', pages: ['/', 'pricing/'], legacyPaths: ['/product/'], ...extra });
 
-test('start: requires a user and the allowlist', async () => {
+const access = async (db) => (await post(edge('tracking-check-start', db).handler, { action: 'access' })).json();
+const confirmedOutsider = () => mockClient({ user: { id: A, email: 'someone@else.com', email_confirmed_at: '2026-01-01T00:00:00Z' } });
+
+test('start: any confirmed user may run; the allowlist gets the full quota', async () => {
   assert.equal((await post(edge('tracking-check-start', mockClient({ user: null })).handler, { action: 'access' })).status, 401);
-  assert.deepEqual(await (await post(edge('tracking-check-start', mockClient()).handler, { action: 'access' })).json(), { allowed: true });
-  const outsider = mockClient({ user: { id: A, email: 'someone@else.com' } });
-  assert.deepEqual(await (await post(edge('tracking-check-start', outsider).handler, { action: 'access' })).json(), { allowed: false });
-  assert.equal((await post(edge('tracking-check-start', outsider).handler, createBody())).status, 403);
+  assert.deepEqual(await access(mockClient({ runsToday: 4 })), { allowed: true, tier: 'full', limits: { runsPerDay: 10, policyPages: 15, comparisonPages: 25 }, runsToday: 4 });
+  assert.deepEqual(await access(confirmedOutsider()), { allowed: true, tier: 'standard', limits: { runsPerDay: 3, policyPages: 5, comparisonPages: 5 }, runsToday: 0 });
+  assert.equal((await post(edge('tracking-check-start', confirmedOutsider()).handler, createBody())).status, 200);
+});
+
+test('start: the standard quota caps pages and runs per day', async () => {
+  const sixPages = ['/', '/a/', '/b/', '/c/', '/d/', '/e/'];
+  assert.equal((await post(edge('tracking-check-start', confirmedOutsider()).handler, createBody({ pages: sixPages }))).status, 400);
+  assert.equal((await post(edge('tracking-check-start', mockClient()).handler, createBody({ pages: sixPages }))).status, 200);
+  const capped = mockClient({ user: { id: A, email: 'someone@else.com', email_confirmed_at: '2026-01-01T00:00:00Z' }, runsToday: 3 });
+  const res = await post(edge('tracking-check-start', capped).handler, createBody());
+  assert.equal(res.status, 429);
+  assert.match((await res.json()).error, /info@expandtalk\.se/);
 });
 
 test('start: validates URLs, page caps and the daily limit', async () => {
@@ -157,9 +169,9 @@ test('harness: globalThis.fetch hits the sandboxed stub, not real Node fetch', a
   await assert.rejects(() => run(), /Unexpected outbound request/);
 });
 
-test('start: the allowlist also requires a confirmed email address', async () => {
+test('start: running requires a confirmed email address, even on the allowlist', async () => {
   const unconfirmed = mockClient({ user: { id: A, email: 'daniel@expandtalk.se', email_confirmed_at: null } });
-  assert.deepEqual(await (await post(edge('tracking-check-start', unconfirmed).handler, { action: 'access' })).json(), { allowed: false });
+  assert.equal((await access(unconfirmed)).allowed, false);
   assert.equal((await post(edge('tracking-check-start', unconfirmed).handler, createBody())).status, 403);
 });
 

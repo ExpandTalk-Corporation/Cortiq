@@ -24,6 +24,7 @@ import Auth from "./pages/Auth";
 import GSCCallbackPage from "./pages/auth/GSCCallbackPage";
 import Navigation from "./pages/Navigation";
 import TrackingCheck from "./pages/TrackingCheck";
+import TrackingCheckLanding from "./pages/TrackingCheckLanding";
 import TrackingCheckRun from "./pages/TrackingCheckRun";
 import TrackingCheckShared from "./pages/TrackingCheckShared";
 import NotFound from "./pages/NotFound";
@@ -92,7 +93,8 @@ const App = () => (
                   <Installation />
                 </ProtectedRoute>
               } />
-              <Route path="/tracking-check" element={
+              <Route path="/tracking-check" element={<TrackingCheckLanding />} />
+              <Route path="/tracking-check/new" element={
                 <ProtectedRoute>
                   <TrackingCheck />
                 </ProtectedRoute>

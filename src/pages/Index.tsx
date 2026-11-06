@@ -31,7 +31,9 @@ import {
   Code,
   AlertTriangle,
   Lock,
-  Mail
+  Mail,
+  ShieldCheck,
+  Shuffle
 } from "lucide-react";
 
 const Index = () => {
@@ -1116,6 +1118,47 @@ const Index = () => {
       </section>
 
 
+
+      {/* Tracking Check */}
+      <section className="py-24 px-4">
+        <div className="container mx-auto max-w-5xl">
+          <div className="text-center mb-12">
+            <Badge variant="secondary" className="mb-4">Free with a CortIQ account</Badge>
+            <h2 className="text-3xl md:text-5xl font-bold mb-4">Test any website with Tracking Check</h2>
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+              A real browser visits the site before and after the cookie banner is answered and records every request and cookie.
+              Works on any site, with or without CortIQ installed.
+            </p>
+          </div>
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card className="hover-lift">
+              <CardHeader>
+                <ShieldCheck className="h-8 w-8 text-primary mb-2" aria-hidden />
+                <CardTitle>Does my site respect the cookie choice?</CardTitle>
+                <CardDescription className="text-base">
+                  See which cookies and tags load before the visitor answers, and what still loads after "Reject all".
+                </CardDescription>
+              </CardHeader>
+            </Card>
+            <Card className="hover-lift">
+              <CardHeader>
+                <Shuffle className="h-8 w-8 text-primary mb-2" aria-hidden />
+                <CardTitle>Moving or rebuilding the site?</CardTitle>
+                <CardDescription className="text-base">
+                  Compare the current site with the new one before launch: redirects, UTM and click IDs, tags and consent behaviour.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </div>
+          <div className="mt-10 text-center">
+            <Link to="/tracking-check/">
+              <Button size="lg" className="bg-gradient-primary hover-scale hover-glow">
+                How Tracking Check works <ArrowRight className="ml-2 h-5 w-5" aria-hidden />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
 
       {/* CTA Section */}
       <section className="py-32 px-4 relative overflow-hidden">
