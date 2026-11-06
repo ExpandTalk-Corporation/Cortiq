@@ -84,7 +84,9 @@ test('reject that could not be automated is manual and never passes', () => {
 });
 
 test('Consent Mode defaults: required when Google is present, skipped otherwise', () => {
-  const withGoogle = compareRun([st('none'), st('reject'), st('accept', { requests: [req(GA)] })]);
+  const waits = compareRun([st('none'), st('reject'), st('accept', { requests: [req(GA)] })]);
+  assert.equal(byKey(waits, 'consent.defaults')[0].status, 'warning', 'Google waits for consent: no Consent Mode is a decision');
+  const withGoogle = compareRun([st('none', { requests: [req(GA)] }), st('reject'), st('accept', { requests: [req(GA)] })]);
   const [f] = byKey(withGoogle, 'consent.defaults');
   assert.equal(f.status, 'fail');
   assert.match(f.evidence.details[0], /no consent default/);

@@ -2,6 +2,7 @@ import type { AssessInput, Finding, FindingStatus, Priority } from '../types.ts'
 import { assessConsentAutomation, assessCoverage, assessParameters } from './parameters.ts';
 import { assessCsp, assessForms, assessTags } from './tags.ts';
 import { assessConsent } from './consent.ts';
+import { assessSignals } from './signals.ts';
 
 const STATUS_ORDER: Record<FindingStatus, number> = { fail: 0, warning: 1, manual: 2, untestable: 3, pass: 4 };
 const PRIORITY_ORDER: Record<Priority, number> = { high: 0, medium: 1, low: 2 };
@@ -15,6 +16,7 @@ export function assess(input: AssessInput): Finding[] {
     ...assessCsp(input),
     ...assessForms(input),
     ...assessConsent(input),
+    ...assessSignals(input),
   ];
   return findings
     .map((f, i) => ({ f, i }))

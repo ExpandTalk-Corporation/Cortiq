@@ -79,5 +79,5 @@ test('vendor kinds: CMPs and infrastructure are marked in the registry', () => {
   for (const v of TRACKING_VENDORS) assert.ok([undefined, 'tag', 'cmp', 'infrastructure'].includes(v.kind), v.id);
   const ids = (kind) => TRACKING_VENDORS.filter((v) => v.kind === kind).map((v) => v.id).sort();
   assert.deepEqual(ids('cmp'), ['complianz', 'cookiebot', 'cookieyes', 'dynamicweb', 'onetrust']);
-  assert.deepEqual(ids('infrastructure'), ['google-fonts', 'recaptcha']);
+  assert.deepEqual(ids('infrastructure'), ['akamai', 'cloudflare', 'google-fonts', 'public-cdn', 'recaptcha']);
 });

@@ -248,7 +248,7 @@ export function inPageCollect(withHtml) {
 async function observeState(browser, state, context, inPageSource) {
   const ctx = await (browser.createBrowserContext ? browser.createBrowserContext() : browser.createIncognitoBrowserContext());
   const p = await ctx.newPage();
-  const out = { state, method: state === 'none' ? 'not_needed' : 'not_automated', status: 0, requests: [], cookies: [], storageKeys: [], cspViolations: [], consentCommands: [], enhancedConversions: false, challenge: false, error: null, bannerSeen: false };
+  const out = { state, method: state === 'none' ? 'not_needed' : 'not_automated', status: 0, requests: [], cookies: [], storageKeys: [], cspViolations: [], consentCommands: [], enhancedConversions: false, challenge: false, error: null, bannerSeen: false, bannerAfterChoice: null };
   let cmp = null;
   let html = '';
   const userData = /[?&;]em=|"em"\s*:|user_data/;
@@ -328,8 +328,11 @@ async function observeState(browser, state, context, inPageSource) {
       // signal), and "visible" is checked the same way on both sides (generic heuristic or this CMP's own
       // markup) — a banner only ever found via the adapter-specific selector must be checked for using that
       // same selector after the reload, not just the generic one.
-      const bannerVisibleAfter = (await p.evaluate(() => window.__tc.bannerVisible()))
-        || (cmp ? await p.evaluate((c) => window.__tc.adapterBannerVisible(c), cmp) : false);
+      const adapterBannerVisibleAfter = cmp ? await p.evaluate((c) => window.__tc.adapterBannerVisible(c), cmp) : false;
+      const bannerVisibleAfter = (await p.evaluate(() => window.__tc.bannerVisible())) || adapterBannerVisibleAfter;
+      // "Choice not remembered" is only trusted when the CMP's own API applied the choice and its own banner
+      // markup was seen on both sides: a text-heuristic click that missed would look the same.
+      if (out.method === 'adapter' && adapterBannerVisibleBefore) out.bannerAfterChoice = adapterBannerVisibleAfter;
       const bannerGone = bannerVisible && !bannerVisibleAfter;
       const stored = bannerGone || await p.evaluate(() => window.__tc.storedConsent());
       if (!stored && !out.cookies.length && !out.storageKeys.length) out.method = 'not_automated';

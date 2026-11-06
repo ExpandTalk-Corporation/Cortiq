@@ -35,6 +35,8 @@ export interface StateObservation {
   error: string | null;
   /** Was a cookie banner (visible, adapter-specific, or a hidden/shadow/iframe CMP signal) observed before the consent action? A `method` of `adapter`/`text` is only trustworthy when this is true. */
   bannerSeen: boolean;
+  /** After a CMP-adapter choice and a reload: was the CMP's own banner shown again? null when not measured (no adapter action, or its banner was not seen before). */
+  bannerAfterChoice?: boolean | null;
 }
 
 export interface FormHit {
