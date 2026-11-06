@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { StartForm } from '@/components/tracking-check/StartForm';
 import { useRuns, useTrackingCheckAccess, type RunRow } from '@/hooks/useTrackingCheck';
 import PublicLayout from "@/components/PublicLayout";
+import { siteFromQuery } from "@/lib/trackingCheckUrl";
 
 function TrackingCheckBody() {
   const access = useTrackingCheckAccess();
@@ -16,6 +17,8 @@ function TrackingCheckBody() {
   // "Run again" passes the old run in router state. Read it once, then clear it: browser history keeps
   // router state across reloads and back/forward, so otherwise every later visit opens pre-filled.
   const [prefill, setPrefill] = useState(() => (location.state as { prefill?: RunRow } | null)?.prefill);
+  const [initialUrl] = useState(() => siteFromQuery(location.search));
+  const [initialMode] = useState(() => (new URLSearchParams(location.search).get('mode') === 'comparison' ? 'comparison' as const : undefined));
   useEffect(() => {
     if (location.state) navigate(location.pathname, { replace: true, state: null });
   }, [location.state, location.pathname, navigate]);
@@ -63,7 +66,7 @@ function TrackingCheckBody() {
         {left} of {limits.runsPerDay} checks left in the last 24 hours.
         {tier === 'standard' && <> Need more? Contact <a className="text-primary underline" href="mailto:info@expandtalk.se">info@expandtalk.se</a>.</>}
       </p>
-      <StartForm key={prefill?.id ?? 'new'} prefill={prefill} limits={limits} />
+      <StartForm key={prefill?.id ?? 'new'} prefill={prefill} initialUrl={initialUrl} initialMode={initialMode} limits={limits} />
       <Card>
         <CardHeader><CardTitle>Your runs</CardTitle></CardHeader>
         <CardContent className="divide-y">

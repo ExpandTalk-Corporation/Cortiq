@@ -27,13 +27,17 @@ interface ReportViewProps {
   finishedAt: string | null;
   actions?: ReactNode;
   onVerify?: (finding: FindingRow, verified: boolean) => void;
+  /** Start with the list of all checks collapsed (the landing page sample). */
+  collapsed?: boolean;
 }
 
-export function ReportView({ summary, findings, mode, baselineUrl, targetUrl, finishedAt, actions, onVerify }: ReportViewProps) {
+export function ReportView({ summary, findings, mode, baselineUrl, targetUrl, finishedAt, actions, onVerify, collapsed = false }: ReportViewProps) {
   const [open, setOpen] = useState<string | null>(null);
   // The summary lists at most 3 problems and 2 items to review; say how many more the list below holds.
   const hidden = summary.counts.fail + summary.counts.warning - summary.lines.filter((l) => l.status !== 'pass').length;
+  const [listOpen, setListOpen] = useState(!collapsed);
   const showFix = (checkKey: string) => {
+    setListOpen(true);
     setOpen(checkKey);
     requestAnimationFrame(() => document.getElementById(anchor(checkKey))?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   };
@@ -68,9 +72,9 @@ export function ReportView({ summary, findings, mode, baselineUrl, targetUrl, fi
         </CardContent>
       </Card>
 
-      <Collapsible defaultOpen>
+      <Collapsible open={listOpen} onOpenChange={setListOpen}>
         <CollapsibleTrigger asChild>
-          <Button variant="ghost" className="gap-2 px-0"><ChevronDown className="h-4 w-4" aria-hidden />All {findings.length} checks</Button>
+          <Button variant="ghost" className="gap-2 px-0"><ChevronDown className={`h-4 w-4 transition-transform ${listOpen ? '' : '-rotate-90'}`} aria-hidden />All {findings.length} checks</Button>
         </CollapsibleTrigger>
         <CollapsibleContent className="mt-2 divide-y rounded-md border">
           {findings.map((f) => (
@@ -93,7 +97,7 @@ function FindingItem({ finding: f, open, onToggle, onVerify }: FindingItemProps)
       <button type="button" onClick={onToggle} aria-expanded={open} className="flex w-full items-start gap-3 text-left">
         <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${s.className}`} role="img" aria-label={s.label} />
         <span className="flex-1 font-medium">{f.title}</span>
-        <Badge variant="outline">{f.scope}</Badge>
+        <Badge variant="outline" className="hidden sm:inline-flex">{f.scope}</Badge>
         {f.priority && f.status !== 'pass' && <Badge variant={f.priority === 'high' ? 'destructive' : 'secondary'}>{f.priority}</Badge>}
         <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden />
       </button>

@@ -45,13 +45,13 @@ const MODES: { mode: Mode; title: string; text: string }[] = [
 
 interface Limits { policyPages: number; comparisonPages: number }
 
-export function StartForm({ prefill, limits }: { prefill?: RunRow; limits: Limits }) {
+export function StartForm({ prefill, initialUrl, initialMode, limits }: { prefill?: RunRow; initialUrl?: string; initialMode?: Mode; limits: Limits }) {
   const navigate = useNavigate();
   const suggest = useSuggestPages();
   const create = useCreateRun();
-  const [mode, setMode] = useState<Mode>(prefill?.mode ?? 'policy');
+  const [mode, setMode] = useState<Mode>(prefill?.mode ?? initialMode ?? 'policy');
   const [baselineUrl, setBaselineUrl] = useState(prefill?.baseline_url ?? '');
-  const [targetUrl, setTargetUrl] = useState(prefill?.target_url ?? '');
+  const [targetUrl, setTargetUrl] = useState(prefill?.target_url ?? initialUrl ?? '');
   // The homepage is preselected so a first check can start without any page setup.
   const [pages, setPages] = useState<PageChoice[]>((prefill?.pages.pages ?? ['/']).map((path) => ({ path, selected: true })));
   const [extraPath, setExtraPath] = useState('');
