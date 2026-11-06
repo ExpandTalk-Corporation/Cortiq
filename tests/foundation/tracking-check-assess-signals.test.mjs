@@ -122,3 +122,9 @@ test('CDNs are not unknown third parties; a podcast player is a Verify item', ()
   assert.equal(byKey(findings, 'consent.unknown_after_reject')[0].status, 'pass');
   assert.equal(byKey(findings, 'consent.after_reject.verify.libsyn')[0].status, 'manual');
 });
+
+test('Akamai mPulse is analytics, not CDN infrastructure', () => {
+  const reject = st('reject', { requests: [req('https://c.go-mpulse.net/boomerang/ABC-123'), req('https://173e2548.akstat.io/')] });
+  const [f] = byKey(run([st('none'), reject, st('accept')]), 'consent.after_reject.cookieless.akamai-mpulse');
+  assert.equal(f.status, 'warning');
+});

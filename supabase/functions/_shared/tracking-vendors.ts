@@ -143,6 +143,14 @@ export const TRACKING_VENDORS: Vendor[] = [
     impact: 'Cloudflare Web Analytics records no visits.',
   },
   {
+    // Akamai's real-user monitoring (boomerang): measures each visitor's page loads, beacons to *.akstat.io.
+    id: 'akamai-mpulse', name: 'Akamai mPulse', category: 'analytics', googleTag: false,
+    requests: [{ host: /(^|\.)go-mpulse\.net$/ }, { host: /(^|\.)akstat\.io$/ }],
+    cookies: [/^RT$/],
+    csp: { 'script-src': ['*.go-mpulse.net'], 'connect-src': ['*.go-mpulse.net', '*.akstat.io'] },
+    impact: 'Akamai mPulse records no page-load measurements.',
+  },
+  {
     id: 'cortiq', name: 'CortIQ', category: 'analytics', googleTag: false,
     requests: [
       { host: /\.supabase\.co$/, path: /^\/functions\/v1\/(track-event|track-navigation|visitor-identification|link-click-counter|track-web-vitals|ai-bot-tracker|record-conversion|pixel-tracking)/ },
