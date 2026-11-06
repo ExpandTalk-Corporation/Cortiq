@@ -139,7 +139,7 @@ All new tables use: `site_id IN (SELECT id FROM public.sites WHERE user_id = aut
 
 Spec: `docs/superpowers/specs/2026-10-29-aggregate-measurement-and-pixel-readiness-design.md`.
 
-- **Opt-in per site** (`sites.aggregate_measurement`, default false; Consent → Tracking mode). Counts page views,
+- **Opt-in per site** (`sites.aggregate_measurement`, default false; Settings → GDPR → Configuration → Tracking mode). Counts page views,
   visits, daily visitors, sources/UTM and form/page-visit goals **without consent**.
 - **Browser:** `src/lib/aggregate-beacon.js` — no storage, no IDs, no fingerprint signals; honours explicit refusal and
   GPC. Inlined by the install snippet when enabled; bundled in the WP plugin as `assets/cortiq-aggregate.js`.
