@@ -8,7 +8,7 @@ import { useSEO } from "@/hooks/useSEO";
 import { seoFor } from "@/marketing-routes";
 import { Shield, CheckCircle, Mail, FileText, Database, Users, BarChart3, Megaphone } from "lucide-react";
 
-const LAST_UPDATED = "November 5, 2026";
+const LAST_UPDATED = "[OPEN: date of publication]";
 
 const Privacy = () => {
   useSEO(seoFor("/privacy/"));
@@ -234,6 +234,15 @@ const Privacy = () => {
                   us to keep it longer.
                 </p>
                 <p className="text-sm text-muted-foreground mt-2">
+                  <strong className="text-foreground">Tracking Check:</strong> when you run a check, we process the
+                  addresses of the pages you check and, if you enter them, the username and password for a
+                  password-protected (HTTP basic auth) site. The credentials are stored encrypted (AES-GCM), are decrypted
+                  only to start the check and are sent to our hosted browser provider Browserless (section 5B) to load
+                  the pages. We delete our copy when the check finishes. If a check does not finish, they are no longer
+                  used after 2 hours and are deleted within the following hour. Use credentials created for the check
+                  rather than personal ones, and change them afterwards.
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
                   <strong className="text-foreground">Note:</strong> This covers account holders of the CortIQ
                   platform. It is separate from the visitor analytics described in section 5, which always requires
                   consent.
@@ -361,6 +370,7 @@ const Privacy = () => {
                 <li>• <strong>Resend</strong> (Plus Five Five, Inc., USA) — email delivery of large report exports (over 10,000 rows); Resend receives the recipient address and a download link that expires after one hour, not the report itself.</li>
                 <li>• <strong>Cloudflare</strong> (Cloudflare, Inc., USA) — when the operator enables the Cloudflare integration, Cloudflare processes visitor IP addresses at its edge; CortIQ receives the country and a truncated IP address for security and bot classification (section 3B).</li>
                 <li>• <strong>Anthropic</strong> (USA) — AI insights on the dashboard use CortIQ&apos;s own key and receive aggregated statistics for a site (page paths without query strings, counts, device breakdown, form conversion rates, monthly KPI figures). No visitor identifiers, IP addresses or email addresses are sent.</li>
+                <li>• <strong>Browserless</strong> (browserless.io, Inc., USA) — a hosted browser that loads pages for Tracking Check and for the page screenshots behind heatmaps. For Tracking Check it receives the addresses of the pages you check and, if you enter them, the username and password for a password-protected (HTTP basic auth) site, and it loads those pages, including any personal data shown on them. CortIQ uses Browserless&apos;s Amsterdam endpoint; Browserless stores telemetry and request logs outside the EU, mainly in the USA.</li>
               </ul>
               <p className="text-muted-foreground leading-relaxed">
                 Services that a site operator connects with its own account. These providers act under the
@@ -397,6 +407,7 @@ const Privacy = () => {
                 <li>• <strong>Resend</strong> — USA; the EU–US Data Privacy Framework (Art. 45 GDPR), with Standard Contractual Clauses in Resend&apos;s data processing agreement.</li>
                 <li>• <strong>Anthropic</strong> — USA; Standard Contractual Clauses (Art. 46 GDPR) in Anthropic&apos;s data processing addendum. Only aggregated statistics are sent.</li>
                 <li>• <strong>Cloudflare</strong> — the EU–US Data Privacy Framework (Art. 45 GDPR), with Standard Contractual Clauses in Cloudflare&apos;s data processing agreement.</li>
+                <li>• <strong>Browserless</strong> — telemetry and request logs are stored outside the EU, mainly in the USA. [OPEN: transfer basis.]</li>
                 <li>• <strong>Services the operator connects</strong> (Anthropic, Google, HubSpot) — the transfer basis follows the operator&apos;s own agreement with each provider.</li>
               </ul>
               <p className="text-sm">
@@ -545,6 +556,15 @@ const Privacy = () => {
                 <ul className="text-sm text-muted-foreground space-y-1 ml-4">
                   <li>• <strong>Consent records (proof of consent):</strong> 2 years, to demonstrate consent under GDPR Art. 7.1. This is separate from how long a consent choice is valid: a consent choice expires after 12 months, after which you are asked again.</li>
                   <li>• <strong>Data-subject requests:</strong> 3 years, or 1 year after a request is completed</li>
+                </ul>
+              </div>
+
+              <div className="bg-primary/5 p-4 rounded-lg">
+                <h4 className="font-semibold mb-2 text-foreground">Tracking Check</h4>
+                <ul className="text-sm text-muted-foreground space-y-1 ml-4">
+                  <li>• <strong>Basic-auth credentials:</strong> deleted when the check finishes; at the latest about 3 hours after the check starts</li>
+                  <li>• <strong>Page observations</strong> (requests, cookies and forms seen on each page; not the page content): 90 days</li>
+                  <li>• <strong>Reports:</strong> until you delete them</li>
                 </ul>
               </div>
 

@@ -6,7 +6,7 @@
 
 - **Data Processor:** Expandtalk Corporation AB, org. nr. 559358-8824, registered office Göteborg, VAT no. SE559358882401, Parmmätaregatan 4B, 417 04 Göteborg, Sweden ("CortIQ").
 
-**Version:** 1.4, dated 15 October 2026.
+**Version:** 1.5, dated [OPEN: date of publication] 2026.
 
 This Data Processing Agreement ("DPA") governs the processing of personal data by CortIQ on behalf of the Customer, in accordance with Article 28 of the General Data Protection Regulation (EU) 2016/679 ("GDPR"). It forms part of the CortIQ Terms of Service (https://cortiq.se/terms/) and is accepted together with them when the Customer creates an account. Installing the tracking script, plugin, Worker or a server-side adapter with the Customer's keys also confirms acceptance of the version then in force. In case of conflict regarding personal data, this DPA prevails over the Terms of Service.
 
@@ -24,11 +24,12 @@ This DPA enters into force when the Customer accepts the Terms of Service and re
 
 | | |
 |--|--|
-| **Purpose** | (a) Web analytics — measuring visitor behaviour to improve the Customer's website (after visitor consent); (b) server-side AI-agent and crawler measurement for the Customer; (c) lead-quality matching of consented conversions against the Customer's CRM (optional) |
+| **Purpose** | (a) Web analytics — measuring visitor behaviour to improve the Customer's website (after visitor consent); (b) server-side AI-agent and crawler measurement for the Customer; (c) lead-quality matching of consented conversions against the Customer's CRM (optional); (d) Tracking Check and heatmap page screenshots — loading pages the Customer selects |
 | **Nature** | Collection, storage, aggregation, analysis, matching and deletion of visitor data |
 | **Categories of data — visitor analytics** | Pseudonymised visitor and session identifiers, page URLs, device type, browser family, geographic region, interaction events (clicks, scrolls, form activity), in-browser bot-check signals, hashed email addresses and advertising click IDs (marketing consent only). The tracking script does not record sessions |
 | **Categories of data — server-side agent measurement** | For bot-like requests only: IP address truncated to /24 (IPv4) or /48 (IPv6) on the Customer's server before transfer, user agent, URL path, referrer, timestamp. Ordinary human requests are not transferred to CortIQ |
 | **Categories of data — CRM lead-quality matching** | Only if the Customer connects HubSpot: the contact's email address sent by the Customer's HubSpot account, which CortIQ hashes with SHA-256 immediately on receipt and does not store or log in plain text, and the lead-status value. The hash and lead status are kept only where the hash matches a conversion recorded with marketing consent; otherwise the event is discarded |
+| **Categories of data — Tracking Check and page screenshots** | Personal data shown on the pages the Customer selects, processed transiently while a hosted browser loads them. Page HTML is not stored; observations (network requests, cookies, detected forms) are kept 90 days |
 | **Categories of data — script delivery** | When a browser loads the tracking script from cortiq.se, CortIQ's web host records a standard access log entry (IP address, user agent, requested file, time) |
 | **Categories of data subjects** | Visitors to the Customer's website(s), including operators of automated clients (crawlers, AI agents); the Customer's CRM contacts, only where they match a consented conversion |
 | **Retention period** | Per-site retention period set in the dashboard (default 365 days, also for sites without GDPR settings). Truncated IPs on AI-bot records are cleared after 30 days; raw Cloudflare log rows are kept at most 90 days. Web-host access logs follow the web host's log retention. Further details in the Privacy Policy, section 9 |
@@ -108,6 +109,7 @@ This section is the authoritative list. Other CortIQ pages (for example the secu
 | Plus Five Five, Inc., trading as Resend (USA) | Email delivery of large report exports (over 10,000 rows) — Resend receives the recipient's address and a download link to EU storage that expires after one hour, not the export itself | USA | EU-US Data Privacy Framework; SCCs, Module 3 | [Resend DPA](https://resend.com/legal/dpa) |
 | Anthropic, PBC (USA) | AI insights on the dashboard overview and the KPI dashboard, using CortIQ's own API key. Receives aggregated statistics only: for the overview, page paths without query strings, page-view and session counts, device breakdown, form names and conversion rates; for the KPI dashboard, monthly KPI figures and traffic-channel totals. No visitor identifiers, IP addresses or email addresses | USA | SCCs, Module 3 | Anthropic's Data Processing Addendum (part of its Commercial Terms) |
 | Cloudflare, Inc. (USA) | Edge web analytics (aggregate) and geo lookup for consent-banner gating through CortIQ's own Cloudflare access — only if the Customer enables the Cloudflare integration | Global edge network | EU-US Data Privacy Framework; SCCs | [Cloudflare DPA](https://www.cloudflare.com/cloudflare-customer-dpa/) |
+| browserless.io, Inc. (USA) | Hosted browser that loads the Customer's pages through CortIQ's own Browserless account: (a) Tracking Check, which receives the addresses of the pages to check and, if the user enters them, the HTTP basic-auth username and password for a protected site, and loads those pages, including any personal data shown on them; (b) page screenshots used as heatmap backgrounds, which receive the page address. Browserless receives no visitor analytics data | CortIQ uses Browserless's Amsterdam endpoint. Browserless stores telemetry and request logs outside the EU, mainly in the USA | [OPEN: transfer basis] | [OPEN: agreement] |
 
 The installation snippet CortIQ provides requests the tracking script file only after the visitor's analytics consent, and the WordPress plugin serves the file from the Customer's own site, so in the recommended setups no request reaches CortIQ's web host before consent. If the Customer instead loads the file from cortiq.se on every page load, the browser transmits its IP address and user agent to the web host before consent; whether an exception in Chapter 9, Section 28 of the Swedish Electronic Communications Act (2022:482) and Art. 5(3) of the ePrivacy Directive applies to that is not settled, and the Customer makes that assessment. The legal basis for the resulting access log is CortIQ's legitimate interest in operating and securing the service (Art. 6(1)(f) GDPR). The logs are kept for the retention period set by the web host and are not used for analytics.
 
@@ -137,6 +139,7 @@ Analytics data is stored in the EU. The basis for any transfer outside the EEA, 
 - **Resend** — data is processed in the USA. Resend participates in the EU-US Data Privacy Framework (adequacy decision (EU) 2023/1795, Art. 45 GDPR). Its DPA also incorporates the SCCs, Module 3, for transfers where CortIQ acts as processor.
 - **Anthropic, PBC** — aggregated statistics are processed in the USA. Transfers rely on the Standard Contractual Clauses, Module 3, in Anthropic's Data Processing Addendum (Art. 46.2(c) GDPR). No visitor identifiers are sent.
 - **Cloudflare** — Cloudflare processes visitor IP addresses at its edge to derive country and aggregate traffic statistics. Cloudflare participates in the EU-US Data Privacy Framework (Art. 45 GDPR), and its DPA incorporates the SCCs (Art. 46 GDPR).
+- **browserless.io, Inc.** — CortIQ uses Browserless's Amsterdam endpoint, but Browserless is a US company and stores telemetry and request logs outside the EU, mainly in the USA, which is a transfer. [OPEN: transfer basis — Browserless offers a DPA with Standard Contractual Clauses on Enterprise plans only.]
 - **Customer-connected services (Section 6.2)** — CortIQ transfers data to these providers on the Customer's documented instruction. The transfer basis is governed by the Customer's own agreement with each provider.
 
 On request, CortIQ provides the Customer with a copy of the transfer clauses that apply to a sub-processor.
@@ -187,7 +190,9 @@ For all GDPR and data protection enquiries: [info@expandtalk.se](mailto:info@exp
 
 ---
 
-*Version: 1.2, dated 14 October 2026 (replaces version 1.1 of 3 October 2026). Changes to this DPA follow the change procedure in section 12 of the Terms of Service.*
+*Version: 1.5, dated [OPEN: date of publication] 2026 (replaces version 1.4 of 15 October 2026). Changes to this DPA follow the change procedure in section 12 of the Terms of Service.*
+
+*Changes in 1.5: browserless.io, Inc. added as a sub-processor for Tracking Check (including HTTP basic-auth credentials the user enters) and heatmap page screenshots, and section 2 extended accordingly. Browserless has been used since [OPEN: start date] and was not listed before this version. Footer version corrected.*
 
 *Changes in 1.4: server-side agent measurement – Customer's balancing test, Art. 13/21(4) information and the public-authority limit added to 4.1, and the ePrivacy assessment stated as not settled; Cloudflare split into CortIQ's own access (sub-processor) and the Customer's own Cloudflare account (Customer-connected service); script loading clause rewritten: the provided snippet and the WordPress plugin make no request to CortIQ before consent.*
 

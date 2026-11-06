@@ -82,6 +82,7 @@ export const SECURITY: ContentPageData = {
           type: 'list',
           items: [
             '**Cloudflare** (USA, EU-US Data Privacy Framework): edge analytics and geo lookup.',
+            '**Browserless** (USA, [OPEN: transfer basis]): Tracking Check, including basic-auth credentials you enter for a protected site, and page screenshots for heatmaps.',
             '**Resend** (USA, EU-US Data Privacy Framework): when you send a report export by email.',
             '**Anthropic** (USA, Standard Contractual Clauses): AI insights on the dashboard, which receive aggregated statistics only.',
           ],
