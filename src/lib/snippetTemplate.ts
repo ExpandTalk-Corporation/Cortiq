@@ -73,7 +73,7 @@ export function renderTrackingSnippet(
   const beacon = indent(stripLineComments(sources.beacon));
 
   if (consentSetup === 'none') {
-    return `<!-- CortIQ Analytics: aggregate measurement without a consent banner (no cookies, no device storage, no IDs). Requires Aggregate measurement under Consent → Tracking mode. -->
+    return `<!-- CortIQ Analytics: aggregate measurement without a consent banner (no cookies, no device storage, no IDs). Requires Aggregate measurement: CortIQ dashboard → Settings → GDPR → Configuration → Tracking mode. -->
 <script>
   window.cortiqConfig = {
 ${config},

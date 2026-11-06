@@ -10,7 +10,7 @@ const COPY: Record<ReadinessState, { badge: string; headline: string; action: st
   fix_goals: { badge: 'Fix goals', headline: 'Fix your primary goal first',
     action: 'A misfiring goal would mislead any ad platform. See the warning in Conversion Goals.' },
   aggregate_enough: { badge: 'Aggregate is enough', headline: 'You probably do not need the pixel',
-    action: 'An ad platform would see too few conversions to optimise on, so a cookie banner likely costs more than it gives. Turn on Aggregate measurement under Consent → Tracking mode and track channels with UTM tags.' },
+    action: 'An ad platform would see too few conversions to optimise on, so a cookie banner likely costs more than it gives. Turn on Aggregate measurement under Settings → GDPR → Configuration → Tracking mode and track channels with UTM tags.' },
   borderline: { badge: 'Borderline', headline: 'Borderline — test before adding a banner',
     action: 'Run aggregate measurement for a month and compare. If volume grows, add consented click IDs for your biggest campaign first.' },
   attribution_pays: { badge: 'Attribution pays off', headline: 'The attribution layer pays off',
