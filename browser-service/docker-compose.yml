@@ -17,11 +17,16 @@ services:
     security_opt: [no-new-privileges:true, seccomp=./chrome-seccomp.json]
     mem_limit: 3g
     networks: [browser]
+    # Error logs can contain checked page URLs: keep them small and short-lived.
+    logging: &logging
+      driver: json-file
+      options: { max-size: 5m, max-file: "2" }
 
   caddy:
     image: caddy:2
     restart: unless-stopped
     network_mode: host
+    logging: *logging
     environment:
       BROWSER_HOST: ${BROWSER_HOST:?set BROWSER_HOST in .env}
     volumes:

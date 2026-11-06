@@ -21,6 +21,7 @@ ranges, the host itself and the metadata service (169.254.169.254) — checked p
 ## Hardening
 
 - One browser per request; nothing persists between checks. The request timeout closes the browser.
+- Container logs rotate at 2 × 5 MB (error logs can contain checked URLs); Caddy logs the token as `REDACTED`.
 - Token compared in constant time; Caddy redacts it from access logs.
 - `cap_drop: ALL`, `no-new-privileges`, non-root user, Chromium launched over a pipe (no DevTools port).
 - `chrome-seccomp.json` = Docker's default profile ([moby/profiles@4b8214f](https://github.com/moby/profiles/blob/4b8214fc4971e06172938a1f1554ccff6647ee80/seccomp/default.json))
