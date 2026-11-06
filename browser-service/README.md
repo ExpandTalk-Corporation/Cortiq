@@ -21,7 +21,9 @@ ranges, the host itself and the metadata service (169.254.169.254) — checked p
 ## Hardening
 
 - One browser per request; nothing persists between checks. The request timeout closes the browser.
-- Container logs rotate at 2 × 5 MB (error logs can contain checked URLs); Caddy logs the token as `REDACTED`.
+- Logs hold no page addresses or page content: error messages have URLs replaced by `<url>`, the page address is in
+  the request body (not logged) and Caddy logs the token as `REDACTED`. Logs rotate at 2 × 5 MB and are removed by the
+  weekly container recreate below, so none are older than 14 days (the period stated in the privacy policy).
 - Token compared in constant time; Caddy redacts it from access logs.
 - `cap_drop: ALL`, `no-new-privileges`, non-root user, Chromium launched over a pipe (no DevTools port).
 - `chrome-seccomp.json` = Docker's default profile ([moby/profiles@4b8214f](https://github.com/moby/profiles/blob/4b8214fc4971e06172938a1f1554ccff6647ee80/seccomp/default.json))
@@ -39,6 +41,8 @@ ranges, the host itself and the metadata service (169.254.169.254) — checked p
    printf 'BROWSER_TOKEN=%s\nBROWSER_HOST=browser.cortiq.se\n' "$(openssl rand -hex 32)" > .env
    docker compose up -d --build
    sudo sh host/firewall.sh        # re-run after every reboot (e.g. a systemd oneshot After=docker.service)
+   # Weekly recreate deletes container logs (privacy policy: browser server logs ≤ 14 days):
+   echo "0 4 * * 1 root cd $PWD && docker compose up -d --force-recreate && sh host/firewall.sh" | sudo tee /etc/cron.d/browser-service
    ```
 3. Supabase secrets, then redeploy `tracking-check-worker` and `take-screenshot`:
    ```sh

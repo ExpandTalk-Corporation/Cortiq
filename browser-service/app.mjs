@@ -110,10 +110,13 @@ export function createApp({ launch, token, maxConcurrent = 2, maxQueue = 8 }) {
       send(200, type, payload);
     } catch (e) {
       const status = e?.status ?? 500;
-      if (status === 500) console.error(e);
+      // Navigation errors quote the page address; logs keep only the error without it.
+      if (status === 500) console.error(redactUrls(e?.stack ?? String(e)));
       send(status, 'text/plain', status === 500 ? 'Browser task failed' : e.message);
     } finally {
       if (acquired) release();
     }
   });
 }
+
+export const redactUrls = (text) => String(text).replace(/(?:https?|wss?|data|file):\S+/gi, '<url>');

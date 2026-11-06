@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createApp } from '../../browser-service/app.mjs';
+import { createApp, redactUrls } from '../../browser-service/app.mjs';
 import { runBrowserProbe } from '../../supabase/functions/_shared/tracking-check/browserless.ts';
 
 const TOKEN = 'x'.repeat(32);
@@ -92,4 +92,11 @@ test('times out long tasks and closes the browser', async () => {
     assert.equal(res.status, 408);
     assert.deepEqual(log.at(-1), ['close']);
   } finally { await s.close(); }
+});
+
+test('error logs drop page addresses', () => {
+  const msg = 'Error: net::ERR_NAME_NOT_RESOLVED at https://shop.example/account?email=a@b.se\n    at navigate (file:///app/node_modules/x.js:1:2)';
+  const out = redactUrls(msg);
+  assert.ok(!out.includes('shop.example') && !out.includes('a@b.se'));
+  assert.match(out, /ERR_NAME_NOT_RESOLVED at <url>/);
 });
