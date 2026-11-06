@@ -26,7 +26,6 @@ const MANUAL_ITEMS = [
   { key: 'google_terms', label: 'Google Ads and GA4 data processing terms are accepted' },
   { key: 'conversion_on_submit', label: 'The conversion fires when the form is submitted (test with Tag Assistant)' },
 ];
-const LIMIT = { comparison: 25, policy: 15 };
 const allFlags = () => Object.fromEntries(FLAGS.map((f) => [f.key, true])) as Record<Flag, boolean>;
 
 interface PageChoice { path: string; selected: boolean; note?: string }
@@ -36,7 +35,14 @@ function normalisePath(raw: string): string {
   return !path ? '' : path.startsWith('/') ? path : `/${path}`;
 }
 
-export function StartForm({ prefill }: { prefill?: RunRow }) {
+const MODES: { mode: Mode; title: string; text: string }[] = [
+  { mode: 'policy', title: 'Does my site respect the cookie choice?', text: 'Check one site: what loads before the banner is answered, after "Reject all" and after "Accept all".' },
+  { mode: 'comparison', title: 'Moving or rebuilding the site?', text: 'Compare the current site with the new one before launch: redirects, UTM and click IDs, tags and consent.' },
+];
+
+interface Limits { policyPages: number; comparisonPages: number }
+
+export function StartForm({ prefill, limits }: { prefill?: RunRow; limits: Limits }) {
   const navigate = useNavigate();
   const suggest = useSuggestPages();
   const create = useCreateRun();
@@ -56,7 +62,7 @@ export function StartForm({ prefill }: { prefill?: RunRow }) {
   const typedPath = normalisePath(extraPath);
   // A path typed but not yet added still counts: the visitor should not have to know about the Add button.
   const selected = [...new Set([...pages.filter((p) => p.selected).map((p) => p.path), ...(typedPath ? [typedPath] : [])])];
-  const limit = LIMIT[mode];
+  const limit = mode === 'comparison' ? limits.comparisonPages : limits.policyPages;
   const browserLoads = selected.length * (mode === 'comparison' ? 2 : 1);
   const minutes = Math.max(1, Math.ceil((browserLoads * 40) / 60));
   const sourceUrl = mode === 'comparison' ? baselineUrl : targetUrl;
@@ -81,10 +87,10 @@ export function StartForm({ prefill }: { prefill?: RunRow }) {
   const missing = !targetUrl.trim() ? (mode === 'comparison' ? 'Enter the new site’s address.' : 'Enter the address of the site to check.')
     : mode === 'comparison' && !baselineUrl.trim() ? 'Enter the current site’s address.'
     : !selected.length ? 'Choose at least one page: tick one in the list, or type a path and press Add.'
+    : selected.length > limit ? `Choose at most ${limit} pages.`
     : null;
 
   const submit = () => {
-    if (selected.length > limit) { toast.error(`Select at most ${limit} pages.`); return; }
     create.mutate({
       mode,
       baselineUrl: mode === 'comparison' ? baselineUrl : undefined,
@@ -107,24 +113,24 @@ export function StartForm({ prefill }: { prefill?: RunRow }) {
     <Card>
       <CardHeader><CardTitle>New Tracking Check</CardTitle></CardHeader>
       <CardContent className="space-y-6">
-        <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Check type">
-          {(['policy', 'comparison'] as const).map((m) => (
-            <Button key={m} type="button" role="radio" aria-checked={mode === m} variant={mode === m ? 'default' : 'outline'} className="h-auto flex-col items-start py-3" onClick={() => setMode(m)}>
-              <span className="font-semibold">{m === 'comparison' ? 'Comparison' : 'Consent policy'}</span>
-              <span className="text-xs font-normal opacity-80">{m === 'comparison' ? 'Current site vs new site' : 'One site vs agreed commitments'}</span>
+        <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="What do you want to check?">
+          {MODES.map((m) => (
+            <Button key={m.mode} type="button" role="radio" aria-checked={mode === m.mode} variant={mode === m.mode ? 'default' : 'outline'} className="h-auto flex-col items-start whitespace-normal py-3 text-left" onClick={() => setMode(m.mode)}>
+              <span className="font-semibold">{m.title}</span>
+              <span className="text-xs font-normal opacity-80">{m.text}</span>
             </Button>
           ))}
         </div>
 
         {mode === 'comparison' && (
           <div className="space-y-2">
-            <Label htmlFor="tc-baseline">Current site (expected behaviour)</Label>
+            <Label htmlFor="tc-baseline">Current site (how it should behave)</Label>
             <Input id="tc-baseline" placeholder="https://www.example.com" value={baselineUrl} onChange={(e) => setBaselineUrl(e.target.value)} />
           </div>
         )}
         <div className="space-y-2">
-          <Label htmlFor="tc-target">{mode === 'comparison' ? 'New site' : 'Site to check'}</Label>
-          <Input id="tc-target" placeholder="https://staging.example.com" value={targetUrl} onChange={(e) => setTargetUrl(e.target.value)} />
+          <Label htmlFor="tc-target">{mode === 'comparison' ? 'New site (for example the staging address)' : 'Site to check'}</Label>
+ <Input id="tc-target" placeholder={mode === 'comparison' ? 'https://staging.example.com' : 'https://www.example.com'} value={targetUrl} onChange={(e) => setTargetUrl(e.target.value)} />
         </div>
 
         <Collapsible>
@@ -163,13 +169,17 @@ export function StartForm({ prefill }: { prefill?: RunRow }) {
 
         {mode === 'comparison' && (
           <div className="space-y-2">
-            <Label htmlFor="tc-legacy">Old URLs that should redirect on the new site (one per line)</Label>
+            <Label htmlFor="tc-legacy">Old addresses that change on the new site (optional, one per line)</Label>
+            <p className="text-xs text-muted-foreground">We check that each one redirects on the new site and keeps UTM and click IDs.</p>
             <Textarea id="tc-legacy" rows={3} placeholder={'/product/\n/in-depth/'} value={legacy} onChange={(e) => setLegacy(e.target.value)} />
           </div>
         )}
 
         {mode === 'policy' && (
-          <div className="space-y-3">
+          <Collapsible>
+          <CollapsibleTrigger asChild><Button variant="link" className="h-auto p-0">Advanced: what to check and expected IDs</Button></CollapsibleTrigger>
+          <CollapsibleContent className="mt-3 space-y-3">
+            <p className="text-xs text-muted-foreground">Everything is checked by default. Untick what does not apply to the site.</p>
             <Label>Commitments to check</Label>
             {FLAGS.map((f) => (
               <label key={f.key} className="flex items-start gap-2 text-sm">
@@ -186,7 +196,8 @@ export function StartForm({ prefill }: { prefill?: RunRow }) {
                 <Checkbox checked={manual.includes(i.key)} onCheckedChange={(v) => setManual(v === true ? [...manual, i.key] : manual.filter((k) => k !== i.key))} />{i.label}
               </label>
             ))}
-          </div>
+          </CollapsibleContent>
+          </Collapsible>
         )}
 
         <div className="space-y-2">

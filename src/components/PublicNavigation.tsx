@@ -13,6 +13,7 @@ const FEATURES_LINKS = [
 ];
 
 const TOP_NAV = [
+  { to: "/tracking-check/", label: "Tracking Check" },
   { to: "/integrations/", label: "Integrations" },
   { to: "/docs/", label: "Docs" },
   { to: "/pricing/", label: "Pricing" },

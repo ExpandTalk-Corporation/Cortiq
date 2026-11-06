@@ -17,6 +17,7 @@ import Pricing from './pages/Pricing';
 import ApiDocs from './pages/ApiDocs';
 import Privacy from './pages/Privacy';
 import Contact from './pages/Contact';
+import TrackingCheckLanding from './pages/TrackingCheckLanding';
 import ContentPage from './components/ContentPage';
 import { CONTENT_PAGES } from './content/pages';
 
@@ -34,6 +35,7 @@ const PAGES: Record<string, React.ComponentType> = {
   '/api/': ApiDocs,
   '/privacy/': Privacy,
   '/contact/': Contact,
+  '/tracking-check/': TrackingCheckLanding,
   // Docs and integration pages are data rendered by ContentPage.
   ...Object.fromEntries(CONTENT_PAGES.map((page) => [page.path, () => <ContentPage page={page} />])),
 };

@@ -34,6 +34,8 @@ test('internal links to marketing pages use the registered slash form', () => {
   const dirs = ['src/pages/', 'src/components/', 'src/content/'];
   const bad = [];
   const firstSegments = new Set([...paths].map((p) => p.split('/')[1]).filter(Boolean));
+  // App routes that live under a marketing page's segment (the public /tracking-check/ page fronts the signed-in tool).
+  const appRoutes = new Set(['/tracking-check/new']);
   for (const dir of dirs) {
     for (const f of readdirSync(new URL(dir, root), { recursive: true })) {
       if (!/\.tsx?$/.test(f)) continue;
@@ -45,7 +47,7 @@ test('internal links to marketing pages use the registered slash form', () => {
       ];
       for (const target of targets) {
         const seg = target.split('/')[1];
-        if ((firstSegments.has(seg) || target in MARKETING_REDIRECTS) && !paths.has(target)) bad.push(`${dir}${f}: ${target}`);
+        if ((firstSegments.has(seg) || target in MARKETING_REDIRECTS) && !paths.has(target) && !appRoutes.has(target)) bad.push(`${dir}${f}: ${target}`);
       }
     }
   }

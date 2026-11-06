@@ -1,4 +1,4 @@
-// Internal Tracking Check API: access check, page suggestions, run creation, status and sharing.
+// Tracking Check API: access check, page suggestions, run creation, status and sharing.
 import { createClient } from '../_shared/supabase.ts';
 import { assertSafeUrl } from '../_shared/safe-url.ts';
 import { fetchSitemapUrls, suggestPages } from '../_shared/tracking-check/pages.ts';
@@ -14,6 +14,11 @@ const cors = {
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
 
 export const LIMITS = { comparisonPages: 25, policyPages: 15, legacyPaths: 25, runsPerDay: 10, authHours: 2 };
+// Any signed-in user with a confirmed email gets the standard quota; allowlisted accounts get LIMITS.
+// Each page is a headless-browser load per consent state, so the standard quota stays small.
+export const STANDARD = { comparisonPages: 5, policyPages: 5, legacyPaths: 10, runsPerDay: 3, authHours: 2 };
+type Tier = 'full' | 'standard';
+type Limits = typeof LIMITS;
 class InputError extends Error {}
 
 // deno-lint-ignore no-explicit-any
@@ -32,19 +37,26 @@ Deno.serve(async (req) => {
   if (!user) return json({ error: 'Unauthorized' }, 401);
 
   const allowlist = (Deno.env.get('TRACKING_CHECK_ALLOWED_EMAILS') ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
-  const allowed = !!user.email && !!user.email_confirmed_at && allowlist.includes(user.email.toLowerCase());
+  const confirmed = !!user.email && !!user.email_confirmed_at;
+  const tier: Tier = confirmed && allowlist.includes(user.email!.toLowerCase()) ? 'full' : 'standard';
+  const limits: Limits = tier === 'full' ? LIMITS : STANDARD;
+  const allowed = confirmed;
 
   let body: Body;
   try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
   if (!body || typeof body !== 'object' || Array.isArray(body)) return json({ error: 'Invalid request body' }, 400);
-  if (body.action === 'access') return json({ allowed });
-  if (!allowed) return json({ error: 'Forbidden' }, 403);
+  if (!allowed && body.action !== 'access') return json({ error: 'Confirm your email address to run Tracking Check' }, 403);
 
   const service: Db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
   try {
     switch (body.action) {
+      case 'access': return json({
+        allowed, tier,
+        limits: { runsPerDay: limits.runsPerDay, policyPages: limits.policyPages, comparisonPages: limits.comparisonPages },
+        runsToday: allowed ? await runsToday(user.id, service) : 0,
+      });
       case 'suggest': return json(await suggest(body));
-      case 'create': return await create(body, user.id, service);
+      case 'create': return await create(body, user.id, service, limits);
       case 'status': return await status(body, user.id, service);
       case 'share': return await share(body, user.id, service);
       case 'revoke': return await revoke(body, user.id, service);
@@ -95,24 +107,31 @@ async function suggest(body: Body) {
   return { pages: suggestPages(await fetchSitemapUrls(origin), origin) };
 }
 
-async function create(body: Body, userId: string, service: Db) {
+async function runsToday(userId: string, service: Db): Promise<number> {
+  const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+  const { count, error } = await service.from('tracking_check_runs').select('id', { count: 'exact', head: true }).eq('user_id', userId).gte('created_at', since);
+  if (error) throw error;
+  return count ?? 0;
+}
+
+async function create(body: Body, userId: string, service: Db, limits: Limits) {
   const mode: Mode = body.mode === 'policy' ? 'policy' : body.mode === 'comparison' ? 'comparison' : (() => { throw new InputError('mode must be comparison or policy'); })();
   const target = await siteOrigin(body.targetUrl);
   const baseline = mode === 'comparison' ? await siteOrigin(body.baselineUrl) : null;
-  const pages = cleanPaths(body.pages, mode === 'policy' ? LIMITS.policyPages : LIMITS.comparisonPages, 'pages');
+  const pages = cleanPaths(body.pages, mode === 'policy' ? limits.policyPages : limits.comparisonPages, 'pages');
   if (!pages.length) throw new InputError('Select at least one page');
-  const legacy = mode === 'comparison' ? cleanPaths(body.legacyPaths, LIMITS.legacyPaths, 'legacy URLs', true) : [];
+  const legacy = mode === 'comparison' ? cleanPaths(body.legacyPaths, limits.legacyPaths, 'legacy URLs', true) : [];
   const policy = mode === 'policy' ? parsePolicy(body.policy) : null;
 
-  const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-  const { count } = await service.from('tracking_check_runs').select('id', { count: 'exact', head: true }).eq('user_id', userId).gte('created_at', since);
-  if ((count ?? 0) >= LIMITS.runsPerDay) return json({ error: `Daily limit of ${LIMITS.runsPerDay} runs reached` }, 429);
+  if (await runsToday(userId, service) >= limits.runsPerDay) {
+    return json({ error: `Daily limit of ${limits.runsPerDay} runs reached. Contact info@expandtalk.se to run more.` }, 429);
+  }
 
   let auth_ciphertext: string | null = null;
   let auth_expires_at: string | null = null;
   if (body.basicAuth?.username) {
     auth_ciphertext = await seal(JSON.stringify({ username: String(body.basicAuth.username), password: String(body.basicAuth.password ?? '') }), Deno.env.get('TRACKING_CHECK_AUTH_KEY')!);
-    auth_expires_at = new Date(Date.now() + LIMITS.authHours * 3600 * 1000).toISOString();
+    auth_expires_at = new Date(Date.now() + limits.authHours * 3600 * 1000).toISOString();
   }
 
   const { data: run, error } = await service.from('tracking_check_runs')

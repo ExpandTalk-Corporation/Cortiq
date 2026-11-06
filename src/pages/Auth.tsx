@@ -25,6 +25,9 @@ function AuthBody() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const isRecovery = new URLSearchParams(window.location.search).get('type') === 'recovery';
+  // ?next=/path returns the visitor to the page that sent them here. Same-origin paths only.
+  const nextParam = new URLSearchParams(window.location.search).get('next') ?? '';
+  const afterAuth = nextParam.startsWith('/') && !nextParam.startsWith('//') && !nextParam.startsWith('/\\') ? nextParam : '/dashboard';
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -62,7 +65,7 @@ function AuthBody() {
         // Check if user is already logged in (normal flow)
         supabase.auth.getUser().then(({ data: { user } }) => {
           if (user) {
-            navigate('/dashboard');
+            navigate(afterAuth);
           }
         });
       }
@@ -174,7 +177,7 @@ function AuthBody() {
           title: "Login successful!",
           description: "Welcome back!"
         });
-        navigate('/dashboard');
+        navigate(afterAuth);
       }
     } catch (error: any) {
       toast({

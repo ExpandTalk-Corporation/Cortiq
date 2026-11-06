@@ -31,34 +31,35 @@ function TrackingCheckBody() {
     );
   }
   if (!access.data?.allowed) {
-    return <main className="container mx-auto max-w-2xl px-4 py-16"><h1 className="text-2xl font-semibold">Tracking Check</h1><p className="mt-2 text-muted-foreground">Tracking Check is an internal tool. Ask an administrator for access.</p></main>;
+    return (
+      <main className="container mx-auto max-w-2xl px-4 py-16">
+        <h1 className="text-2xl font-semibold">Tracking Check</h1>
+        <p className="mt-2 text-muted-foreground">Confirm your email address first: open the link in the email we sent when you created your account, then reload this page.</p>
+      </main>
+    );
   }
+  const { limits, runsToday, tier } = access.data;
+  const left = Math.max(0, limits.runsPerDay - runsToday);
   return (
     <main className="container mx-auto max-w-4xl space-y-8 px-4 py-10">
       <div>
         <h1 className="text-3xl font-semibold">Tracking Check</h1>
-        <p className="mt-1 text-muted-foreground">Check what a website actually loads and stores before and after the visitor answers the cookie banner.</p>
+        <p className="mt-1 text-muted-foreground">
+          A real browser opens each page before the cookie banner is answered, after "Reject all", after "Accept all" and with one category at a time, and records every request and cookie.{' '}
+          <Link to="/tracking-check/" className="text-primary underline">How the check works</Link>
+        </p>
       </div>
-      <Card>
-        <CardHeader><CardTitle className="text-lg">What the check does</CardTitle></CardHeader>
-        <CardContent className="space-y-3 text-sm text-muted-foreground">
-          <p>A real browser opens each page several times: without answering the banner, after "Reject all", after "Accept all" and with only statistics or only marketing accepted. Every request, cookie and Consent Mode signal is recorded.</p>
-          <ul className="list-disc space-y-1 pl-5">
-            <li>Cookies and third-party tags that load before the visitor has made a choice, or after "Reject all"</li>
-            <li>Google Analytics, Google Ads, Meta, LinkedIn, HubSpot and B2B identification tools (Leadfeeder, ZoomInfo and others) and which consent category they wait for</li>
-            <li>Consent Mode v2 defaults, Enhanced Conversions, and whether UTM and click IDs survive redirects</li>
-          </ul>
-          <p><span className="font-medium text-foreground">Consent policy</span> checks one site against the commitments you tick below. <span className="font-medium text-foreground">Comparison</span> checks that a new site behaves like the current one before launch.</p>
-          <p>The result is technical evidence, not a legal assessment. Items marked "Verify" need a decision by whoever is responsible for the site.</p>
-        </CardContent>
-      </Card>
       {prefill && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/50 px-4 py-2 text-sm">
           <span>Pre-filled from the run on {prefill.target_url}</span>
           <Button variant="outline" size="sm" onClick={() => setPrefill(undefined)}>Start blank</Button>
         </div>
       )}
-      <StartForm key={prefill?.id ?? 'new'} prefill={prefill} />
+      <p className="text-sm text-muted-foreground">
+        {left} of {limits.runsPerDay} checks left in the last 24 hours.
+        {tier === 'standard' && <> Need more? Contact <a className="text-primary underline" href="mailto:info@expandtalk.se">info@expandtalk.se</a>.</>}
+      </p>
+      <StartForm key={prefill?.id ?? 'new'} prefill={prefill} limits={limits} />
       <Card>
         <CardHeader><CardTitle>Your runs</CardTitle></CardHeader>
         <CardContent className="divide-y">
