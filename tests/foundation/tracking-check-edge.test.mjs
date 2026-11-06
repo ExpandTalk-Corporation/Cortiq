@@ -83,16 +83,25 @@ test('start: validates URLs, page caps and the daily limit', async () => {
   assert.equal((await post(edge('tracking-check-start', mockClient({ runsToday: 10 })).handler, createBody())).status, 429);
 });
 
-test('start: create stores the run, one task per page/site/kind plus legacy, seals credentials and kicks the worker', async () => {
+test('start: basic auth is refused while the hosted browser has no EU processor agreement', async () => {
+  const db = mockClient();
+  const { handler } = edge('tracking-check-start', db);
+  const res = await post(handler, createBody({ basicAuth: { username: 'stage', password: 'pw-secret' } }));
+  assert.equal(res.status, 400);
+  assert.match((await res.json()).error, /basic auth/);
+  assert.equal(db.calls.inserts.length, 0);
+});
+
+test('start: create stores the run, one task per page/site/kind plus legacy and kicks the worker', async () => {
   const db = mockClient();
   const { handler, fetches } = edge('tracking-check-start', db);
-  const res = await post(handler, createBody({ basicAuth: { username: 'stage', password: 'pw-secret' } }));
+  const res = await post(handler, createBody());
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { runId: 'run-1' });
   const run = db.calls.inserts.find((i) => i.table === 'tracking_check_runs').payload;
   assert.equal(run.baseline_url, 'https://old.example');
   assert.equal(run.user_id, A);
-  assert.ok(run.auth_ciphertext && !run.auth_ciphertext.includes('pw-secret'));
+  assert.equal(run.auth_ciphertext, null);
   assert.deepEqual(run.pages, { pages: ['/', '/pricing/'], legacy: ['/product/'] });
   const tasks = db.calls.inserts.find((i) => i.table === 'tracking_check_tasks').payload;
   assert.equal(tasks.length, 2 * 2 * 2 + 1);

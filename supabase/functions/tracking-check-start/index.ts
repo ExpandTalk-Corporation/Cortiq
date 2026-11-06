@@ -123,6 +123,10 @@ async function create(body: Body, userId: string, service: Db, limits: Limits) {
   const legacy = mode === 'comparison' ? cleanPaths(body.legacyPaths, limits.legacyPaths, 'legacy URLs', true) : [];
   const policy = mode === 'policy' ? parsePolicy(body.policy) : null;
 
+  // Basic auth is off until the hosted browser runs under an EU processor agreement: credentials would
+  // otherwise reach Browserless (USA) without one. The sealing below stays for when it is re-enabled.
+  if (body.basicAuth?.username) throw new InputError('Password-protected (basic auth) sites are not supported yet');
+
   if (await runsToday(userId, service) >= limits.runsPerDay) {
     return json({ error: `Daily limit of ${limits.runsPerDay} runs reached. Contact info@expandtalk.se to run more.` }, 429);
   }
