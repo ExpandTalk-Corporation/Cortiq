@@ -34,7 +34,11 @@ function TrackingCheckBody() {
     return (
       <main className="container mx-auto max-w-2xl px-4 py-16">
         <h1 className="text-2xl font-semibold">Tracking Check</h1>
-        <p className="mt-2 text-muted-foreground">Confirm your email address first: open the link in the email we sent when you created your account, then reload this page.</p>
+        <p className="mt-2 text-muted-foreground">
+          {access.data?.confirmed === false || !access.data?.preview
+            ? 'Confirm your email address first: open the link in the email we sent when you created your account, then reload this page.'
+            : 'Tracking Check is in private preview. Contact info@expandtalk.se if you want to try it.'}
+        </p>
       </main>
     );
   }

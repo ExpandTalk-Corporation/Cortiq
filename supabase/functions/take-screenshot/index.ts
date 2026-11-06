@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "../_shared/supabase.ts";
 import { assertSafeUrl } from "../_shared/safe-url.ts";
+import { browserAccess } from "../_shared/browser-access.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -56,6 +57,12 @@ serve(async (req) => {
     if (!ownedSite) {
       return new Response(
         JSON.stringify({ error: 'Not authorised for this site' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    if (!browserAccess(user!).allowed) {
+      return new Response(
+        JSON.stringify({ error: 'Page screenshots are in private preview' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
