@@ -370,7 +370,7 @@ const Privacy = () => {
                 <li>• <strong>Resend</strong> (Plus Five Five, Inc., USA) — email delivery of large report exports (over 10,000 rows); Resend receives the recipient address and a download link that expires after one hour, not the report itself.</li>
                 <li>• <strong>Cloudflare</strong> (Cloudflare, Inc., USA) — when the operator enables the Cloudflare integration, Cloudflare processes visitor IP addresses at its edge; CortIQ receives the country and a truncated IP address for security and bot classification (section 3B).</li>
                 <li>• <strong>Anthropic</strong> (USA) — AI insights on the dashboard use CortIQ&apos;s own key and receive aggregated statistics for a site (page paths without query strings, counts, device breakdown, form conversion rates, monthly KPI figures). No visitor identifiers, IP addresses or email addresses are sent.</li>
-                <li>• <strong>Hetzner</strong> (Hetzner Online GmbH, Germany) — servers in Germany for our own headless browser, which loads pages for Tracking Check and for the page screenshots behind heatmaps. For Tracking Check the browser receives the addresses of the pages you check and, if you enter them, the username and password for a password-protected (HTTP basic auth) site, and it loads those pages, including any personal data shown on them. Nothing is kept on the server after each check or screenshot.</li>
+                <li>• <strong>Hetzner</strong> (Hetzner Online GmbH, Germany) — servers in Germany for our own headless browser, which loads pages for Tracking Check and for the page screenshots behind heatmaps. For Tracking Check the browser receives the addresses of the pages you check and, if you enter them, the username and password for a password-protected (HTTP basic auth) site, and it loads those pages, including any personal data shown on them. Page content is not stored on the server. Technical logs, which may include the address of a page that failed to load, are deleted after [OPEN: 14] days.</li>
               </ul>
               <p className="text-muted-foreground leading-relaxed">
                 Services that a site operator connects with its own account. These providers act under the
@@ -565,13 +565,14 @@ const Privacy = () => {
                   <li>• <strong>Basic-auth credentials:</strong> deleted when the check finishes; at the latest about 3 hours after the check starts</li>
                   <li>• <strong>Page observations</strong> (requests, cookies and forms seen on each page; not the page content): 90 days</li>
                   <li>• <strong>Reports:</strong> until you delete them</li>
+                  <li>• <strong>Browser server logs (Hetzner):</strong> [OPEN: 14] days</li>
                 </ul>
               </div>
 
               <div className="bg-primary/5 p-4 rounded-lg">
                 <h4 className="font-semibold mb-2 text-foreground">Hosting providers</h4>
                 <p className="text-sm text-muted-foreground">
-                  Request logs held by our hosting providers (Supabase, Loopia and, where enabled, Cloudflare) follow
+                  Request logs held by our hosting providers (Supabase, Loopia, Hetzner and, where enabled, Cloudflare) follow
                   those providers' own log retention. Deleting a site from CortIQ deletes all of its data immediately.
                 </p>
               </div>
