@@ -255,6 +255,24 @@ test('observeState checks the same adapter-specific banner selector after the re
   assert.equal(stillThereCky.reject.method, 'not_automated');
 });
 
+test('observeState records whether the CMP banner came back after an adapter choice', async () => {
+  const onetrust = { OneTrust: { AllowAll() {}, RejectAll() {} } };
+  const back = await probe(['reject'], { reject: [
+    { globals: onetrust, elements: { '#onetrust-banner-sdk': true } },
+    { globals: onetrust, elements: { '#onetrust-banner-sdk': true } },
+  ] });
+  assert.equal(back.reject.bannerAfterChoice, true, 'measured before the not_automated downgrade');
+  const gone = await probe(['reject'], { reject: [
+    { globals: onetrust, elements: { '#onetrust-banner-sdk': true } },
+    { globals: onetrust },
+  ] });
+  assert.equal(gone.reject.bannerAfterChoice, false);
+  const generic = await probe(['reject'], { reject: [{ globals: cookiebot(false), banner: true }, { globals: cookiebot(false), banner: true }] });
+  assert.equal(generic.reject.bannerAfterChoice, null, 'only the generic heuristic saw a banner: not trusted');
+  const none = await probe(['none'], { none: [{}] });
+  assert.equal(none.none.bannerAfterChoice, null);
+});
+
 test('observeState resolves analytics_only/marketing_only to not_needed when no banner and no CMP were seen', async () => {
   const a = await probe(['analytics_only'], { analytics_only: [{}] });
   assert.equal(a.analytics_only.bannerSeen, false);

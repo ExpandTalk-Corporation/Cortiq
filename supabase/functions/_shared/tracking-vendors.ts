@@ -143,6 +143,14 @@ export const TRACKING_VENDORS: Vendor[] = [
     impact: 'Cloudflare Web Analytics records no visits.',
   },
   {
+    // Akamai's real-user monitoring (boomerang): measures each visitor's page loads, beacons to *.akstat.io.
+    id: 'akamai-mpulse', name: 'Akamai mPulse', category: 'analytics', googleTag: false,
+    requests: [{ host: /(^|\.)go-mpulse\.net$/ }, { host: /(^|\.)akstat\.io$/ }],
+    cookies: [/^RT$/],
+    csp: { 'script-src': ['*.go-mpulse.net'], 'connect-src': ['*.go-mpulse.net', '*.akstat.io'] },
+    impact: 'Akamai mPulse records no page-load measurements.',
+  },
+  {
     id: 'cortiq', name: 'CortIQ', category: 'analytics', googleTag: false,
     requests: [
       { host: /\.supabase\.co$/, path: /^\/functions\/v1\/(track-event|track-navigation|visitor-identification|link-click-counter|track-web-vitals|ai-bot-tracker|record-conversion|pixel-tracking)/ },
@@ -198,6 +206,14 @@ export const TRACKING_VENDORS: Vendor[] = [
     impact: 'The 1mind AI assistant does not appear.',
     verify: 'An AI sales assistant is functional when a visitor talks to it, but it processes what visitors type and may identify or track them before anyone uses it.',
   },
+  {
+    id: 'libsyn', name: 'Libsyn podcast player', category: 'preferences', googleTag: false,
+    requests: [{ host: /(^|\.)libsyn\.com$/ }, { host: /(^|\.)libsynpro\.com$/ }],
+    cookies: [],
+    csp: { 'frame-src': ['html5-player.libsyn.com'] },
+    impact: 'Embedded podcast episodes do not play.',
+    verify: 'An embedded podcast player is content the visitor asked for, but it loads from Libsyn on every page view and may count listeners or set cookies before anyone presses play.',
+  },
   // Consent management platforms
   {
     id: 'cookieyes', kind: 'cmp', name: 'CookieYes', category: 'necessary', googleTag: false,
@@ -246,6 +262,22 @@ export const TRACKING_VENDORS: Vendor[] = [
     id: 'recaptcha', kind: 'infrastructure', name: 'Google reCAPTCHA', category: 'necessary', googleTag: false,
     requests: [{ host: /^www\.(google|gstatic)\.com$/, path: /^\/recaptcha\// }], cookies: [], csp: {},
     impact: 'Forms protected by reCAPTCHA cannot be submitted.',
+  },
+  {
+    // Cloudflare Web Analytics (cloudflareinsights.com) is an analytics vendor above, not infrastructure.
+    id: 'cloudflare', kind: 'infrastructure', name: 'Cloudflare (CDN, Turnstile)', category: 'necessary', googleTag: false,
+    requests: [{ host: /^(cdnjs|challenges)\.cloudflare\.com$/ }], cookies: [], csp: {},
+    impact: 'Scripts, styles or the Turnstile form check served from Cloudflare do not load.',
+  },
+  {
+    id: 'akamai', kind: 'infrastructure', name: 'Akamai (CDN)', category: 'necessary', googleTag: false,
+    requests: [{ host: /\.(akamaihd|akamaized|akamaiedge|edgekey|edgesuite)\.net$/ }], cookies: [], csp: {},
+    impact: 'Files served from the Akamai CDN do not load.',
+  },
+  {
+    id: 'public-cdn', kind: 'infrastructure', name: 'Public JavaScript CDN (jsDelivr, unpkg)', category: 'necessary', googleTag: false,
+    requests: [{ host: /^(cdn|fastly|gcore)\.jsdelivr\.net$/ }, { host: /^unpkg\.com$/ }], cookies: [], csp: {},
+    impact: 'Libraries loaded from the public CDN do not load.',
   },
 ];
 

@@ -2,6 +2,7 @@ import type { AssessInput, Finding, PageObservation, StateObservation } from '..
 import { GOOGLE_EXEMPT_VENDORS, isGoogleHost, vendorForName, vendorForUrl, type Vendor } from '../../tracking-vendors.ts';
 import { MANUAL_STEPS } from '../instructions.ts';
 import { finding, plural, requestVendors, siteKey, stateOf, testablePages } from './util.ts';
+import { CONSENT_DEFAULT_SNIPPET } from './signals.ts';
 
 const REQUIRED_DEFAULTS = ['ad_storage', 'analytics_storage', 'ad_user_data', 'ad_personalization'];
 const needsConsent = (v: Vendor) => v.category === 'analytics' || v.category === 'marketing';
@@ -71,6 +72,21 @@ function consentDefaults({ mode, policy }: AssessInput, pages: PageObservation[]
   if (!details.length) {
     return [pass('consent.defaults', 'Consent Mode v2 defaults are "denied" before the visitor chooses',
       'ad_storage, analytics_storage, ad_user_data and ad_personalization all default to denied.', pages)];
+  }
+  // No Consent Mode is a valid choice when the Google tags wait for consent: nothing reaches Google before
+  // the visitor chooses. It only fails when Google is contacted before the choice without denied defaults.
+  const googleBeforeChoice = pages.some((p) => {
+    const none = stateOf(p, 'none');
+    return !!none && [...requestVendors(none).values()].some((v) => v.googleTag);
+  });
+  if (!googleBeforeChoice) {
+    return [finding({
+      scope: 'Consent', checkKey: 'consent.defaults', status: 'warning', priority: 'medium',
+      title: 'Consent Mode is not used: decide whether you need it',
+      explanation: `No Consent Mode default was found on ${affected.join(', ')}, but no Google tag fired before the visitor chose, so the tags wait for consent. That is a valid setup. Without Consent Mode, Google Ads gets no consent signals for EEA traffic, which limits remarketing, audiences and conversion modelling.`,
+      fix: `If you use Google Ads, add Consent Mode v2 (most cookie banners have a setting for it) and keep blocking the tags until consent (basic mode). If you only use GA4 or no Google advertising, you can leave it out; untick "Consent Mode v2 defaults" in the check's commitments.\n\n${CONSENT_DEFAULT_SNIPPET}`,
+      typicalOwner: 'marketing', evidence: { pages: affected, details },
+    })];
   }
   return [finding({
     scope: 'Consent', checkKey: 'consent.defaults', status: 'fail', priority: 'high',
@@ -332,11 +348,33 @@ function enhancedConversions({ mode, policy }: AssessInput, pages: PageObservati
   })];
 }
 
+/** Guidance for the built-in manual items (StartForm MANUAL_ITEMS); other keys get the generic text. */
+const MANUAL_GUIDE: Record<string, { explanation: string; fix: string; owner: Finding['typicalOwner'] }> = {
+  reject_equal: {
+    explanation: 'Refusing must be as easy as accepting: a "Reject all" button on the first layer of the banner, with the same prominence as "Accept all", and no categories ticked in advance.',
+    fix: 'Open the site in an incognito window and compare the two buttons (placement, size, colour, number of clicks). Open the settings layer and check that only necessary cookies are on.',
+    owner: 'cmp',
+  },
+  privacy_policy: {
+    explanation: 'The privacy or cookie policy should name Google (and other vendors) as recipients, describe the transfer to the US under the EU–US Data Privacy Framework, and tell visitors how to withdraw consent.',
+    fix: 'Read the policy linked from the banner. Check that each tool found in this report is listed with its purpose, that the US transfer is described, and that there is a way to reopen the cookie settings (for example a footer link).',
+    owner: 'legal',
+  },
+  consent_mode_decision: {
+    explanation: 'Consent Mode basic blocks Google tags until consent; advanced lets them send cookieless pings (IP address, user agent, page URL) before consent. Which one the site uses is a decision for the controller, ideally together with the DPO.',
+    fix: 'Record the decision and the reasoning (for example in the record of processing activities), and make sure the setup matches it: this report shows whether Google is contacted before the choice.',
+    owner: 'legal',
+  },
+};
+
 function manualItems({ mode, policy }: AssessInput): Finding[] {
   if (mode !== 'policy' || !policy) return [];
-  return policy.manualItems.map((item) => finding({
-    scope: 'Manual', checkKey: `manual.${item.key}`, status: 'manual', priority: 'medium', title: item.label,
-    explanation: 'This cannot be verified from outside the site. Check it in the relevant admin tool and mark it as verified.',
-    fix: '', typicalOwner: 'marketing',
-  }));
+  return policy.manualItems.map((item) => {
+    const g = MANUAL_GUIDE[item.key];
+    return finding({
+      scope: 'Manual', checkKey: `manual.${item.key}`, status: 'manual', priority: 'medium', title: item.label,
+      explanation: g?.explanation ?? 'This cannot be verified from outside the site. Check it in the relevant admin tool and mark it as verified.',
+      fix: g?.fix ?? '', typicalOwner: g?.owner ?? 'marketing',
+    });
+  });
 }

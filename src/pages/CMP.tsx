@@ -63,7 +63,7 @@ export default function CMP() {
           Consent-First CMP for GDPR compliance
         </Badge>
         
-        <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-primary bg-clip-text text-transparent">
+        <h1 className="text-4xl md:text-6xl font-black leading-tight mb-6 text-gradient-primary">
           Consent Management Platform
         </h1>
         

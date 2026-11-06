@@ -15,7 +15,7 @@ import type { Mode, PolicyTemplate } from '../../../supabase/functions/_shared/t
 type Flag = Exclude<keyof PolicyTemplate, 'expectedIds' | 'manualItems'>;
 const FLAGS: { key: Flag; label: string }[] = [
   { key: 'noGoogleBeforeConsent', label: 'Nothing is sent to Google before consent or after "Reject all"' },
-  { key: 'consentDefaultsDenied', label: 'Consent Mode v2 defaults are "denied"' },
+  { key: 'consentDefaultsDenied', label: 'Consent Mode v2 defaults are "denied" (untick if you do not use Consent Mode)' },
   { key: 'ga4RequiresAnalytics', label: 'Google Analytics only runs with Statistics consent' },
   { key: 'adsRequiresMarketing', label: 'Google Ads only runs with Marketing consent' },
   { key: 'enhancedConversionsOff', label: 'Enhanced Conversions is off' },
@@ -25,6 +25,9 @@ const MANUAL_ITEMS = [
   { key: 'ga4_retention', label: 'GA4 data retention is set to the agreed period (Admin → Data collection and modification → Data retention)' },
   { key: 'google_terms', label: 'Google Ads and GA4 data processing terms are accepted' },
   { key: 'conversion_on_submit', label: 'The conversion fires when the form is submitted (test with Tag Assistant)' },
+  { key: 'reject_equal', label: '"Reject all" is as easy as "Accept all" and no categories are pre-ticked' },
+  { key: 'privacy_policy', label: 'The privacy policy names Google as a recipient, the US transfer (Data Privacy Framework) and how to withdraw consent' },
+  { key: 'consent_mode_decision', label: 'Consent Mode basic or advanced is decided and documented by the controller' },
 ];
 const allFlags = () => Object.fromEntries(FLAGS.map((f) => [f.key, true])) as Record<Flag, boolean>;
 
