@@ -1,4 +1,5 @@
-import { Link, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +11,14 @@ import PublicLayout from "@/components/PublicLayout";
 function TrackingCheckBody() {
   const access = useTrackingCheckAccess();
   const runs = useRuns();
-  const prefill = (useLocation().state as { prefill?: RunRow } | null)?.prefill;
+  const location = useLocation();
+  const navigate = useNavigate();
+  // "Run again" passes the old run in router state. Read it once, then clear it: browser history keeps
+  // router state across reloads and back/forward, so otherwise every later visit opens pre-filled.
+  const [prefill, setPrefill] = useState(() => (location.state as { prefill?: RunRow } | null)?.prefill);
+  useEffect(() => {
+    if (location.state) navigate(location.pathname, { replace: true, state: null });
+  }, [location.state, location.pathname, navigate]);
 
   if (access.isLoading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" aria-label="Loading" /></div>;
   if (access.isError) {
@@ -29,16 +37,35 @@ function TrackingCheckBody() {
     <main className="container mx-auto max-w-4xl space-y-8 px-4 py-10">
       <div>
         <h1 className="text-3xl font-semibold">Tracking Check</h1>
-        <p className="mt-1 text-muted-foreground">Verify UTM and click IDs, tags, CSP and consent behaviour before a site goes live.</p>
+        <p className="mt-1 text-muted-foreground">Check what a website actually loads and stores before and after the visitor answers the cookie banner.</p>
       </div>
+      <Card>
+        <CardHeader><CardTitle className="text-lg">What the check does</CardTitle></CardHeader>
+        <CardContent className="space-y-3 text-sm text-muted-foreground">
+          <p>A real browser opens each page several times: without answering the banner, after "Reject all", after "Accept all" and with only statistics or only marketing accepted. Every request, cookie and Consent Mode signal is recorded.</p>
+          <ul className="list-disc space-y-1 pl-5">
+            <li>Cookies and third-party tags that load before the visitor has made a choice, or after "Reject all"</li>
+            <li>Google Analytics, Google Ads, Meta, LinkedIn, HubSpot and B2B identification tools (Leadfeeder, ZoomInfo and others) and which consent category they wait for</li>
+            <li>Consent Mode v2 defaults, Enhanced Conversions, and whether UTM and click IDs survive redirects</li>
+          </ul>
+          <p><span className="font-medium text-foreground">Consent policy</span> checks one site against the commitments you tick below. <span className="font-medium text-foreground">Comparison</span> checks that a new site behaves like the current one before launch.</p>
+          <p>The result is technical evidence, not a legal assessment. Items marked "Verify" need a decision by whoever is responsible for the site.</p>
+        </CardContent>
+      </Card>
+      {prefill && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/50 px-4 py-2 text-sm">
+          <span>Pre-filled from the run on {prefill.target_url}</span>
+          <Button variant="outline" size="sm" onClick={() => setPrefill(undefined)}>Start blank</Button>
+        </div>
+      )}
       <StartForm key={prefill?.id ?? 'new'} prefill={prefill} />
       <Card>
-        <CardHeader><CardTitle>Recent runs</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Your runs</CardTitle></CardHeader>
         <CardContent className="divide-y">
           {runs.isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
           {runs.isError && (
             <div className="py-3">
-              <p className="text-sm text-destructive">Could not load recent runs: {(runs.error as Error).message}</p>
+              <p className="text-sm text-destructive">Could not load your runs: {(runs.error as Error).message}</p>
               <Button className="mt-2" variant="outline" size="sm" onClick={() => runs.refetch()}>Retry</Button>
             </div>
           )}
