@@ -61,6 +61,22 @@ test('GTM before choice: ignored in comparison, fail under a strict Google polic
   assert.equal(byKey(policyRun([...states, ...granular]), 'consent.before_choice.gtm')[0].status, 'fail');
 });
 
+test('Paligo case: B2B identification tags fail before choice; functional widgets are "verify", never pass/fail', () => {
+  const findings = compareRun([
+    st('none', { consentCommands: [DENIED], requests: [req('https://sc.lfeeder.com/lftracker_v1_x.js'), req('https://js.chilipiper.com/marketing.js'), req('https://launcher.1mind.com/deployment-1')], cookies: [{ name: '_lfa', domain: '.paligo.net' }] }),
+    st('reject'), st('accept'),
+  ]);
+  assert.equal(byKey(findings, 'consent.before_choice.leadfeeder')[0].status, 'fail');
+  for (const id of ['chilipiper', '1mind']) {
+    const [f] = byKey(findings, `consent.before_choice.verify.${id}`);
+    assert.equal(f.status, 'manual', id);
+    assert.match(f.explanation, /assessed by the controller/);
+  }
+  const widgetsOnly = compareRun([st('none', { requests: [req('https://js.chilipiper.com/marketing.js')] }), st('reject'), st('accept')]);
+  assert.equal(byKey(widgetsOnly, 'consent.before_choice')[0].status, 'pass', 'a widget alone does not hide the combined pass');
+  assert.equal(byKey(widgetsOnly, 'consent.before_choice.verify.chilipiper').length, 1);
+});
+
 test('reject that could not be automated is manual and never passes', () => {
   const findings = compareRun([st('none'), st('reject', { method: 'not_automated' }), st('accept')]);
   assert.equal(byKey(findings, 'consent.after_reject.manual')[0].status, 'manual');

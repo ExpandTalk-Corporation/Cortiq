@@ -27,6 +27,15 @@ test('classifies request URLs, including gtag by ID prefix', () => {
     'https://connect.facebook.net/en_US/fbevents.js': 'meta',
     'https://cdn-cookieyes.com/client_data/abc/script.js': 'cookieyes',
     'https://www.pretec.se/Admin/Public/CookieOptInLevelConfig': 'dynamicweb',
+    'https://js.hsadspixel.net/fb.js': 'hubspot-ads',
+    'https://pagead2.googlesyndication.com/ccm/collect?en=page_view': 'google-ads',
+    'https://sc.lfeeder.com/lftracker_v1_ywVkO4X6MV18Z6Bj.js': 'leadfeeder',
+    'https://js.zi-scripts.com/zi-tag.js': 'zoominfo',
+    'https://ws.zoominfo.com/pixel/abc': 'zoominfo',
+    'https://static.claydar.com/init.v1.js?id=cxOZuQoVl3': 'claydar',
+    'https://tags.inzynk.io/bpedxeoi/iztag.js': 'inzynk',
+    'https://js.chilipiper.com/marketing.js': 'chilipiper',
+    'https://launcher.1mind.com/deployment-n8bthh9zt8': '1mind',
     'https://example.com/app.js': null,
   };
   for (const [url, id] of Object.entries(cases)) assert.equal(vendorForUrl(url)?.id ?? null, id, url);
