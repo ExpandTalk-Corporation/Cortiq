@@ -1,0 +1,11 @@
+{$BROWSER_HOST} {
+	# Token travels in the query string (Browserless convention) — keep it out of access logs.
+	log {
+		format filter {
+			request>uri query {
+				replace token REDACTED
+			}
+		}
+	}
+	reverse_proxy 127.0.0.1:3000
+}

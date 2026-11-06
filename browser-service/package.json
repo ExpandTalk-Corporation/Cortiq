@@ -1,0 +1,13 @@
+{
+  "name": "cortiq-browser-service",
+  "private": true,
+  "version": "1.0.0",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "puppeteer": "25.16.0"
+  }
+}

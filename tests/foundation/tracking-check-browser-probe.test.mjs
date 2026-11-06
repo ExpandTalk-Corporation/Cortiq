@@ -50,7 +50,7 @@ test('runBrowserProbe posts code and context, unwraps the response and reports e
   assert.match(sent.body.code, /export default async function/);
 
   const denied = async () => new Response('bad token', { status: 401 });
-  await assert.rejects(runBrowserProbe({ endpoint: 'https://bl.example', token: 't', url: 'https://new.example/', states: ['none'], basicAuth: null, fetchImpl: denied }), /Browserless 401/);
+  await assert.rejects(runBrowserProbe({ endpoint: 'https://bl.example', token: 't', url: 'https://new.example/', states: ['none'], basicAuth: null, fetchImpl: denied }), /Browser service 401/);
   await assert.rejects(runBrowserProbe({ endpoint: 'https://bl.example', token: 't', url: 'http://10.0.0.1/', states: ['none'], basicAuth: null, fetchImpl: ok }), /Blocked host/);
 });
 

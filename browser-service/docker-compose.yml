@@ -1,0 +1,40 @@
+# Runs on a single Hetzner Cloud server (Germany). Caddy terminates TLS; the browser only listens on loopback.
+services:
+  browser:
+    build: .
+    restart: unless-stopped
+    environment:
+      BROWSER_TOKEN: ${BROWSER_TOKEN:?set BROWSER_TOKEN in .env}
+      MAX_CONCURRENT: ${MAX_CONCURRENT:-2}
+    ports:
+      - "127.0.0.1:3000:3000"
+    # Hetzner's own resolvers: lookups of checked sites stay with the same provider.
+    dns: [185.12.64.1, 185.12.64.2]
+    init: true
+    cap_drop: [ALL]
+    # Docker's default seccomp profile + the namespace/chroot syscalls Chromium's own sandbox needs,
+    # so renderers stay sandboxed without CAP_SYS_ADMIN or --no-sandbox.
+    security_opt: [no-new-privileges:true, seccomp=./chrome-seccomp.json]
+    mem_limit: 3g
+    networks: [browser]
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      BROWSER_HOST: ${BROWSER_HOST:?set BROWSER_HOST in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+
+networks:
+  browser:
+    driver_opts:
+      com.docker.network.bridge.name: br-browser   # host/firewall.sh and host/egress-report.sh match this name
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+
+volumes:
+  caddy_data:
