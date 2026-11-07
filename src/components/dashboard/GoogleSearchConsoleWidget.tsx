@@ -108,12 +108,12 @@ export function GoogleSearchConsoleWidget({ siteId, onNavigateToSetup }: GoogleS
             <div className="flex items-center gap-3 flex-shrink-0 ml-2 text-xs text-muted-foreground">
               <span>{q.clicks} clk</span>
               <span className="flex items-center gap-0.5">
-                {q.position <= 10 ? (
+                {q.position != null && q.position <= 10 ? (
                   <TrendingUp className="h-3 w-3 text-green-500" />
                 ) : (
                   <TrendingDown className="h-3 w-3 text-orange-400" />
                 )}
-                {q.position.toFixed(0)}
+                {q.position != null ? q.position.toFixed(0) : '–'}
               </span>
             </div>
           </div>

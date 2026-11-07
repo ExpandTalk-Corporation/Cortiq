@@ -6,7 +6,8 @@ export interface GSCQuery {
   clicks: number;
   impressions: number;
   ctr: number;
-  position: number;
+  /** Impression-weighted; null only if the row has no impressions. */
+  position: number | null;
 }
 
 export interface GSCPage {
@@ -14,7 +15,7 @@ export interface GSCPage {
   clicks: number;
   impressions: number;
   ctr: number;
-  position: number;
+  position: number | null;
 }
 
 export interface GSCSummary {
@@ -106,9 +107,12 @@ export function useGSCData(siteId: string | null) {
     avgCtr:           queries.data?.length
       ? queries.data.reduce((s, r) => s + r.ctr, 0) / queries.data.length
       : 0,
-    avgPosition: queries.data?.length
-      ? queries.data.reduce((s, r) => s + r.position, 0) / queries.data.length
-      : 0,
+    // Weighted by impressions, like Search Console's own average position.
+    avgPosition: (() => {
+      const rows = (queries.data ?? []).filter((r) => r.position != null && r.impressions > 0);
+      const imps = rows.reduce((s, r) => s + r.impressions, 0);
+      return imps > 0 ? rows.reduce((s, r) => s + r.position! * r.impressions, 0) / imps : 0;
+    })(),
   };
 
   return {
