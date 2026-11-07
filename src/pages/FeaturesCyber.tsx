@@ -11,7 +11,6 @@ import {
   AlertTriangle,
   Eye,
   Map,
-  Activity,
   Lock,
   Bot,
   Radar,
@@ -35,13 +34,12 @@ const features = [
   },
   {
     icon: <Radar className="h-7 w-7" />,
-    title: "Traffic Anomaly Alerts",
-    description: "Sudden traffic spikes are often probes or automated attacks. Get alerted before it's a problem.",
+    title: "Behavioral Alerts",
+    description: "Built-in rules you can turn on or off. Run an analysis under Reports → Alerts to see which were triggered.",
     items: [
-      "Sudden session volume spikes",
-      "Abnormal page request rates",
-      "Bounce rate anomalies",
-      "Automated attack pattern signals",
+      "Rage clicks",
+      "High bounce rate",
+      "Form abandonment",
     ],
   },
   {
@@ -80,9 +78,9 @@ const features = [
   {
     icon: <Server className="h-7 w-7" />,
     title: "Server-Side Bot Ingestion",
-    description: "A Cloudflare Worker reports crawlers that never execute JavaScript.",
+    description: "Server adapters report crawlers that never execute JavaScript.",
     items: [
-      "Cloudflare Worker",
+      "Cloudflare Worker, Next.js, Netlify, Node and the WordPress plugin",
       "Same bot registry as the JS tag",
       "Training & citation crawlers",
       "Scrapers & monitoring bots bucketed separately",
@@ -90,24 +88,12 @@ const features = [
   },
   {
     icon: <Map className="h-7 w-7" />,
-    title: "Geolocation of Suspicious Traffic",
-    description: "Map where bot traffic and anomalous visits originate — country, region, and city level.",
+    title: "Visitor Locations",
+    description: "Map visitor countries, estimated from the browser time zone after analytics consent. No IP lookup.",
     items: [
-      "Interactive origin map for all traffic",
-      "Bot vs human split per location",
-      "Country-level traffic anomalies",
-      "Drill-down to city level",
-    ],
-  },
-  {
-    icon: <Activity className="h-7 w-7" />,
-    title: "Behavioral Threat Signals",
-    description: "Behavioral patterns that signal automated abuse — detected automatically.",
-    items: [
-      "Rage clicks (frustration or automation)",
-      "Inhuman interaction timing",
-      "Form spam patterns",
-      "Repeated identical sessions",
+      "World map, one marker per country",
+      "Sessions and bounce rate per country",
+      "No region or city stored",
     ],
   },
   {
@@ -162,8 +148,8 @@ export default function FeaturesCyber() {
             Know who's hitting your site — human, bot, or threat.
           </h1>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Not all traffic is human. CortIQ identifies bots, detects scraping, surfaces traffic
-            anomalies, and maps suspicious activity — so you always know what's really happening.
+            Not all traffic is human. CortIQ identifies bots, detects scraping with honeypot and
+            canary traps, and flags behavioral problems such as rage clicks — so you know what's really visiting.
           </p>
         </div>
 
@@ -234,7 +220,7 @@ export default function FeaturesCyber() {
         <div className="text-center bg-primary/5 rounded-lg p-8">
           <h2 className="text-2xl font-bold mb-3">See what's really visiting your site.</h2>
           <p className="text-muted-foreground mb-6 max-w-xl mx-auto">
-            Set up takes minutes. Bot intelligence and anomaly detection start working immediately.
+            Set up takes minutes. Server-side bot measurement starts as soon as an adapter is installed.
           </p>
           <div className="flex gap-4 justify-center flex-wrap">
             <Button asChild size="lg">

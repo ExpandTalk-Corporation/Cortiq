@@ -96,8 +96,8 @@ const features = [
   {
     icon: <Map className="h-7 w-7" />,
     title: "Geolocation Maps",
-    description: "Interactive world map showing where your visitors come from.",
-    items: ["Cluster map", "Country / region / city drill-down", "Bounce rate per location", "Export data"],
+    description: "World map of visitor countries, estimated from the browser time zone. No IP lookup.",
+    items: ["One marker per country", "Sessions per country", "Bounce rate per country", "Export data"],
   },
   {
     icon: <Zap className="h-7 w-7" />,

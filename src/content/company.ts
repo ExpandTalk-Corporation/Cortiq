@@ -44,6 +44,7 @@ export const SECURITY: ContentPageData = {
           items: [
             'API keys for the [REST API](/api/) and [MCP server](/integrations/mcp/) are stored only as SHA-256 hashes and shown once, when created.',
             'Each key reads exactly one site, read-only, and has its own rate limit. You can disable or delete a key at any time.',
+            'Requests to the REST API and MCP server are logged with the endpoint, response time, and the caller\'s IP address and user agent. The log counts toward the key\'s rate limit and is deleted together with the key.',
             'Server-side fetches on your behalf (GEO audits, form detection) block private, loopback and cloud-metadata addresses.',
           ],
         },
@@ -58,7 +59,7 @@ export const SECURITY: ContentPageData = {
           items: [
             'Visitor analytics start only after analytics consent. Ad click IDs are stored only with marketing consent, which is checked on the server, not just in the browser.',
             'Heatmap points are stored without IP address or user agent, and with the page URL stripped of query strings.',
-            'The [Cloudflare Worker](/integrations/cloudflare/) truncates IP addresses before anything leaves Cloudflare, and keeps nothing about human visitors except a count.',
+            'The [Cloudflare Worker](/integrations/cloudflare/) sends only requests from known crawler user agents, requests for robots.txt and llms.txt, and hits on its hidden honeypot link, with the IP address truncated before it leaves Cloudflare. CortIQ stores only those from classified AI bots and honeypot hits.',
             'Data is deleted automatically after the retention period set for each site. See the [privacy policy](/privacy/) for every retention period.',
           ],
         },
@@ -233,12 +234,31 @@ export const CHANGELOG: ContentPageData = {
   lead: 'What has shipped in CortIQ, newest first. Tracking script and WordPress plugin versions share one number.',
   sections: [
     {
+      id: '2026-11',
+      heading: 'November 2026',
+      blocks: [
+        {
+          type: 'list',
+          items: [
+            '**Consent banner in the install snippet.** The snippet can include the CortIQ consent banner, with Google Consent Mode v2 as an option. You choose cookieless or full mode; marketing consent is offered only in full mode.',
+            '**Safari and iPhone visitors were logged as AI bots** by the in-browser checks. Fixed in 5.5.8, and the wrongly logged visits were deleted.',
+            '**Tracking Check (private preview)** tests what a site loads before and after the cookie banner. Findings explain the cause and the fix, and the report can be exported as CSV or Excel.',
+          ],
+        },
+      ],
+    },
+    {
       id: '2026-10',
       heading: 'October 2026',
       blocks: [
         {
           type: 'list',
           items: [
+            '**Server-side AI agent measurement (5.5.0).** Adapters for Next.js, Netlify, Node and the WordPress plugin, alongside the Cloudflare Worker, report AI crawlers without anything running in the visitor\'s browser.',
+            '**Visitor country** is estimated from the browser time zone, with no IP lookup (5.5.4).',
+            '**Navigation flow and content performance** in the dashboard (5.5.6).',
+            '**Dashboard:** a new Overview with global filters, ten tabs that follow the global date range, and conversion goals that record real conversions.',
+            '**Referrers are stored by default again.** From 16 July to 16 October, sites without saved GDPR settings stored no referrers.',
             '**Google Tag Manager and Consent Mode v2 (5.4.3).** The tracking script reads Google Consent Mode from the dataLayer, so consent banners connected to GTM work without extra code. [Setup](/docs/#tag-managers).',
             '**Heatmaps fixed.** Click and scroll heatmap points had stopped being stored in June. They are stored again, without IP address or query strings.',
             '**GEO audit v2.** Passage-level citability scores, checks for 14 AI crawlers, llms.txt validation, JavaScript-rendering and security-header checks.',
