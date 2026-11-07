@@ -29,6 +29,11 @@ const param = (name: string, prefix: string) => (u: URL): string | null => {
 };
 const ANY = /./;
 
+/** Shared "verify" note for third-party content embeds (social posts, video, audio, maps). */
+function embedNote(what: string, company: string): string {
+  return `An embedded ${what} loads from ${company} when the page loads, before anyone interacts with it, so the visitor's IP address reaches ${company} and cookies may be set. A plain link or a click-to-load preview loads nothing until the visitor asks.`;
+}
+
 export const TRACKING_VENDORS: Vendor[] = [
   {
     id: 'gtm', name: 'Google Tag Manager', category: 'necessary', googleTag: true,
@@ -91,6 +96,15 @@ export const TRACKING_VENDORS: Vendor[] = [
     cookies: [],
     csp: { 'script-src': ['js.hsforms.net'], 'connect-src': ['forms.hsforms.com', 'forms.hubspot.com'], 'frame-src': ['forms.hsforms.com'], 'img-src': ['forms.hsforms.com'] },
     impact: 'HubSpot forms do not render or cannot be submitted.',
+  },
+  {
+    // Before Meta Pixel: the social SDK (sdk.js) and plugin iframes share connect.facebook.net / www.facebook.com with it.
+    id: 'facebook-embed', name: 'Facebook embed', category: 'preferences', googleTag: false,
+    requests: [{ host: /^connect\.facebook\.net$/, path: /\/sdk(\.js|\/)/ }, { host: /^(www|web)\.facebook\.com$/, path: /^\/(v[\d.]+\/)?plugins\// }],
+    cookies: [],
+    csp: { 'script-src': ['connect.facebook.net'], 'frame-src': ['www.facebook.com'] },
+    impact: 'Embedded Facebook posts, videos or page boxes do not appear.',
+    verify: embedNote('Facebook post, video or page box', 'Meta'),
   },
   {
     id: 'meta', name: 'Meta Pixel', category: 'marketing', googleTag: false,
@@ -229,6 +243,80 @@ export const TRACKING_VENDORS: Vendor[] = [
     csp: { 'frame-src': ['www.youtube.com', 'www.youtube-nocookie.com'] },
     impact: 'Embedded YouTube videos do not play.',
     verify: 'An embedded YouTube video loads from Google when the page loads, before anyone presses play. The standard embed (youtube.com) can set YouTube cookies at that point; in privacy-enhanced mode (youtube-nocookie.com) Google says it stores no information about the visit until the video is played, but the player and thumbnail still load from Google. A click-to-load preview loads nothing until the visitor asks.',
+  },
+  {
+    id: 'x-embed', name: 'X (Twitter) embed', category: 'preferences', googleTag: false,
+    requests: [{ host: /^(platform|syndication)\.(twitter|x)\.com$/ }, { host: /^cdn\.syndication\.twimg\.com$/ }],
+    cookies: [],
+    csp: { 'script-src': ['platform.twitter.com'], 'frame-src': ['platform.twitter.com', 'syndication.twitter.com'] },
+    impact: 'Embedded posts and timelines from X do not appear.',
+    verify: embedNote('X post or timeline', 'X'),
+  },
+  {
+    id: 'instagram-embed', name: 'Instagram embed', category: 'preferences', googleTag: false,
+    requests: [{ host: /(^|\.)instagram\.com$/ }, { host: /(^|\.)cdninstagram\.com$/ }],
+    cookies: [],
+    csp: { 'script-src': ['www.instagram.com'], 'frame-src': ['www.instagram.com'] },
+    impact: 'Embedded Instagram posts do not appear.',
+    verify: embedNote('Instagram post', 'Meta'),
+  },
+  {
+    // The LinkedIn Insight Tag (snap.licdn.com, px.ads.linkedin.com) is a separate vendor above.
+    id: 'linkedin-embed', name: 'LinkedIn embed', category: 'preferences', googleTag: false,
+    requests: [{ host: /^www\.linkedin\.com$/, path: /^\/embed\// }],
+    cookies: [],
+    csp: { 'frame-src': ['www.linkedin.com'] },
+    impact: 'Embedded LinkedIn posts do not appear.',
+    verify: embedNote('LinkedIn post', 'LinkedIn'),
+  },
+  {
+    id: 'tiktok-embed', name: 'TikTok embed', category: 'preferences', googleTag: false,
+    requests: [{ host: /^www\.tiktok\.com$/, path: /^\/(embed|player)/ }],
+    cookies: [],
+    csp: { 'script-src': ['www.tiktok.com'], 'frame-src': ['www.tiktok.com'] },
+    impact: 'Embedded TikTok videos do not appear.',
+    verify: embedNote('TikTok video', 'TikTok'),
+  },
+  {
+    id: 'pinterest-embed', name: 'Pinterest widget', category: 'preferences', googleTag: false,
+    requests: [{ host: /^(assets|widgets)\.pinterest\.com$/ }],
+    cookies: [],
+    csp: { 'script-src': ['assets.pinterest.com'], 'connect-src': ['widgets.pinterest.com'] },
+    impact: 'Pinterest Save buttons and embedded pins do not appear.',
+    verify: embedNote('Pinterest button or pin', 'Pinterest'),
+  },
+  {
+    id: 'vimeo', name: 'Vimeo embed', category: 'preferences', googleTag: false,
+    requests: [{ host: /^player\.vimeo\.com$/ }, { host: /(^|\.)vimeocdn\.com$/ }],
+    cookies: [/^vuid$/],
+    csp: { 'frame-src': ['player.vimeo.com'] },
+    impact: 'Embedded Vimeo videos do not play.',
+    verify: `${embedNote('Vimeo video', 'Vimeo')} Vimeo documents a dnt=1 player parameter that stops the player tracking session data, including cookies.`,
+  },
+  {
+    id: 'spotify-embed', name: 'Spotify embed', category: 'preferences', googleTag: false,
+    requests: [{ host: /^open\.spotify\.com$/, path: /^\/embed/ }, { host: /(^|\.)spotifycdn\.com$/ }, { host: /^i\.scdn\.co$/ }],
+    cookies: [],
+    csp: { 'frame-src': ['open.spotify.com'] },
+    impact: 'Embedded Spotify episodes and playlists do not play.',
+    verify: embedNote('Spotify player', 'Spotify'),
+  },
+  {
+    id: 'soundcloud-embed', name: 'SoundCloud embed', category: 'preferences', googleTag: false,
+    requests: [{ host: /^w\.soundcloud\.com$/ }, { host: /(^|\.)sndcdn\.com$/ }],
+    cookies: [],
+    csp: { 'frame-src': ['w.soundcloud.com'] },
+    impact: 'Embedded SoundCloud tracks do not play.',
+    verify: embedNote('SoundCloud player', 'SoundCloud'),
+  },
+  {
+    // Requests to www.google.com still count as "sent to Google" in strict-Google policy runs.
+    id: 'google-maps', name: 'Google Maps embed', category: 'preferences', googleTag: false,
+    requests: [{ host: /^(www|maps)\.google\.com$/, path: /^\/maps\// }, { host: /^maps\.(googleapis|gstatic)\.com$/ }],
+    cookies: [],
+    csp: { 'frame-src': ['www.google.com'], 'script-src': ['maps.googleapis.com'] },
+    impact: 'Embedded maps do not appear.',
+    verify: embedNote('Google map', 'Google'),
   },
   // Consent management platforms
   {
