@@ -78,6 +78,22 @@ test('pageview dropped by the burst filter: skipped, and no page-visit goal is i
   assert.deepEqual(ingests(rpcCalls).map((a) => a.p_kind), ['pageview']);
 });
 
+test('engagement: ms forwarded as p_value without source; invalid ms rejected', async () => {
+  const { handler, rpcCalls } = setup();
+  const res = await handler(post({ siteId: SITE, kind: 'engagement', url: 'https://www.shop.test/pricing', ms: 12345.6 }));
+  assert.equal(res.status, 204);
+  const [hit] = ingests(rpcCalls);
+  assert.equal(hit.p_kind, 'engagement');
+  assert.equal(hit.p_value, 12346);
+  assert.equal(hit.p_path, '/pricing');
+  assert.equal(hit.p_referrer_domain, '');
+  assert.equal(hit.p_utm_source, '');
+  for (const ms of [0, -5, 'x', undefined, 30 * 60 * 1000 + 1]) {
+    const bad = await setup().handler(post({ siteId: SITE, kind: 'engagement', url: 'https://www.shop.test/', ms }));
+    assert.equal(bad.status, 400, String(ms));
+  }
+});
+
 test('form goal by id uses the configured name and value; unknown form falls back to content id', async () => {
   const { handler, rpcCalls } = setup();
   assert.equal((await handler(post({ siteId: SITE, kind: 'goal', url: 'https://shop.test/demo', goalId: 'g-form' }))).status, 204);

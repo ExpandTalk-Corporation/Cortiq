@@ -9,7 +9,7 @@ const settle = async () => { for (let i = 0; i < 8; i++) await new Promise((r) =
 
 function browser({ config = { siteId: 'site-1', apiKey: 'tk_key', aggregate: true }, stored = null, gpc = false,
                    cookiebot, dataLayer, referrer = 'https://www.linkedin.com/feed/', search = '?utm_source=linkedin&utm_campaign=q4',
-                   goals = [{ id: 'g-form', selector: '#demo' }], pathname = '/start', interact = true, visibility } = {}) {
+                   goals = [{ id: 'g-form', selector: '#demo' }], pathname = '/start', visibility } = {}) {
   const calls = [];
   const storageTouches = [];
   const listeners = new Map();
@@ -17,7 +17,7 @@ function browser({ config = { siteId: 'site-1', apiKey: 'tk_key', aggregate: tru
     addEventListener(n, h) { (listeners.get(target + n) || listeners.set(target + n, []).get(target + n)).push(h); },
     removeEventListener(n, h) { listeners.set(target + n, (listeners.get(target + n) || []).filter((x) => x !== h)); },
   });
-  // Fake timers: elapse(ms) runs what is due.
+  // Fake clock and timers: elapse(ms) advances Date.now() and runs what is due.
   let now = 0, nextId = 1;
   const timers = new Map();
   const setTimeout = (fn, ms) => { const id = nextId++; timers.set(id, { fn, at: now + ms }); return id; };
@@ -41,7 +41,7 @@ function browser({ config = { siteId: 'site-1', apiKey: 'tk_key', aggregate: tru
   const ctx = {
     window, location, history,
     document: Object.assign(on('d'), { referrer, ...(visibility && { visibilityState: visibility }) }),
-    setTimeout, clearTimeout,
+    setTimeout, clearTimeout, Date: { now: () => now },
     navigator: { globalPrivacyControl: gpc },
     URLSearchParams,
     localStorage: { getItem: (k) => { storageTouches.push(['get', k]); return local.get(k) ?? null; },
@@ -56,7 +56,6 @@ function browser({ config = { siteId: 'site-1', apiKey: 'tk_key', aggregate: tru
   ctx.window.window = ctx.window;
   const run = () => runInNewContext(source, ctx);
   run();
-  if (interact) fire('w', 'pointerdown', {});
   const submit = (form) => fire('d', 'submit', { target: form });
   const consent = (detail) => fire('w', 'siteConsentUpdated', { detail });
   const setVisibility = (state) => { ctx.document.visibilityState = state; fire('d', 'visibilitychange', {}); };
@@ -157,61 +156,75 @@ test('excludePaths: no page views or goal hits on excluded path prefixes', async
   assert.equal(b.calls.length, 1, 'excluded page view and goal send nothing');
 });
 
-test('no page view before a sign of a person; the first interaction sends the queued view', async () => {
-  const b = browser({ interact: false });
-  await settle();
-  assert.equal(b.calls.length, 0, 'nothing on load');
-  b.elapse(2999);
-  await settle();
-  assert.equal(b.calls.length, 0, 'not before the dwell time');
-  b.fire('w', 'scroll', {});
+const engagement = (b) => b.calls.filter((c) => c.body.kind === 'engagement').map((c) => c.body);
+
+test('page view goes out at once, also for a visitor who leaves quickly', async () => {
+  const b = browser();
+  b.elapse(500);
+  b.fire('w', 'pagehide', {});
   await settle();
   assert.equal(b.calls.length, 1);
-  assert.equal(b.calls[0].body.referrer, 'https://www.linkedin.com/feed/', 'queued view keeps the landing referrer');
-  assert.equal(b.listenerCount('wscroll'), 0, 'interaction listeners removed');
-  b.elapse(5000);
-  await settle();
-  assert.equal(b.calls.length, 1, 'dwell timer does not send it twice');
-});
-
-test('without interaction, a page visible for 3 seconds counts; SPA views before that are queued in order', async () => {
-  const b = browser({ interact: false });
-  b.ctx.history.pushState({}, '', '/pricing');
-  b.elapse(3000);
-  await settle();
-  assert.deepEqual(b.calls.map((c) => c.body.url), ['https://shop.test/start', 'https://shop.test/pricing']);
-  b.ctx.history.pushState({}, '', '/after');
-  await settle();
-  assert.equal(b.calls.length, 3, 'later views go straight out');
-});
-
-test('a crawler that leaves within the dwell time, or a hidden/prerendered page, sends nothing', async () => {
-  const quick = browser({ interact: false });
-  quick.elapse(1500);
-  await settle();
-  assert.equal(quick.calls.length, 0);
-
-  const hidden = browser({ interact: false, visibility: 'prerender' });
-  hidden.elapse(10000);
-  await settle();
-  assert.equal(hidden.calls.length, 0, 'prerender does not count as visible time');
-  hidden.setVisibility('visible');
-  hidden.elapse(3000);
-  await settle();
-  assert.equal(hidden.calls.length, 1, 'counts once actually visible for 3 s');
-
-  const tabbed = browser({ interact: false });
-  tabbed.elapse(2000);
-  tabbed.setVisibility('hidden');
-  tabbed.elapse(5000);
-  await settle();
-  assert.equal(tabbed.calls.length, 0, 'background time does not count');
-});
-
-test('a form submit counts as a person: page view first, then the goal', async () => {
-  const b = browser({ interact: false });
-  await settle();
-  b.submit(form(['#demo']));
-  await settle();
   assert.equal(b.calls[0].body.kind, 'pageview');
+  assert.deepEqual(engagement(b), [], 'under a second of engagement is not sent');
+});
+
+test('engagement: one ping when 10 s of visible time is reached, then on hide', async () => {
+  const b = browser();
+  b.elapse(9999);
+  await settle();
+  assert.deepEqual(engagement(b), []);
+  b.elapse(1);
+  await settle();
+  assert.deepEqual(engagement(b), [{ kind: 'engagement', url: 'https://shop.test/start', ms: 10000, siteId: 'site-1' }]);
+  b.elapse(5000);
+  b.setVisibility('hidden');
+  b.elapse(60000);
+  await settle();
+  assert.deepEqual(engagement(b).map((e) => e.ms), [10000, 5000], 'background time does not count');
+  b.setVisibility('visible');
+  b.elapse(2000);
+  b.fire('w', 'pagehide', {});
+  await settle();
+  assert.deepEqual(engagement(b).map((e) => e.ms), [10000, 5000, 2000]);
+});
+
+test('engagement: visible time adds up across hide/show before the 10 s ping', async () => {
+  const b = browser();
+  b.elapse(4000);
+  b.setVisibility('hidden');
+  b.setVisibility('visible');
+  b.elapse(6000);
+  await settle();
+  assert.deepEqual(engagement(b).map((e) => e.ms), [4000, 6000], 'hide sends 4 s; the timer fires at 10 s in total');
+});
+
+test('engagement: prerendered time does not count', async () => {
+  const b = browser({ visibility: 'prerender' });
+  b.elapse(30000);
+  await settle();
+  assert.deepEqual(engagement(b), []);
+  b.setVisibility('visible');
+  b.elapse(10000);
+  await settle();
+  assert.deepEqual(engagement(b).map((e) => e.ms), [10000]);
+});
+
+test('engagement: SPA navigation sends the previous page time before the new page view; excluded paths send none', async () => {
+  const b = browser({ config: { siteId: 'site-1', apiKey: 'tk_key', aggregate: true, excludePaths: '/admin' } });
+  b.elapse(3000);
+  b.ctx.history.pushState({}, '', '/pricing');
+  await settle();
+  assert.deepEqual(b.calls.map((c) => [c.body.kind, c.body.url, c.body.ms]), [
+    ['pageview', 'https://shop.test/start', undefined],
+    ['engagement', 'https://shop.test/start', 3000],
+    ['pageview', 'https://shop.test/pricing', undefined],
+  ]);
+  b.elapse(2000);
+  b.ctx.history.pushState({}, '', '/admin/x');
+  b.elapse(20000);
+  b.setVisibility('hidden');
+  await settle();
+  assert.deepEqual(engagement(b).map((e) => [e.url, e.ms]), [
+    ['https://shop.test/start', 3000], ['https://shop.test/pricing', 2000],
+  ]);
 });

@@ -88,7 +88,8 @@ The tracking script is loaded with `defer` so it does not block rendering.
 == Changelog ==
 
 = 5.5.9 =
-* Fix: Aggregate measurement no longer counts crawlers that load a page and leave within seconds — a page view is sent after the first interaction or 3 seconds of visible page.
+* New: Aggregate measurement reports engagement with the GA4 definitions — engaged visits (10 seconds in the foreground, 2+ page views or a conversion), engagement rate, engaged visits per visitor and average engagement time.
+* Fix: Bursts of crawler hits (several new direct visitors on one page within seconds) are no longer counted as visitors; the dashboard shows how many hits were filtered.
 
 = 5.5.8 =
 * Fix: ordinary Safari and iPhone visitors are no longer reported as AI bots.

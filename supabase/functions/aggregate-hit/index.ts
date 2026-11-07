@@ -11,6 +11,9 @@
  * id, or the account key (companies.api_key, WordPress plugin) with body.siteId = account id, in
  * which case the site is resolved from the page URL's domain and must belong to that account.
  *
+ * Kinds: pageview, goal, and engagement ({ ms } of foreground time, GA4 definition) which only
+ * adds to an existing visit and marks it engaged at 10 s.
+ *
  * Conditions the page cannot fix (disabled, GPC, bots, bursts, rate limit, DB trouble) answer
  * 200 { skipped } so customers' consoles stay clean.
  */
@@ -27,6 +30,7 @@ const corsHeaders = {
 };
 
 const MAX_BODY_BYTES = 8 * 1024;
+const MAX_ENGAGEMENT_MS = 30 * 60 * 1000;
 const REQUESTS_PER_MINUTE = 600;
 const SITE_COLUMNS = 'id, user_id, is_active, domain, aggregate_measurement, conversion_goals';
 // Headless browsers and audit tools that do not match the AI bot registry.
@@ -71,7 +75,11 @@ Deno.serve(async (req) => {
   let body: any;
   try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
   const kind = body?.kind;
-  if (kind !== 'pageview' && kind !== 'goal') return json({ error: 'kind must be pageview or goal' }, 400);
+  if (kind !== 'pageview' && kind !== 'goal' && kind !== 'engagement') {
+    return json({ error: 'kind must be pageview, goal or engagement' }, 400);
+  }
+  const ms = kind === 'engagement' ? num(body.ms) : null;
+  if (kind === 'engagement' && (ms === null || ms <= 0 || ms > MAX_ENGAGEMENT_MS)) return json({ error: 'Invalid ms' }, 400);
   let pageUrl: URL;
   try { pageUrl = new URL(String(body.url ?? '')); } catch { return json({ error: 'Invalid url' }, 400); }
   if (pageUrl.protocol !== 'https:' && pageUrl.protocol !== 'http:') return json({ error: 'Invalid url' }, 400);
@@ -124,6 +132,11 @@ Deno.serve(async (req) => {
     }
     // Form goals only: the beacon matches submits by selector. No names or values leave here.
     return json({ goals: goals.filter((g) => g.type === 'form_submission').map((g) => ({ id: g.id, selector: g.selector.slice(0, 500) })) });
+  }
+
+  if (kind === 'engagement') {
+    await ingest({ ...base, ...noSource, p_kind: 'engagement', p_goal_id: null, p_goal_name: null, p_value: Math.round(ms!) });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   const goal = typeof body.goalId === 'string'
