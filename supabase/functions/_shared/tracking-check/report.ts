@@ -1,5 +1,5 @@
 // Turns findings into the report headline, summary lines and tracker-compatible CSV.
-import type { Finding, FindingStatus, Mode } from './types.ts';
+import type { Finding, FindingStatus, Mode, Owner } from './types.ts';
 
 export interface SummaryLine { status: FindingStatus; text: string; checkKey: string }
 export interface ReportSummary { headline: string; counts: Record<FindingStatus, number>; blocking: number; lines: SummaryLine[] }
@@ -53,4 +53,29 @@ export function toCsv(findings: Finding[]): string {
     [f.explanation, f.evidence.pages.length ? `Pages: ${f.evidence.pages.join(', ')}` : ''].filter(Boolean).join(' '),
   ]);
   return '﻿' + [CSV_COLUMNS, ...rows].map((r) => r.map(cell).join(',')).join('\r\n') + '\r\n';
+}
+
+// Excel export: one row per finding, with the fix in its own column (the CSV keeps the tracker layout above).
+export const OWNER_LABEL: Record<Owner, string> = {
+  developer: 'Developer', gtm: 'Tag manager (GTM)', cmp: 'Cookie banner (CMP)', marketing: 'Marketing', legal: 'Controller / legal',
+};
+export const FINDING_STATUS_LABEL: Record<FindingStatus, string> = {
+  fail: 'Problem', warning: 'Review', manual: 'Test manually', untestable: 'Not tested', pass: 'OK',
+};
+export const SHEET_COLUMNS = ['#', 'Status', 'Priority', 'Area', 'Finding', 'Explanation', 'What to do', 'Owner', 'Pages', 'Evidence', 'Verified manually'];
+
+export function toSheetRows(findings: (Finding & { verifiedAt?: string | null })[]): (string | number)[][] {
+  return findings.map((f, i) => [
+    i + 1,
+    FINDING_STATUS_LABEL[f.status],
+    f.priority && f.status !== 'pass' ? f.priority.charAt(0).toUpperCase() + f.priority.slice(1) : '',
+    f.scope,
+    f.title,
+    f.explanation,
+    f.status === 'pass' ? '' : f.fix,
+    f.typicalOwner ? OWNER_LABEL[f.typicalOwner] : '',
+    f.evidence.pages.join('\n'),
+    f.evidence.details.join('\n'),
+    f.verifiedAt ? f.verifiedAt.slice(0, 10) : '',
+  ]);
 }
