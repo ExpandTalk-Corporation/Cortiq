@@ -288,12 +288,13 @@ export function CMPDashboard({ selectedSite, onSiteUpdated }: CMPDashboardProps)
               </Alert>
               <div className="flex items-center justify-between border-t pt-4">
                 <div className="space-y-0.5 pr-4">
-                  <Label>Aggregate measurement (no consent required)</Label>
+                  <Label>Aggregate measurement (designed to not require consent)</Label>
                   <p className="text-sm text-muted-foreground">
-                    Counts page views, visits, sources and form goals for every visitor — no cookies, no device
-                    storage, no persistent IDs. A daily-rotating hash, deleted after the day, groups a visitor's
-                    pages. Designed to not require consent; your own legal assessment decides. Visitors who refuse
-                    analytics or send Global Privacy Control are not counted.
+                    Counts page views, visits, sources and form goals without waiting for consent — no cookies, no
+                    device storage, no persistent IDs. A daily-rotating hash, deleted after the day, groups a
+                    visitor's pages. Designed to not require consent; your own legal assessment decides. Visitors who
+                    refuse analytics or send Global Privacy Control are not counted. Refusals are read from the
+                    CortIQ banner, Cookiebot and Google Consent Mode.
                   </p>
                 </div>
                 <Switch checked={aggregateOn} onCheckedChange={updateAggregate} />

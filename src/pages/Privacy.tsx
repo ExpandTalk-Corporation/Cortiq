@@ -8,7 +8,7 @@ import { useSEO } from "@/hooks/useSEO";
 import { seoFor } from "@/marketing-routes";
 import { Shield, CheckCircle, Mail, FileText, Database, Users, BarChart3, Megaphone } from "lucide-react";
 
-const LAST_UPDATED = "November 5, 2026";
+const LAST_UPDATED = "November 7, 2026";
 
 const Privacy = () => {
   useSEO(seoFor("/privacy/"));
@@ -45,11 +45,12 @@ const Privacy = () => {
                 This privacy policy explains how we collect and use data when you use our analytics platform.
               </p>
               <p className="text-muted-foreground leading-relaxed">
-                Processing on websites that use CortIQ falls into three tiers:
+                Processing on websites that use CortIQ falls into four tiers:
               </p>
               <ul className="text-muted-foreground space-y-2 ml-4">
                 <li>• <strong>Server-side, without device access</strong> — AI-agent and bot measurement and server/edge logs (section 3).</li>
-                <li>• <strong>With analytics (Statistics) consent</strong> — all visitor analytics, in both Cookieless and Full mode (section 5).</li>
+                <li>• <strong>Aggregate measurement, only if the site operator enables it</strong> — daily page and source counts without storage on your device; stops on an explicit analytics refusal or Global Privacy Control (section 3C).</li>
+                <li>• <strong>With analytics (Statistics) consent</strong> — visitor analytics in both Cookieless and Full mode (section 5).</li>
                 <li>• <strong>With marketing consent</strong> — advertising click IDs and conversion feedback to ad platforms (section 5A).</li>
               </ul>
             </CardContent>
@@ -193,6 +194,75 @@ const Privacy = () => {
             </CardContent>
           </Card>
 
+          {/* Aggregate Measurement */}
+          <Card className="glass shadow-elegant border-primary/20">
+            <CardHeader>
+              <div className="flex items-center space-x-3 mb-2">
+                <BarChart3 className="h-6 w-6 text-primary" />
+                <CardTitle>3C. Aggregate Measurement (Optional, set by the site operator)</CardTitle>
+              </div>
+              <Badge className="w-fit bg-gradient-accent text-white">Opt-in by site operator</Badge>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-muted-foreground leading-relaxed">
+                A site operator can turn on aggregate measurement for its site. It is off by default. When it is on, a
+                small script on the site counts page views without waiting for a consent choice. It writes nothing to
+                your device (no cookies, localStorage or sessionStorage), sets no identifier and reads no
+                device-fingerprinting signals.
+              </p>
+              <div className="bg-primary/10 p-4 rounded-lg">
+                <h4 className="font-semibold mb-2 text-foreground">What is sent to CortIQ</h4>
+                <p className="text-sm text-muted-foreground">
+                  For each page view: the page address without query string, the referring page, UTM campaign values
+                  (source, medium, campaign) and the time the page was in the foreground. When you submit a form that
+                  the site operator has set up as a goal, the goal is sent too. As with any web request, your browser
+                  also transmits your IP address and browser User-Agent.
+                </p>
+              </div>
+              <div className="bg-primary/5 p-4 rounded-lg">
+                <h4 className="font-semibold mb-2 text-foreground">What CortIQ does with it</h4>
+                <ul className="text-sm text-muted-foreground space-y-2 ml-4">
+                  <li>• Your IP address and User-Agent are combined with a random value that changes every day (UTC) into a one-way hash. CortIQ does not store or log the IP address or User-Agent. Only the device type (desktop, mobile or tablet) is kept.</li>
+                  <li>• The referrer is reduced to its domain. Requests from known bots and automated browsers are discarded.</li>
+                  <li>• For the current day, the hash is used to count visits (a new visit starts after 30 minutes of inactivity or when you arrive from a new referrer or campaign): entry page, referrer domain, UTM values, device type, goals reached, number of page views and time in the foreground.</li>
+                  <li>• Once the day has ended, the daily value and these visit records are deleted, normally within an hour after midnight UTC. After that, the hash cannot be recomputed or linked across days.</li>
+                  <li>• Only daily totals are kept: page views per page, and visits, visitors, engagement and conversions per traffic source and device type.</li>
+                </ul>
+                <p className="text-sm text-muted-foreground mt-3">
+                  <strong className="text-foreground">What is not done:</strong> no cookies or other storage on your
+                  device, no identifier across days, no visitor profile, no clicks, scroll depth, heatmaps, session
+                  replay or advertising click IDs.
+                </p>
+                <p className="text-sm text-muted-foreground mt-3">
+                  <strong className="text-foreground">Reading your consent choice:</strong> the script reads the
+                  consent choice stored by the site&apos;s consent tool, but only to detect a refusal. It recognises the
+                  CortIQ consent banner, Cookiebot and Google Consent Mode (<code>analytics_storage</code> set to
+                  denied). It also reads your browser&apos;s Global Privacy Control setting.
+                </p>
+                <p className="text-sm text-muted-foreground mt-3">
+                  <strong className="text-foreground">Legal basis:</strong> the site operator, as controller, decides
+                  whether to use aggregate measurement and on what legal basis; typically this is legitimate interest
+                  (GDPR Art. 6(1)(f)) in knowing how its website is used. Legitimate interest is not available to public
+                  authorities in the performance of their tasks. Whether the consent requirement in ePrivacy Directive
+                  Art. 5(3) (Swedish LEK chapter 9, section 28) applies is not settled. The script stores nothing on
+                  your device, but it reads the stored consent choice and instructs your browser to send the data
+                  above. The European Data Protection Board (EDPB) treats such script-triggered sending as access to
+                  the device (Guidelines 2/2023). The site operator makes this assessment.
+                </p>
+                <p className="text-sm text-muted-foreground mt-3">
+                  <strong className="text-foreground">Your right to object (Art. 21 GDPR):</strong> refuse analytics
+                  (Statistics) in the site&apos;s consent tool, or turn on Global Privacy Control in your browser.
+                  Nothing more is then sent. Data already sent stays in that day&apos;s count and in the daily totals.
+                  If the site uses a consent tool other than those listed above, use Global Privacy Control or contact
+                  the site operator.
+                </p>
+                <p className="text-xs text-muted-foreground mt-2 italic">
+                  <strong>Retention:</strong> see section 9.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* First-Party Data Collection */}
           <Card className="glass shadow-elegant border-primary/20">
             <CardHeader>
@@ -234,9 +304,15 @@ const Privacy = () => {
                   us to keep it longer.
                 </p>
                 <p className="text-sm text-muted-foreground mt-2">
+                  <strong className="text-foreground">API and MCP requests:</strong> if you use the CortIQ REST API or
+                  MCP server with your API key, we log each request (endpoint, response time, IP address and user agent)
+                  to secure the service and enforce rate limits. We are the controller, the legal basis is legitimate
+                  interest (GDPR Art. 6(1)(f)), and the log is deleted together with the API key.
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
                   <strong className="text-foreground">Note:</strong> This covers account holders of the CortIQ
-                  platform. It is separate from the visitor analytics described in section 5, which always requires
-                  consent.
+                  platform. It is separate from the visitor analytics in section 5, which requires consent, and from
+                  the optional aggregate measurement in section 3C.
                 </p>
               </div>
             </CardContent>
@@ -253,8 +329,9 @@ const Privacy = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-muted-foreground leading-relaxed">
-                All visitor analytics starts <strong>only after you grant analytics (Statistics) consent</strong>.
-                This applies in both Cookieless and Full mode:
+                Visitor analytics in Cookieless and Full mode starts <strong>only after you grant analytics
+                (Statistics) consent</strong>. (The optional aggregate measurement in section 3C works differently.)
+                This covers:
               </p>
               <ul className="space-y-3">
                 {[
@@ -421,7 +498,7 @@ const Privacy = () => {
                 </p>
                 <h5 className="font-semibold text-sm mb-1">Necessary (always active)</h5>
                 <ul className="text-muted-foreground space-y-1 ml-4 mb-3">
-                  <li>• <code>site_cookie_consent</code> (localStorage) - Your consent choices, read by the tracking script before anything is measured (Lifetime: 12 months; you are then asked again)</li>
+                  <li>• <code>site_cookie_consent</code> (localStorage) - Your consent choices, read by the tracking script before anything is measured, and by the aggregate script (section 3C) to detect a refusal (Lifetime: 12 months; you are then asked again)</li>
                   <li>• <code>user_consent</code> (sessionStorage) - Copy of your consent choices for the current tab, set by the consent banner (Lifetime: tab session)</li>
                 </ul>
                 <h5 className="font-semibold text-sm mb-1">Analytical (requires analytics consent)</h5>
@@ -452,7 +529,8 @@ const Privacy = () => {
                 visitors; only clients classified as automated get the <code>_ciq_adp</code> counter. The
                 <code> site_consent</code> cookie above is set only by cortiq.se&apos;s own banner.
                 Analytical and marketing storage is written only after the corresponding consent. Withdrawing consent removes
-                <code> cortiq_session_id</code> and <code>cortiq_click_ids</code>.
+                <code> cortiq_session_id</code> and <code>cortiq_click_ids</code>. The aggregate script (section 3C),
+                if enabled, writes nothing to your browser.
               </p>
             </CardContent>
           </Card>
@@ -469,7 +547,7 @@ const Privacy = () => {
                 <li>✓ <strong>Right to erasure</strong> (Art. 17 GDPR) - Request deletion of your data</li>
                 <li>✓ <strong>Right to rectification</strong> (Art. 16 GDPR) - Correct inaccurate data</li>
                 <li>✓ <strong>Right to restriction of processing</strong> (Art. 18 GDPR) - Ask us to limit how we use your data, for example while we check a disputed fact</li>
-                <li>✓ <strong>Right to object</strong> (Art. 21 GDPR) - Object to processing based on legitimate interest (section 3)</li>
+                <li>✓ <strong>Right to object</strong> (Art. 21 GDPR) - Object to processing based on legitimate interest (sections 3A, 3B and 3C)</li>
                 <li>✓ <strong>Right to data portability</strong> (Art. 20 GDPR) - Get your data in structured form</li>
                 <li>✓ <strong>Right to withdraw consent</strong> (Art. 7.3 GDPR) - At any time, via the site's cookie settings</li>
               </ul>
@@ -532,6 +610,15 @@ const Privacy = () => {
               </div>
 
               <div className="bg-primary/5 p-4 rounded-lg">
+                <h4 className="font-semibold mb-2 text-foreground">Aggregate measurement (only if the site operator enables it)</h4>
+                <ul className="text-sm text-muted-foreground space-y-1 ml-4">
+                  <li>• <strong>Daily value and visit records (hash):</strong> deleted once the UTC day has ended, normally within an hour after midnight UTC, so no more than about 25 hours after creation</li>
+                  <li>• <strong>IP address and User-Agent:</strong> not stored by CortIQ; only the device type is kept</li>
+                  <li>• <strong>Daily totals (page views, visits, sources, conversions):</strong> kept without an automatic time limit and deleted when the site is deleted from CortIQ</li>
+                </ul>
+              </div>
+
+              <div className="bg-primary/5 p-4 rounded-lg">
                 <h4 className="font-semibold mb-2 text-foreground">Server logs and bot detection</h4>
                 <ul className="text-sm text-muted-foreground space-y-1 ml-4">
                   <li>• <strong>Server-log (Cloudflare) records:</strong> 90 days, or the site's retention period if shorter</li>
@@ -576,16 +663,20 @@ const Privacy = () => {
               </p>
               <ul className="space-y-2 text-muted-foreground">
                 <li>❌ <strong>Analytics or advertising cookies</strong> (CortIQ does not set Google Analytics or Facebook Pixel cookies such as _ga or _fbp)</li>
-                <li>❌ <strong>Visitor analytics of any kind</strong> (page views, sessions, clicks, scroll depth, heatmaps)</li>
+                <li>❌ <strong>Visitor analytics in Cookieless or Full mode</strong> (sessions, clicks, scroll depth, heatmaps, form interactions)</li>
+                <li>❌ <strong>Any storage on your device</strong> for measurement (cookies, localStorage, sessionStorage)</li>
                 <li>❌ <strong>Device fingerprinting for identification</strong> (Canvas, WebGL, font detection)</li>
-                <li>❌ <strong>Hash-based tracking</strong> (e.g. IP + User-Agent hash)</li>
+                <li>❌ <strong>Identifiers that last longer than one day</strong> (the IP + User-Agent hash in section 3C changes daily and is deleted once the day has ended)</li>
                 <li>❌ <strong>Advertising click IDs</strong> (gclid, fbclid, etc.)</li>
               </ul>
               <div className="bg-destructive/5 p-4 rounded-lg mt-4">
                 <p className="text-sm text-muted-foreground">
                   <strong className="text-foreground">Note:</strong> Cookieless operation does not remove the need
                   for consent. Under the ePrivacy Directive, reading or storing information on a device for analytics
-                  requires consent regardless of whether cookies are used or the script runs on the site's own domain.
+                  requires consent, whether or not cookies are used and whether or not the script runs on the site&apos;s
+                  own domain. The exception is aggregate measurement (section 3C). A site operator can turn it on; it
+                  stores nothing on your device and stops on a refusal or Global Privacy Control. Whether it needs
+                  consent is not settled, and the site operator decides.
                 </p>
               </div>
             </CardContent>
@@ -619,7 +710,7 @@ const Privacy = () => {
               <CardDescription className="text-center">Summary only — sections 3 to 5C are authoritative.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid md:grid-cols-3 gap-6">
+              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="bg-background/80 p-6 rounded-lg">
                   <h4 className="font-bold mb-3">Server-side</h4>
                   <p className="text-sm text-muted-foreground mb-3">No device access; in our assessment not subject to cookie consent</p>
@@ -629,6 +720,17 @@ const Privacy = () => {
                     <li>• robots.txt, llms.txt and honeypot hits</li>
                     <li>• Server &amp; edge logs (operations, security)</li>
                     <li className="font-semibold text-foreground">Nothing runs in the browser, no cookies</li>
+                    <li className="font-semibold text-foreground">Basis: set by the site operator, typically legitimate interest (Art. 6(1)(f)); right to object applies</li>
+                  </ul>
+                </div>
+                <div className="bg-background/80 p-6 rounded-lg">
+                  <h4 className="font-bold mb-3">Aggregate measurement</h4>
+                  <p className="text-sm text-muted-foreground mb-3">Only if the site operator turns it on</p>
+                  <ul className="text-sm space-y-2 text-muted-foreground">
+                    <li>• Page views, entry pages, referrer domains, UTM, device type</li>
+                    <li>• Visits, engagement time, form goals (daily totals)</li>
+                    <li className="font-semibold text-foreground">Nothing stored on your device; daily hash deleted after the day</li>
+                    <li className="font-semibold text-foreground">Stops on analytics refusal or Global Privacy Control</li>
                     <li className="font-semibold text-foreground">Basis: set by the site operator, typically legitimate interest (Art. 6(1)(f)); right to object applies</li>
                   </ul>
                 </div>

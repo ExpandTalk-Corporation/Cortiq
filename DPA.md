@@ -6,7 +6,7 @@
 
 - **Data Processor:** Expandtalk Corporation AB, org. nr. 559358-8824, registered office Göteborg, VAT no. SE559358882401, Parmmätaregatan 4B, 417 04 Göteborg, Sweden ("CortIQ").
 
-**Version:** 1.4, dated 15 October 2026.
+**Version:** 1.5, dated 7 November 2026.
 
 This Data Processing Agreement ("DPA") governs the processing of personal data by CortIQ on behalf of the Customer, in accordance with Article 28 of the General Data Protection Regulation (EU) 2016/679 ("GDPR"). It forms part of the CortIQ Terms of Service (https://cortiq.se/terms/) and is accepted together with them when the Customer creates an account. Installing the tracking script, plugin, Worker or a server-side adapter with the Customer's keys also confirms acceptance of the version then in force. In case of conflict regarding personal data, this DPA prevails over the Terms of Service.
 
@@ -14,7 +14,7 @@ This Data Processing Agreement ("DPA") governs the processing of personal data b
 
 ## 1. Subject matter and duration
 
-CortIQ processes personal data on behalf of the Customer for the purpose of providing web analytics services, including visitor behaviour tracking, server-side measurement of AI crawlers and agents, heatmap generation, conversion analysis and, where the Customer connects its CRM, lead-quality matching of consented conversions.
+CortIQ processes personal data on behalf of the Customer for the purpose of providing web analytics services, including visitor behaviour tracking, aggregate measurement where the Customer enables it, server-side measurement of AI crawlers and agents, heatmap generation, conversion analysis and, where the Customer connects its CRM, lead-quality matching of consented conversions.
 
 This DPA enters into force when the Customer accepts the Terms of Service and remains in effect for as long as CortIQ processes personal data on the Customer's behalf.
 
@@ -24,14 +24,15 @@ This DPA enters into force when the Customer accepts the Terms of Service and re
 
 | | |
 |--|--|
-| **Purpose** | (a) Web analytics — measuring visitor behaviour to improve the Customer's website (after visitor consent); (b) server-side AI-agent and crawler measurement for the Customer; (c) lead-quality matching of consented conversions against the Customer's CRM (optional) |
+| **Purpose** | (a) Web analytics — measuring visitor behaviour to improve the Customer's website (after visitor consent); (b) aggregate measurement — daily counts of page views, visits, traffic sources and goals, without storage on the visitor's device (only if the Customer enables it); (c) server-side AI-agent and crawler measurement for the Customer; (d) lead-quality matching of consented conversions against the Customer's CRM (optional) |
 | **Nature** | Collection, storage, aggregation, analysis, matching and deletion of visitor data |
 | **Categories of data — visitor analytics** | Pseudonymised visitor and session identifiers, page URLs, device type, browser family, geographic region, interaction events (clicks, scrolls, form activity), in-browser bot-check signals, hashed email addresses and advertising click IDs (marketing consent only). The tracking script does not record sessions |
+| **Categories of data — aggregate measurement** | Only if the Customer enables it: IP address and user agent of the request, used only to compute a SHA-256 hash with a random salt that changes every UTC day, and not stored or logged by CortIQ; per hash and day: visit start and last activity, entry path (without query string), referrer domain, UTM source/medium/campaign, device type, goals reached, page-view count, foreground time. Long-term: daily totals per path, source, device and goal. No cookies, device storage, cross-day identifiers or fingerprinting signals. The script reads the site's stored consent record and Global Privacy Control only to stop on an objection |
 | **Categories of data — server-side agent measurement** | For bot-like requests only: IP address truncated to /24 (IPv4) or /48 (IPv6) on the Customer's server before transfer, user agent, URL path, referrer, timestamp. Ordinary human requests are not transferred to CortIQ |
 | **Categories of data — CRM lead-quality matching** | Only if the Customer connects HubSpot: the contact's email address sent by the Customer's HubSpot account, which CortIQ hashes with SHA-256 immediately on receipt and does not store or log in plain text, and the lead-status value. The hash and lead status are kept only where the hash matches a conversion recorded with marketing consent; otherwise the event is discarded |
 | **Categories of data — script delivery** | When a browser loads the tracking script from cortiq.se, CortIQ's web host records a standard access log entry (IP address, user agent, requested file, time) |
 | **Categories of data subjects** | Visitors to the Customer's website(s), including operators of automated clients (crawlers, AI agents); the Customer's CRM contacts, only where they match a consented conversion |
-| **Retention period** | Per-site retention period set in the dashboard (default 365 days, also for sites without GDPR settings). Truncated IPs on AI-bot records are cleared after 30 days; raw Cloudflare log rows are kept at most 90 days. Web-host access logs follow the web host's log retention. Further details in the Privacy Policy, section 9 |
+| **Retention period** | Per-site retention period set in the dashboard (default 365 days, also for sites without GDPR settings). Truncated IPs on AI-bot records are cleared after 30 days; raw Cloudflare log rows are kept at most 90 days. Web-host access logs follow the web host's log retention. Aggregate measurement: salts and per-day visitor records are deleted once the UTC day has ended (hourly job); daily totals are kept until the site is deleted. Further details in the Privacy Policy, section 9 |
 
 ---
 
@@ -69,11 +70,11 @@ CortIQ shall:
 
 The Customer shall:
 
-**4.1** Ensure a lawful basis exists for each category of personal data processed via CortIQ: consent for visitor analytics and the tracking script's in-browser bot checks, in both Cookieless and Full mode; for server-side agent measurement, the Customer's own legal basis (typically legitimate interest, Art. 6(1)(f) GDPR, supported by a documented balancing test), with the information required by Art. 13 and 21(4) GDPR, including the visitor's right to object. Legitimate interest is not available to public authorities in the performance of their tasks. Server-side agent measurement does not access the visitor's device; in CortIQ's assessment it is not covered by the consent requirement in Art. 5(3) of the ePrivacy Directive, but this is not settled and the Customer makes the final assessment.
+**4.1** Ensure a lawful basis exists for each category of personal data processed via CortIQ: consent for visitor analytics and the tracking script's in-browser bot checks, in both Cookieless and Full mode; for server-side agent measurement, the Customer's own legal basis (typically legitimate interest, Art. 6(1)(f) GDPR, supported by a documented balancing test), with the information required by Art. 13 and 21(4) GDPR, including the visitor's right to object. Legitimate interest is not available to public authorities in the performance of their tasks. Server-side agent measurement does not access the visitor's device; in CortIQ's assessment it is not covered by the consent requirement in Art. 5(3) of the ePrivacy Directive, but this is not settled and the Customer makes the final assessment. For aggregate measurement, if the Customer enables it: the Customer's own legal basis (typically legitimate interest, Art. 6(1)(f) GDPR, supported by a documented balancing test), with the information required by Art. 13 and 21(4) GDPR, including how to object. The aggregate script stores nothing on the visitor's device, but it reads the site's stored consent record and instructs the browser to send page-view data; the EDPB (Guidelines 2/2023) treats such transmission as gaining access under Art. 5(3) of the ePrivacy Directive. Whether consent is required under Art. 5(3) and national law (in Sweden, Chapter 9, Section 28 of the Electronic Communications Act (2022:482)) is not settled. The Customer makes that assessment, and CortIQ gives no assurance that consent is not required.
 
 **4.2** Provide data subjects with adequate privacy information, including disclosure of CortIQ as a data processor. CortIQ provides a [Privacy Policy template](./GDPR.md) for this purpose.
 
-**4.3** Configure the CortIQ cookie banner (or an equivalent CMP) to obtain and record valid consent before visitor analytics are activated.
+**4.3** Configure the CortIQ cookie banner (or an equivalent CMP) to obtain and record valid consent before visitor analytics in Cookieless or Full mode are activated. If the Customer enables aggregate measurement, which does not wait for consent, the Customer ensures that an explicit analytics refusal is recorded in a form the aggregate script reads (the CortIQ banner, Cookiebot, or a Google Consent Mode `analytics_storage` update), or otherwise informs visitors how to object.
 
 **4.4** Not instruct CortIQ to process personal data in a manner that would violate the GDPR or other applicable data protection law.
 
@@ -83,7 +84,7 @@ The Customer shall:
 
 ## 5. Data subject rights
 
-Because CortIQ stores visitor data under hashed identifiers (not names or email addresses), it is not always technically possible to identify a specific individual's data records. Where technically feasible, CortIQ will assist the Customer in responding to:
+Because CortIQ stores visitor data under hashed identifiers (not names or email addresses), it is not always technically possible to identify a specific individual's data records. Aggregate measurement records cannot be linked to an individual once the UTC day has ended, as the salt is deleted (Art. 11 GDPR). Where technically feasible, CortIQ will assist the Customer in responding to:
 
 - Access requests (Art. 15)
 - Rectification requests (Art. 16)
@@ -110,6 +111,8 @@ This section is the authoritative list. Other CortIQ pages (for example the secu
 | Cloudflare, Inc. (USA) | Edge web analytics (aggregate) and geo lookup for consent-banner gating through CortIQ's own Cloudflare access — only if the Customer enables the Cloudflare integration | Global edge network | EU-US Data Privacy Framework; SCCs | [Cloudflare DPA](https://www.cloudflare.com/cloudflare-customer-dpa/) |
 
 The installation snippet CortIQ provides requests the tracking script file only after the visitor's analytics consent, and the WordPress plugin serves the file from the Customer's own site, so in the recommended setups no request reaches CortIQ's web host before consent. If the Customer instead loads the file from cortiq.se on every page load, the browser transmits its IP address and user agent to the web host before consent; whether an exception in Chapter 9, Section 28 of the Swedish Electronic Communications Act (2022:482) and Art. 5(3) of the ePrivacy Directive applies to that is not settled, and the Customer makes that assessment. The legal basis for the resulting access log is CortIQ's legitimate interest in operating and securing the service (Art. 6(1)(f) GDPR). The logs are kept for the retention period set by the web host and are not used for analytics.
+
+If the Customer enables aggregate measurement, the aggregate script (inline in the snippet or bundled in the WordPress plugin) does not contact CortIQ's web host, but sends page-view requests to CortIQ's endpoint at Supabase (EU) without waiting for consent; Section 4.1 applies.
 
 ### 6.2 Services the Customer connects under its own agreement
 
@@ -187,7 +190,9 @@ For all GDPR and data protection enquiries: [info@expandtalk.se](mailto:info@exp
 
 ---
 
-*Version: 1.2, dated 14 October 2026 (replaces version 1.1 of 3 October 2026). Changes to this DPA follow the change procedure in section 12 of the Terms of Service.*
+*Version: 1.5, dated 7 November 2026 (replaces version 1.4 of 15 October 2026). Changes to this DPA follow the change procedure in section 12 of the Terms of Service.*
+
+*Changes in 1.5: aggregate measurement (opt-in, off by default) added as a processing purpose and data category, with retention; the Customer's lawful basis and ePrivacy assessment for it added to 4.1 and its objection handling to 4.3; Article 11 note in Section 5; requests to CortIQ's endpoint without consent described in Section 6; stale footer version corrected.*
 
 *Changes in 1.4: server-side agent measurement – Customer's balancing test, Art. 13/21(4) information and the public-authority limit added to 4.1, and the ePrivacy assessment stated as not settled; Cloudflare split into CortIQ's own access (sub-processor) and the Customer's own Cloudflare account (Customer-connected service); script loading clause rewritten: the provided snippet and the WordPress plugin make no request to CortIQ before consent.*
 
