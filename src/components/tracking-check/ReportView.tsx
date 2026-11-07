@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import type { FindingStatus, Mode, Owner } from '../../../supabase/functions/_shared/tracking-check/types.ts';
-import type { ReportSummary } from '../../../supabase/functions/_shared/tracking-check/report.ts';
+import type { FindingStatus, Mode } from '../../../supabase/functions/_shared/tracking-check/types.ts';
+import { OWNER_LABEL, type ReportSummary } from '../../../supabase/functions/_shared/tracking-check/report.ts';
 import type { FindingRow } from '@/hooks/useTrackingCheck';
 
 const STATUS: Record<FindingStatus, { label: string; icon: typeof XCircle; className: string }> = {
@@ -15,9 +15,6 @@ const STATUS: Record<FindingStatus, { label: string; icon: typeof XCircle; class
   manual: { label: 'Test manually', icon: Hand, className: 'text-blue-600 dark:text-blue-400' },
   untestable: { label: 'Not tested', icon: HelpCircle, className: 'text-muted-foreground' },
   pass: { label: 'OK', icon: CheckCircle2, className: 'text-green-600 dark:text-green-400' },
-};
-const OWNER: Record<Owner, string> = {
-  developer: 'Developer', gtm: 'Tag manager (GTM)', cmp: 'Cookie banner (CMP)', marketing: 'Marketing', legal: 'Controller / legal',
 };
 const anchor = (checkKey: string) => `finding-${checkKey.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
 
@@ -112,7 +109,7 @@ function FindingItem({ finding: f, open, onToggle, onVerify }: FindingItemProps)
               <pre className="whitespace-pre-wrap rounded bg-muted p-3 font-mono text-xs">{f.fix}</pre>
             </div>
           )}
-          {f.typicalOwner && <p className="text-muted-foreground">Usually owned by: {OWNER[f.typicalOwner]}</p>}
+          {f.typicalOwner && <p className="text-muted-foreground">Usually owned by: {OWNER_LABEL[f.typicalOwner]}</p>}
           {(f.evidence.pages.length > 0 || f.evidence.details.length > 0) && (
             <div className="text-muted-foreground">
               <p className="font-medium text-foreground">Evidence</p>
