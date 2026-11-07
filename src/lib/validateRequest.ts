@@ -52,8 +52,8 @@ export function validateRequest<T>(
         error: {
           message: 'Validation failed',
           code: 'VALIDATION_ERROR',
-          details: error.errors.map((err) => ({
-            path: err.path,
+          details: error.issues.map((err) => ({
+            path: err.path.map((p) => (typeof p === 'symbol' ? String(p) : p)),
             message: err.message,
             code: err.code,
           })),
@@ -110,7 +110,7 @@ export function validateOrThrow<T>(
     return schema.parse(data);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const errorMessages = error.errors
+      const errorMessages = error.issues
         .map((err) => `${err.path.join('.')}: ${err.message}`)
         .join('; ');
       throw new Error(
@@ -127,7 +127,7 @@ export function validateOrThrow<T>(
  * @returns Formatted error message
  */
 export function formatZodError(error: z.ZodError): string {
-  const messages = error.errors.map((err) => {
+  const messages = error.issues.map((err) => {
     const path = err.path.length > 0 ? `${err.path.join('.')} - ` : '';
     return `${path}${err.message}`;
   });
