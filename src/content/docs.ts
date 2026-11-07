@@ -484,7 +484,27 @@ export const MCP: ContentPageData = {
   ${MCP_ENDPOINT} \\
   --header "Authorization: Bearer ck_live_YOUR_KEY"`,
         },
-        { type: 'p', text: 'Other clients need the endpoint URL and the `Authorization` header. We document Claude Code; we have not tested every client.' },
+        { type: 'p', text: 'Use the API key (`ck_live_…`), not the site\'s tracking key (`tk_…`). The tracking key is public, because it sits in your site\'s HTML, and it does not work here.' },
+        { type: 'p', text: 'Clients that cannot send custom headers to a remote server, such as Claude Desktop, can connect through the [`mcp-remote`](https://www.npmjs.com/package/mcp-remote) proxy (requires Node.js). In `claude_desktop_config.json`:' },
+        {
+          type: 'code',
+          lang: 'json',
+          code: `{
+  "mcpServers": {
+    "cortiq-analytics": {
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "${MCP_ENDPOINT}",
+        "--header",
+        "Authorization:\${AUTH_HEADER}"
+      ],
+      "env": { "AUTH_HEADER": "Bearer ck_live_YOUR_KEY" }
+    }
+  }
+}`,
+        },
+        { type: 'p', text: 'There is no space after `Authorization:` because some clients on Windows split arguments at spaces; the `mcp-remote` documentation recommends this form. We document Claude Code and this configuration; we have not tested every client.' },
       ],
     },
     {
@@ -501,6 +521,23 @@ export const MCP: ContentPageData = {
           ],
         },
         { type: 'p', text: 'Every tool only reads data. There are no tools that write, delete or change settings.' },
+        { type: 'p', text: 'The tools read the site\'s consented visitor analytics and its server-side AI agent data. Aggregate measurement counts are not available through the MCP server or the REST API.' },
+      ],
+    },
+    {
+      id: 'parameters',
+      heading: 'Tool parameters',
+      blocks: [
+        {
+          type: 'list',
+          items: [
+            '`since` and `until`: ISO dates (`2026-11-01`). Every tool except `cortiq_list_sites` and `cortiq_describe_schema` accepts them. Without them, a tool covers the last 7 days up to and including today. `until` is exclusive: `since=2026-11-01&until=2026-11-08` covers 1–7 November.',
+            '`limit`: the number of rows in ranked lists. The default depends on the tool: 10 to 50, most often 15.',
+            '`url_prefix`: limits `cortiq_top_pages`, `cortiq_avg_engagement_time` and `cortiq_click_counts` to URLs that start with the prefix.',
+            '`cortiq_heatmap_grid` requires `url` (matched as a prefix) and accepts `device_type`: `mobile`, `tablet` or `desktop`.',
+          ],
+        },
+        { type: 'p', text: '`tools/list` returns the full input schema for every tool.' },
       ],
     },
     {
@@ -513,9 +550,27 @@ export const MCP: ContentPageData = {
             'Each key reads exactly one site. Create one key per site.',
             'The same key works for the MCP server and the [REST API](/api/).',
             'Keys are stored as SHA-256 hashes. You can disable or delete a key at any time.',
-            'Rate limit per key, 1,000 requests per hour by default. You can change it when you create the key.',
+            'Rate limit per key, 1,000 requests per hour by default. You can change it when you create the key. Every authenticated MCP request counts, including `initialize` and `tools/list`, over a rolling hour shared with REST API calls made with the same key.',
+            'Each request is logged with the method, response time, IP address and user agent. The log is deleted together with the key.',
           ],
         },
+      ],
+    },
+    {
+      id: 'errors',
+      heading: 'Errors',
+      blocks: [
+        {
+          type: 'list',
+          items: [
+            '`-32001` with HTTP 401: the key is missing, malformed, disabled or deleted.',
+            '`-32002` with HTTP 429: the key has used its hourly limit. Wait, or raise the limit on a new key.',
+            '`-32700`: the body is not valid JSON (HTTP 400), or the request is not a POST (HTTP 405).',
+            '`-32601`: unknown JSON-RPC method. `-32602`: missing or unknown tool name.',
+            '`-32603`: internal error.',
+          ],
+        },
+        { type: 'p', text: 'A tool that is called without a required argument answers normally with an `error` field in its result, for example `cortiq_heatmap_grid` without `url`.' },
       ],
     },
     {
