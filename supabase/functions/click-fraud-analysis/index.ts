@@ -1,4 +1,5 @@
 import { createClient } from '../_shared/supabase.ts';
+import { requireSiteAccess } from '../_shared/site-access.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,11 +14,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
     const { siteId, startDate, endDate } = await req.json();
 
     if (!siteId) {
@@ -26,6 +22,27 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // The service-role client below bypasses RLS (and reads Google Ads credentials):
+    // check the caller may read this site first.
+    const authorization = req.headers.get('Authorization');
+    const userClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authorization ?? '' } } },
+    );
+    const access = await requireSiteAccess(userClient, authorization, siteId);
+    if (!access.ok) {
+      return new Response(
+        JSON.stringify({ error: access.error }),
+        { status: access.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
 
     const start = startDate ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const end = endDate ?? new Date().toISOString().split('T')[0];
@@ -249,7 +266,7 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in click-fraud-analysis:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
