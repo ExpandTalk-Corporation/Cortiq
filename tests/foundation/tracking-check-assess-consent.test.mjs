@@ -107,6 +107,15 @@ test('a YouTube embed before choice is "verify", names its cookies, and is not a
   assert.equal(byKey(findings, 'consent.unknown_after_reject')[0].status, 'pass');
 });
 
+test('an X embed before choice is "verify" and leaves the combined pass in place', () => {
+  const findings = compareRun([st('none', { requests: [req('https://platform.twitter.com/widgets.js')] }), st('reject'), st('accept')]);
+  assert.equal(byKey(findings, 'consent.before_choice')[0].status, 'pass');
+  const [x] = byKey(findings, 'consent.before_choice.verify.x-embed');
+  assert.equal(x.status, 'manual');
+  assert.match(x.explanation, /the visitor's IP address reaches X/);
+  assert.match(x.fix, /only when the visitor opens it/);
+});
+
 test('reject that could not be automated is manual and never passes', () => {
   const findings = compareRun([st('none'), st('reject', { method: 'not_automated' }), st('accept')]);
   assert.equal(byKey(findings, 'consent.after_reject.manual')[0].status, 'manual');

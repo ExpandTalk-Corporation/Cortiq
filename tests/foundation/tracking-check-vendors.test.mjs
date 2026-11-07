@@ -99,3 +99,30 @@ test('YouTube: both embed modes, thumbnails and video are one vendor', () => {
   }
   assert.equal(vendorForName('VISITOR_INFO1_LIVE')?.id, 'youtube');
 });
+
+test('social and media embeds are verify vendors; Meta Pixel and the LinkedIn Insight Tag stay separate', () => {
+  const cases = {
+    'https://connect.facebook.net/sv_SE/sdk.js': 'facebook-embed',
+    'https://www.facebook.com/plugins/post.php?href=x': 'facebook-embed',
+    'https://connect.facebook.net/en_US/fbevents.js': 'meta',
+    'https://www.facebook.com/tr?id=123&ev=PageView': 'meta',
+    'https://platform.twitter.com/widgets.js': 'x-embed',
+    'https://cdn.syndication.twimg.com/tweet-result?id=1': 'x-embed',
+    'https://www.instagram.com/embed.js': 'instagram-embed',
+    'https://www.linkedin.com/embed/feed/update/urn:li:share:1': 'linkedin-embed',
+    'https://px.ads.linkedin.com/collect?pid=1': 'linkedin',
+    'https://www.tiktok.com/embed.js': 'tiktok-embed',
+    'https://assets.pinterest.com/js/pinit.js': 'pinterest-embed',
+    'https://player.vimeo.com/video/76979871': 'vimeo',
+    'https://open.spotify.com/embed/episode/abc': 'spotify-embed',
+    'https://w.soundcloud.com/player/?url=x': 'soundcloud-embed',
+    'https://www.google.com/maps/embed?pb=x': 'google-maps',
+    'https://maps.googleapis.com/maps/api/js?key=x': 'google-maps',
+  };
+  for (const [url, id] of Object.entries(cases)) assert.equal(vendorForUrl(url)?.id ?? null, id, url);
+  for (const id of ['facebook-embed', 'x-embed', 'instagram-embed', 'linkedin-embed', 'tiktok-embed', 'pinterest-embed', 'vimeo', 'spotify-embed', 'soundcloud-embed', 'google-maps']) {
+    const v = TRACKING_VENDORS.find((x) => x.id === id);
+    assert.equal(v.category, 'preferences', id);
+    assert.match(v.verify, /click-to-load preview loads nothing until the visitor asks/, id);
+  }
+});
