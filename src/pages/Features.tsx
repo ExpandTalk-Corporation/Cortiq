@@ -179,7 +179,7 @@ export default function Features() {
       icon: <Layers className="h-8 w-8" />,
       title: "MCP Analytics Server",
       description: "Let external AI agents query your analytics through a Model Context Protocol server",
-      features: ["23 analytics tools", "Scoped, rate-limited API key", "Tenant-scoped reads", "AI-agent and human traffic"]
+      features: ["22 analytics tools", "Scoped, rate-limited API key", "Tenant-scoped reads", "AI-agent and human traffic"]
     },
     {
       icon: <Users className="h-8 w-8" />,

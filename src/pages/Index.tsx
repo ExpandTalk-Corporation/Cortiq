@@ -337,18 +337,18 @@ const Index = () => {
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto mb-16">
-            {/* DDoS & Attack Prevention */}
+            {/* Server-side AI crawler classification */}
             <Card className="glass shadow-elegant hover-lift border-primary/20">
               <CardHeader>
                 <div className="w-12 h-12 bg-gradient-primary rounded-xl flex items-center justify-center mb-4">
                   <Shield className="h-6 w-6 text-white" />
                 </div>
-                <CardTitle className="text-xl">DDoS Detection</CardTitle>
+                <CardTitle className="text-xl">AI Crawler Classification</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Identify malicious bots attempting to overload your website,
-                  from server-side request data.
+                  Server-side adapters classify AI crawlers from the request's user agent as training crawlers,
+                  citation crawlers or agentic fetches.
                 </p>
               </CardContent>
             </Card>

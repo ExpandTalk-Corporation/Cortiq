@@ -167,8 +167,8 @@ export default function ApiDocs() {
             <p className="text-sm text-muted-foreground">
               <strong className="text-foreground">Security model:</strong> both APIs authenticate with a
               CortIQ API key that is stored only as a SHA-256 hash. Each key is scoped to one site, and every
-              query is filtered to that site server-side. Keys are rate-limited per key and can expire or be
-              deactivated.
+              query is filtered to that site server-side. Keys are rate-limited per key and can be deactivated
+              at any time.
             </p>
           </div>
         </div>

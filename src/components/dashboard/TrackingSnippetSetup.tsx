@@ -16,7 +16,7 @@ interface TrackingSnippetSetupProps {
   /** sites.tracking_mode; the guide writes the chosen mode back when the policy is confirmed. */
   trackingMode?: TrackingMode;
   apiBase: string;
-  /** Origin that serves spa-tracking.js and consent-banner.js. */
+  /** Origin that serves cortiq.js and consent-banner.js. */
   scriptOrigin: string;
 }
 
@@ -118,7 +118,7 @@ export function TrackingSnippetSetup({ siteId, trackingKey, aggregateMeasurement
     apiUrl: apiBase,
     siteId,
     trackingKey,
-    scriptSrc: `${scriptOrigin}/spa-tracking.js`,
+    scriptSrc: `${scriptOrigin}/cortiq.js`,
     bannerSrc: `${scriptOrigin}/consent-banner.js`,
     aggregate: aggregateOn,
     consentSetup,

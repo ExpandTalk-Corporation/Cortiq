@@ -250,7 +250,7 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "API Key",
-        "description": "Send `Authorization: Bearer ck_live_...`. Create keys in the dashboard under Settings → API Keys. Each key is scoped to one site."
+        "description": "Send `Authorization: Bearer ck_live_...`. Create keys in the dashboard under Settings → CortIQ API & MCP. Each key is scoped to one site."
       }
     },
     "parameters": {
