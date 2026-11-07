@@ -275,7 +275,8 @@ export const TRACKING_VENDORS: Vendor[] = [
   {
     // Cloudflare Web Analytics (cloudflareinsights.com) is an analytics vendor above, not infrastructure.
     id: 'cloudflare', kind: 'infrastructure', name: 'Cloudflare (CDN, Turnstile)', category: 'necessary', googleTag: false,
-    requests: [{ host: /^(cdnjs|challenges)\.cloudflare\.com$/ }], cookies: [], csp: {},
+    // Turnstile challenges also run on subdomains such as brunhild.challenges.cloudflare.com.
+    requests: [{ host: /^(cdnjs\.cloudflare\.com|([a-z0-9-]+\.)?challenges\.cloudflare\.com)$/ }], cookies: [], csp: {},
     impact: 'Scripts, styles or the Turnstile form check served from Cloudflare do not load.',
   },
   {
