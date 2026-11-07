@@ -57,3 +57,24 @@ test('PostgreSQL: the migration applies without Vault or pg_cron and the secret 
     await db.close();
   }
 });
+
+test('gsc-link-property only copies tokens between the caller\'s own sites and never returns them', () => {
+  const fn = readFileSync('supabase/functions/gsc-link-property/index.ts', 'utf8');
+  assert.match(fn, /auth\.getUser\(/);
+  assert.match(fn, /\.eq\('user_id', user\.id\)/);
+  assert.match(fn, /owned\.includes\(siteId\)/);
+  assert.match(fn, /\.in\('site_id', owned\.filter/);
+  assert.doesNotMatch(fn, /json\(\{[^}]*(refresh_token|access_token|source)/);
+});
+
+test('the setup card never selects token columns', () => {
+  const ui = readFileSync('src/components/dashboard/GoogleSearchConsoleSetup.tsx', 'utf8');
+  for (const sel of ui.matchAll(/\.select\('([^']*)'\)/g)) {
+    assert.doesNotMatch(sel[1], /token/);
+  }
+});
+
+test('position is weighted by impressions, so zero-click rows still get one', () => {
+  const sql = readFileSync('supabase/migrations/20261109000001_gsc_position_by_impressions.sql', 'utf8');
+  assert.match(sql, /SUM\(position \* impressions\) \/ NULLIF\(SUM\(impressions\), 0\)/);
+});
