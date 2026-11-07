@@ -113,6 +113,14 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
     footer: { group: 'resources', label: 'Getting started' },
   },
   {
+    path: '/docs/metrics/',
+    title: 'How CortIQ Counts: Visits, Conversions, AI Traffic — CortIQ Docs',
+    description: 'Metric definitions in CortIQ: a visit ends after 30 minutes without a page view, goals count once per visit, AI hits by category, and how aggregate visitors and engagement are counted.',
+    changefreq: 'monthly',
+    priority: 0.6,
+    source: 'src/content/docs.ts',
+  },
+  {
     path: '/integrations/',
     title: 'Integrations — CortIQ',
     description: 'Connect CortIQ to WordPress, Cloudflare, Google Analytics 4 and MCP clients like Claude Code, or pull data through the REST API. What works today and what is in development.',
