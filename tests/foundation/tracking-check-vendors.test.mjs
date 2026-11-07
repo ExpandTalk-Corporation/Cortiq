@@ -92,3 +92,10 @@ test('Cloudflare Turnstile on a challenges subdomain is infrastructure, not an u
   assert.equal(vendorForUrl('https://challenges.cloudflare.com/turnstile/v0/api.js')?.id, 'cloudflare');
   assert.equal(vendorForUrl('https://evilchallenges.cloudflare.com/x')?.id ?? null, null);
 });
+
+test('YouTube: both embed modes, thumbnails and video are one vendor', () => {
+  for (const url of ['https://www.youtube.com/embed/x', 'https://www.youtube-nocookie.com/embed/x', 'https://i.ytimg.com/vi/x/hqdefault.jpg', 'https://rr1---sn-abc.googlevideo.com/videoplayback']) {
+    assert.equal(vendorForUrl(url)?.id, 'youtube', url);
+  }
+  assert.equal(vendorForName('VISITOR_INFO1_LIVE')?.id, 'youtube');
+});

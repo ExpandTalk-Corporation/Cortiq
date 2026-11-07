@@ -92,6 +92,21 @@ test('Paligo case 2: Inzynk and 1mind cookies are attributed, so Inzynk is not r
   assert.match(widget.explanation, /It set om_user_token in the browser before anyone used it\./);
 });
 
+test('a YouTube embed before choice is "verify", names its cookies, and is not an unknown third party after reject', () => {
+  const yt = [req('https://www.youtube.com/embed/abc123'), req('https://i.ytimg.com/vi/abc123/hqdefault.jpg')];
+  const ytCookies = [{ name: 'YSC', domain: '.youtube.com' }, { name: 'VISITOR_INFO1_LIVE', domain: '.youtube.com' }];
+  const findings = policyRun([
+    st('none', { consentCommands: [DENIED], requests: yt, cookies: ytCookies }),
+    st('reject', { requests: [req('https://www.youtube-nocookie.com/embed/abc123')] }), st('accept'),
+  ], { ...POLICY, noUnknownVendorsAfterReject: true });
+  const [before] = byKey(findings, 'consent.before_choice.verify.youtube');
+  assert.equal(before.status, 'manual');
+  assert.match(before.explanation, /It set YSC, VISITOR_INFO1_LIVE in the browser before anyone used it\./);
+  assert.match(before.explanation, /privacy-enhanced mode \(youtube-nocookie\.com\)/);
+  assert.equal(byKey(findings, 'consent.after_reject.verify.youtube').length, 1);
+  assert.equal(byKey(findings, 'consent.unknown_after_reject')[0].status, 'pass');
+});
+
 test('reject that could not be automated is manual and never passes', () => {
   const findings = compareRun([st('none'), st('reject', { method: 'not_automated' }), st('accept')]);
   assert.equal(byKey(findings, 'consent.after_reject.manual')[0].status, 'manual');
