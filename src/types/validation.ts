@@ -142,7 +142,7 @@ export const TrackingEventSchema = z.object({
   timestamp: z.number().int().positive(),
   sessionId: z.string().max(255),
   userId: z.string().max(255).optional(),
-  properties: z.record(z.any()).optional(),
+  properties: z.record(z.string(), z.any()).optional(),
   aiAgent: z.enum([
     'chatgpt',
     'perplexity',
@@ -379,7 +379,7 @@ export const BulkDeleteSchema = z.object({
 
 export const BulkUpdateSchema = z.object({
   ids: z.array(UUIDSchema).min(1).max(1000),
-  updates: z.record(z.any()),
+  updates: z.record(z.string(), z.any()),
 });
 
 // Export types from schemas
