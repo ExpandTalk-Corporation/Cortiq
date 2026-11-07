@@ -2,6 +2,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAggregateStats } from '@/hooks/useAggregateStats';
 
 const fmt = (n: number) => n.toLocaleString('sv-SE');
+const pct = (r: number) => `${(r * 100).toLocaleString('sv-SE', { maximumFractionDigits: 1 })} %`;
+const dec = (n: number) => n.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// GA4 style: "1m 05s", "42s".
+const duration = (sec: number) => {
+  const total = Math.round(sec);
+  const m = Math.floor(total / 60);
+  return m > 0 ? `${m}m ${String(total % 60).padStart(2, '0')}s` : `${total}s`;
+};
 
 export function AggregateOverview({ siteId, from, to }: { siteId: string; from: string; to: string }) {
   const { data, isLoading, error } = useAggregateStats(siteId, from, to, true);
@@ -14,7 +22,9 @@ export function AggregateOverview({ siteId, from, to }: { siteId: string; from: 
         <CardTitle className="text-base">All visitors (aggregate)</CardTitle>
         <CardDescription>
           Counted without consent: no cookies, no device storage, no persistent IDs. Visitors are counted
-          per day, so someone who returns on two days counts twice.
+          per day, so someone who returns on two days counts twice. Engagement uses the GA4 definitions:
+          an engaged visit (GA4: engaged session) has at least 10 seconds in the foreground, 2 or more
+          page views or a conversion.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -26,6 +36,25 @@ export function AggregateOverview({ siteId, from, to }: { siteId: string; from: 
             </div>
           ))}
         </div>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          {([
+            ['Engaged visits', fmt(data.engagedVisits)],
+            ['Engagement rate', pct(data.engagementRate)],
+            ['Engaged visits per visitor', dec(data.engagedVisitsPerVisitor)],
+            ['Average engagement time', duration(data.avgEngagementSeconds)],
+          ] as const).map(([label, value]) => (
+            <div key={label}>
+              <div className="text-2xl font-bold">{value}</div>
+              <p className="text-xs text-muted-foreground">{label}</p>
+            </div>
+          ))}
+        </div>
+        {data.filteredHits > 0 && (
+          <p className="text-xs text-muted-foreground">
+            {fmt(data.filteredHits)} {data.filteredHits === 1 ? 'hit was' : 'hits were'} filtered out as bot bursts
+            (several new direct visitors on one page within seconds) and are not counted above.
+          </p>
+        )}
         <div className="grid gap-6 lg:grid-cols-2">
           <div>
             <h4 className="mb-2 text-sm font-medium">Sources</h4>
@@ -34,10 +63,10 @@ export function AggregateOverview({ siteId, from, to }: { siteId: string; from: 
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead><tr className="text-left text-muted-foreground"><th className="py-1">Source</th><th className="py-1 text-right">Visits</th><th className="py-1 text-right">Visitors</th></tr></thead>
+                  <thead><tr className="text-left text-muted-foreground"><th className="py-1">Source</th><th className="py-1 text-right">Visits</th><th className="py-1 text-right">Visitors</th><th className="py-1 text-right">Engagement rate</th></tr></thead>
                   <tbody>
                     {data.topSources.map((r, i) => (
-                      <tr key={`${i}:${r.label}`} className="border-t"><td className="py-1 break-all">{r.label}</td><td className="py-1 text-right">{fmt(r.visits)}</td><td className="py-1 text-right">{fmt(r.visitors)}</td></tr>
+                      <tr key={`${i}:${r.label}`} className="border-t"><td className="py-1 break-all">{r.label}</td><td className="py-1 text-right">{fmt(r.visits)}</td><td className="py-1 text-right">{fmt(r.visitors)}</td><td className="py-1 text-right">{r.visits > 0 ? pct(r.engagedVisits / r.visits) : '–'}</td></tr>
                     ))}
                   </tbody>
                 </table>

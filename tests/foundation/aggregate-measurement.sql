@@ -8,6 +8,7 @@ CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
 CREATE TABLE public.sites (id uuid PRIMARY KEY, user_id uuid NOT NULL);
 GRANT SELECT ON public.sites TO authenticated;
 \ir ../../supabase/migrations/20261030000001_aggregate_measurement.sql
+\ir ../../supabase/migrations/20261107000001_aggregate_bursts_and_engagement.sql
 
 INSERT INTO sites VALUES ('11111111-1111-4111-8111-111111111111','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
                          ('22222222-2222-4222-8222-222222222222','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
@@ -18,6 +19,7 @@ DECLARE
   s2 uuid := '22222222-2222-4222-8222-222222222222';
   t0 timestamptz := '2026-10-30 10:00:00+00';
   salt text;
+  i int;
   sig text := 'public.ingest_aggregate_hit(uuid,text,text,text,text,text,text,text,text,text,text,numeric,timestamptz)';
 BEGIN
   ASSERT (SELECT aggregate_measurement FROM public.sites WHERE id = s1) = false, 'off by default';
@@ -85,6 +87,65 @@ BEGIN
   ASSERT (SELECT sum(visits) FROM public.aggregate_sources_daily WHERE site_id = s2 AND day = '2026-10-30') = 2,
     'hashRace 1 + hashLate 1: the late goal added no visit';
 
+  -- Burst filter: from the 4th new direct visitor on one page within 10 seconds, nothing is
+  -- counted. External sources, returning hashes and other pages are unaffected (site s2).
+  FOR i IN 1..6 LOOP
+    PERFORM public.ingest_aggregate_hit(s2, 'burst' || i, 'pageview', '/explore', '', '', '', '', 'desktop', NULL, NULL, NULL,
+                                        t0 + interval '2 hours' + i * interval '1 second');
+  END LOOP;
+  ASSERT (SELECT pageviews FROM public.aggregate_pages_daily WHERE site_id = s2 AND path = '/explore') = 3, 'burst capped at 3';
+  ASSERT (SELECT count(*) FROM public.aggregate_visitors WHERE site_id = s2 AND visitor_hash LIKE 'burst%') = 3, 'no row for dropped hits';
+  ASSERT NOT public.ingest_aggregate_hit(s2, 'burst7', 'pageview', '/explore', '', '', '', '', 'desktop', NULL, NULL, NULL,
+                                         t0 + interval '2 hours 8 seconds'), 'dropped hit reports false';
+  ASSERT public.ingest_aggregate_hit(s2, 'burstRef', 'pageview', '/explore', 'google.com', '', '', '', 'desktop', NULL, NULL, NULL,
+                                     t0 + interval '2 hours 8 seconds'), 'external source still counted';
+  ASSERT public.ingest_aggregate_hit(s2, 'burst1', 'pageview', '/explore', '', '', '', '', 'desktop', NULL, NULL, NULL,
+                                     t0 + interval '2 hours 9 seconds'), 'returning hash still counted';
+  ASSERT public.ingest_aggregate_hit(s2, 'burstOther', 'pageview', '/', '', '', '', '', 'desktop', NULL, NULL, NULL,
+                                     t0 + interval '2 hours 9 seconds'), 'other page still counted';
+  ASSERT public.ingest_aggregate_hit(s2, 'burstLater', 'pageview', '/explore', '', '', '', '', 'desktop', NULL, NULL, NULL,
+                                     t0 + interval '2 hours 20 seconds'), 'counted again once the window has passed';
+  ASSERT (SELECT pageviews FROM public.aggregate_pages_daily WHERE site_id = s2 AND path = '/explore') = 6, '3 + ref + return + later';
+  ASSERT (SELECT hits FROM public.aggregate_filtered_daily WHERE site_id = s2 AND day = '2026-10-30' AND reason = 'burst') = 4,
+    'dropped hits counted: burst4-6 + burst7';
+  ASSERT NOT EXISTS (SELECT 1 FROM public.aggregate_filtered_daily WHERE site_id = s1), 'nothing filtered on s1';
+
+  -- Engaged visits (GA4): 2+ page views, a conversion, or 10 s of engagement.
+  ASSERT (SELECT engaged_visits FROM public.aggregate_sources_daily WHERE site_id = s1 AND utm_source = 'linkedin') = 1,
+    'A linkedin visit: 2 page views and a goal, engaged once';
+  ASSERT (SELECT sum(engaged_visits) FROM public.aggregate_sources_daily WHERE site_id = s1 AND day = '2026-10-30') = 2,
+    'A linkedin + A return (goal); B single page views and the 23:59 visitor are not engaged';
+  ASSERT (SELECT engaged_visits FROM public.aggregate_sources_daily WHERE site_id = s2 AND utm_source = 'linkedin') = 1,
+    'a late goal makes the visit engaged';
+
+  PERFORM public.ingest_aggregate_hit(s2, 'hashEng', 'pageview', '/', 'bing.com', '', '', '', 'mobile', NULL, NULL, NULL, t0 + interval '3 hours');
+  ASSERT public.ingest_aggregate_hit(s2, 'hashEng', 'engagement', '/', '', '', '', '', 'mobile', NULL, NULL, 4000, t0 + interval '3 hours 4 seconds'),
+    'engagement accepted';
+  ASSERT (SELECT engaged_visits FROM public.aggregate_sources_daily WHERE site_id = s2 AND referrer_domain = 'bing.com') = 0, '4 s is not engaged';
+  PERFORM public.ingest_aggregate_hit(s2, 'hashEng', 'engagement', '/', '', '', '', '', 'mobile', NULL, NULL, 7000, t0 + interval '3 hours 11 seconds');
+  PERFORM public.ingest_aggregate_hit(s2, 'hashEng', 'engagement', '/', '', '', '', '', 'mobile', NULL, NULL, 5000, t0 + interval '3 hours 20 seconds');
+  PERFORM public.ingest_aggregate_hit(s2, 'hashEng', 'pageview', '/b', '', '', '', '', 'mobile', NULL, NULL, NULL, t0 + interval '3 hours 21 seconds');
+  ASSERT (SELECT engaged_visits FROM public.aggregate_sources_daily WHERE site_id = s2 AND referrer_domain = 'bing.com') = 1,
+    '11 s engaged; more time and a second page view do not count it again';
+  ASSERT (SELECT engagement_ms FROM public.aggregate_sources_daily WHERE site_id = s2 AND referrer_domain = 'bing.com') = 16000,
+    'engagement time summed on the visit source';
+  ASSERT (SELECT visits FROM public.aggregate_sources_daily WHERE site_id = s2 AND referrer_domain = 'bing.com') = 1,
+    'engagement and the second page view add no visit';
+  PERFORM public.ingest_aggregate_hit(s2, 'hashEng', 'engagement', '/', '', '', '', '', 'mobile', NULL, NULL, 99999999, t0 + interval '3 hours 25 seconds');
+  ASSERT (SELECT engagement_ms FROM public.aggregate_sources_daily WHERE site_id = s2 AND referrer_domain = 'bing.com') = 16000 + 1800000,
+    'one ping is capped at 30 minutes';
+  ASSERT NOT public.ingest_aggregate_hit(s2, 'nobody', 'engagement', '/', '', '', '', '', 'mobile', NULL, NULL, 5000, t0 + interval '3 hours'),
+    'engagement for an unknown hash is refused';
+  ASSERT NOT EXISTS (SELECT 1 FROM public.aggregate_visitors WHERE site_id = s2 AND visitor_hash = 'nobody'), 'and creates no visitor';
+  ASSERT NOT public.ingest_aggregate_hit(s2, 'hashEng', 'engagement', '/', '', '', '', '', 'mobile', NULL, NULL, 0, t0 + interval '3 hours'), 'zero ms';
+  ASSERT NOT public.ingest_aggregate_hit(s2, 'hashEng', 'engagement', '/', '', '', '', '', 'mobile', NULL, NULL, NULL, t0 + interval '3 hours'), 'no ms';
+  -- A new visit starts unengaged: one page view is not enough, the second makes it engaged.
+  PERFORM public.ingest_aggregate_hit(s2, 'hashEng', 'pageview', '/', 'bing.com', '', '', '', 'mobile', NULL, NULL, NULL, t0 + interval '4 hours');
+  ASSERT (SELECT engaged_visits FROM public.aggregate_sources_daily WHERE site_id = s2 AND referrer_domain = 'bing.com') = 1, 'new visit not engaged yet';
+  PERFORM public.ingest_aggregate_hit(s2, 'hashEng', 'pageview', '/c', '', '', '', '', 'mobile', NULL, NULL, NULL, t0 + interval '4 hours 1 minute');
+  ASSERT (SELECT engaged_visits FROM public.aggregate_sources_daily WHERE site_id = s2 AND referrer_domain = 'bing.com') = 2, 'second visit engaged';
+  ASSERT (SELECT visits FROM public.aggregate_sources_daily WHERE site_id = s2 AND referrer_domain = 'bing.com') = 2, 'two visits';
+
   -- Invalid input is refused without writes
   ASSERT NOT public.ingest_aggregate_hit(s1, '', 'pageview', '/', '', '', '', '', '', NULL, NULL, NULL, t0), 'empty hash';
   ASSERT NOT public.ingest_aggregate_hit(s1, 'h', 'click', '/', '', '', '', '', '', NULL, NULL, NULL, t0), 'unknown kind';
@@ -106,6 +167,8 @@ BEGIN
   ASSERT NOT has_table_privilege('authenticated', 'public.aggregate_salts', 'SELECT'), 'salts unreadable';
   ASSERT NOT has_table_privilege('authenticated', 'public.aggregate_visitors', 'SELECT'), 'visitor map unreadable';
   ASSERT NOT has_table_privilege('authenticated', 'public.aggregate_pages_daily', 'INSERT'), 'no client writes';
+  ASSERT NOT has_table_privilege('authenticated', 'public.aggregate_filtered_daily', 'INSERT'), 'no client writes to filtered';
+  ASSERT NOT has_table_privilege('anon', 'public.aggregate_filtered_daily', 'SELECT'), 'anon cannot read filtered';
   ASSERT has_function_privilege('authenticated', 'public.get_aggregate_summary(uuid,date,date)', 'EXECUTE'), 'summary readable';
   ASSERT NOT has_function_privilege('anon', 'public.get_aggregate_summary(uuid,date,date)', 'EXECUTE'), 'anon cannot read';
 END $$;
@@ -125,8 +188,13 @@ BEGIN
   ASSERT jsonb_array_length(r->'top_pages') = 4, 'distinct paths: /produkt, /demo, /, /blog';
   ASSERT (r->'conversions_by_goal'->0->>'conversions')::int = 2, 'goal total across sources';
   ASSERT (r->'conversions_by_goal'->0->>'goal_name') = 'Demo request', 'goal name';
+  ASSERT (r->>'engaged_visits')::int = 2, 'engaged visits';
+  ASSERT (r->>'engagement_ms')::bigint = 0, 'no engagement pings on s1';
+  ASSERT (r->>'filtered_hits')::int = 0, 'nothing filtered on s1';
+  ASSERT (SELECT sum((x->>'engaged_visits')::int) FROM jsonb_array_elements(r->'top_sources') x) = 2, 'engaged per source';
   r := public.get_aggregate_summary('22222222-2222-4222-8222-222222222222', '2026-10-30', '2026-10-30');
   ASSERT (r->>'pageviews')::int = 0, 'other tenant invisible';
+  ASSERT (r->>'filtered_hits')::int = 0, 'other tenant filtered hits invisible';
   ASSERT jsonb_array_length(r->'top_pages') = 0, 'other tenant rows invisible';
   ASSERT (SELECT count(*) FROM public.aggregate_pages_daily WHERE site_id = '22222222-2222-4222-8222-222222222222') = 0, 'RLS on table';
 END $$;

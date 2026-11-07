@@ -3,7 +3,7 @@ Contributors: cortiq
 Tags: analytics, ai-tracking, heatmap, cookie-free, gdpr, chatgpt, ai-bots
 Requires at least: 5.6
 Tested up to: 6.8
-Stable tag: 5.5.8
+Stable tag: 5.5.9
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -86,6 +86,10 @@ All data is stored in the EU (AWS eu-north-1 via Supabase).
 The tracking script is loaded with `defer` so it does not block rendering.
 
 == Changelog ==
+
+= 5.5.9 =
+* New: Aggregate measurement reports engagement with the GA4 definitions — engaged visits (10 seconds in the foreground, 2+ page views or a conversion), engagement rate, engaged visits per visitor and average engagement time.
+* Fix: Bursts of crawler hits (several new direct visitors on one page within seconds) are no longer counted as visitors; the dashboard shows how many hits were filtered.
 
 = 5.5.8 =
 * Fix: ordinary Safari and iPhone visitors are no longer reported as AI bots.

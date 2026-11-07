@@ -4,6 +4,9 @@
 // Writes nothing to the device (no cookies, localStorage or sessionStorage), sets no identifier
 // and reads no fingerprint signals. It reads the stored consent record only to honour an explicit
 // refusal, and stops on Global Privacy Control.
+// Engagement time follows GA4: time the page is in the foreground (visible). It is sent as
+// { kind: 'engagement', ms } when 10 s is reached on a page load (so the visit becomes engaged
+// promptly), when the page is hidden or unloaded, and before an SPA page view.
 (function () {
   var cfg = window.cortiqConfig || {};
   if (cfg.aggregate !== true || !cfg.siteId || !cfg.apiKey || window.__cortiqAggregate) return;
@@ -13,6 +16,13 @@
   var formGoals = [];
   var lastPath = null;
   var firstView = true;
+  var ENGAGED_MS = 10000;
+  var MIN_SEND_MS = 1000;
+  var currentUrl = null;   // last counted page; null on excluded paths
+  var activeSince = null;  // Date.now() when the page became visible
+  var pendingMs = 0;       // visible time not yet sent
+  var sentMs = 0;          // visible time sent during this page load
+  var engagedTimer = null;
   // Same prefix semantics as spa-tracking.js: comma-separated, trimmed, empty entries ignored.
   var excludePaths = String(cfg.excludePaths || '').split(',')
     .map(function (s) { return s.trim(); }).filter(Boolean);
@@ -68,12 +78,44 @@
     return out;
   }
 
+  function visible() {
+    return document.visibilityState !== 'hidden' && document.visibilityState !== 'prerender';
+  }
+
+  function pause() {
+    if (activeSince !== null) { pendingMs += Math.max(0, Date.now() - activeSince); activeSince = null; }
+    if (engagedTimer !== null) { clearTimeout(engagedTimer); engagedTimer = null; }
+  }
+
+  function resume() {
+    if (activeSince !== null || !visible()) return;
+    activeSince = Date.now();
+    var left = ENGAGED_MS - sentMs - pendingMs;
+    if (left > 0) engagedTimer = setTimeout(function () { engagedTimer = null; flush(); }, left);
+  }
+
+  // Sends the visible time collected so far. Time on excluded paths is dropped; under a second
+  // is kept for the next flush.
+  function flush() {
+    pause();
+    if (currentUrl === null) pendingMs = 0;
+    if (pendingMs >= MIN_SEND_MS) {
+      var ms = Math.round(pendingMs);
+      pendingMs = 0;
+      sentMs += ms;
+      send({ kind: 'engagement', url: currentUrl, ms: ms });
+    }
+    resume();
+  }
+
   function pageview() {
     var path = location.pathname;
     if (path === lastPath) return;
     lastPath = path;
-    if (isExcludedPath(path)) { firstView = false; return; }
-    var body = { kind: 'pageview', url: location.origin + path, referrer: firstView ? (document.referrer || '') : '', utm: utm() };
+    if (!firstView) flush();
+    if (isExcludedPath(path)) { firstView = false; currentUrl = null; return; }
+    currentUrl = location.origin + path;
+    var body = { kind: 'pageview', url: currentUrl, referrer: firstView ? (document.referrer || '') : '', utm: utm() };
     firstView = false;
     send(body).then(function (res) {
       if (res && Array.isArray(res.goals)) {
@@ -114,6 +156,9 @@
     };
   });
   window.addEventListener('popstate', pageview);
+  document.addEventListener('visibilitychange', function () { if (visible()) resume(); else flush(); });
+  window.addEventListener('pagehide', flush);
 
   pageview();
+  resume();
 })();
