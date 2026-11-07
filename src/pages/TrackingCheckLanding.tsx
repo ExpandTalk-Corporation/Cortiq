@@ -225,7 +225,7 @@ export default function TrackingCheckLanding() {
           <div className="rounded-xl border p-6">
             <ShieldCheck className="mb-3 h-6 w-6 text-primary" aria-hidden />
             <h3 className="mb-2 font-bold">Staging sites too</h3>
-            <p className="text-sm text-muted-foreground">Sites behind a password (basic auth) can be checked. The credentials are stored encrypted only while the check runs.</p>
+            <p className="text-sm text-muted-foreground">Any staging address reachable without a password can be checked. Password-protected (basic auth) sites are not supported yet.</p>
           </div>
         </div>
       </section>

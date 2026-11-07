@@ -56,8 +56,6 @@ export function StartForm({ prefill, limits }: { prefill?: RunRow; limits: Limit
   const [pages, setPages] = useState<PageChoice[]>((prefill?.pages.pages ?? ['/']).map((path) => ({ path, selected: true })));
   const [extraPath, setExtraPath] = useState('');
   const [legacy, setLegacy] = useState((prefill?.pages.legacy ?? []).join('\n'));
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
   const [flags, setFlags] = useState<Record<Flag, boolean>>(prefill?.policy ? (Object.fromEntries(FLAGS.map((f) => [f.key, prefill.policy![f.key]])) as Record<Flag, boolean>) : allFlags());
   const [expectedIds, setExpectedIds] = useState((prefill?.policy?.expectedIds ?? []).join(', '));
   const [manual, setManual] = useState<string[]>(prefill?.policy?.manualItems.map((i) => i.key) ?? MANUAL_ITEMS.map((i) => i.key));
@@ -105,7 +103,6 @@ export function StartForm({ prefill, limits }: { prefill?: RunRow; limits: Limit
         expectedIds: expectedIds.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean),
         manualItems: MANUAL_ITEMS.filter((i) => manual.includes(i.key)),
       } : undefined,
-      basicAuth: username ? { username, password } : null,
     }, {
       onSuccess: ({ runId }) => navigate(`/tracking-check/${runId}`),
       onError: (e) => toast.error(e.message),
@@ -136,14 +133,7 @@ export function StartForm({ prefill, limits }: { prefill?: RunRow; limits: Limit
  <Input id="tc-target" placeholder={mode === 'comparison' ? 'https://staging.example.com' : 'https://www.example.com'} value={targetUrl} onChange={(e) => setTargetUrl(e.target.value)} />
         </div>
 
-        <Collapsible>
-          <CollapsibleTrigger asChild><Button variant="link" className="h-auto p-0">Does the site need a password? (basic auth)</Button></CollapsibleTrigger>
-          <CollapsibleContent className="mt-3 grid gap-3 sm:grid-cols-2">
-            <div className="space-y-2"><Label htmlFor="tc-user">Username</Label><Input id="tc-user" autoComplete="off" value={username} onChange={(e) => setUsername(e.target.value)} /></div>
-            <div className="space-y-2"><Label htmlFor="tc-pass">Password</Label><Input id="tc-pass" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
-            <p className="text-xs text-muted-foreground sm:col-span-2">Stored encrypted only while the check runs, deleted after at most 2 hours.</p>
-          </CollapsibleContent>
-        </Collapsible>
+        <p className="text-xs text-muted-foreground">The site must be reachable without a password. Password-protected (basic auth) sites are not supported yet.</p>
 
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-2">
