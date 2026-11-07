@@ -279,6 +279,8 @@ Built by **Expandtalk Corporation AB** · Göteborg, Sweden 🇪🇺
 
 ## License
 
-AGPL-3.0 — see [LICENSE](./LICENSE)
+CortIQ is licensed under AGPL-3.0 ([LICENSE](./LICENSE)), with an embedding exception ([LICENSE-EXCEPTION.md](./LICENSE-EXCEPTION.md)).
 
-If you run a modified version as a network service, you must release your changes under the same license. Self-hosting for internal use is unrestricted.
+- **Self-hosting:** you may run CortIQ, unmodified or modified, for any purpose. If you modify it and let others use it over a network, including your own staff, section 13 of the AGPL requires you to offer them the source code of your modified version.
+- **Code you embed:** the tracking scripts, the consent banner, the server-side adapters and the agent SDKs are also licensed under MIT. Embedding them in your site, server or agent does not put your own code under the AGPL.
+- **WordPress plugin:** GPL-2.0-or-later.
