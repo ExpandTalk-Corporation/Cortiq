@@ -20,6 +20,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TrendingUp, Target } from 'lucide-react';
 import { useCampaignBreakdown } from '@/hooks/useCampaignBreakdown';
 import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
+import { useAcquisitionReadiness } from '@/hooks/useAcquisitionReadiness';
+import { SetupChecklist } from './setup/SetupChecklist';
+import { UtmLinkBuilder } from './setup/UtmLinkBuilder';
+import { trackingStep, utmStep } from './setup/acquisitionSteps';
 
 interface CampaignMetrics {
   utm_source: string;
@@ -34,17 +38,14 @@ interface CampaignMetrics {
 interface CampaignDashboardProps {
   siteId: string;
   domain?: string;
+  onNavigate?: (tab: string) => void;
 }
 
-function siteOrigin(domain?: string): string {
-  const host = (domain ?? '').replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-  return host ? `https://${host}` : 'https://example.com';
-}
-
-export function CampaignDashboard({ siteId, domain }: CampaignDashboardProps) {
+export function CampaignDashboard({ siteId, domain, onNavigate }: CampaignDashboardProps) {
   const { filters } = useDashboardFilters();
   const dateRange = { from: filters.from, to: filters.to };
   const { data, isLoading: loading, error } = useCampaignBreakdown(siteId);
+  const { data: readiness } = useAcquisitionReadiness(siteId);
 
   const campaigns = useMemo<CampaignMetrics[]>(
     () =>
@@ -75,40 +76,21 @@ export function CampaignDashboard({ siteId, domain }: CampaignDashboardProps) {
   const totalConversions = campaigns.reduce((sum, c) => sum + c.conversions, 0);
   const avgConversionRate = totalSessions > 0 ? (totalConversions / totalSessions) * 100 : 0;
 
-  const exampleLink = `${siteOrigin(domain)}/?utm_source=newsletter&utm_medium=email&utm_campaign=october-launch`;
   const emptyState = (
-    <div className="py-8 text-muted-foreground max-w-2xl mx-auto">
+    <div className="py-6 text-muted-foreground">
       <div className="text-center">
         <Target className="h-12 w-12 mx-auto mb-3 opacity-50" />
         <p className="font-medium text-foreground">
           {error ? 'Failed to load campaign data' : 'No campaign traffic in this period'}
         </p>
+        {error && <p className="text-sm mt-1">{(error as Error).message}</p>}
         {!error && data && (
           <p className="text-sm mt-1">
             0 of {data.total_sessions.toLocaleString()} sessions in this period arrived through a UTM-tagged link.
+            Untagged traffic (search, direct, referrals) is in Overview and Analytics.
           </p>
         )}
       </div>
-      {!error && (
-        <div className="mt-6 text-sm space-y-3">
-          <p>Campaigns are read from the UTM tags on the link a visitor arrives through. To see data here:</p>
-          <ol className="list-decimal pl-5 space-y-2">
-            <li>
-              Add UTM parameters to the links in your ads, newsletters and social posts. At minimum{' '}
-              <code>utm_source</code>, <code>utm_medium</code> and <code>utm_campaign</code>, for example:
-              <code className="block mt-1 p-2 rounded bg-muted text-xs break-all">{exampleLink}</code>
-            </li>
-            <li>
-              Make sure the CortIQ tracking script runs on the landing page (Setup tab). Visits are recorded only
-              for visitors who accept analytics cookies.
-            </li>
-            <li>
-              Tagged visits appear here shortly after they happen. Untagged traffic (search, direct, referrals) is
-              in the Overview and Analytics tabs.
-            </li>
-          </ol>
-        </div>
-      )}
     </div>
   );
 
@@ -269,6 +251,16 @@ export function CampaignDashboard({ siteId, domain }: CampaignDashboardProps) {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {!loading && campaigns.length === 0 && readiness && (
+        <SetupChecklist
+          title="How to get campaign data"
+          description="Campaigns are read from the UTM tags on the link a visitor arrives through."
+          steps={[trackingStep(readiness), utmStep(readiness, { builderBelow: true })]}
+          onNavigate={onNavigate}
+        />
+      )}
+      <UtmLinkBuilder domain={domain} />
     </div>
   );
 }

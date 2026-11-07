@@ -192,13 +192,13 @@ function DashboardTabsInner({ selectedSite, analytics, dateRange, onSiteDeleted,
 
       <TabsContent value="paid-ads" className="space-y-6">
         <TabErrorBoundary tabName="Ads (GA4)">
-          <PaidAdsTab selectedSite={selectedSite.id} kpiData={null} />
+          <PaidAdsTab selectedSite={selectedSite.id} kpiData={null} onNavigate={setActiveTab} />
         </TabErrorBoundary>
       </TabsContent>
 
       <TabsContent value="attribution" className="space-y-6">
         <TabErrorBoundary tabName="Attribution Gap">
-          <AttributionTab selectedSite={selectedSite} />
+          <AttributionTab selectedSite={selectedSite} onNavigate={setActiveTab} />
         </TabErrorBoundary>
       </TabsContent>
 
@@ -206,6 +206,7 @@ function DashboardTabsInner({ selectedSite, analytics, dateRange, onSiteDeleted,
         <TabErrorBoundary tabName="Ads (Server-Side)">
           <ServerSidePaidAdsTab
             selectedSite={selectedSite.id}
+            onNavigate={setActiveTab}
             startDate={dateRange?.from?.toISOString().split('T')[0]}
             endDate={dateRange?.to?.toISOString().split('T')[0]}
           />
@@ -278,6 +279,7 @@ function DashboardTabsInner({ selectedSite, analytics, dateRange, onSiteDeleted,
         <TabErrorBoundary tabName="Click Fraud">
           <ClickFraudTab
             selectedSite={selectedSite.id}
+            onNavigate={setActiveTab}
             startDate={dateRange?.from?.toISOString().split('T')[0]}
             endDate={dateRange?.to?.toISOString().split('T')[0]}
           />
@@ -298,7 +300,7 @@ function DashboardTabsInner({ selectedSite, analytics, dateRange, onSiteDeleted,
 
       <TabsContent value="social-media" className="space-y-6">
         <TabErrorBoundary tabName="Social Media">
-          <SocialMediaTab selectedSite={selectedSite} />
+          <SocialMediaTab selectedSite={selectedSite} onNavigate={setActiveTab} />
         </TabErrorBoundary>
       </TabsContent>
 
@@ -330,7 +332,7 @@ function DashboardTabsInner({ selectedSite, analytics, dateRange, onSiteDeleted,
 
       <TabsContent value="campaigns" className="space-y-6">
         <TabErrorBoundary tabName="Campaigns">
-          <CampaignDashboard siteId={selectedSite.id} domain={selectedSite.domain} />
+          <CampaignDashboard siteId={selectedSite.id} domain={selectedSite.domain} onNavigate={setActiveTab} />
         </TabErrorBoundary>
       </TabsContent>
 

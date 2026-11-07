@@ -23,5 +23,7 @@ test('Campaigns tab reads the RPC and explains how to get data when empty', () =
   assert.match(src, /useCampaignBreakdown\(siteId\)/);
   assert.match(read('../../src/hooks/useCampaignBreakdown.ts'), /rpc\('get_campaign_breakdown'/);
   assert.doesNotMatch(src, /campaign_performance/);
-  assert.match(src, /utm_source=/, 'empty state shows an example tagged link');
+  assert.match(src, /<SetupChecklist[\s\S]*utmStep\(readiness/, 'empty state shows the setup checklist');
+  assert.match(src, /<UtmLinkBuilder/, 'tab offers the UTM link builder');
+  assert.match(read('../../src/components/dashboard/setup/acquisitionSteps.tsx'), /utm_source=/, 'steps show an example tagged link');
 });

@@ -14,15 +14,20 @@ import {
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { usePaidAdsAnalytics } from '@/hooks/usePaidAdsAnalytics';
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAcquisitionReadiness } from '@/hooks/useAcquisitionReadiness';
+import { SetupChecklist } from '../setup/SetupChecklist';
+import { goalsStep, paidMediumStep, trackingStep } from '../setup/acquisitionSteps';
 
 interface ServerSidePaidAdsTabProps {
   selectedSite: string;
   startDate?: string;
   endDate?: string;
+  onNavigate?: (tab: string) => void;
 }
 
-export function ServerSidePaidAdsTab({ selectedSite, startDate, endDate }: ServerSidePaidAdsTabProps) {
+export function ServerSidePaidAdsTab({ selectedSite, startDate, endDate, onNavigate }: ServerSidePaidAdsTabProps) {
   const { data, loading, error } = usePaidAdsAnalytics(selectedSite, startDate, endDate);
+  const { data: readiness } = useAcquisitionReadiness(selectedSite);
 
   if (!selectedSite) {
     return (
@@ -51,14 +56,31 @@ export function ServerSidePaidAdsTab({ selectedSite, startDate, endDate }: Serve
     );
   }
 
-  if (error || !data) {
+  if (error) {
     return (
-      <Alert>
+      <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
-        <AlertDescription>
-          {error || 'No advertising data available. Make sure the tracking script is installed and that ads are running with UTM parameters (utm_medium: cpc, ppc, or paid-social).'}
-        </AlertDescription>
+        <AlertDescription>Could not load ad data: {error}</AlertDescription>
       </Alert>
+    );
+  }
+
+  if (!data || data.summary.totalSessions === 0) {
+    return (
+      <div className="space-y-6">
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>No ad visits recorded by CortIQ in this period.</AlertDescription>
+        </Alert>
+        {readiness && (
+          <SetupChecklist
+            title="How to get ad data in CortIQ"
+            description="This view counts visits recorded by the CortIQ tracking script whose landing link has a paid utm_medium."
+            steps={[trackingStep(readiness), paidMediumStep(readiness), goalsStep(readiness)]}
+            onNavigate={onNavigate}
+          />
+        )}
+      </div>
     );
   }
 
@@ -78,8 +100,8 @@ export function ServerSidePaidAdsTab({ selectedSite, startDate, endDate }: Serve
       <Alert>
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>
-          <strong>GDPR-compliant server-side tracking</strong> — Data collected without cookies via your own tracking infrastructure.
-          Only sessions with paid UTM parameters (utm_medium: cpc, ppc, paid-social, display, paid) are shown here.
+          Visits recorded by the CortIQ tracking script (visitors who accepted analytics cookies) whose landing link has
+          utm_medium cpc, ppc, paid-social, display or paid.
         </AlertDescription>
       </Alert>
 
@@ -242,8 +264,8 @@ export function ServerSidePaidAdsTab({ selectedSite, startDate, endDate }: Serve
       {/* Campaign Performance Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Campaign performance (server-side)</CardTitle>
-          <CardDescription>Detailed metrics per campaign — tracked server-side, without cookies</CardDescription>
+          <CardTitle>Campaign performance</CardTitle>
+          <CardDescription>Detailed metrics per campaign</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">

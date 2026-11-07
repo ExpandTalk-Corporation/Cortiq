@@ -15,10 +15,14 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, L
 import { useKPIDashboard } from '@/hooks/useKPIDashboard';
 import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
 import { monthColumns, percentChange } from '@/lib/dashboard/filters';
+import { useAcquisitionReadiness } from '@/hooks/useAcquisitionReadiness';
+import { SetupChecklist } from '../setup/SetupChecklist';
+import { ga4Steps } from '../setup/acquisitionSteps';
 
 interface PaidAdsTabProps {
   selectedSite: string;
   kpiData?: any;
+  onNavigate?: (tab: string) => void;
 }
 
 /** "+12.3% vs same period last year", or nothing when last year had no data. */
@@ -32,11 +36,12 @@ function YoYBadge({ current, previous }: { current: number; previous: number }) 
   );
 }
 
-export function PaidAdsTab({ selectedSite }: PaidAdsTabProps) {
+export function PaidAdsTab({ selectedSite, onNavigate }: PaidAdsTabProps) {
   // Follows the global date range; comparison is the same period one year earlier.
   const { filters } = useDashboardFilters();
   const { data: kpiData, loading } = useKPIDashboard(selectedSite, { from: filters.from, to: filters.to });
   const monthOrder = monthColumns(filters.from, filters.to).months;
+  const { data: readiness } = useAcquisitionReadiness(selectedSite);
 
   if (!selectedSite) {
     return (
@@ -59,13 +64,25 @@ export function PaidAdsTab({ selectedSite }: PaidAdsTabProps) {
   const paidData = kpiData?.betald_annonsering?.data || [];
 
   if (paidData.length === 0) {
+    const connected = readiness?.ga4Connected;
     return (
-      <Alert>
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>
-          No advertising data available. Make sure the GA4 integration is enabled and that ads are running with UTM parameters.
-        </AlertDescription>
-      </Alert>
+      <div className="space-y-6">
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            {connected
+              ? 'GA4 returned no paid sessions for this period. The steps below cover what GA4 needs; they cannot be checked from CortIQ.'
+              : 'No GA4 property is connected. This view reads paid traffic and ad cost from Google Analytics 4.'}
+          </AlertDescription>
+        </Alert>
+        {readiness && (
+          <SetupChecklist
+            title="How to get GA4 ad data"
+            steps={ga4Steps(readiness)}
+            onNavigate={onNavigate}
+          />
+        )}
+      </div>
     );
   }
 
