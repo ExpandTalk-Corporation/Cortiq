@@ -135,6 +135,7 @@ export const GETTING_STARTED: ContentPageData = {
   related: [
     { label: 'Integrations', path: '/integrations/' },
     { label: 'WordPress plugin', path: '/integrations/wordpress/' },
+    { label: 'How CortIQ counts', path: '/docs/metrics/' },
     { label: 'Privacy policy', path: '/privacy/' },
     { label: 'REST API', path: '/api/' },
   ],
@@ -532,4 +533,90 @@ export const MCP: ContentPageData = {
   ],
 };
 
-export const DOCS_PAGES: ContentPageData[] = [GETTING_STARTED, INTEGRATIONS, WORDPRESS, SERVER_SIDE, CLOUDFLARE, GOOGLE_ANALYTICS, MCP];
+// Checked against ingest_pageview (20261108000001), get_overview_metrics, record_conversion_event,
+// ingest_aggregate_hit (20261107000001), KpiRow.tsx, aggregateStats.ts and dashboard/filters.ts on 2026-11-07.
+export const METRICS: ContentPageData = {
+  path: '/docs/metrics/',
+  breadcrumb: [{ label: 'Docs', path: '/docs/' }, { label: 'Metrics', path: '/docs/metrics/' }],
+  eyebrow: 'Documentation',
+  h1: 'How CortIQ counts',
+  lead: 'Definitions of the numbers in the dashboard: what a visit is, when it ends, how conversions and AI traffic are counted, and how the aggregate figures differ.',
+  sections: [
+    {
+      id: 'visits',
+      heading: 'Visits',
+      blocks: [
+        { type: 'p', text: 'A visit is a run of page views from one browser session. The tracking script sends a session identifier with every page view; it creates none before analytics consent.' },
+        {
+          type: 'list',
+          items: [
+            '**A visit ends after 30 minutes without a page view.** The next page view starts a new visit, as with GA4\'s default session timeout. Only page views extend a visit; clicks, scrolls and form events do not.',
+            '**Full mode:** the identifier lives in sessionStorage, so it lasts as long as the browser tab.',
+            '**Cookieless mode:** the identifier is held in memory only. Every full page load starts a new visit; route changes in a single-page app stay in the same visit.',
+            '**Traffic source, UTM tags and country** are taken from the first page view of the visit.',
+            '**Visit duration** is the time from the first to the last page view. Time on the last page is not counted, so a one-page visit has a duration of 0.',
+            '**Bounced visit:** a visit with one page view. Used in the country breakdown and in the MCP tools.',
+          ],
+        },
+        { type: 'note', tone: 'info', text: 'Visits recorded before the 30-minute rule was introduced (November 2026) are not split retroactively.' },
+      ],
+    },
+    {
+      id: 'overview',
+      heading: 'Overview key figures',
+      blocks: [
+        {
+          type: 'list',
+          items: [
+            '**Visits:** the number of visits that started in the period, counted on the day they started.',
+            '**Page views:** every recorded page view. WordPress admin, login and preview URLs (`wp-admin`, `wp-login`, Elementor previews and `preview=true`) are left out.',
+            '**Conversions:** recorded goal events. A goal counts at most once per visit, so repeat clicks or reloads do not add conversions.',
+            '**Conversion rate:** conversions ÷ visits × 100. Each goal counts separately, so a site with several goals can show more conversions than visits.',
+            '**AI visits:** hits from AI crawlers and agents, from the [server-side adapters](/integrations/server-side/) and from in-browser agent detection. One hit is one request. Hits are split into training, agentic and citation; unclassified hits count only in the total.',
+            '**AI per 100 visits:** AI visits ÷ visits × 100. Hidden when a UTM segment is active, because bots carry no UTM tags.',
+            '**Change vs previous period:** compared with the period of the same length immediately before.',
+          ],
+        },
+      ],
+    },
+    {
+      id: 'aggregate',
+      heading: 'Aggregate figures',
+      blocks: [
+        { type: 'p', text: 'Sites that turn on aggregate measurement (off by default) also get counts that do not wait for consent. They come from a separate script and are shown in their own card, never added to the consent-based figures.' },
+        {
+          type: 'list',
+          items: [
+            '**Visitors:** distinct visitors per UTC day, from a hash of the IP address and User-Agent with a salt that changes every day. Someone who returns on two days counts twice; people who share an IP address and browser version count once.',
+            '**Visits:** a new visit starts with the first page view of the day, after 30 minutes without activity, or when a page view arrives from a new referrer or UTM campaign.',
+            '**Engaged visit** (GA4: engaged session): at least 10 seconds in the foreground, 2 or more page views, or a conversion.',
+            '**Engagement rate:** engaged visits ÷ visits. **Average engagement time:** foreground time ÷ visitors.',
+            '**Filtered hits:** direct, untagged first page views dropped because 3 new visitors had already started on the same page within the last 10 seconds, a pattern typical of crawlers.',
+          ],
+        },
+        { type: 'p', text: 'Visitors who refuse analytics or send Global Privacy Control are not counted, and the figures are not available through the API or MCP server. The [privacy policy](/privacy/) describes what is processed.' },
+      ],
+    },
+    {
+      id: 'conventions',
+      heading: 'Dates and other conventions',
+      blocks: [
+        {
+          type: 'list',
+          items: [
+            '**Days are UTC days.** The default range is the last 30 days including today, which is still incomplete. The longest range is 366 days.',
+            '**Device type** in consent-based analytics comes from the viewport width: under 768 px is mobile, under 1,024 px tablet, otherwise desktop. In aggregate figures it comes from the User-Agent, so the two can differ.',
+            '**Country** comes from the hosting network\'s country header where it is available, otherwise from the browser time zone.',
+          ],
+        },
+      ],
+    },
+  ],
+  related: [
+    { label: 'Getting started', path: '/docs/' },
+    { label: 'MCP server', path: '/integrations/mcp/' },
+    { label: 'REST API', path: '/api/' },
+  ],
+};
+
+export const DOCS_PAGES: ContentPageData[] = [GETTING_STARTED, INTEGRATIONS, WORDPRESS, SERVER_SIDE, CLOUDFLARE, GOOGLE_ANALYTICS, MCP, METRICS];
