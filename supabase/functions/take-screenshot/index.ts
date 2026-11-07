@@ -8,10 +8,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Browserless v2 (same account/region as tracking-check). The legacy chrome.browserless.io
-// host and v1 options (quality on PNG, waitFor) fail, which left every heatmap with a placeholder.
+// Self-hosted browser-service/ (Browserless-compatible /screenshot, same host as tracking-check).
+// No default endpoint: a missing BROWSERLESS_URL must fail, never fall back to a third-party host.
 const BROWSERLESS_API_KEY = Deno.env.get('BROWSERLESS_API_KEY');
-const BROWSERLESS_URL = (Deno.env.get('BROWSERLESS_URL') || 'https://production-ams.browserless.io').replace(/\/$/, '');
+const BROWSERLESS_URL = (Deno.env.get('BROWSERLESS_URL') ?? '').replace(/\/$/, '');
 
 serve(async (req) => {
   console.log('=== Take Screenshot Function Started ===');
@@ -92,8 +92,8 @@ serve(async (req) => {
     let screenshotSuccess = false;
 
     try {
-      if (!BROWSERLESS_API_KEY) {
-        throw new Error('BROWSERLESS_API_KEY not configured');
+      if (!BROWSERLESS_API_KEY || !BROWSERLESS_URL) {
+        throw new Error('BROWSERLESS_URL / BROWSERLESS_API_KEY not configured');
       }
 
       // Use Browserless API for screenshots

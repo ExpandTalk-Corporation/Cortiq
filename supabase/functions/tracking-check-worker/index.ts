@@ -2,7 +2,7 @@
 import { createClient } from '../_shared/supabase.ts';
 import { processBatch, type Probes } from '../_shared/tracking-check/worker-core.ts';
 import { fetchProbe } from '../_shared/tracking-check/fetch-probe.ts';
-import { DEFAULT_BROWSERLESS_URL, runBrowserProbe } from '../_shared/tracking-check/browserless.ts';
+import { runBrowserProbe } from '../_shared/tracking-check/browserless.ts';
 import { detectForms } from '../_shared/form-detection.ts';
 import { open } from '../_shared/tracking-check/secret-box.ts';
 import { kickWorker } from '../_shared/tracking-check/kick.ts';
@@ -19,7 +19,7 @@ Deno.serve(async (req) => {
     fetchProbe: (url, auth) => fetchProbe(url, { basicAuth: auth }),
     browserProbe: async (url, states, auth) => {
       const { html, ...obs } = await runBrowserProbe({
-        endpoint: Deno.env.get('BROWSERLESS_URL') || DEFAULT_BROWSERLESS_URL,
+        endpoint: Deno.env.get('BROWSERLESS_URL') ?? '',
         token: Deno.env.get('BROWSERLESS_API_KEY') ?? '', url, states, basicAuth: auth,
       });
       return { ...obs, forms: detectForms(html) };
