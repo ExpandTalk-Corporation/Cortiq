@@ -103,8 +103,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    const tokens = await tokenRes.json();
-    const { access_token: accessToken, refresh_token: refreshToken, expires_in: expiresIn } = tokens;
+    const tokenData = await tokenRes.json();
+    const { access_token: accessToken, refresh_token: refreshToken, expires_in: expiresIn } = tokenData;
 
     // Fetch properties from GSC
     const propsRes = await fetch('https://www.googleapis.com/webmasters/v3/sites', {
