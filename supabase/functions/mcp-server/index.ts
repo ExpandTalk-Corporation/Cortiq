@@ -1,4 +1,5 @@
 import { createClient } from '../_shared/supabase.ts';
+import { readAll, readAllIn } from '../_shared/read-all.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -460,7 +461,7 @@ async function executeTool(
 
     case 'cortiq_sessions_summary': {
       const [sessRes, pvRes] = await Promise.all([
-        supabase.from('tracking_sessions').select('session_id, duration_seconds, page_views').eq('site_id', siteId).gte('started_at', since).lt('started_at', until).limit(100000),
+        readAll(() => supabase.from('tracking_sessions').select('session_id, duration_seconds, page_views').eq('site_id', siteId).gte('started_at', since).lt('started_at', until)),
         supabase.from('page_views').select('id', { count: 'exact', head: true }).eq('site_id', siteId).gte('viewed_at', since).lt('viewed_at', until),
       ]);
       const sessions = sessRes.data ?? [];
@@ -479,13 +480,12 @@ async function executeTool(
     }
 
     case 'cortiq_daily_visitors': {
-      const { data, error } = await supabase
+      const { data, error } = await readAll(() => supabase
         .from('tracking_sessions')
         .select('session_id, started_at')
         .eq('site_id', siteId)
         .gte('started_at', since)
-        .lt('started_at', until)
-        .limit(100000);
+        .lt('started_at', until));
       if (error) throw new Error(error.message);
       const byDay = new Map<string, number>();
       for (const s of data ?? []) {
@@ -501,13 +501,12 @@ async function executeTool(
     }
 
     case 'cortiq_bounce_rate': {
-      const { data } = await supabase
+      const { data } = await readAll(() => supabase
         .from('tracking_sessions')
         .select('page_views')
         .eq('site_id', siteId)
         .gte('started_at', since)
-        .lt('started_at', until)
-        .limit(100000);
+        .lt('started_at', until));
       const sessions = data ?? [];
       const total = sessions.length;
       const bounces = sessions.filter((s: Record<string, number>) => (s.page_views ?? 1) <= 1).length;
@@ -515,15 +514,15 @@ async function executeTool(
     }
 
     case 'cortiq_top_pages': {
-      let query = supabase
-        .from('page_views')
-        .select('url, session_id')
-        .eq('site_id', siteId)
-        .gte('viewed_at', since)
-        .lt('viewed_at', until)
-        .limit(100000);
-      if (input.url_prefix) query = query.like('url', `${input.url_prefix}%`);
-      const { data, error } = await query;
+      const { data, error } = await readAll(() => {
+        const query = supabase
+          .from('page_views')
+          .select('url, session_id')
+          .eq('site_id', siteId)
+          .gte('viewed_at', since)
+          .lt('viewed_at', until);
+        return input.url_prefix ? query.like('url', `${input.url_prefix}%`) : query;
+      });
       if (error) throw new Error(error.message);
       const urlMap = new Map<string, { pv: number; sessions: Set<string> }>();
       for (const pv of data ?? []) {
@@ -542,13 +541,12 @@ async function executeTool(
     }
 
     case 'cortiq_top_sources': {
-      const { data, error } = await supabase
+      const { data, error } = await readAll(() => supabase
         .from('page_views')
         .select('referrer, session_id')
         .eq('site_id', siteId)
         .gte('viewed_at', since)
-        .lt('viewed_at', until)
-        .limit(100000);
+        .lt('viewed_at', until));
       if (error) throw new Error(error.message);
       const srcMap = new Map<string, { pv: number; visitors: Set<string> }>();
       for (const pv of data ?? []) {
@@ -569,17 +567,16 @@ async function executeTool(
     }
 
     case 'cortiq_top_entry_pages': {
-      const { data } = await supabase
+      const { data } = await readAll(() => supabase
         .from('tracking_sessions')
         .select('session_id, page_views')
         .eq('site_id', siteId)
         .gte('started_at', since)
-        .lt('started_at', until)
-        .limit(100000);
+        .lt('started_at', until));
       // Derive entry page from first page_view per session
       const sessionIds = (data ?? []).map((s: Record<string, string>) => s.session_id).filter(Boolean);
       const pvData = sessionIds.length > 0
-        ? (await supabase.from('page_views').select('url, session_id, viewed_at').in('session_id', sessionIds.slice(0, 500)).eq('site_id', siteId).limit(10000)).data ?? []
+        ? (await readAllIn(sessionIds.slice(0, 500), (chunk) => supabase.from('page_views').select('url, session_id, viewed_at').in('session_id', chunk).eq('site_id', siteId))).data ?? []
         : [];
       const firstPagePerSession = new Map<string, string>();
       for (const pv of pvData.sort((a: Record<string, string>, b: Record<string, string>) => String(a.viewed_at).localeCompare(String(b.viewed_at)))) {
@@ -604,14 +601,13 @@ async function executeTool(
     }
 
     case 'cortiq_top_exit_pages': {
-      const { data } = await supabase
+      const { data } = await readAll(() => supabase
         .from('page_views')
         .select('url')
         .eq('site_id', siteId)
         .eq('exit_page', true)
         .gte('viewed_at', since)
-        .lt('viewed_at', until)
-        .limit(100000);
+        .lt('viewed_at', until));
       const exitMap = new Map<string, number>();
       for (const pv of data ?? []) exitMap.set(String(pv.url), (exitMap.get(String(pv.url)) ?? 0) + 1);
       return {
@@ -624,13 +620,12 @@ async function executeTool(
     }
 
     case 'cortiq_pageviews_by_device': {
-      const { data } = await supabase
+      const { data } = await readAll(() => supabase
         .from('tracking_sessions')
         .select('device_type, session_id')
         .eq('site_id', siteId)
         .gte('started_at', since)
-        .lt('started_at', until)
-        .limit(100000);
+        .lt('started_at', until));
       const devMap = new Map<string, { sessions: number; visitors: Set<string> }>();
       for (const s of data ?? []) {
         const dt = String(s.device_type || 'unknown');
@@ -651,16 +646,16 @@ async function executeTool(
     // ── Engagement & Behavior ────────────────────────────────────────────────
 
     case 'cortiq_avg_engagement_time': {
-      let query = supabase
-        .from('page_views')
-        .select('url, time_on_page, scroll_depth')
-        .eq('site_id', siteId)
-        .gte('viewed_at', since)
-        .lt('viewed_at', until)
-        .not('time_on_page', 'is', null)
-        .limit(100000);
-      if (input.url_prefix) query = query.like('url', `${input.url_prefix}%`);
-      const { data, error } = await query;
+      const { data, error } = await readAll(() => {
+        const query = supabase
+          .from('page_views')
+          .select('url, time_on_page, scroll_depth')
+          .eq('site_id', siteId)
+          .gte('viewed_at', since)
+          .lt('viewed_at', until)
+          .not('time_on_page', 'is', null);
+        return input.url_prefix ? query.like('url', `${input.url_prefix}%`) : query;
+      });
       if (error) throw new Error(error.message);
       const urlMap = new Map<string, { times: number[]; scrolls: number[] }>();
       for (const pv of data ?? []) {
@@ -686,23 +681,20 @@ async function executeTool(
 
     case 'cortiq_click_counts': {
       // user_interactions has no site_id — get session_ids for this site first
-      const { data: siteSessions } = await supabase
+      const { data: siteSessions } = await readAll(() => supabase
         .from('tracking_sessions')
         .select('session_id')
         .eq('site_id', siteId)
         .gte('started_at', since)
-        .lt('started_at', until)
-        .limit(5000);
+        .lt('started_at', until), 5000);
       const sids = (siteSessions ?? []).map((s: Record<string, string>) => s.session_id).filter(Boolean);
       if (sids.length === 0) return { elements: [], total_clicks: 0, window: { since, until } };
-      let query = supabase
+      // url_prefix is ignored: user_interactions has no url column
+      const { data, error } = await readAllIn(sids, (chunk) => supabase
         .from('user_interactions')
         .select('element_tag, element_class')
-        .in('session_id', sids)
-        .eq('interaction_type', 'click')
-        .limit(100000);
-      if (input.url_prefix) { /* url not available in user_interactions */ }
-      const { data, error } = await query;
+        .in('session_id', chunk)
+        .eq('interaction_type', 'click'));
       if (error) throw new Error(error.message);
       const elemMap = new Map<string, number>();
       for (const i of data ?? []) {
@@ -721,16 +713,16 @@ async function executeTool(
 
     case 'cortiq_heatmap_grid': {
       if (!input.url) return { error: 'url parameter is required' };
-      let query = supabase
-        .from('heatmap_data')
-        .select('grid_x, grid_y')
-        .eq('site_id', siteId)
-        .like('url', `${input.url}%`)
-        .gte('created_at', since)
-        .lt('created_at', until)
-        .limit(20000);
-      if (input.device_type) query = query.eq('device_type', input.device_type);
-      const { data, error } = await query;
+      const { data, error } = await readAll(() => {
+        const query = supabase
+          .from('heatmap_data')
+          .select('grid_x, grid_y')
+          .eq('site_id', siteId)
+          .like('url', `${input.url}%`)
+          .gte('created_at', since)
+          .lt('created_at', until);
+        return input.device_type ? query.eq('device_type', input.device_type) : query;
+      }, 20000);
       if (error) throw new Error(error.message);
       const gridMap = new Map<string, number>();
       for (const h of data ?? []) {
@@ -762,15 +754,14 @@ async function executeTool(
 
     case 'cortiq_top_outbound': {
       // user_interactions has no element_href/site_id — use element_text as proxy for link clicks
-      const { data: outSessions } = await supabase.from('tracking_sessions').select('session_id').eq('site_id', siteId).gte('started_at', since).lt('started_at', until).limit(5000);
+      const { data: outSessions } = await readAll(() => supabase.from('tracking_sessions').select('session_id').eq('site_id', siteId).gte('started_at', since).lt('started_at', until), 5000);
       const outSids = (outSessions ?? []).map((s: Record<string, string>) => s.session_id).filter(Boolean);
-      const { data } = outSids.length > 0 ? await supabase
+      const { data } = outSids.length > 0 ? await readAllIn(outSids, (chunk) => supabase
         .from('user_interactions')
         .select('element_text, session_id')
-        .in('session_id', outSids)
+        .in('session_id', chunk)
         .eq('interaction_type', 'link_click')
-        .not('element_text', 'is', null)
-        .limit(100000)
+        .not('element_text', 'is', null))
         : { data: [] };
       const destMap = new Map<string, { clicks: number; visitors: Set<string> }>();
       for (const i of data ?? []) {
@@ -792,14 +783,13 @@ async function executeTool(
     }
 
     case 'cortiq_web_vitals': {
-      const { data, error } = await supabase
+      const { data, error } = await readAll(() => supabase
         .from('page_views')
         .select('url, lcp, cls')
         .eq('site_id', siteId)
         .not('lcp', 'is', null)
         .gte('viewed_at', since)
-        .lt('viewed_at', until)
-        .limit(100000);
+        .lt('viewed_at', until));
       if (error) return { vitals: [], note: 'Web Vitals not available for this period', window: { since, until } };
       const urlMap = new Map<string, { lcps: number[]; clss: number[] }>();
       for (const pv of data ?? []) {
@@ -832,13 +822,12 @@ async function executeTool(
     // ── Forms & Funnels ─────────────────────────────────────────────────────
 
     case 'cortiq_form_analytics': {
-      const { data, error } = await supabase
+      const { data, error } = await readAll(() => supabase
         .from('form_sessions')
         .select('form_id, form_type, completed_at, completion_time')
         .eq('site_id', siteId)
         .gte('started_at', since)
-        .lt('started_at', until)
-        .limit(100000);
+        .lt('started_at', until));
       if (error) {
         const { data: agg } = await supabase.from('form_analytics').select('*').eq('site_id', siteId).limit(limit);
         return { forms: agg ?? [], window: { since, until } };
@@ -884,13 +873,12 @@ async function executeTool(
     // ── AI-Native Analytics ─────────────────────────────────────────────────
 
     case 'cortiq_ai_agent_traffic': {
-      const { data, error } = await supabase
+      const { data, error } = await readAll(() => supabase
         .from('ai_search_traffic')
         .select('ai_platform, session_id, created_at')
         .eq('site_id', siteId)
         .gte('created_at', since)
-        .lt('created_at', until)
-        .limit(100000);
+        .lt('created_at', until));
       if (error) throw new Error(error.message);
       const platMap = new Map<string, { sessions: number }>();
       for (const s of data ?? []) {
@@ -913,13 +901,12 @@ async function executeTool(
     }
 
     case 'cortiq_ai_bot_analysis': {
-      const { data, error } = await supabase
+      const { data, error } = await readAll(() => supabase
         .from('ai_bot_traffic')
         .select('bot_name, bot_type, request_type, js_executed, probe_triggered')
         .eq('site_id', siteId)
         .gte('created_at', since)
-        .lt('created_at', until)
-        .limit(100000);
+        .lt('created_at', until));
       if (error) throw new Error(error.message);
       // request_type is the authoritative 3-way classification written at ingest
       // (training|agentic|citation, fallback 'unknown'). The old bot_category column
@@ -950,13 +937,12 @@ async function executeTool(
     }
 
     case 'cortiq_ai_agent_journey': {
-      const { data, error } = await supabase
+      const { data, error } = await readAll(() => supabase
         .from('ai_agent_journey_steps')
         .select('url, ai_platform, time_on_page_ms')
         .eq('site_id', siteId)
         .gte('created_at', since)
-        .lt('created_at', until)
-        .limit(100000);
+        .lt('created_at', until));
       if (error) {
         const { data: fallback } = await supabase
           .from('ai_agent_sessions')
@@ -991,8 +977,8 @@ async function executeTool(
 
     case 'cortiq_ai_vs_human': {
       const [aiRes, sessRes] = await Promise.all([
-        supabase.from('ai_search_traffic').select('ai_platform, session_id').eq('site_id', siteId).gte('created_at', since).lt('created_at', until).limit(100000),
-        supabase.from('tracking_sessions').select('duration_seconds, page_views').eq('site_id', siteId).gte('started_at', since).lt('started_at', until).limit(100000),
+        readAll(() => supabase.from('ai_search_traffic').select('ai_platform, session_id').eq('site_id', siteId).gte('created_at', since).lt('created_at', until)),
+        readAll(() => supabase.from('tracking_sessions').select('duration_seconds, page_views').eq('site_id', siteId).gte('started_at', since).lt('started_at', until)),
       ]);
       const ai = aiRes.data ?? [];
       const all = sessRes.data ?? [];
