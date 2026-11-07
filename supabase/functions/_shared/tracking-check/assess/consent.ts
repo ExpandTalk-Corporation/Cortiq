@@ -3,6 +3,7 @@ import { GOOGLE_EXEMPT_VENDORS, isGoogleHost, vendorForName, vendorForUrl, type 
 import { MANUAL_STEPS } from '../instructions.ts';
 import { finding, plural, requestVendors, siteKey, stateOf, testablePages } from './util.ts';
 import { CONSENT_DEFAULT_SNIPPET } from './signals.ts';
+import { DATA_DROP, cmpName, cmpOf, consentModeSteps, googleHostLabel, gtmBlockSteps, verifyInConsole } from './guides.ts';
 
 const REQUIRED_DEFAULTS = ['ad_storage', 'analytics_storage', 'ad_user_data', 'ad_personalization'];
 const needsConsent = (v: Vendor) => v.category === 'analytics' || v.category === 'marketing';
@@ -10,6 +11,8 @@ const automated = (st?: StateObservation) => !!st && st.method !== 'not_automate
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const paths = (pages: Iterable<PageObservation | string>) => [...pages].map((p) => (typeof p === 'string' ? p : p.path));
 const GOOGLE_EXEMPTION = 'Google Fonts and reCAPTCHA were exempted.';
+const LEGAL = 'may require consent under ePrivacy rules (in Sweden: LEK 9 kap. 28 §); this is assessed by the controller.';
+const hasDefault = (st?: StateObservation) => !!st && st.consentCommands.some((c) => c.kind === 'default');
 /** Google endpoints that are not one of the registry's Google tags (strict "nothing to Google" policy only). */
 const GOOGLE_OTHER: Vendor = {
   id: 'google', name: 'Google', category: 'necessary', googleTag: true, requests: [], cookies: [], csp: {}, impact: '',
@@ -88,11 +91,30 @@ function consentDefaults({ mode, policy }: AssessInput, pages: PageObservation[]
       typicalOwner: 'marketing', evidence: { pages: affected, details },
     })];
   }
+  const cmp = cmpOf(pages);
+  const banner = cmpName(cmp);
+  const missing = pages.some((p) => affected.includes(p.path) && !hasDefault(stateOf(p, 'none')));
+  const googleStored = pages.some((p) => {
+    const none = stateOf(p, 'none');
+    return !!none && [...none.cookies.map((c) => c.name), ...none.storageKeys].some((n) => vendorForName(n)?.googleTag);
+  });
+  const ownSteps = consentModeSteps(cmp) !== consentModeSteps(null);
   return [finding({
     scope: 'Consent', checkKey: 'consent.defaults', status: 'fail', priority: 'high',
     title: 'Consent Mode v2 defaults are missing or not "denied"',
-    explanation: 'Google tags need a consent default of "denied" before they load. Without it they behave as if consent was given, and Google Ads needs Consent Mode signals for EEA traffic.',
-    fix: "Set gtag('consent', 'default', { ad_storage: 'denied', analytics_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' }) before GTM or the Google tag loads. Most cookie banners (CookieYes, Cookiebot, OneTrust) have a Consent Mode v2 setting that does this.",
+    explanation: [
+      missing ? `No Consent Mode default was found on ${affected.join(', ')}.` : `The Consent Mode default is not "denied" on ${affected.join(', ')}.`,
+      'Consent Mode is how the cookie banner tells Google\'s tags whether the visitor has said yes. Without a "denied" default, the tags act as if the visitor accepted until the banner says otherwise.',
+      googleStored ? 'Here they set Google cookies before the visitor answered.' : 'Here they contacted Google before the visitor answered.',
+      missing && banner ? `The cookie banner (${banner}) loaded, but it does not pass its answer on to Google's tags.` : '',
+      'Google Ads also needs these signals for traffic from the EEA.',
+    ].filter(Boolean).join(' '),
+    fix: [
+      consentModeSteps(cmp),
+      ownSteps ? `Without a banner setting, add the default yourself. ${CONSENT_DEFAULT_SNIPPET}` : CONSENT_DEFAULT_SNIPPET,
+      'The default only makes the tags hold back their cookies. To stop them contacting Google before consent, each tag also needs a consent requirement (see the finding for each tag).',
+      verifyInConsole(cmp),
+    ].join('\n\n'),
     typicalOwner: 'cmp', evidence: { pages: affected, details },
   })];
 }
@@ -130,6 +152,29 @@ function choiceCheck({ mode, policy }: AssessInput, pages: PageObservation[], st
     }
   }
 
+  const cmp = cmpOf(pages);
+  const banner = cmpName(cmp);
+  const consequence = state === 'none' ? 'The visitor is tracked before saying yes or no.' : 'The visitor is tracked although they said no.';
+  /** Why the tool ran before the choice: no Consent Mode default, or a banner that only blocks after an active choice. */
+  const diagnosis = (v: Vendor, onPages: Set<string>): string => {
+    if (state !== 'none') return '';
+    const mine = evaluated.filter((p) => onPages.has(p.path));
+    const parts: string[] = [];
+    if (v.googleTag && v.id !== 'gtm' && mine.some((p) => !hasDefault(stateOf(p, 'none')))) {
+      parts.push('No Consent Mode default was set, so Google\'s tags acted as if the visitor had accepted.');
+    }
+    const rejected = mine.filter((p) => {
+      const r = stateOf(p, 'reject');
+      return !!r && r.method !== 'not_automated' && r.method !== 'not_needed';
+    });
+    if (rejected.length && rejected.every((p) => !stateOf(p, 'reject')!.requests.some((r) => vendorForUrl(r.url)?.id === v.id))) {
+      parts.push(`After "Reject all" it sent nothing, so the cookie banner${banner ? ` (${banner})` : ''} blocks it after an active choice, but not while the visitor has not answered yet.`);
+    } else if (banner) {
+      parts.push(`The cookie banner (${banner}) loaded, but ${v.name} did not wait for its answer.`);
+    }
+    return parts.join(' ');
+  };
+
   const out: Finding[] = [];
   for (const [id, h] of hits) {
     const v = h.vendor;
@@ -140,28 +185,46 @@ function choiceCheck({ mode, policy }: AssessInput, pages: PageObservation[], st
       out.push(finding({
         scope: 'Consent', checkKey: `${key}.${id}`, status: 'fail', priority: 'high',
         title: `${v.name} stores data on the device ${label}`,
-        explanation: `${v.name} set ${[...h.stored].join(', ')} ${label} on ${where}. Storing or reading data on the device for analytics or marketing may require consent under ePrivacy rules (in Sweden: LEK 9 kap. 28 §); this is assessed by the controller.`,
-        fix: `Load ${v.name} only after consent for the "${v.category}" category: block it in the cookie banner, or give its GTM tag a consent requirement.`,
-        typicalOwner: 'cmp', evidence,
+        explanation: [`${v.name} set ${[...h.stored].join(', ')} in the browser ${label} on ${where}.`, diagnosis(v, h.pages), consequence,
+          `Storing or reading data on the device for analytics or marketing ${LEGAL}`].filter(Boolean).join(' '),
+        fix: v.googleTag
+          ? [gtmBlockSteps(cmp, v), `Check it yourself: in an incognito window, before answering the cookie banner, DevTools → Application → Cookies should show no ${[...h.stored].join(', ')}.`, DATA_DROP].join('\n\n')
+          : [`Load ${v.name} only after consent for the "${v.category}" category: block it in the cookie banner${banner ? ` (${banner})` : ''}, or give its GTM tag a consent requirement.`, v.note ?? ''].filter(Boolean).join('\n\n'),
+        typicalOwner: v.googleTag ? 'gtm' : 'cmp', evidence,
+      }));
+    } else if (v.googleTag && strictGoogle && id === 'gtm') {
+      out.push(finding({
+        scope: 'Consent', checkKey: `${key}.${id}`, status: 'fail', priority: 'high',
+        title: `${v.name} sends requests to Google ${label}`,
+        explanation: `The GTM container file (gtm.js) was downloaded from ${hosts} ${label} on ${where}. It sets no cookies, but Google receives the visitor's IP address and the page address. Many sites accept this because GTM often loads the cookie banner itself; under the agreed setup (nothing is sent to Google before consent) it is a deviation. This is a decision for the controller rather than a configuration error. ${GOOGLE_EXEMPTION}`,
+        fix: 'Choose one:\n1) Record the container request as an accepted exception (the most common choice), with the reasoning.\n2) Load GTM only after consent. The cookie banner must then load directly in the page, not through GTM, and visitors who never answer the banner are not measured at all.',
+        typicalOwner: 'legal', evidence,
+      }));
+    } else if (v.googleTag && strictGoogle && id === 'google') {
+      out.push(finding({
+        scope: 'Consent', checkKey: `${key}.${id}`, status: 'fail', priority: 'high',
+        title: `Requests are sent to Google ${label}`,
+        explanation: `The page contacted ${hosts} ${label} on ${where}, without setting cookies. No tag CortIQ recognises sent these requests, so the sender has to be found in the browser. The agreed setup is that nothing is sent to Google before consent (Consent Mode basic). ${GOOGLE_EXEMPTION}`,
+        fix: 'Find the tag that calls these Google endpoints (DevTools → Network → click the request → Initiator, or Tag Assistant) and give it a consent requirement in GTM, or block it in the cookie banner.',
+        typicalOwner: 'gtm',
+        evidence: { ...evidence, details: [...h.hosts].map((x) => { const what = googleHostLabel(x); return `requests to ${x}${what ? ` (${what})` : ''}`; }) },
       }));
     } else if (v.googleTag && strictGoogle) {
       out.push(finding({
         scope: 'Consent', checkKey: `${key}.${id}`, status: 'fail', priority: 'high',
-        title: id === 'google' ? `Requests are sent to Google ${label}` : `${v.name} sends requests to Google ${label}`,
-        explanation: `${id === 'google' ? 'The page' : v.name} contacted ${hosts} ${label} on ${where}, without setting cookies. The agreed setup is that nothing is sent to Google before consent (Consent Mode basic). ${GOOGLE_EXEMPTION}`,
-        fix: id === 'gtm'
-          ? 'Load the GTM container only after consent, or record the container request as an accepted exception (the container itself sets no cookies).'
-          : id === 'google'
-            ? 'Find the tag that calls these Google endpoints (DevTools → Network → Initiator, or Tag Assistant) and block it until consent.'
-            : `Block ${v.name} until consent (Consent Mode basic) instead of letting it send cookieless pings (Consent Mode advanced).`,
+        title: `${v.name} sends requests to Google ${label}`,
+        explanation: [`${v.name} contacted ${hosts} ${label} on ${where}, without setting cookies.`, diagnosis(v, h.pages),
+          'Cookieless pings still give Google the visitor\'s IP address, browser and page address (Consent Mode advanced). The agreed setup is that nothing is sent to Google before consent (Consent Mode basic).', GOOGLE_EXEMPTION].filter(Boolean).join(' '),
+        fix: [gtmBlockSteps(cmp, v), DATA_DROP].join('\n\n'),
         typicalOwner: 'gtm', evidence,
       }));
     } else {
       out.push(finding({
         scope: 'Consent', checkKey: `${key}.cookieless.${id}`, status: 'warning', priority: 'medium',
         title: `${v.name} sends requests ${label} without cookies`,
-        explanation: `${v.name} contacted ${hosts} ${label} on ${where}, without setting cookies or local storage. Cookieless measurement may require consent under ePrivacy rules (in Sweden: LEK 9 kap. 28 §); this is assessed by the controller.`,
-        fix: `Check ${v.name}'s settings (for example a "track visitors always" option) and decide with the controller whether measuring visitors ${state === 'none' ? 'before they choose' : 'who rejected cookies'} is acceptable.`,
+        explanation: `${v.name} contacted ${hosts} ${label} on ${where}, without setting cookies or local storage. Without cookies, the visitor's IP address, browser and page address still reach ${v.name}. Cookieless measurement ${LEGAL}`,
+        fix: [v.note ?? `Check ${v.name}'s settings (for example a "track visitors always" option).`,
+          `Decide with the controller whether measuring visitors ${state === 'none' ? 'before they choose' : 'who rejected cookies'} is acceptable.`].join('\n\n'),
         typicalOwner: 'legal', evidence,
       }));
     }

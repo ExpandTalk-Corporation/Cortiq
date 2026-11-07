@@ -17,6 +17,8 @@ export interface Vendor {
   impact: string;
   /** 'cmp': consent management platform; 'infrastructure': neither a tag nor tracking (fonts, captcha). Default 'tag'. */
   kind?: 'tag' | 'cmp' | 'infrastructure';
+  /** Extra guidance shown with consent findings: what the tool does and where it is switched off. */
+  note?: string;
   /** Functional tool whose consent need depends on how it is configured: reported as "verify" when it loads before consent, never pass/fail. */
   verify?: string;
 }
@@ -39,7 +41,9 @@ export const TRACKING_VENDORS: Vendor[] = [
     id: 'ga4', name: 'Google Analytics 4', category: 'analytics', googleTag: true,
     requests: [
       { host: /^www\.googletagmanager\.com$/, path: /^\/gtag\/js/, query: /[?&]id=(G|GT)-/ },
-      { host: /^((region\d+|www)\.)?google-analytics\.com$|^analytics\.google\.com$/, path: /^\/(g|j)\/collect/ },
+      { host: /^((region\d+|www)\.)?google-analytics\.com$|^(region\d+\.)?analytics\.google\.com$/, path: /^\/(g|j)\/collect/ },
+      // Google signals: the GA4 tag copies hits here when signals are on.
+      { host: /^stats\.g\.doubleclick\.net$/, path: /^\/(g|j)\/collect/ },
     ],
     cookies: [/^_ga$/, /^_ga_/, /^_gid$/, /^_gat/],
     idFrom: (u) => param('id', 'G-')(u) ?? param('tid', 'G-')(u),
@@ -51,7 +55,8 @@ export const TRACKING_VENDORS: Vendor[] = [
     requests: [
       { host: /^www\.googletagmanager\.com$/, path: /^\/gtag\/js/, query: /[?&]id=AW-/ },
       { host: /^(googleads\.g\.doubleclick\.net|www\.googleadservices\.com|ad\.doubleclick\.net)$/ },
-      { host: /^www\.google\.com$/, path: /^\/(pagead|ccm|rmkt)\// },
+      // Country domains (google.nl, google.se) follow the visitor's location; /ads/ga-audiences is GA4 remarketing.
+      { host: /^www\.google\.([a-z]{2,3}|com?\.[a-z]{2})$/, path: /^\/(pagead|ccm|rmkt|ads)\// },
       { host: /^(pagead2|ade)\.googlesyndication\.com$|^adservice\.google\.com$/ },
     ],
     cookies: [/^_gcl_/, /^IDE$/, /^test_cookie$/],
@@ -126,6 +131,7 @@ export const TRACKING_VENDORS: Vendor[] = [
     idFrom: (u) => u.pathname.match(/^\/tag\/(\w+)/)?.[1] ?? null,
     csp: { 'script-src': ['*.clarity.ms'], 'connect-src': ['*.clarity.ms'], 'img-src': ['*.clarity.ms'] },
     impact: 'Clarity records no sessions or heatmaps.',
+    note: 'Clarity records sessions (clicks, scrolling, mouse movement). Microsoft asks for a consent signal for visitors in the EEA, the UK and Switzerland: load Clarity only after Statistics consent, or pass the choice through the Clarity consent API.',
   },
   {
     // Verified 2026-10-13 against www.pretec.se: requests to cdn.extellio.com; cookies extellio_id.* and extellio_ses.*.
@@ -149,6 +155,7 @@ export const TRACKING_VENDORS: Vendor[] = [
     cookies: [/^RT$/],
     csp: { 'script-src': ['*.go-mpulse.net'], 'connect-src': ['*.go-mpulse.net', '*.akstat.io'] },
     impact: 'Akamai mPulse records no page-load measurements.',
+    note: 'mPulse measures page speed for real visitors and is usually injected by the Akamai CDN, not by GTM, so it is easy to miss. Switch it off in the Akamai property configuration if nobody uses the data, or make it wait for Statistics consent.',
   },
   {
     id: 'cortiq', name: 'CortIQ', category: 'analytics', googleTag: false,

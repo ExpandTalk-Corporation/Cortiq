@@ -34,6 +34,8 @@ interface ReportViewProps {
 
 export function ReportView({ summary, findings, mode, baselineUrl, targetUrl, finishedAt, actions, onVerify }: ReportViewProps) {
   const [open, setOpen] = useState<string | null>(null);
+  // The summary lists at most 3 problems and 2 items to review; say how many more the list below holds.
+  const hidden = summary.counts.fail + summary.counts.warning - summary.lines.filter((l) => l.status !== 'pass').length;
   const showFix = (checkKey: string) => {
     setOpen(checkKey);
     requestAnimationFrame(() => document.getElementById(anchor(checkKey))?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
@@ -62,6 +64,9 @@ export function ReportView({ summary, findings, mode, baselineUrl, targetUrl, fi
               </div>
             );
           })}
+          {hidden > 0 && (
+            <p className="text-sm text-muted-foreground">+{hidden} more to fix or review in the list below</p>
+          )}
           {actions && <div className="flex flex-wrap gap-2 pt-2">{actions}</div>}
         </CardContent>
       </Card>
