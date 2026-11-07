@@ -262,6 +262,12 @@ function choiceCheck({ mode, policy }: AssessInput, pages: PageObservation[], st
   return [...out, ...verifyWidgets(evaluated, state, key, label)];
 }
 
+/** Names a verify widget stored before use, as a sentence for its finding. */
+const stored = (details: Set<string>): string => {
+  const names = [...details].filter((d) => d.startsWith('stored ')).map((d) => d.slice(7));
+  return names.length ? ` It set ${names.join(', ')} in the browser before anyone used it.` : '';
+};
+
 /** Functional widgets (vendor.verify) that load without consent: neither pass nor fail, the controller decides. */
 function verifyWidgets(evaluated: PageObservation[], state: 'none' | 'reject', key: string, label: string): Finding[] {
   const seen = new Map<string, { vendor: Vendor; pages: Set<string>; details: Set<string> }>();
@@ -284,7 +290,7 @@ function verifyWidgets(evaluated: PageObservation[], state: 'none' | 'reject', k
   return [...seen].map(([id, s]) => finding({
     scope: 'Consent', checkKey: `${key}.verify.${id}`, status: 'manual', priority: 'medium',
     title: `Verify ${s.vendor.name}: it loads ${label}`,
-    explanation: `${s.vendor.name} loaded ${label} on ${[...s.pages].join(', ')}. ${s.vendor.verify} Whether it needs consent depends on its configuration; this is assessed by the controller.`,
+    explanation: `${s.vendor.name} loaded ${label} on ${[...s.pages].join(', ')}.${stored(s.details)} ${s.vendor.verify} Whether it needs consent depends on its configuration; this is assessed by the controller.`,
     fix: `Check what ${s.vendor.name} stores and sends before the visitor uses it. If it is not strictly necessary, load it only after consent, or only when the visitor opens it.`,
     typicalOwner: 'legal', evidence: { pages: [...s.pages], details: [...s.details] },
   }));

@@ -192,7 +192,7 @@ export const TRACKING_VENDORS: Vendor[] = [
   {
     id: 'inzynk', name: 'Inzynk', category: 'marketing', googleTag: false,
     requests: [{ host: /(^|\.)inzynk\.io$/ }],
-    cookies: [],
+    cookies: [/^izcid$/, /^iztid$/],
     csp: { 'script-src': ['tags.inzynk.io'], 'connect-src': ['*.inzynk.io'] },
     impact: 'Inzynk cannot identify visiting companies.',
   },
@@ -208,7 +208,7 @@ export const TRACKING_VENDORS: Vendor[] = [
   {
     id: '1mind', name: '1mind', category: 'preferences', googleTag: false,
     requests: [{ host: /(^|\.)1mind\.com$/ }],
-    cookies: [],
+    cookies: [/^om_user_token$/],
     csp: { 'script-src': ['launcher.1mind.com'], 'connect-src': ['*.1mind.com'], 'frame-src': ['*.1mind.com'] },
     impact: 'The 1mind AI assistant does not appear.',
     verify: 'An AI sales assistant is functional when a visitor talks to it, but it processes what visitors type and may identify or track them before anyone uses it.',
@@ -267,7 +267,9 @@ export const TRACKING_VENDORS: Vendor[] = [
   },
   {
     id: 'recaptcha', kind: 'infrastructure', name: 'Google reCAPTCHA', category: 'necessary', googleTag: false,
-    requests: [{ host: /^www\.(google|gstatic)\.com$/, path: /^\/recaptcha\// }], cookies: [], csp: {},
+    requests: [{ host: /^www\.(google|gstatic)\.com$/, path: /^\/recaptcha\// }], cookies: [],
+    // Google's documented reCAPTCHA CSP: the script loads from both hosts and the challenge runs in an iframe.
+    csp: { 'script-src': ['www.google.com', 'www.gstatic.com'], 'frame-src': ['www.google.com', 'recaptcha.google.com'] },
     impact: 'Forms protected by reCAPTCHA cannot be submitted.',
   },
   {

@@ -61,6 +61,16 @@ test('CSP violations name the vendor and the exact directive to extend', () => {
   assert.equal(byKey(findings, 'csp.blocked.host.cdn.unknown.example')[0].status, 'warning');
 });
 
+test('a blocked reCAPTCHA gets the full reCAPTCHA CSP, minus what is already allowed', () => {
+  const csp = { 'script-src': ["'self'", 'https://www.googletagmanager.com'], 'frame-src': ["'self'"] };
+  const states = [st('none'), st('reject'), st('accept', { cspViolations: [{ blockedUrl: 'https://www.google.com/recaptcha/api.js', directive: 'script-src-elem' }] })];
+  const findings = assess({ mode: 'policy', baseline: null, policy: POLICY, target: site('target', [page('/blog/', { states, fetch: fetchOk('/blog/', { csp }) })]) });
+  const [blocked] = byKey(findings, 'csp.blocked.recaptcha');
+  assert.match(blocked.explanation, /^1 request to Google reCAPTCHA was blocked/);
+  assert.match(blocked.fix, /script-src: add www\.google\.com www\.gstatic\.com/);
+  assert.match(blocked.fix, /frame-src: add www\.google\.com recaptcha\.google\.com/);
+});
+
 test('no CSP violations gives a pass', () => {
   const findings = assess({ mode: 'policy', baseline: null, policy: POLICY, target: site('target', [page('/')]) });
   assert.equal(byKey(findings, 'csp.ok')[0].status, 'pass');
