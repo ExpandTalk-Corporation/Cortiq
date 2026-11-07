@@ -168,7 +168,7 @@ export function assessCsp({ target }: AssessInput): Finding[] {
     out.push(finding({
       scope: 'CSP', checkKey: `csp.blocked.${id}`, status: 'fail', priority: 'high',
       title: `The Content-Security-Policy blocks ${e.vendor.name}`,
-      explanation: `${plural(e.count, 'request', 'requests')} to ${e.vendor.name} were blocked on ${pageList(e.pages)}. ${e.vendor.impact}`,
+      explanation: `${plural(e.count, 'request', 'requests')} to ${e.vendor.name} ${e.count === 1 ? 'was' : 'were'} blocked on ${pageList(e.pages)}. ${e.vendor.impact}`,
       fix: ['Extend the Content-Security-Policy:', ...cspFixLines(e.vendor, csp, e.extra)].join('\n'),
       typicalOwner: 'developer', evidence: { pages: [...e.pages] },
     }));

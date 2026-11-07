@@ -77,6 +77,21 @@ test('Paligo case: B2B identification tags fail before choice; functional widget
   assert.equal(byKey(widgetsOnly, 'consent.before_choice.verify.chilipiper').length, 1);
 });
 
+test('Paligo case 2: Inzynk and 1mind cookies are attributed, so Inzynk is not reported as cookieless', () => {
+  const findings = compareRun([
+    st('none', { consentCommands: [DENIED], requests: [req('https://tags.inzynk.io/bpedxeoi/iztag.js'), req('https://launcher.1mind.com/deployment-1')],
+      cookies: [{ name: 'izcid', domain: 'www.paligo.net' }, { name: 'iztid', domain: 'www.paligo.net' }, { name: 'om_user_token', domain: 'www.paligo.net' }] }),
+    st('reject'), st('accept'),
+  ]);
+  const [inzynk] = byKey(findings, 'consent.before_choice.inzynk');
+  assert.equal(inzynk.status, 'fail');
+  assert.match(inzynk.explanation, /izcid, iztid/);
+  assert.equal(byKey(findings, 'consent.before_choice.cookieless.inzynk').length, 0);
+  const [widget] = byKey(findings, 'consent.before_choice.verify.1mind');
+  assert.equal(widget.status, 'manual');
+  assert.match(widget.explanation, /It set om_user_token in the browser before anyone used it\./);
+});
+
 test('reject that could not be automated is manual and never passes', () => {
   const findings = compareRun([st('none'), st('reject', { method: 'not_automated' }), st('accept')]);
   assert.equal(byKey(findings, 'consent.after_reject.manual')[0].status, 'manual');
