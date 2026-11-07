@@ -6,13 +6,14 @@ import { PGlite } from '@electric-sql/pglite';
 // Executes the real migration in PGlite with the Supabase roles and auth.uid() stubbed.
 const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
-const migrations = ['20261012000001_tracking_check.sql', '20261013000001_tracking_check_liveness.sql']
+const migrations = ['20261012000001_tracking_check.sql', '20261013000001_tracking_check_liveness.sql', '20261106000001_tracking_check_account_deletion.sql']
   .map((f) => readFileSync(new URL(`../../supabase/migrations/${f}`, import.meta.url), 'utf8'));
 
 async function setup() {
   const db = new PGlite();
   await db.exec(`CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role; CREATE SCHEMA auth;
-    CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;`);
+    CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
+    CREATE TABLE auth.users (id uuid PRIMARY KEY); INSERT INTO auth.users VALUES ('${A}'), ('${B}');`);
   for (const m of migrations) await db.exec(m);
   return db;
 }
@@ -105,4 +106,18 @@ test('retention puts runs stuck in assessing for over 10 minutes back to running
   assert.equal(rows.find((r) => r.id === stuck).status, 'running');
   assert.equal(rows.find((r) => r.id === busy).status, 'assessing');
   await assert.rejects(as(db, 'authenticated', A, () => db.query('SELECT tracking_check_retention()')), /permission denied/);
+});
+
+test('deleting an account deletes its runs, tasks, observations and findings', async () => {
+  const db = await setup();
+  const runA = await newRun(db, A);
+  const task = await newTask(db, runA);
+  await db.query(`INSERT INTO tracking_check_observations (run_id, task_id, data) VALUES ($1, $2, '{}')`, [runA, task]);
+  await db.query(`INSERT INTO tracking_check_findings (run_id, sort_order, scope, check_key, title, status) VALUES ($1, 0, 'site', 'k', 't', 'pass')`, [runA]);
+  const runB = await newRun(db, B);
+  await db.query('DELETE FROM auth.users WHERE id = $1', [A]);
+  assert.deepEqual((await db.query('SELECT id FROM tracking_check_runs')).rows.map((r) => r.id), [runB]);
+  for (const t of ['tracking_check_tasks', 'tracking_check_observations', 'tracking_check_findings']) {
+    assert.equal((await db.query(`SELECT count(*)::int AS n FROM ${t}`)).rows[0].n, 0, t);
+  }
 });
