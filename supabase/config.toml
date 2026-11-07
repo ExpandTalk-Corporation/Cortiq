@@ -123,3 +123,6 @@ verify_jwt = false
 
 [functions.aggregate-hit]
 verify_jwt = false
+
+[functions.gsc-sync]
+verify_jwt = false

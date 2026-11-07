@@ -12,6 +12,7 @@ export const NAV_SECTIONS: NavSection[] = [
     { value: 'cookiefree', label: 'Cookie-free' },
   ] },
   { number: 2, label: 'Acquisition', items: [
+    { value: 'google-search', label: 'Google Search' },
     { value: 'social-media', label: 'Social media' },
     { value: 'campaigns', label: 'Campaigns' },
     { value: 'paid-ads', label: 'Ads (GA4)' },
