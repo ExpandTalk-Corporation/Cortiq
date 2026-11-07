@@ -10,3 +10,6 @@ export function siteFromQuery(search: string): string | undefined {
     return undefined;
   }
 }
+
+/** The signed-in start form; ?url= and ?mode=comparison prefill it. */
+export const TRACKING_CHECK_START = '/tracking-check/new';
