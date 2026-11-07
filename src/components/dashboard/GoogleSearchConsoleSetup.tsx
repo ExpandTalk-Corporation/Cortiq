@@ -13,6 +13,8 @@ import type { Site } from '@/types/dashboard';
 //  1. Connect → Google consent screen, state = site id.
 //  2. /auth/gsc-callback (GSCCallbackPage) → gsc-oauth-callback exchanges the code
 //     and stores one inactive row per GSC property in site_google_credentials.
+//     Or, for a further site: pick a property already connected for another of the
+//     owner's sites → gsc-link-property copies that connection server-side.
 //  3. The owner picks the property that matches this site → is_active, then gsc-sync
 //     (a site's first sync loads 16 months). The gsc-daily-sync cron job re-syncs the
 //     current and previous month every day.
@@ -90,9 +92,23 @@ export function GoogleSearchConsoleSetup({ selectedSite }: { selectedSite: Site 
     },
   });
 
+  // Properties the owner's Google connection already reaches through their other sites
+  // (RLS limits rows to the owner's sites).
+  const { data: elsewhere = [] } = useQuery({
+    queryKey: ['gsc-properties-elsewhere', selectedSite.id],
+    queryFn: async () => {
+      const { data, error } = await credentials()
+        .select('property_url')
+        .neq('site_id', selectedSite.id);
+      if (error) throw error;
+      return [...new Set(((data ?? []) as { property_url: string }[]).map((r) => r.property_url))].sort();
+    },
+  });
+
   const active = properties.find((p) => p.is_active);
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['gsc-properties', selectedSite.id] });
+    queryClient.invalidateQueries({ queryKey: ['gsc-properties-elsewhere', selectedSite.id] });
     queryClient.invalidateQueries({ queryKey: ['gsc-credential', selectedSite.id] });
     queryClient.invalidateQueries({ queryKey: ['gsc-data'] });
     queryClient.invalidateQueries({ queryKey: ['gsc-monthly', selectedSite.id] });
@@ -127,12 +143,31 @@ export function GoogleSearchConsoleSetup({ selectedSite }: { selectedSite: Site 
     await sync();
   }
 
+  async function linkExisting(propertyUrl: string) {
+    setBusy(propertyUrl);
+    const { data, error } = await supabase.functions.invoke('gsc-link-property', {
+      body: { site_id: selectedSite.id, property_url: propertyUrl },
+    });
+    setBusy(null);
+    if (error || !data?.success) {
+      toast.error(`Could not use the property: ${data?.error ?? error?.message ?? 'unknown error'}`);
+      return;
+    }
+    refresh();
+    await sync();
+  }
+
   const clientMissing = !import.meta.env.VITE_GOOGLE_CLIENT_ID;
   const connected = properties.length > 0;
   const siteHost = bareHost(selectedSite.domain ?? '');
   const matches = (p: Property) => !!siteHost && bareHost(p.property_url) === siteHost;
   // Prefer a matching Domain property, then a matching URL-prefix property.
   const suggested = properties.find((p) => matches(p) && p.property_url.startsWith('sc-domain:')) ?? properties.find(matches);
+  const ownUrls = new Set(properties.map((p) => p.property_url));
+  const reusable = elsewhere.filter((url) => !ownUrls.has(url));
+  const matchesUrl = (url: string) => !!siteHost && bareHost(url) === siteHost;
+  const reusableSuggested = reusable.find((u) => matchesUrl(u) && u.startsWith('sc-domain:')) ?? reusable.find(matchesUrl);
+  const reusableSorted = reusableSuggested ? [reusableSuggested, ...reusable.filter((u) => u !== reusableSuggested)] : reusable;
 
   return (
     <Card>
@@ -182,16 +217,21 @@ export function GoogleSearchConsoleSetup({ selectedSite }: { selectedSite: Site 
               <Link2 className="h-4 w-4 mr-2" />
               {connected ? 'Reconnect Google account' : 'Connect Google Search Console'}
             </Button>
+            {!connected && reusable.length > 0 && (
+              <p className="text-sm text-muted-foreground">
+                Already connected Google for another site? Skip this and pick a property from that connection in step 3.
+              </p>
+            )}
           </Step>
 
           <Step n={3} done={!!active} title="Choose the property for this site">
             {!connected ? (
-              !isLoading && (
+              !isLoading && reusable.length === 0 && (
                 <p className="text-sm text-muted-foreground">The properties your Google account can read appear here after step 2.</p>
               )
             ) : (
               <>
-                {!active && !suggested && siteHost && (
+                {!active && !suggested && !reusableSuggested && siteHost && (
                   <p className="text-sm text-muted-foreground">
                     No property matches {selectedSite.domain}. Add the site in Search Console, then reconnect.
                   </p>
@@ -225,6 +265,34 @@ export function GoogleSearchConsoleSetup({ selectedSite }: { selectedSite: Site 
                   ))}
                 </ul>
               </>
+            )}
+            {!active && reusable.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  From the Google connection on your other sites. CortIQ reuses that connection, so no new Google sign-in is needed.
+                </p>
+                <ul className="space-y-2">
+                  {reusableSorted.map((url) => (
+                    <li key={url} className="flex items-center justify-between gap-3 rounded-md border border-dashed p-3 text-sm">
+                      <div className="min-w-0">
+                        <p className="font-mono truncate">{url}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {propertyKind(url)}
+                          {url === reusableSuggested && ' · matches this site'}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant={url === reusableSuggested && !suggested ? 'default' : 'secondary'}
+                        onClick={() => linkExisting(url)}
+                        disabled={busy !== null}
+                      >
+                        Use this property
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </Step>
 
