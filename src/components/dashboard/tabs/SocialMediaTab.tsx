@@ -11,6 +11,9 @@ import {
 } from 'lucide-react';
 import type { Site } from '@/types/dashboard';
 import { useSocialMedia, SOCIAL_PLATFORMS, type PlatformStats } from '@/hooks/useSocialMedia';
+import { useAcquisitionReadiness } from '@/hooks/useAcquisitionReadiness';
+import { SetupChecklist } from '../setup/SetupChecklist';
+import { socialSourceStep, trackingStep } from '../setup/acquisitionSteps';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, LineChart, Line, Legend
@@ -183,12 +186,14 @@ function PlatformCard({ p, rank, totalSessions, trendKeys }: { p: PlatformStats;
 // ── Main component ─────────────────────────────────────────────────────────
 interface SocialMediaTabProps {
   selectedSite: Site;
+  onNavigate?: (tab: string) => void;
 }
 
-export function SocialMediaTab({ selectedSite }: SocialMediaTabProps) {
+export function SocialMediaTab({ selectedSite, onNavigate }: SocialMediaTabProps) {
   const { filters } = useDashboardFilters();
   const { platforms, summary, trendKeys, granularity, loading, error, refetch } =
     useSocialMedia(selectedSite.id, { from: filters.from, to: filters.to });
+  const { data: readiness } = useAcquisitionReadiness(selectedSite.id);
 
   if (loading) {
     return (
@@ -282,17 +287,21 @@ export function SocialMediaTab({ selectedSite }: SocialMediaTabProps) {
       {/* ── No data state ── */}
       {!hasPlatformData && (
         <Card>
-          <CardContent className="py-14 text-center">
+          <CardContent className="py-10 text-center">
             <Share2 className="h-10 w-10 mx-auto mb-4 opacity-30" />
             <h3 className="font-semibold mb-1">No social traffic in the selected period</h3>
-            <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">
-              Social traffic is identified via referrer (the visitor's previous page) or UTM parameters. Make sure to tag your social links with UTM tags for best tracking results.
+            <p className="text-sm text-muted-foreground max-w-md mx-auto">
+              Social visits are identified by the referring site or by the utm_source tag. The checklist below shows what is missing.
             </p>
-            <div className="inline-block text-left bg-muted/60 rounded-lg p-4 text-xs font-mono">
-              ?utm_source=facebook&utm_medium=social&utm_campaign=kampanjnamn
-            </div>
           </CardContent>
         </Card>
+      )}
+      {!hasPlatformData && readiness && (
+        <SetupChecklist
+          title="How to get social media data"
+          steps={[trackingStep(readiness), socialSourceStep(readiness)]}
+          onNavigate={onNavigate}
+        />
       )}
 
       {hasPlatformData && (
@@ -380,7 +389,7 @@ export function SocialMediaTab({ selectedSite }: SocialMediaTabProps) {
             tracking accuracy. Example:
           </p>
           <code className="block bg-amber-100 rounded px-2 py-1 font-mono">
-            ?utm_source=instagram&utm_medium=social&utm_campaign=product-launch-2025
+            ?utm_source=instagram&utm_medium=social&utm_campaign=product-launch
           </code>
           <p className="flex items-start gap-1">
             <span className="mt-0.5">Phase 2 (roadmap):</span>

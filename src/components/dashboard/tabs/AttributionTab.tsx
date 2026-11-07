@@ -6,9 +6,13 @@ import { BarChart2, TrendingDown, TrendingUp, Upload, Shield } from 'lucide-reac
 import { useAttributionGap } from '@/hooks/useAttributionGap';
 import { PixelReadinessCard } from '@/components/dashboard/PixelReadinessCard';
 import type { Site } from '@/types/dashboard';
+import { useAcquisitionReadiness } from '@/hooks/useAcquisitionReadiness';
+import { SetupChecklist } from '../setup/SetupChecklist';
+import { conversionStep, goalsStep, hubspotStep } from '../setup/acquisitionSteps';
 
 interface AttributionTabProps {
   selectedSite: Site;
+  onNavigate?: (tab: string) => void;
 }
 
 function GapMeter({ gapPercent }: { gapPercent: number }) {
@@ -22,8 +26,9 @@ function GapMeter({ gapPercent }: { gapPercent: number }) {
   );
 }
 
-export function AttributionTab({ selectedSite }: AttributionTabProps) {
+export function AttributionTab({ selectedSite, onNavigate }: AttributionTabProps) {
   const { data, isLoading } = useAttributionGap(selectedSite.id);
+  const { data: readiness } = useAcquisitionReadiness(selectedSite.id);
 
   if (isLoading) {
     return <div className="py-12 text-center text-sm text-muted-foreground">Loading attribution data...</div>;
@@ -32,6 +37,30 @@ export function AttributionTab({ selectedSite }: AttributionTabProps) {
   if (!data) return <PixelReadinessCard selectedSite={selectedSite} />;
 
   const { cortiqConversions, hubspotMQLs, gapPercent, pendingUpload, uploaded, bySource, periodDays } = data;
+  // A gap needs both sides: conversions in CortIQ and the HubSpot loop feeding lead quality back.
+  const gapMeasurable = cortiqConversions > 0 && readiness?.hubspotLoop === true;
+
+  const checklist = readiness && (
+    <SetupChecklist
+      title="How to measure the attribution gap"
+      description="The gap compares conversions recorded by CortIQ with the leads HubSpot later marks as Priority or Qualified."
+      steps={[goalsStep(readiness), conversionStep(readiness), hubspotStep(readiness)]}
+      onNavigate={onNavigate}
+    />
+  );
+
+  if (cortiqConversions === 0) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-xl font-semibold">Attribution Gap</h2>
+          <p className="text-sm text-muted-foreground">No conversions recorded in the last {periodDays} days, so there is no gap to measure yet.</p>
+        </div>
+        {checklist}
+        <PixelReadinessCard selectedSite={selectedSite} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -55,25 +84,34 @@ export function AttributionTab({ selectedSite }: AttributionTabProps) {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">{cortiqConversions}</div>
-            <p className="text-xs text-muted-foreground mt-1">All form submissions tracked by CortIQ</p>
+            <p className="text-xs text-muted-foreground mt-1">Conversions recorded by CortIQ for your goals</p>
           </CardContent>
         </Card>
 
-        <Card className={gapPercent > 50 ? 'border-red-200' : gapPercent > 20 ? 'border-yellow-200' : 'border-green-200'}>
+        <Card className={!gapMeasurable ? '' : gapPercent > 50 ? 'border-red-200' : gapPercent > 20 ? 'border-yellow-200' : 'border-green-200'}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Attribution Gap
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <GapMeter gapPercent={gapPercent} />
-            <p className="text-xs text-muted-foreground mt-2">
-              {gapPercent > 50
-                ? 'Large gap — check tracking tag coverage and Google Ads conversion setup'
-                : gapPercent > 20
-                ? 'Moderate gap — some conversions missing from quality pipeline'
-                : 'Healthy — attribution is well aligned'}
-            </p>
+            {gapMeasurable ? (
+              <>
+                <GapMeter gapPercent={gapPercent} />
+                <p className="text-xs text-muted-foreground mt-2">
+                  {gapPercent > 50
+                    ? 'Large gap: most conversions never become qualified leads in HubSpot'
+                    : gapPercent > 20
+                    ? 'Moderate gap: some conversions are missing from the quality pipeline'
+                    : 'Most conversions reach the quality pipeline'}
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="text-3xl font-bold text-muted-foreground">Not measured</div>
+                <p className="text-xs text-muted-foreground mt-2">The HubSpot lead quality loop is not on. See the steps below.</p>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -107,7 +145,7 @@ export function AttributionTab({ selectedSite }: AttributionTabProps) {
             </div>
             <div>
               <div className="text-2xl font-bold text-yellow-500">{pendingUpload}</div>
-              <div className="text-muted-foreground">Pending next daily batch</div>
+              <div className="text-muted-foreground">Waiting for upload</div>
             </div>
           </div>
           {pendingUpload === 0 && uploaded === 0 && (
@@ -117,6 +155,8 @@ export function AttributionTab({ selectedSite }: AttributionTabProps) {
           )}
         </CardContent>
       </Card>
+
+      {!gapMeasurable && checklist}
 
       {/* Source breakdown */}
       {bySource.length > 0 && (

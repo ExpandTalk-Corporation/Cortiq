@@ -10,11 +10,15 @@ import {
 } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 import { GoogleAdsApiSetup } from '@/components/dashboard/GoogleAdsApiSetup';
+import { useAcquisitionReadiness } from '@/hooks/useAcquisitionReadiness';
+import { SetupChecklist } from '../setup/SetupChecklist';
+import { googleAdsApiStep, paidMediumStep, trackingStep } from '../setup/acquisitionSteps';
 
 interface ClickFraudTabProps {
   selectedSite: string;
   startDate?: string;
   endDate?: string;
+  onNavigate?: (tab: string) => void;
 }
 
 interface Summary {
@@ -73,7 +77,7 @@ const riskLabel = {
   low: 'Low risk',
 };
 
-export function ClickFraudTab({ selectedSite, startDate, endDate }: ClickFraudTabProps) {
+export function ClickFraudTab({ selectedSite, startDate, endDate, onNavigate }: ClickFraudTabProps) {
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -86,6 +90,7 @@ export function ClickFraudTab({ selectedSite, startDate, endDate }: ClickFraudTa
   // ROI calculator state. Hooks stay above the early returns below (rules of hooks).
   const [monthlySpend, setMonthlySpend] = useState('');
   const [cpc, setCpc] = useState('');
+  const { data: readiness } = useAcquisitionReadiness(selectedSite);
 
   useEffect(() => {
     if (!selectedSite) return;
@@ -142,31 +147,35 @@ export function ClickFraudTab({ selectedSite, startDate, endDate }: ClickFraudTa
 
   if (error) {
     return (
-      <Card>
-        <CardContent className="pt-6">
-          <div className="text-center py-12">
-            <ShieldAlert className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Click fraud analysis unavailable</h3>
-            <p className="text-muted-foreground text-sm mb-1 max-w-md mx-auto">
-              To detect click fraud, install the CortIQ tracking script and run paid campaigns with UTM parameters (<code className="text-xs bg-muted px-1 rounded">utm_medium=cpc</code>).
-            </p>
-            <p className="text-xs text-muted-foreground mt-4">
-              Optionally connect Google Ads for richer campaign data. Go to <span className="font-medium">Settings → External Integrations</span>.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <Alert variant="destructive">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertDescription>Click fraud analysis failed: {error}</AlertDescription>
+      </Alert>
     );
   }
 
   if (message || !summary) {
     return (
-      <Alert>
-        <ShieldCheck className="h-4 w-4" />
-        <AlertDescription>
-          {message ?? 'No paid sessions found for the selected period. Check that campaigns are running with utm_medium=cpc or ppc.'}
-        </AlertDescription>
-      </Alert>
+      <div className="space-y-6">
+        <Alert>
+          <ShieldCheck className="h-4 w-4" />
+          <AlertDescription>
+            No ad visits in the selected period, so there is nothing to analyse. Click fraud is estimated from the behaviour of
+            visits whose landing link has a paid utm_medium.
+          </AlertDescription>
+        </Alert>
+        {readiness && (
+          <SetupChecklist
+            title="How to get click fraud analysis"
+            steps={[trackingStep(readiness), paidMediumStep(readiness), googleAdsApiStep(readiness)]}
+            onNavigate={onNavigate}
+          />
+        )}
+        <GoogleAdsApiSetup
+          siteId={selectedSite}
+          onConfigured={() => setRunCount(n => n + 1)}
+        />
+      </div>
     );
   }
 
