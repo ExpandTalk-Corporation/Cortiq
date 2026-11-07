@@ -24,7 +24,7 @@ function fmt(n: number) {
 const PAGE_SIZE = 25;
 
 export function GSCVisibilitySection({ siteId, onNavigateToIntegrations }: GSCVisibilitySectionProps) {
-  const { isConnected, brandKeywords, queries, pages, summary, loading, lastSync } = useGSCData(siteId);
+  const { isConnected, needsProperty, brandKeywords, queries, pages, summary, loading, lastSync } = useGSCData(siteId);
   const monthly = useGSCMonthly(siteId);
 
   const [activeTab,      setActiveTab]      = useState<'keywords' | 'pages'>('keywords');
@@ -97,11 +97,17 @@ export function GSCVisibilitySection({ siteId, onNavigateToIntegrations }: GSCVi
           <div className="flex items-center gap-3">
             <Search className="h-5 w-5 text-muted-foreground" />
             <div>
-              <p className="text-sm font-medium">Google Search Console</p>
-              <p className="text-xs text-muted-foreground">Connect to see monthly search visibility here.</p>
+              <p className="text-sm font-medium">
+                {needsProperty ? 'Google Search Console connected: choose a property' : 'Google Search Console is not connected to this site'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {needsProperty
+                  ? 'Your Google account is connected, but no Search Console property is chosen for this site, so nothing is synced yet.'
+                  : 'Connect a Google account to see monthly search visibility here. The connection is made per site.'}
+              </p>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={onNavigateToIntegrations}>Connect</Button>
+          <Button variant="outline" size="sm" onClick={onNavigateToIntegrations}>{needsProperty ? 'Choose property' : 'Connect'}</Button>
         </CardContent>
       </Card>
     );

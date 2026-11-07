@@ -29,13 +29,15 @@ function useGSCCredential(siteId: string | null) {
     queryKey: ['gsc-credential', siteId],
     enabled: !!siteId,
     queryFn: async () => {
-      const { data } = await supabase
+      // All rows for the site: a connected Google account with no chosen property is
+      // a different state from no connection at all.
+      const { data, error } = await supabase
         .from('site_google_credentials')
         .select('id, property_url, last_sync_at, is_active, brand_keywords')
-        .eq('site_id', siteId!)
-        .eq('is_active', true)
-        .maybeSingle();
-      return data as (typeof data & { brand_keywords?: string | null }) | null;
+        .eq('site_id', siteId!);
+      if (error) throw error;
+      const rows = (data ?? []) as { id: string; property_url: string; last_sync_at: string | null; is_active: boolean; brand_keywords?: string | null }[];
+      return { active: rows.find((r) => r.is_active) ?? null, properties: rows.length };
     },
     staleTime: 0,
   });
@@ -91,9 +93,12 @@ export function useGSCData(siteId: string | null) {
   const queries    = useGSCRows(siteId, 'query', 200);
   const pages      = useGSCRows(siteId, 'page',  200);
 
-  const isConnected   = !!credential.data;
-  const lastSync      = credential.data?.last_sync_at ?? null;
-  const brandKeywords = credential.data?.brand_keywords ?? null;
+  const active        = credential.data?.active ?? null;
+  const isConnected   = !!active;
+  // Google account connected, but no property chosen for this site yet.
+  const needsProperty = !active && (credential.data?.properties ?? 0) > 0;
+  const lastSync      = active?.last_sync_at ?? null;
+  const brandKeywords = active?.brand_keywords ?? null;
 
   const summary: GSCSummary = {
     totalClicks:      queries.data?.reduce((s, r) => s + r.clicks, 0) ?? 0,
@@ -108,6 +113,7 @@ export function useGSCData(siteId: string | null) {
 
   return {
     isConnected,
+    needsProperty,
     lastSync,
     brandKeywords,
     queries:  queries.data ?? [],

@@ -11,7 +11,7 @@ interface GoogleSearchConsoleWidgetProps {
 }
 
 export function GoogleSearchConsoleWidget({ siteId, onNavigateToSetup }: GoogleSearchConsoleWidgetProps) {
-  const { isConnected, queries, summary, loading, lastSync } = useGSCData(siteId);
+  const { isConnected, needsProperty, queries, summary, loading, lastSync } = useGSCData(siteId);
 
   if (loading) {
     return (
@@ -36,10 +36,12 @@ export function GoogleSearchConsoleWidget({ siteId, onNavigateToSetup }: GoogleS
         </CardHeader>
         <CardContent className="p-4 pt-0">
           <p className="text-sm text-muted-foreground mb-3">
-            Connect GSC to see which queries drive organic traffic to your site.
+            {needsProperty
+              ? 'Your Google account is connected, but no Search Console property is chosen for this site yet.'
+              : 'Connect GSC to see which queries drive organic traffic to your site.'}
           </p>
           <Button variant="outline" size="sm" className="w-full" onClick={onNavigateToSetup}>
-            Connect Search Console
+            {needsProperty ? 'Choose property' : 'Connect Search Console'}
           </Button>
         </CardContent>
       </Card>
