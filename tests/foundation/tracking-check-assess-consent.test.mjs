@@ -144,12 +144,15 @@ const NONE = st('none', { consentCommands: [DENIED] });
 
 test('strict Google policy: any Google endpoint after reject fails; Google Fonts and reCAPTCHA are exempt', () => {
   const findings = policyRun([NONE, st('reject', { requests: [
-    req('https://stats.g.doubleclick.net/g/collect?v=2&tid=G-1'), req('https://www.google.se/pagead/1p-user-list/123/?random=1'),
+    req('https://td.doubleclick.net/td/rul/123'), req('https://www.google.se/gen_204?x=1'),
   ] }), st('accept'), ...granular]);
   const [f] = byKey(findings, 'consent.after_reject.google');
   assert.equal(f.status, 'fail');
   assert.equal(f.priority, 'high');
-  assert.deepEqual(f.evidence.details, ['requests to stats.g.doubleclick.net', 'requests to www.google.se']);
+  assert.deepEqual(f.evidence.details, [
+    'requests to td.doubleclick.net (Google Ads)',
+    'requests to www.google.se (Google Ads or GA4 audiences; the country domain follows the location of the test browser)',
+  ]);
   assert.match(f.explanation, /Google Fonts and reCAPTCHA were exempted/);
 
   const exempt = policyRun([NONE, st('reject', { requests: [req('https://fonts.googleapis.com/css2?family=Inter'), req('https://www.google.com/recaptcha/api.js')] }), st('accept'), ...granular]);
@@ -160,7 +163,7 @@ test('strict Google policy: any Google endpoint after reject fails; Google Fonts
 });
 
 test('unknown Google endpoints are not counted outside strict mode', () => {
-  const findings = compareRun([st('none'), st('reject', { requests: [req('https://stats.g.doubleclick.net/g/collect?v=2')] }), st('accept')]);
+  const findings = compareRun([st('none'), st('reject', { requests: [req('https://td.doubleclick.net/td/rul/123')] }), st('accept')]);
   assert.equal(findings.filter((x) => x.checkKey.startsWith('consent.after_reject.')).length, 0);
 });
 
@@ -210,4 +213,60 @@ test('stored-data and unknown-third-party wording states facts, not a legal verd
   const clean = policyRun([NONE, st('reject', { requests: [req('https://cdn-cookieyes.com/x.js')] }), st('accept'), ...granular]);
   const [u] = byKey(clean, 'consent.unknown_after_reject');
   assert.equal(u.explanation, 'Every third-party request after rejection went to a tool CortIQ recognises.');
+});
+
+test('PwC case: OneTrust says no, but the Google tags never wait; findings name the cause and the CMP-specific fix', () => {
+  const none = st('none', {
+    requests: [req(GTM), req('https://region1.analytics.google.com/g/collect?v=2&tid=G-ZEYTM5WSW8'), req('https://stats.g.doubleclick.net/g/collect?v=2&tid=G-ZEYTM5WSW8'),
+      req('https://www.google.nl/ads/ga-audiences?v=1&t=sr'), req('https://ad.doubleclick.net/activity;src=1'), req('https://c.go-mpulse.net/api/config.json')],
+    cookies: [{ name: '_ga', domain: '.pwc.se' }, { name: '_ga_ZEYTM5WSW8', domain: '.pwc.se' }, { name: '_gcl_au', domain: '.pwc.se' }],
+  });
+  const findings = assess({ mode: 'policy', baseline: null, policy: POLICY,
+    target: site('target', [page('/', { cmp: 'onetrust', states: [none, st('reject', { requests: [req(GTM)] }), st('accept'), ...granular] })]) });
+
+  assert.equal(byKey(findings, 'consent.before_choice.google').length, 0, 'every Google endpoint is attributed to a tag');
+  const [ga] = byKey(findings, 'consent.before_choice.ga4');
+  assert.ok(ga.evidence.details.includes('requests to region1.analytics.google.com'));
+  assert.ok(ga.evidence.details.includes('requests to stats.g.doubleclick.net'));
+  assert.match(ga.explanation, /No Consent Mode default was set/);
+  assert.match(ga.explanation, /After "Reject all" it sent nothing, so the cookie banner \(OneTrust\) blocks it after an active choice/);
+  assert.match(ga.explanation, /LEK 9 kap\. 28 §\); this is assessed by the controller\./);
+  assert.match(ga.fix, /"Require additional consent for tag to fire" and add analytics_storage/);
+  assert.match(ga.fix, /OneTrustGroupsUpdated/);
+  assert.match(ga.fix, /OnetrustActiveGroups/);
+  assert.match(ga.fix, /fewer GA4 sessions/);
+  assert.equal(ga.typicalOwner, 'gtm');
+
+  const [ads] = byKey(findings, 'consent.before_choice.google-ads');
+  assert.ok(ads.evidence.details.includes('requests to www.google.nl'));
+  assert.match(ads.fix, /Conversion Linker/);
+  assert.match(ads.fix, /add ad_storage/);
+
+  const [def] = byKey(findings, 'consent.defaults');
+  assert.equal(def.status, 'fail');
+  assert.match(def.explanation, /No Consent Mode default was found on \//);
+  assert.match(def.explanation, /set Google cookies before the visitor answered/);
+  assert.match(def.explanation, /The cookie banner \(OneTrust\) loaded/);
+  assert.match(def.fix, /C0002/);
+  assert.match(def.fix, /gtag\('consent', 'default'/);
+
+  const [gtm] = byKey(findings, 'consent.before_choice.gtm');
+  assert.equal(gtm.typicalOwner, 'legal');
+  assert.match(gtm.explanation, /decision for the controller/);
+  assert.match(gtm.fix, /^Choose one:/);
+
+  const [mpulse] = byKey(findings, 'consent.before_choice.cookieless.akamai-mpulse');
+  assert.match(mpulse.fix, /injected by the Akamai CDN/);
+});
+
+test('the defaults fix follows the detected CMP, and falls back to the generic setting and the snippet', () => {
+  const states = [st('none', { requests: [req(GA_HIT)] }), st('reject'), st('accept'), ...granular];
+  const cky = byKey(policyRun(states), 'consent.defaults')[0];
+  assert.match(cky.fix, /^In CookieYes/);
+  assert.match(cky.fix, /Without a banner setting, add the default yourself/);
+  const findings = assess({ mode: 'policy', baseline: null, policy: POLICY, target: site('target', [page('/', { cmp: null, states })]) });
+  const [def] = byKey(findings, 'consent.defaults');
+  assert.doesNotMatch(def.fix, /OneTrust|CookieYes|C0002/);
+  assert.match(def.fix, /Put this first in <head>/);
+  assert.match(def.explanation, /contacted Google before the visitor answered/);
 });
