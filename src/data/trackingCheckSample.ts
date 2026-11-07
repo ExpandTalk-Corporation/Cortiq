@@ -44,8 +44,8 @@ export const TRACKING_CHECK_SAMPLE: { targetUrl: string; summary: ReportSummary;
       "status": "fail",
       "priority": "high",
       "title": "Consent Mode v2 defaults are missing or not \"denied\"",
-      "explanation": "Google tags need a consent default of \"denied\" before they load. Without it they behave as if consent was given, and Google Ads needs Consent Mode signals for EEA traffic.",
-      "fix": "Set gtag('consent', 'default', { ad_storage: 'denied', analytics_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' }) before GTM or the Google tag loads. Most cookie banners (CookieYes, Cookiebot, OneTrust) have a Consent Mode v2 setting that does this.",
+      "explanation": "No Consent Mode default was found on /, /podcast, /thanks?email=test@example.org. Consent Mode is how the cookie banner tells Google's tags whether the visitor has said yes. Without a \"denied\" default, the tags act as if the visitor accepted until the banner says otherwise. Here they set Google cookies before the visitor answered. The cookie banner (Cookiebot) loaded, but it does not pass its answer on to Google's tags. Google Ads also needs these signals for traffic from the EEA.",
+      "fix": "Add the Cookiebot CMP template in GTM on the \"Consent Initialization – All Pages\" trigger, with Consent Mode turned on and the default set to \"denied\". Cookiebot then updates the consent state when the visitor answers.\n\nWithout a banner setting, add the default yourself. Put this first in <head>, before GTM or the Google tag:\n<script>\nwindow.dataLayer = window.dataLayer || [];\nfunction gtag(){dataLayer.push(arguments);}\ngtag('consent', 'default', { ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied', functionality_storage: 'granted', security_storage: 'granted', wait_for_update: 500 });\n</script>\nIn GTM, set the default in a tag on the \"Consent Initialization – All Pages\" trigger (most cookie banner templates have this setting), and update it only from the cookie banner when the visitor chooses.\n\nThe default only makes the tags hold back their cookies. To stop them contacting Google before consent, each tag also needs a consent requirement (see the finding for each tag).\n\nCheck it yourself: open the site in an incognito window, do not answer the cookie banner, and run in DevTools → Console:\n  dataLayer.filter(e => e[0] === 'consent')   // a 'default' with 'denied' should be the first entry\n  google_tag_data.ics.entries                 // analytics_storage and ad_storage should be denied\nApplication → Cookies should show no _ga or _gcl_ cookies until you accept.",
       "typicalOwner": "cmp",
       "evidence": {
         "pages": [
@@ -67,9 +67,9 @@ export const TRACKING_CHECK_SAMPLE: { targetUrl: string; summary: ReportSummary;
       "status": "fail",
       "priority": "high",
       "title": "Google Analytics 4 stores data on the device before the visitor chooses",
-      "explanation": "Google Analytics 4 set _ga, _ga_SAMPLE123 before the visitor chooses on /. Storing or reading data on the device for analytics or marketing may require consent under ePrivacy rules (in Sweden: LEK 9 kap. 28 §); this is assessed by the controller.",
-      "fix": "Load Google Analytics 4 only after consent for the \"analytics\" category: block it in the cookie banner, or give its GTM tag a consent requirement.",
-      "typicalOwner": "cmp",
+      "explanation": "Google Analytics 4 set _ga, _ga_SAMPLE123 in the browser before the visitor chooses on /. No Consent Mode default was set, so Google's tags acted as if the visitor had accepted. After \"Reject all\" it sent nothing, so the cookie banner (Cookiebot) blocks it after an active choice, but not while the visitor has not answered yet. The visitor is tracked before saying yes or no. Storing or reading data on the device for analytics or marketing may require consent under ePrivacy rules (in Sweden: LEK 9 kap. 28 §); this is assessed by the controller.",
+      "fix": "In GTM, open the Google Analytics 4 tag → Advanced settings → Consent settings → \"Require additional consent for tag to fire\" and add analytics_storage. With Cookiebot you can instead fire the tag on the custom event cookie_consent_statistics.\n\nGoogle's built-in consent checks on their own are not enough: they let the tag send cookieless pings to Google before consent (Consent Mode advanced), and this check reports those too.\n\nCheck it yourself: in an incognito window, before answering the cookie banner, DevTools → Application → Cookies should show no _ga, _ga_SAMPLE123.\n\nExpect fewer GA4 sessions and Google Ads conversions once this is fixed: visitors who reject or never answer are no longer measured. Tell whoever reads the reports beforehand, so the drop is not mistaken for a campaign problem.",
+      "typicalOwner": "gtm",
       "evidence": {
         "pages": [
           "/"
@@ -89,8 +89,8 @@ export const TRACKING_CHECK_SAMPLE: { targetUrl: string; summary: ReportSummary;
       "status": "fail",
       "priority": "high",
       "title": "Meta Pixel stores data on the device after \"Reject all\"",
-      "explanation": "Meta Pixel set _fbp after \"Reject all\" on /. Storing or reading data on the device for analytics or marketing may require consent under ePrivacy rules (in Sweden: LEK 9 kap. 28 §); this is assessed by the controller.",
-      "fix": "Load Meta Pixel only after consent for the \"marketing\" category: block it in the cookie banner, or give its GTM tag a consent requirement.",
+      "explanation": "Meta Pixel set _fbp in the browser after \"Reject all\" on /. The visitor is tracked although they said no. Storing or reading data on the device for analytics or marketing may require consent under ePrivacy rules (in Sweden: LEK 9 kap. 28 §); this is assessed by the controller.",
+      "fix": "Load Meta Pixel only after consent for the \"marketing\" category: block it in the cookie banner (Cookiebot), or give its GTM tag a consent requirement.",
       "typicalOwner": "cmp",
       "evidence": {
         "pages": [
