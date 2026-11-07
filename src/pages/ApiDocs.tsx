@@ -234,6 +234,13 @@ export default function ApiDocs() {
                     The full key is shown once; only its SHA-256 hash is stored.
                   </p>
                 </div>
+                <div className="flex items-start gap-2">
+                  <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-muted-foreground">
+                    API keys start with <code className="font-mono">ck_live_</code> and are secret. The tracking key
+                    (<code className="font-mono">tk_…</code>) in your site&apos;s HTML is public and does not work with the API.
+                  </p>
+                </div>
               </CardContent>
             </Card>
 
@@ -357,7 +364,8 @@ export default function ApiDocs() {
                   <div>
                     <h3 className="font-semibold mb-1">Rate Limiting</h3>
                     <p className="text-muted-foreground">
-                      Per-key limit, default 1,000 successful requests per rolling hour; 429 with Retry-After when exceeded
+                      Per-key limit, default 1,000 successful requests per rolling hour; MCP requests with the same
+                      key count toward it. Successful responses carry X-RateLimit-Limit; 429 with Retry-After when exceeded
                     </p>
                   </div>
                 </div>
@@ -366,7 +374,18 @@ export default function ApiDocs() {
                   <div>
                     <h3 className="font-semibold mb-1">Pagination</h3>
                     <p className="text-muted-foreground">
-                      Up to 1,000 rows per request; page with limit and offset
+                      Up to 1,000 rows per request (also the default); page with limit and offset. Without
+                      date_from and date_to, a request covers the last 30 days
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
+                  <div>
+                    <h3 className="font-semibold mb-1">Errors</h3>
+                    <p className="text-muted-foreground">
+                      JSON with an error field: 401 missing or invalid key, 404 unknown site, resource or path,
+                      405 for methods other than GET, 429 rate limit exceeded, 500 internal error
                     </p>
                   </div>
                 </div>
