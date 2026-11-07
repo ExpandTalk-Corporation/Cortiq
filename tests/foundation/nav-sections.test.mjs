@@ -44,3 +44,25 @@ test('settings and live tabs show no filter-scope notice', () => {
   const set = tabsSource.match(/NO_FILTER_NOTICE = new Set\(\[([\s\S]*?)\]\)/)[1];
   for (const v of ['setup', 'integrations', 'realtime', 'alerts', 'gdpr']) assert.match(set, new RegExp(`'${v}'`));
 });
+
+test('one Ads tab; the old paid-ads-server link opens it with the CortIQ source', async () => {
+  const { TAB_ALIASES } = await import('../../src/components/dashboard/nav/navSections.ts');
+  const acquisition = NAV_SECTIONS.find((s) => s.label === 'Acquisition').items.map((i) => i.value);
+  assert.ok(acquisition.includes('paid-ads'));
+  assert.ok(!acquisition.includes('paid-ads-server'));
+  assert.equal(TAB_ALIASES['paid-ads-server'], 'paid-ads');
+  assert.ok(!rendered.has('paid-ads-server'));
+  const dashboard = readFileSync(new URL('../../src/pages/Dashboard.tsx', import.meta.url), 'utf8');
+  assert.match(dashboard, /TAB_ALIASES\[requestedTab\] \?\? requestedTab/);
+  const ads = readFileSync(new URL('../../src/components/dashboard/tabs/AdsTab.tsx', import.meta.url), 'utf8');
+  assert.match(ads, /get\('tab'\) === 'paid-ads-server' \? 'cortiq'/);
+});
+
+test('Attribution gap is last in Acquisition and hidden until the site has a conversion', async () => {
+  const { NEEDS_CONVERSIONS } = await import('../../src/components/dashboard/nav/navSections.ts');
+  const acquisition = NAV_SECTIONS.find((s) => s.label === 'Acquisition').items;
+  assert.equal(acquisition.at(-1).value, 'attribution', 'hiding it must not renumber other items');
+  assert.ok(NEEDS_CONVERSIONS.has('attribution'));
+  const sidebar = readFileSync(new URL('../../src/components/dashboard/nav/DashboardSidebar.tsx', import.meta.url), 'utf8');
+  assert.match(sidebar, /hasConversions \|\| value === activeTab \|\| !NEEDS_CONVERSIONS\.has\(value\)/);
+});
