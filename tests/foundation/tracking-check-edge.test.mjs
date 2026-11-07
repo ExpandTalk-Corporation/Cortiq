@@ -6,7 +6,7 @@ const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const ENV = {
   SUPABASE_URL: 'https://proj.supabase.co', SUPABASE_ANON_KEY: 'anon', SUPABASE_SERVICE_ROLE_KEY: 'service',
   TRACKING_CHECK_ALLOWED_EMAILS: 'Daniel@Expandtalk.se, other@example.com', TRACKING_CHECK_WORKER_SECRET: 's3cret',
-  TRACKING_CHECK_AUTH_KEY: Buffer.alloc(32, 7).toString('base64'), BROWSERLESS_API_KEY: 'bl', BROWSERLESS_URL: 'https://bl.example',
+  TRACKING_CHECK_AUTH_KEY: Buffer.alloc(32, 7).toString('base64'), BROWSERLESS_API_KEY: 'bl', BROWSERLESS_URL: 'https://bl.example', TRACKING_CHECK_PUBLIC: 'true',
 };
 
 function mockClient({ user = { id: A, email: 'daniel@expandtalk.se', email_confirmed_at: '2026-01-01T00:00:00Z' }, runsToday = 0, run = null, tasks = [], findings = [], pendingCount = 0,
@@ -56,8 +56,8 @@ const confirmedOutsider = () => mockClient({ user: { id: A, email: 'someone@else
 
 test('start: any confirmed user may run; the allowlist gets the full quota', async () => {
   assert.equal((await post(edge('tracking-check-start', mockClient({ user: null })).handler, { action: 'access' })).status, 401);
-  assert.deepEqual(await access(mockClient({ runsToday: 4 })), { allowed: true, tier: 'full', limits: { runsPerDay: 10, policyPages: 15, comparisonPages: 25 }, runsToday: 4 });
-  assert.deepEqual(await access(confirmedOutsider()), { allowed: true, tier: 'standard', limits: { runsPerDay: 3, policyPages: 5, comparisonPages: 5 }, runsToday: 0 });
+  assert.deepEqual(await access(mockClient({ runsToday: 4 })), { allowed: true, tier: 'full', preview: false, confirmed: true, limits: { runsPerDay: 10, policyPages: 15, comparisonPages: 25 }, runsToday: 4 });
+  assert.deepEqual(await access(confirmedOutsider()), { allowed: true, tier: 'standard', preview: false, confirmed: true, limits: { runsPerDay: 3, policyPages: 5, comparisonPages: 5 }, runsToday: 0 });
   assert.equal((await post(edge('tracking-check-start', confirmedOutsider()).handler, createBody())).status, 200);
 });
 
@@ -201,4 +201,19 @@ test('report: database errors are a 500, not a missing report or an empty findin
   assert.equal((await get(edge('tracking-check-report', mockClient({ runError: { message: 'db down' } })).handler)).status, 500);
   const run = { id: 'r', mode: 'policy', baseline_url: null, target_url: 'https://new.example', status: 'done', summary: {}, finished_at: null, share_expires_at: null };
   assert.equal((await get(edge('tracking-check-report', mockClient({ run, findingsError: { message: 'db down' } })).handler)).status, 500);
+});
+
+test('start: in private preview only allowlisted accounts may run', async () => {
+  const env = { ...ENV, TRACKING_CHECK_PUBLIC: undefined };
+  const accessIn = async (db) => (await post(edge('tracking-check-start', db, { env }).handler, { action: 'access' })).json();
+  assert.equal((await accessIn(mockClient())).allowed, true);
+  const outsider = await accessIn(confirmedOutsider());
+  assert.equal(outsider.allowed, false);
+  assert.equal(outsider.preview, true);
+  const db = confirmedOutsider();
+  const res = await post(edge('tracking-check-start', db, { env }).handler, createBody());
+  assert.equal(res.status, 403);
+  assert.match((await res.json()).error, /private preview/);
+  assert.equal(db.calls.inserts.length, 0);
+  assert.equal((await post(edge('tracking-check-start', mockClient(), { env }).handler, createBody())).status, 200);
 });

@@ -4,6 +4,7 @@ import { assertSafeUrl } from '../_shared/safe-url.ts';
 import { fetchSitemapUrls, suggestPages } from '../_shared/tracking-check/pages.ts';
 import { randomToken, seal } from '../_shared/tracking-check/secret-box.ts';
 import { kickWorker } from '../_shared/tracking-check/kick.ts';
+import { browserAccess } from '../_shared/browser-access.ts';
 import type { Mode, PolicyTemplate } from '../_shared/tracking-check/types.ts';
 
 const cors = {
@@ -14,7 +15,7 @@ const cors = {
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
 
 export const LIMITS = { comparisonPages: 25, policyPages: 15, legacyPaths: 25, runsPerDay: 10, authHours: 2 };
-// Any signed-in user with a confirmed email gets the standard quota; allowlisted accounts get LIMITS.
+// Allowlisted accounts get LIMITS; once TRACKING_CHECK_PUBLIC=true, any other confirmed account gets STANDARD.
 // Each page is a headless-browser load per consent state, so the standard quota stays small.
 export const STANDARD = { comparisonPages: 5, policyPages: 5, legacyPaths: 10, runsPerDay: 3, authHours: 2 };
 type Tier = 'full' | 'standard';
@@ -36,22 +37,22 @@ Deno.serve(async (req) => {
   const user = data?.user;
   if (!user) return json({ error: 'Unauthorized' }, 401);
 
-  const allowlist = (Deno.env.get('TRACKING_CHECK_ALLOWED_EMAILS') ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
-  const confirmed = !!user.email && !!user.email_confirmed_at;
-  const tier: Tier = confirmed && allowlist.includes(user.email!.toLowerCase()) ? 'full' : 'standard';
+  const { confirmed, listed, preview, allowed } = browserAccess(user);
+  const tier: Tier = listed ? 'full' : 'standard';
   const limits: Limits = tier === 'full' ? LIMITS : STANDARD;
-  const allowed = confirmed;
 
   let body: Body;
   try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
   if (!body || typeof body !== 'object' || Array.isArray(body)) return json({ error: 'Invalid request body' }, 400);
-  if (!allowed && body.action !== 'access') return json({ error: 'Confirm your email address to run Tracking Check' }, 403);
+  if (!allowed && body.action !== 'access') {
+    return json({ error: confirmed ? 'Tracking Check is in private preview' : 'Confirm your email address to run Tracking Check' }, 403);
+  }
 
   const service: Db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
   try {
     switch (body.action) {
       case 'access': return json({
-        allowed, tier,
+        allowed, tier, preview, confirmed,
         limits: { runsPerDay: limits.runsPerDay, policyPages: limits.policyPages, comparisonPages: limits.comparisonPages },
         runsToday: allowed ? await runsToday(user.id, service) : 0,
       });

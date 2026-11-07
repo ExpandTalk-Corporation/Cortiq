@@ -48,6 +48,8 @@ const toFinding = (r: any): FindingRow => ({
 export interface TrackingCheckAccess {
   allowed: boolean;
   tier: 'full' | 'standard';
+  preview: boolean;
+  confirmed: boolean;
   limits: { runsPerDay: number; policyPages: number; comparisonPages: number };
   runsToday: number;
 }
