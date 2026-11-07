@@ -83,6 +83,9 @@ export function ClickFraudTab({ selectedSite, startDate, endDate }: ClickFraudTa
   const [message, setMessage] = useState<string | null>(null);
   const [googleAdsConnected, setGoogleAdsConnected] = useState(false);
   const [runCount, setRunCount] = useState(0);
+  // ROI calculator state. Hooks stay above the early returns below (rules of hooks).
+  const [monthlySpend, setMonthlySpend] = useState('');
+  const [cpc, setCpc] = useState('');
 
   useEffect(() => {
     if (!selectedSite) return;
@@ -170,10 +173,6 @@ export function ClickFraudTab({ selectedSite, startDate, endDate }: ClickFraudTa
   const fraudPercent = summary.estimated_fraud_rate;
   const fraudRisk = fraudPercent > 15 ? 'high' : fraudPercent > 7 ? 'medium' : 'low';
   const hasGaColumns = campaigns.some(c => c.ga_invalid_clicks !== null);
-
-  // ROI calculator state
-  const [monthlySpend, setMonthlySpend] = useState('');
-  const [cpc, setCpc] = useState('');
 
   const roiSpend = parseFloat(monthlySpend) || 0;
   const roiCpc = parseFloat(cpc) || 0;

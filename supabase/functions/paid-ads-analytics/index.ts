@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from '../_shared/supabase.ts';
+import { requireSiteAccess } from '../_shared/site-access.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,6 +19,21 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'siteId is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // The service-role client below bypasses RLS: check the caller may read this site first.
+    const authorization = req.headers.get('Authorization');
+    const userClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authorization ?? '' } } },
+    );
+    const access = await requireSiteAccess(userClient, authorization, siteId);
+    if (!access.ok) {
+      return new Response(
+        JSON.stringify({ error: access.error }),
+        { status: access.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -43,7 +59,7 @@ serve(async (req) => {
     const { data: sessions, error: sessionsError } = await supabaseClient
       .from('tracking_sessions')
       .select(`
-        session_id,
+        id,
         utm_source,
         utm_medium,
         utm_campaign,
@@ -68,21 +84,23 @@ serve(async (req) => {
 
     console.log(`Found ${sessions?.length || 0} paid sessions`);
 
-    // Fetch conversion events for these sessions
-    const sessionIds = sessions?.map(s => s.session_id) || [];
-    
+    // conversion_events.session_id references tracking_sessions.id (uuid), not the
+    // tracker's text session token. Chunked to keep the IN list within URL limits.
+    const sessionIds = sessions?.map(s => s.id) || [];
+
     let conversions: any[] = [];
-    if (sessionIds.length > 0) {
+    for (let i = 0; i < sessionIds.length; i += 200) {
       const { data: conversionData, error: conversionError } = await supabaseClient
         .from('conversion_events')
         .select('session_id, event_value, event_name')
-        .in('session_id', sessionIds);
+        .eq('site_id', siteId)
+        .in('session_id', sessionIds.slice(i, i + 200));
 
       if (conversionError) {
         console.error('Error fetching conversions:', conversionError);
-      } else {
-        conversions = conversionData || [];
+        break;
       }
+      conversions.push(...(conversionData || []));
     }
 
     // Aggregate data by campaign
@@ -97,7 +115,7 @@ serve(async (req) => {
       const month = session.started_at ? session.started_at.substring(0, 7) : '';
       
       // Count conversions for this session
-      const sessionConversions = conversions.filter(c => c.session_id === session.session_id);
+      const sessionConversions = conversions.filter(c => c.session_id === session.id);
       const sessionRevenue = sessionConversions.reduce((sum, c) => sum + (parseFloat(c.event_value) || 0), 0);
       const conversionCount = sessionConversions.length;
 
@@ -202,7 +220,7 @@ serve(async (req) => {
       }
     );
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in paid-ads-analytics:', error);
     return new Response(
       JSON.stringify({ 
