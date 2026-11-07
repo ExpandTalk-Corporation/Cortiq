@@ -1,10 +1,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Search, RefreshCw, CheckCircle, Link2 } from 'lucide-react';
+import { Search, RefreshCw, CheckCircle, Link2, History, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { Site } from '@/types/dashboard';
@@ -13,7 +13,9 @@ import type { Site } from '@/types/dashboard';
 //  1. Connect → Google consent screen, state = site id.
 //  2. /auth/gsc-callback (GSCCallbackPage) → gsc-oauth-callback exchanges the code
 //     and stores one inactive row per GSC property in site_google_credentials.
-//  3. The owner picks the property that matches this site → is_active, then gsc-sync.
+//  3. The owner picks the property that matches this site → is_active, then gsc-sync
+//     (a site's first sync loads 16 months). The gsc-daily-sync cron job re-syncs the
+//     current and previous month every day.
 // The redirect URI must match gsc-oauth-callback's FRONTEND_URL + /auth/gsc-callback
 // and be registered on the Google OAuth client.
 
@@ -44,6 +46,33 @@ function connectUrl(siteId: string) {
   return `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
 }
 
+// sc-domain:example.com and https://www.example.com/ both belong to example.com.
+const bareHost = (value: string) =>
+  value.replace(/^sc-domain:/, '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '').toLowerCase();
+
+const propertyKind = (url: string) =>
+  url.startsWith('sc-domain:')
+    ? 'Domain property: all subdomains, http and https'
+    : 'URL-prefix property: only URLs under this exact address';
+
+function Step({ n, done, title, children }: { n: number; done: boolean; title: string; children?: ReactNode }) {
+  return (
+    <li className="flex gap-3">
+      <span
+        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-medium ${
+          done ? 'bg-primary text-primary-foreground' : 'border text-muted-foreground'
+        }`}
+      >
+        {done ? <CheckCircle className="h-3.5 w-3.5" /> : n}
+      </span>
+      <div className="min-w-0 flex-1 space-y-2">
+        <p className="text-sm font-medium">{title}</p>
+        {children}
+      </div>
+    </li>
+  );
+}
+
 export function GoogleSearchConsoleSetup({ selectedSite }: { selectedSite: Site }) {
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState<string | null>(null);
@@ -66,17 +95,18 @@ export function GoogleSearchConsoleSetup({ selectedSite }: { selectedSite: Site 
     queryClient.invalidateQueries({ queryKey: ['gsc-properties', selectedSite.id] });
     queryClient.invalidateQueries({ queryKey: ['gsc-credential', selectedSite.id] });
     queryClient.invalidateQueries({ queryKey: ['gsc-data'] });
+    queryClient.invalidateQueries({ queryKey: ['gsc-monthly', selectedSite.id] });
   };
 
-  async function sync() {
-    setBusy('sync');
-    const { data, error } = await supabase.functions.invoke('gsc-sync', { body: { site_id: selectedSite.id } });
+  async function sync(history = false) {
+    setBusy(history ? 'history' : 'sync');
+    const { data, error } = await supabase.functions.invoke('gsc-sync', { body: { site_id: selectedSite.id, history } });
     setBusy(null);
     if (error || !data?.success) {
       toast.error(`Search Console sync failed: ${data?.error ?? error?.message ?? 'unknown error'}`);
       return;
     }
-    toast.success(`Synced ${data.queries} queries and ${data.pages} pages`);
+    toast.success(`Synced ${data.months} month${data.months === 1 ? '' : 's'} (${data.from} – ${data.to})`);
     refresh();
   }
 
@@ -98,6 +128,11 @@ export function GoogleSearchConsoleSetup({ selectedSite }: { selectedSite: Site 
   }
 
   const clientMissing = !import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const connected = properties.length > 0;
+  const siteHost = bareHost(selectedSite.domain ?? '');
+  const matches = (p: Property) => !!siteHost && bareHost(p.property_url) === siteHost;
+  // Prefer a matching Domain property, then a matching URL-prefix property.
+  const suggested = properties.find((p) => matches(p) && p.property_url.startsWith('sc-domain:')) ?? properties.find(matches);
 
   return (
     <Card>
@@ -108,7 +143,8 @@ export function GoogleSearchConsoleSetup({ selectedSite }: { selectedSite: Site 
           {active && <Badge variant="secondary" className="ml-2"><CheckCircle className="h-3 w-3 mr-1" />Connected</Badge>}
         </CardTitle>
         <CardDescription>
-          Read-only access to search queries, pages, clicks, impressions and position. CortIQ never changes anything in Search Console.
+          Shows which Google searches bring people to this site: queries, pages, clicks, impressions and average position.
+          Read-only access. CortIQ never changes anything in Search Console.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -118,50 +154,106 @@ export function GoogleSearchConsoleSetup({ selectedSite }: { selectedSite: Site 
           </Alert>
         )}
 
-        {!isLoading && properties.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            Sign in with the Google account that has access to this site in Search Console. You choose the property afterwards.
-          </p>
-        )}
+        <ol className="space-y-4">
+          <Step n={1} done={connected} title="Have the site verified in Search Console">
+            {!connected && (
+              <p className="text-sm text-muted-foreground">
+                Skip this if {selectedSite.domain || 'the site'} is already in your Search Console. Otherwise add it there first.
+                A Domain property is easiest: it covers all subdomains and both http and https.{' '}
+                <a
+                  href="https://search.google.com/search-console"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 underline"
+                >
+                  Open Search Console <ExternalLink className="h-3 w-3" />
+                </a>
+              </p>
+            )}
+          </Step>
 
-        {properties.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-sm font-medium">{active ? 'Property linked to this site' : 'Choose the property for this site'}</p>
-            <ul className="space-y-2">
-              {properties.map((p) => (
-                <li key={p.id} className="flex items-center justify-between gap-3 rounded-md border p-3 text-sm">
-                  <div className="min-w-0">
-                    <p className="font-mono truncate">{p.property_url}</p>
-                    {p.is_active && (
-                      <p className="text-xs text-muted-foreground">
-                        {p.last_sync_at ? `Last synced ${new Date(p.last_sync_at).toLocaleString()}` : 'Not synced yet'}
-                      </p>
-                    )}
-                  </div>
-                  {p.is_active ? (
-                    <Button size="sm" variant="outline" onClick={sync} disabled={busy !== null}>
-                      <RefreshCw className={`h-4 w-4 mr-1 ${busy === 'sync' ? 'animate-spin' : ''}`} />
-                      Sync last 28 days
-                    </Button>
-                  ) : (
-                    <Button size="sm" variant="secondary" onClick={() => activate(p)} disabled={busy !== null}>
-                      Use this property
-                    </Button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+          <Step n={2} done={connected} title="Connect the Google account that has access">
+            <Button
+              size="sm"
+              variant={connected ? 'outline' : 'default'}
+              disabled={clientMissing}
+              onClick={() => { window.location.href = connectUrl(selectedSite.id); }}
+            >
+              <Link2 className="h-4 w-4 mr-2" />
+              {connected ? 'Reconnect Google account' : 'Connect Google Search Console'}
+            </Button>
+          </Step>
 
-        <Button
-          variant={properties.length ? 'outline' : 'default'}
-          disabled={clientMissing}
-          onClick={() => { window.location.href = connectUrl(selectedSite.id); }}
-        >
-          <Link2 className="h-4 w-4 mr-2" />
-          {properties.length ? 'Reconnect Google account' : 'Connect Google Search Console'}
-        </Button>
+          <Step n={3} done={!!active} title="Choose the property for this site">
+            {!connected ? (
+              !isLoading && (
+                <p className="text-sm text-muted-foreground">The properties your Google account can read appear here after step 2.</p>
+              )
+            ) : (
+              <>
+                {!active && !suggested && siteHost && (
+                  <p className="text-sm text-muted-foreground">
+                    No property matches {selectedSite.domain}. Add the site in Search Console, then reconnect.
+                  </p>
+                )}
+                <ul className="space-y-2">
+                  {properties.map((p) => (
+                    <li
+                      key={p.id}
+                      className={`flex items-center justify-between gap-3 rounded-md border p-3 text-sm ${p.is_active ? 'border-primary' : ''}`}
+                    >
+                      <div className="min-w-0">
+                        <p className="font-mono truncate">{p.property_url}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {propertyKind(p.property_url)}
+                          {!active && p.id === suggested?.id && ' · matches this site'}
+                        </p>
+                      </div>
+                      {p.is_active ? (
+                        <Badge variant="secondary">In use</Badge>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant={!active && p.id === suggested?.id ? 'default' : 'secondary'}
+                          onClick={() => activate(p)}
+                          disabled={busy !== null}
+                        >
+                          Use this property
+                        </Button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </Step>
+
+          <Step n={4} done={!!active?.last_sync_at} title="Data syncs automatically every day">
+            {active && (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  {active.last_sync_at ? `Last synced ${new Date(active.last_sync_at).toLocaleString()}.` : 'Not synced yet.'}{' '}
+                  Every night CortIQ refreshes the current and previous month. The first sync loads 16 months, which is as far back
+                  as Search Console keeps data. Google publishes the data with a delay of about two days.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" onClick={() => sync(false)} disabled={busy !== null}>
+                    <RefreshCw className={`h-4 w-4 mr-1 ${busy === 'sync' ? 'animate-spin' : ''}`} />
+                    Sync now
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => sync(true)} disabled={busy !== null}>
+                    <History className={`h-4 w-4 mr-1 ${busy === 'history' ? 'animate-spin' : ''}`} />
+                    Load 16 months
+                  </Button>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Where the data shows up: Acquisition → Google Search (queries, pages, monthly trend), AI agents → Zero-click risk,
+                  and AI agents → GEO / AI search (AI Overviews data, where Google provides it).
+                </p>
+              </div>
+            )}
+          </Step>
+        </ol>
       </CardContent>
     </Card>
   );

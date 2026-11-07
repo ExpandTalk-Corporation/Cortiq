@@ -46,13 +46,23 @@ export function useGSCMonthly(siteId: string | null) {
     queryKey: ['gsc-monthly', siteId],
     enabled: !!siteId,
     queryFn: async () => {
-      const { data } = await supabase
-        .from('gsc_data')
-        .select('period_start, value, clicks, impressions, ctr, position')
-        .eq('site_id', siteId!)
-        .eq('dimension', 'query')
-        .order('period_start', { ascending: true });
-      return data ?? [];
+      // Up to 16 months × 1,000 queries; PostgREST returns at most 1,000 rows per request.
+      const PAGE = 1000;
+      const rows: { period_start: string; value: string; clicks: number; impressions: number; ctr: number; position: number }[] = [];
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase
+          .from('gsc_data')
+          .select('period_start, value, clicks, impressions, ctr, position')
+          .eq('site_id', siteId!)
+          .eq('dimension', 'query')
+          .order('period_start', { ascending: true })
+          .order('value', { ascending: true })
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        rows.push(...(data ?? []));
+        if (!data || data.length < PAGE) break;
+      }
+      return rows;
     },
     staleTime: 5 * 60_000,
   });

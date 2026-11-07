@@ -114,8 +114,8 @@ export function GSCVisibilitySection({ siteId, onNavigateToIntegrations }: GSCVi
           <div className="flex items-center gap-3">
             <Search className="h-5 w-5 text-muted-foreground" />
             <div>
-              <p className="text-sm font-medium">Search Console ansluten</p>
-              <p className="text-xs text-muted-foreground">Run "Sync 13 months" in Settings → Integrations to load monthly data.</p>
+              <p className="text-sm font-medium">Search Console connected — no data yet</p>
+              <p className="text-xs text-muted-foreground">The first sync loads up to 16 months. If nothing appears, run "Load 16 months" in Settings → Integrations → Google Search Console.</p>
             </div>
           </div>
           <Button variant="outline" size="sm" onClick={onNavigateToIntegrations}>Settings</Button>
@@ -145,6 +145,11 @@ export function GSCVisibilitySection({ siteId, onNavigateToIntegrations }: GSCVi
           <p className="text-xl font-bold">{summary.avgPosition.toFixed(1)}</p>
         </CardContent></Card>
       </div>
+
+      <p className="text-xs text-muted-foreground">
+        Top 200 queries across all synced months (up to 16). Google leaves out rare queries for privacy,
+        so these totals are lower than the property total in Search Console. Synced automatically every day.
+      </p>
 
       {/* Visibility curve */}
       <Card>

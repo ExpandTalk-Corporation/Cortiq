@@ -36,6 +36,7 @@ const IPSegmentsTab                = lazy(() => import('./tabs/IPSegmentsTab').t
 const AgentOpsTab                  = lazy(() => import('./tabs/AgentOpsTab').then(m => ({ default: m.AgentOpsTab })));
 const ZeroClickRiskIndex           = lazy(() => import('./ZeroClickRiskIndex').then(m => ({ default: m.ZeroClickRiskIndex })));
 const HighImpressionLowCTR        = lazy(() => import('./HighImpressionLowCTR').then(m => ({ default: m.HighImpressionLowCTR })));
+const GSCVisibilitySection         = lazy(() => import('./GSCVisibilitySection').then(m => ({ default: m.GSCVisibilitySection })));
 const AIVisibilityTab              = lazy(() => import('./tabs/AIVisibilityTab').then(m => ({ default: m.AIVisibilityTab })));
 const NotificationChannelsConfig   = lazy(() => import('./NotificationChannelsConfig').then(m => ({ default: m.NotificationChannelsConfig })));
 const SocialMediaTab               = lazy(() => import('./tabs/SocialMediaTab').then(m => ({ default: m.SocialMediaTab })));
@@ -129,6 +130,12 @@ function DashboardTabsInner({ selectedSite, analytics, dateRange, onSiteDeleted,
             companyId={selectedSite.user_id ?? null}
             dateRange={dateRange}
           />
+        </TabErrorBoundary>
+      </TabsContent>
+
+      <TabsContent value="google-search" className="space-y-6">
+        <TabErrorBoundary tabName="Google Search">
+          <GSCVisibilitySection siteId={selectedSite.id} onNavigateToIntegrations={() => setActiveTab('integrations')} />
         </TabErrorBoundary>
       </TabsContent>
 
