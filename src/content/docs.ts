@@ -22,7 +22,7 @@ export const GETTING_STARTED: ContentPageData = {
           type: 'list',
           items: [
             '**On your server, for AI crawlers and agents:** a small [server-side adapter](/integrations/server-side/) (Next.js, Vercel, Netlify, Cloudflare, Node, WordPress or plain HTTP) reports bot and agent requests, `robots.txt` / `llms.txt` fetches and honeypot hits. Most AI crawlers never run JavaScript, so this is where they show up. Nothing runs in the visitor\'s browser.',
-            '**In the browser, after analytics consent:** one JavaScript file, `spa-tracking.js` (about 52 KB, 13 KB gzipped), for page views, sessions, AI referrals, clicks, scroll depth, heatmaps, form analytics, conversions and in-browser agent signals. It does nothing before consent.',
+            '**In the browser, after analytics consent:** one JavaScript file, `cortiq.js` (about 30 KB, 9 KB gzipped), for page views, sessions, AI referrals, clicks, scroll depth, heatmaps, form analytics, conversions and in-browser agent signals. It does nothing before consent.',
           ],
         },
       ],
@@ -50,7 +50,7 @@ export const GETTING_STARTED: ContentPageData = {
     cookieless: true               // optional, see below
   };
 </script>
-<script src="https://cortiq.se/spa-tracking.js" defer></script>`,
+<script src="https://cortiq.se/cortiq.js" defer></script>`,
         },
         { type: 'p', text: 'The script reads its settings from `window.cortiqConfig` or from `data-*` attributes on its own script tag (`data-site-id`, `data-api-key`, `data-cookieless`, `data-exclude-paths`). A `window.cortiqConfig` block must come before the script tag. Without a `siteId` it logs an error to the console and does nothing.' },
         { type: 'p', text: 'On WordPress, use the [WordPress plugin](/integrations/wordpress/) instead. It adds the script, a consent banner and Google Consent Mode v2.' },

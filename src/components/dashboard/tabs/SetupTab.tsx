@@ -27,7 +27,7 @@ export function SetupTab({ selectedSite, onSiteDeleted }: SetupTabProps) {
   // Derive from THIS deployment's env/origin — never hardcode cortiq.se / the origin
   // Supabase, or self-hosters ship data into the origin project.
   const apiBase = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
-  const scriptSrc = `${window.location.origin}/spa-tracking.js`;
+  const scriptSrc = `${window.location.origin}/cortiq.js`;
 
   return (
     <div className="space-y-6">

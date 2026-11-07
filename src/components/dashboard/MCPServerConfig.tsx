@@ -134,7 +134,7 @@ export function MCPServerConfig() {
   const [selectedKeyId, setSelectedKeyId] = useState<string>('');
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<'ok' | 'error' | null>(null);
-  const [toolCount] = useState(23);
+  const [toolCount] = useState(22);
 
   useEffect(() => {
     loadData();
