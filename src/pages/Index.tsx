@@ -183,7 +183,7 @@ const Index = () => {
               </h2>
               <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
                 AI crawlers and agents are measured server-side, from the HTTP request your server already receives — no access to the visitor's device, so in our assessment no consent banner is needed for it. The site operator makes the final legal assessment.
-                All visitor analytics — page views, sessions, clicks, heatmaps, conversions — start only after the visitor grants analytics consent. Consent is valid for 12 months.
+                Visitor analytics — sessions, clicks, heatmaps, conversions — starts only after analytics consent, valid for 12 months. Site owners can also turn on aggregate measurement: daily counts, nothing stored on the device.
               </p>
 
               <div className="space-y-6 mb-12">
@@ -303,7 +303,7 @@ const Index = () => {
                     <div className="bg-gradient-primary/10 rounded-xl p-4 text-center">
                       <p className="font-bold text-lg mb-2">What needs consent?</p>
                       <p className="text-sm text-muted-foreground">
-                        All visitor analytics — sessions, heatmaps, forms, conversions — start only after analytics consent, in both Cookieless and Full mode. AI crawlers are measured server-side instead, without touching the visitor's device.
+                        Visitor analytics — sessions, heatmaps, forms, conversions — starts only after analytics consent, in Cookieless and Full mode. Optional aggregate measurement counts page views and sources without storing anything on the device; the site owner decides whether to use it. AI crawlers are measured server-side.
                       </p>
                     </div>
                   </div>
