@@ -86,3 +86,16 @@ test('vendor kinds: CMPs and infrastructure are marked in the registry', () => {
   assert.deepEqual(ids('cmp'), ['complianz', 'cookiebot', 'cookieyes', 'dynamicweb', 'onetrust']);
   assert.deepEqual(ids('infrastructure'), ['akamai', 'cloudflare', 'google-fonts', 'public-cdn', 'recaptcha']);
 });
+
+test('Cloudflare Turnstile on a challenges subdomain is infrastructure, not an unknown third party', () => {
+  assert.equal(vendorForUrl('https://brunhild.challenges.cloudflare.com/cdn-cgi/challenge-platform/h/b/turnstile/if/ov2/av0/rcv/x')?.id, 'cloudflare');
+  assert.equal(vendorForUrl('https://challenges.cloudflare.com/turnstile/v0/api.js')?.id, 'cloudflare');
+  assert.equal(vendorForUrl('https://evilchallenges.cloudflare.com/x')?.id ?? null, null);
+});
+
+test('YouTube: both embed modes, thumbnails and video are one vendor', () => {
+  for (const url of ['https://www.youtube.com/embed/x', 'https://www.youtube-nocookie.com/embed/x', 'https://i.ytimg.com/vi/x/hqdefault.jpg', 'https://rr1---sn-abc.googlevideo.com/videoplayback']) {
+    assert.equal(vendorForUrl(url)?.id, 'youtube', url);
+  }
+  assert.equal(vendorForName('VISITOR_INFO1_LIVE')?.id, 'youtube');
+});

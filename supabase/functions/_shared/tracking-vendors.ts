@@ -221,6 +221,15 @@ export const TRACKING_VENDORS: Vendor[] = [
     impact: 'Embedded podcast episodes do not play.',
     verify: 'An embedded podcast player is content the visitor asked for, but it loads from Libsyn on every page view and may count listeners or set cookies before anyone presses play.',
   },
+  {
+    // One entry for both embed modes: thumbnails (ytimg) and video (googlevideo) are shared by them.
+    id: 'youtube', name: 'YouTube embed', category: 'preferences', googleTag: false,
+    requests: [{ host: /(^|\.)youtube(-nocookie)?\.com$/ }, { host: /(^|\.)ytimg\.com$/ }, { host: /(^|\.)googlevideo\.com$/ }],
+    cookies: [/^YSC$/, /^VISITOR_INFO1_LIVE$/, /^VISITOR_PRIVACY_METADATA$/],
+    csp: { 'frame-src': ['www.youtube.com', 'www.youtube-nocookie.com'] },
+    impact: 'Embedded YouTube videos do not play.',
+    verify: 'An embedded YouTube video loads from Google when the page loads, before anyone presses play. The standard embed (youtube.com) can set YouTube cookies at that point; in privacy-enhanced mode (youtube-nocookie.com) Google says it stores no information about the visit until the video is played, but the player and thumbnail still load from Google. A click-to-load preview loads nothing until the visitor asks.',
+  },
   // Consent management platforms
   {
     id: 'cookieyes', kind: 'cmp', name: 'CookieYes', category: 'necessary', googleTag: false,
@@ -275,7 +284,8 @@ export const TRACKING_VENDORS: Vendor[] = [
   {
     // Cloudflare Web Analytics (cloudflareinsights.com) is an analytics vendor above, not infrastructure.
     id: 'cloudflare', kind: 'infrastructure', name: 'Cloudflare (CDN, Turnstile)', category: 'necessary', googleTag: false,
-    requests: [{ host: /^(cdnjs|challenges)\.cloudflare\.com$/ }], cookies: [], csp: {},
+    // Turnstile challenges also run on subdomains such as brunhild.challenges.cloudflare.com.
+    requests: [{ host: /^(cdnjs\.cloudflare\.com|([a-z0-9-]+\.)?challenges\.cloudflare\.com)$/ }], cookies: [], csp: {},
     impact: 'Scripts, styles or the Turnstile form check served from Cloudflare do not load.',
   },
   {

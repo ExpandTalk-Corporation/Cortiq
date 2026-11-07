@@ -71,6 +71,22 @@ test('a blocked reCAPTCHA gets the full reCAPTCHA CSP, minus what is already all
   assert.match(blocked.fix, /frame-src: add www\.google\.com recaptcha\.google\.com/);
 });
 
+test('a non-necessary embed blocked before consent: fix offers removal or consent-gating, not just "allow it"', () => {
+  const libsyn = [{ blockedUrl: 'https://html5-player.libsyn.com/embed/episode/id/10087019/', directive: 'frame-src' }];
+  const states = [st('none', { cspViolations: libsyn }), st('reject', { cspViolations: libsyn }), st('accept', { cspViolations: libsyn })];
+  const findings = assess({ mode: 'policy', baseline: null, policy: POLICY, target: site('target', [page('/blog/', { states })]) });
+  const [blocked] = byKey(findings, 'csp.blocked.libsyn');
+  assert.match(blocked.fix, /^Libsyn podcast player is not strictly necessary/);
+  assert.match(blocked.fix, /replace it with a plain link/);
+  assert.match(blocked.fix, /frame-src: add html5-player\.libsyn\.com/);
+});
+
+test('a tag blocked only after consent keeps the plain CSP fix', () => {
+  const states = [st('none'), st('reject'), st('accept', { cspViolations: [{ blockedUrl: HS, directive: 'script-src-elem' }] })];
+  const findings = assess({ mode: 'policy', baseline: null, policy: POLICY, target: site('target', [page('/', { states })]) });
+  assert.match(byKey(findings, 'csp.blocked.hubspot')[0].fix, /^Extend the Content-Security-Policy:/);
+});
+
 test('no CSP violations gives a pass', () => {
   const findings = assess({ mode: 'policy', baseline: null, policy: POLICY, target: site('target', [page('/')]) });
   assert.equal(byKey(findings, 'csp.ok')[0].status, 'pass');

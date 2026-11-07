@@ -22,6 +22,18 @@ export function cspFixLines(vendor: Vendor, csp: Record<string, string[]> | null
   return lines;
 }
 
+// A non-necessary tool blocked before the visitor chose would, once allowed, load without consent:
+// the CSP is then all that holds it back, so the fix must not just be "allow it".
+function cspVendorFix(vendor: Vendor, lines: string[], beforeConsent: boolean): string {
+  if (!beforeConsent || vendor.category === 'necessary') return ['Extend the Content-Security-Policy:', ...lines].join('\n');
+  return [
+    `${vendor.name} is not strictly necessary and was blocked before the visitor chose. Allowing it in the Content-Security-Policy alone makes it load before consent. Either:`,
+    '- remove the embed or tag, or replace it with a plain link, or',
+    '- load it only after consent, then extend the Content-Security-Policy:',
+    ...lines,
+  ].join('\n');
+}
+
 export function assessTags({ mode, target, baseline, policy }: AssessInput): Finding[] {
   const out: Finding[] = [];
 
@@ -139,7 +151,7 @@ export function assessCsp({ target }: AssessInput): Finding[] {
   const pages = testablePages(target).filter((p) => p.browser);
   if (!pages.length) return [];
   const csp = firstCsp(target);
-  const byVendor = new Map<string, { vendor: Vendor; pages: Set<string>; count: number; extra: Map<string, Set<string>> }>();
+  const byVendor = new Map<string, { vendor: Vendor; pages: Set<string>; count: number; extra: Map<string, Set<string>>; beforeConsent: boolean }>();
   const byHost = new Map<string, { directive: string; pages: Set<string> }>();
   for (const p of pages) {
     for (const st of p.browser!.states) {
@@ -150,8 +162,9 @@ export function assessCsp({ target }: AssessInput): Finding[] {
         try { host = new URL(v.blockedUrl).hostname; } catch { continue; }   // malformed report
         const vendor = vendorForUrl(v.blockedUrl);
         if (vendor) {
-          const e = byVendor.get(vendor.id) ?? { vendor, pages: new Set(), count: 0, extra: new Map() };
+          const e = byVendor.get(vendor.id) ?? { vendor, pages: new Set(), count: 0, extra: new Map(), beforeConsent: false };
           e.pages.add(p.path); e.count++;
+          if (st.state === 'none' || st.state === 'reject') e.beforeConsent = true;
           if (!e.extra.has(directive)) e.extra.set(directive, new Set());
           e.extra.get(directive)!.add(host);
           byVendor.set(vendor.id, e);
@@ -169,7 +182,7 @@ export function assessCsp({ target }: AssessInput): Finding[] {
       scope: 'CSP', checkKey: `csp.blocked.${id}`, status: 'fail', priority: 'high',
       title: `The Content-Security-Policy blocks ${e.vendor.name}`,
       explanation: `${plural(e.count, 'request', 'requests')} to ${e.vendor.name} ${e.count === 1 ? 'was' : 'were'} blocked on ${pageList(e.pages)}. ${e.vendor.impact}`,
-      fix: ['Extend the Content-Security-Policy:', ...cspFixLines(e.vendor, csp, e.extra)].join('\n'),
+      fix: cspVendorFix(e.vendor, cspFixLines(e.vendor, csp, e.extra), e.beforeConsent),
       typicalOwner: 'developer', evidence: { pages: [...e.pages] },
     }));
   }
