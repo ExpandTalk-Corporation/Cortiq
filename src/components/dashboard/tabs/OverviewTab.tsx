@@ -24,15 +24,19 @@ export function OverviewTab({ selectedSite, onNavigate }: { selectedSite: Site; 
     return <p className="rounded-lg border p-6 text-sm">Could not load the overview. Try again, or narrow the date range.</p>;
   }
   const m = metrics.data;
+  // Only the consent-free beacon reports: sessions and page views need consent, so their zeros are
+  // not a tracking fault. Show the aggregate figures first and leave out the consent-based lists.
+  const aggregateOnly = aggregateOn && m.current.visits === 0 && m.current.pageViews === 0;
   return (
     <div className="space-y-6">
       <StatusStrip domain={selectedSite.domain} trackingMode={trackingMode}
-        lastPageViewAt={m.lastPageViewAt} lastServerHitAt={m.lastServerHitAt} onNavigate={onNavigate} />
-      <KpiRow m={m} from={filters.from} to={filters.to} segmented={!!filters.segmentId} />
-      {aggregateOn && <AggregateOverview siteId={selectedSite.id} from={filters.from} to={filters.to} />}
+        lastPageViewAt={m.lastPageViewAt} lastServerHitAt={m.lastServerHitAt} aggregateOnly={aggregateOnly} onNavigate={onNavigate} />
+      {aggregateOnly && <AggregateOverview siteId={selectedSite.id} from={filters.from} to={filters.to} />}
+      <KpiRow m={m} from={filters.from} to={filters.to} segmented={!!filters.segmentId} aggregateOnly={aggregateOnly} />
+      {aggregateOn && !aggregateOnly && <AggregateOverview siteId={selectedSite.id} from={filters.from} to={filters.to} />}
       <ModuleCards m={m} goalCount={goals.length} goalIssues={goalIssues} onNavigate={onNavigate} />
       <div className="grid gap-6 lg:grid-cols-2">
-        <TopPagesData siteId={selectedSite.id} startDate={`${filters.from}T00:00:00Z`} endDate={`${filters.to}T23:59:59Z`} />
+        {!aggregateOnly && <TopPagesData siteId={selectedSite.id} startDate={`${filters.from}T00:00:00Z`} endDate={`${filters.to}T23:59:59Z`} />}
         <AIInsightsWidget siteId={selectedSite.id} />
       </div>
     </div>

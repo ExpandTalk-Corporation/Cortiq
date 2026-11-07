@@ -17,9 +17,11 @@ function Delta({ current, previous }: { current: number; previous: number }) {
   );
 }
 
-export function KpiRow({ m, from, to, segmented = false }: { m: OverviewMetrics; from: string; to: string; segmented?: boolean }) {
+export function KpiRow({ m, from, to, segmented = false, aggregateOnly = false }: {
+  m: OverviewMetrics; from: string; to: string; segmented?: boolean; aggregateOnly?: boolean;
+}) {
   const convRate = (t: { visits: number; conversions: number }) => (t.visits ? (t.conversions / t.visits) * 100 : 0);
-  const tiles = [
+  const allTiles = [
     { label: 'Visits', cur: m.current.visits, prev: m.previous.visits, series: m.daily.map((d) => d.visits) },
     { label: 'Page views', cur: m.current.pageViews, prev: m.previous.pageViews, series: m.daily.map((d) => d.pageViews) },
     { label: 'Conversions', cur: m.current.conversions, prev: m.previous.conversions, series: m.daily.map((d) => d.conversions) },
@@ -30,6 +32,8 @@ export function KpiRow({ m, from, to, segmented = false }: { m: OverviewMetrics;
     ...(segmented ? [] : [{ label: 'AI per 100 visits', cur: m.current.visits ? (m.current.ai.total / m.current.visits) * 100 : 0,
       prev: m.previous.visits ? (m.previous.ai.total / m.previous.visits) * 100 : 0, series: null }]),
   ];
+  // Visits, page views and conversions are recorded after consent; AI traffic is not.
+  const tiles = aggregateOnly ? allTiles.filter((t) => t.label.startsWith('AI visits')) : allTiles;
   return (
     <WidgetCard title="Key figures" subtitle={`${from} – ${to}`}
       exportData={() => ({
@@ -37,6 +41,11 @@ export function KpiRow({ m, from, to, segmented = false }: { m: OverviewMetrics;
         columns: ['Date', 'Visits', 'Page views', 'Conversions', 'AI visits'],
         rows: m.daily.map((d) => [d.date, d.visits, d.pageViews, d.conversions, d.ai]),
       })}>
+      {aggregateOnly && (
+        <p className="mb-4 text-sm text-muted-foreground">
+          No consented visits in this period. Visitor figures come from aggregate measurement above.
+        </p>
+      )}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
         {tiles.map((t) => (
           <div key={t.label} className="space-y-1">

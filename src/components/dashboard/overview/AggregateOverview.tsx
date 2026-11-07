@@ -45,6 +45,23 @@ export function AggregateOverview({ siteId, from, to }: { siteId: string; from: 
             )}
           </div>
           <div>
+            <h4 className="mb-2 text-sm font-medium">Top pages</h4>
+            {data.topPages.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No data in this period.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead><tr className="text-left text-muted-foreground"><th className="py-1">Page</th><th className="py-1 text-right">Page views</th><th className="py-1 text-right">Entries</th></tr></thead>
+                  <tbody>
+                    {data.topPages.map((r, i) => (
+                      <tr key={`${i}:${r.path}`} className="border-t"><td className="py-1 break-all">{r.path}</td><td className="py-1 text-right">{fmt(r.pageviews)}</td><td className="py-1 text-right">{fmt(r.entries)}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+          <div>
             <h4 className="mb-2 text-sm font-medium">Conversions by source</h4>
             {data.conversions.length === 0 ? (
               <p className="text-sm text-muted-foreground">No goal conversions in this period.</p>
