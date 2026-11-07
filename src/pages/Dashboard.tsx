@@ -5,6 +5,8 @@ import { DashboardTabs } from '@/components/dashboard/DashboardTabs';
 import { OnboardingWizard } from '@/components/dashboard/OnboardingWizard';
 import { FilterPanel } from '@/components/dashboard/filters/FilterPanel';
 import { DashboardSidebar } from '@/components/dashboard/nav/DashboardSidebar';
+import { TAB_ALIASES } from '@/components/dashboard/nav/navSections';
+import { useHasConversions } from '@/hooks/useHasConversions';
 import { useSites } from '@/hooks/useSites';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import { DashboardFiltersProvider, useDashboardFilters } from '@/contexts/DashboardFiltersContext';
@@ -24,11 +26,15 @@ function DashboardBody() {
   const { analytics } = useAnalytics(selectedSite?.id || null, dateRange);
   // Active tab lives in the URL (?tab=) so it deep-links, survives refresh and works with Back.
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get('tab') || 'overview';
+  const requestedTab = searchParams.get('tab') || 'overview';
+  const activeTab = TAB_ALIASES[requestedTab] ?? requestedTab;
+  const { data: hasConversions } = useHasConversions(selectedSite?.id);
   const setActiveTab = (value: string) => {
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
       next.set('tab', value);
+      // ?source= belongs to the Ads tab; do not carry it to other tabs.
+      if (value !== 'paid-ads') next.delete('source');
       return next;
     });
   };
@@ -60,7 +66,7 @@ function DashboardBody() {
           <UTMSegmentProvider siteId={selectedSite.id}>
             <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)_280px]">
               <aside className="lg:sticky lg:top-4 lg:self-start">
-                <DashboardSidebar activeTab={activeTab} onSelect={setActiveTab} />
+                <DashboardSidebar activeTab={activeTab} onSelect={setActiveTab} hasConversions={hasConversions === true} />
               </aside>
               <main className="min-w-0">
                 <DashboardTabs

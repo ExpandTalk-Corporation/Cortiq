@@ -15,10 +15,11 @@ export const NAV_SECTIONS: NavSection[] = [
     { value: 'google-search', label: 'Google Search' },
     { value: 'social-media', label: 'Social media' },
     { value: 'campaigns', label: 'Campaigns' },
-    { value: 'paid-ads', label: 'Ads (GA4)' },
-    { value: 'paid-ads-server', label: 'Ads (server-side)' },
-    { value: 'attribution', label: 'Attribution gap' },
+    { value: 'paid-ads', label: 'Ads' },
     { value: 'click-fraud', label: 'Click fraud' },
+    // Last in the section: it is left out of the menu until the site has a conversion,
+    // so hiding it does not renumber the items above.
+    { value: 'attribution', label: 'Attribution gap' },
   ] },
   { number: 3, label: 'Behavior', items: [
     { value: 'navigation', label: 'Navigation flow' },
@@ -72,5 +73,14 @@ export const HIDDEN_TABS: Record<string, string> = {
   abtesting: 'A/B testing is not available yet.',
   'advanced-features': 'Web vitals and white label are not available yet.',
 };
+
+// Old ?tab= values that now open another tab. The Ads tab reads the original value to pick
+// its source (paid-ads-server → CortIQ).
+export const TAB_ALIASES: Record<string, string> = {
+  'paid-ads-server': 'paid-ads',
+};
+
+// Menu items shown only once the site has data for them.
+export const NEEDS_CONVERSIONS = new Set(['attribution']);
 
 export const numberedLabel = (sectionNumber: number, itemIndex: number) => `${sectionNumber}.${itemIndex + 1}`;

@@ -10,8 +10,7 @@ import type { SitePatch } from '@/hooks/useSites';
 
 const HeatmapTab               = lazy(() => import('./tabs/HeatmapTab').then(m => ({ default: m.HeatmapTab })));
 const AnalyticsTab             = lazy(() => import('./tabs/AnalyticsTab').then(m => ({ default: m.AnalyticsTab })));
-const PaidAdsTab               = lazy(() => import('./tabs/PaidAdsTab').then(m => ({ default: m.PaidAdsTab })));
-const ServerSidePaidAdsTab     = lazy(() => import('./tabs/ServerSidePaidAdsTab').then(m => ({ default: m.ServerSidePaidAdsTab })));
+const AdsTab                   = lazy(() => import('./tabs/AdsTab').then(m => ({ default: m.AdsTab })));
 const FormAnalyticsTab         = lazy(() => import('./tabs/FormAnalyticsTab').then(m => ({ default: m.FormAnalyticsTab })));
 const AITab                    = lazy(() => import('./tabs/AITab').then(m => ({ default: m.AITab })));
 const AIBotTab                 = lazy(() => import('./tabs/AIBotTab').then(m => ({ default: m.AIBotTab })));
@@ -56,7 +55,7 @@ const RealTimeWidget               = lazy(() => import('./RealTimeWidget').then(
 // Tabs that receive the global date range (directly or as derived start/end dates).
 const DATE_AWARE = new Set([
   'analytics', 'geolocation', 'campaigns', 'content-performance', 'content-tracking', 'navigation',
-  'paid-ads-server', 'click-fraud', 'cookiefree', 'heatmap', 'forms', 'agent-ops', 'ip-segments',
+  'click-fraud', 'cookiefree', 'heatmap', 'forms', 'agent-ops', 'ip-segments',
   'server-logs', 'ai-bots', 'ai', 'ai-visibility', 'zero-click-risk', 'kpi-catalog', 'segments',
   'ecommerce', 'social-media', 'kpi', 'paid-ads',
 ]);
@@ -191,8 +190,13 @@ function DashboardTabsInner({ selectedSite, analytics, dateRange, onSiteDeleted,
       </TabsContent>
 
       <TabsContent value="paid-ads" className="space-y-6">
-        <TabErrorBoundary tabName="Ads (GA4)">
-          <PaidAdsTab selectedSite={selectedSite.id} kpiData={null} onNavigate={setActiveTab} />
+        <TabErrorBoundary tabName="Ads">
+          <AdsTab
+            selectedSite={selectedSite.id}
+            onNavigate={setActiveTab}
+            startDate={dateRange?.from?.toISOString().split('T')[0]}
+            endDate={dateRange?.to?.toISOString().split('T')[0]}
+          />
         </TabErrorBoundary>
       </TabsContent>
 
@@ -202,16 +206,6 @@ function DashboardTabsInner({ selectedSite, analytics, dateRange, onSiteDeleted,
         </TabErrorBoundary>
       </TabsContent>
 
-      <TabsContent value="paid-ads-server" className="space-y-6">
-        <TabErrorBoundary tabName="Ads (Server-Side)">
-          <ServerSidePaidAdsTab
-            selectedSite={selectedSite.id}
-            onNavigate={setActiveTab}
-            startDate={dateRange?.from?.toISOString().split('T')[0]}
-            endDate={dateRange?.to?.toISOString().split('T')[0]}
-          />
-        </TabErrorBoundary>
-      </TabsContent>
 
       <TabsContent value="cookiefree" className="space-y-6">
         <TabErrorBoundary tabName="Cookie-Free">

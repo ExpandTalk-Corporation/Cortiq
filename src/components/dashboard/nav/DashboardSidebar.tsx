@@ -2,9 +2,15 @@
 import { useEffect, useState } from 'react';
 import { ChevronDown, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { NAV_SECTIONS, SETTINGS_ITEMS, numberedLabel } from './navSections';
+import { NAV_SECTIONS, NEEDS_CONVERSIONS, SETTINGS_ITEMS, numberedLabel } from './navSections';
 
-export function DashboardSidebar({ activeTab, onSelect }: { activeTab: string; onSelect: (v: string) => void }) {
+export function DashboardSidebar({ activeTab, onSelect, hasConversions = false }: {
+  activeTab: string;
+  onSelect: (v: string) => void;
+  /** Items in NEEDS_CONVERSIONS stay out of the menu until true (unless they are open). */
+  hasConversions?: boolean;
+}) {
+  const visible = (value: string) => hasConversions || value === activeTab || !NEEDS_CONVERSIONS.has(value);
   const owning = NAV_SECTIONS.find((s) => s.items.some((i) => i.value === activeTab))?.number;
   const [open, setOpen] = useState<Set<number>>(new Set([owning ?? 1]));
   // Navigation from elsewhere (module cards, status strip, Back) must reveal the active item.
@@ -33,7 +39,7 @@ export function DashboardSidebar({ activeTab, onSelect }: { activeTab: string; o
           </button>
           {open.has(s.number) && (
             <ul className="ml-2 space-y-0.5">
-              {s.items.map((item, idx) => (
+              {s.items.filter((item) => visible(item.value)).map((item, idx) => (
                 <li key={item.value}>
                   <button type="button" aria-current={item.value === activeTab ? 'page' : undefined}
                     className={itemClass(item.value)} onClick={() => onSelect(item.value)}>
