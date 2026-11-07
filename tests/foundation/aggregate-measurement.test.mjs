@@ -7,9 +7,9 @@ import { PGlite } from '@electric-sql/pglite';
 test('PostgreSQL: aggregate ingest, visit rule, retention, privileges and tenant isolation', async () => {
   const db = new PGlite();
   const fixture = readFileSync(new URL('./aggregate-measurement.sql', import.meta.url), 'utf8');
-  const migration = readFileSync(new URL('../../supabase/migrations/20261030000001_aggregate_measurement.sql', import.meta.url), 'utf8');
+  const migration = (file) => readFileSync(new URL(`../../supabase/migrations/${file}`, import.meta.url), 'utf8');
   try {
-    await assert.doesNotReject(db.exec(fixture.replace(/^\\ir .*$/m, () => migration)));
+    await assert.doesNotReject(db.exec(fixture.replace(/^\\ir \.\.\/\.\.\/supabase\/migrations\/(\S+)$/gm, (_, file) => migration(file))));
   } finally {
     await db.close();
   }

@@ -3,7 +3,7 @@ Contributors: cortiq
 Tags: analytics, ai-tracking, heatmap, cookie-free, gdpr, chatgpt, ai-bots
 Requires at least: 5.6
 Tested up to: 6.8
-Stable tag: 5.5.8
+Stable tag: 5.5.9
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -86,6 +86,9 @@ All data is stored in the EU (AWS eu-north-1 via Supabase).
 The tracking script is loaded with `defer` so it does not block rendering.
 
 == Changelog ==
+
+= 5.5.9 =
+* Fix: Aggregate measurement no longer counts crawlers that load a page and leave within seconds — a page view is sent after the first interaction or 3 seconds of visible page.
 
 = 5.5.8 =
 * Fix: ordinary Safari and iPhone visitors are no longer reported as AI bots.

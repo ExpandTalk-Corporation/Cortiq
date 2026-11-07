@@ -15,7 +15,8 @@ const GOALS = [
 ];
 
 function setup({ site = { id: SITE, user_id: OWNER, is_active: true, domain: 'https://www.shop.test/', aggregate_measurement: true, conversion_goals: GOALS },
-                 company = null, domainSiteId = null, rate = { data: true, error: null }, salt = { data: 'f'.repeat(64), error: null } } = {}) {
+                 company = null, domainSiteId = null, rate = { data: true, error: null }, salt = { data: 'f'.repeat(64), error: null },
+                 ingest = { data: true, error: null } } = {}) {
   const rpcCalls = [];
   const db = mockDatabase(
     (op) => {
@@ -33,6 +34,7 @@ function setup({ site = { id: SITE, user_id: OWNER, is_active: true, domain: 'ht
       if (name === 'check_rate_limit') return rate;
       if (name === 'aggregate_daily_salt') return salt;
       if (name === 'resolve_site_by_domain') return { data: domainSiteId, error: null };
+      if (name === 'ingest_aggregate_hit') return ingest;
       return { data: true, error: null };
     },
   );
@@ -66,6 +68,14 @@ test('pageview: sanitized ingest, page-visit goal emitted, form goals returned w
   const serialized = JSON.stringify(rpcCalls);
   assert.equal(serialized.includes('203.0.113.9'), false);
   assert.equal(serialized.includes('Chrome/130'), false);
+});
+
+test('pageview dropped by the burst filter: skipped, and no page-visit goal is ingested', async () => {
+  const { handler, rpcCalls } = setup({ ingest: { data: false, error: null } });
+  const res = await handler(post({ siteId: SITE, kind: 'pageview', url: 'https://www.shop.test/tack' }));
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { skipped: 'burst' });
+  assert.deepEqual(ingests(rpcCalls).map((a) => a.p_kind), ['pageview']);
 });
 
 test('form goal by id uses the configured name and value; unknown form falls back to content id', async () => {

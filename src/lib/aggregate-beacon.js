@@ -4,6 +4,9 @@
 // Writes nothing to the device (no cookies, localStorage or sessionStorage), sets no identifier
 // and reads no fingerprint signals. It reads the stored consent record only to honour an explicit
 // refusal, and stops on Global Privacy Control.
+// Page views wait for a sign of a person: a first interaction, or the page being visible for
+// HUMAN_DWELL_MS. Crawlers that render the page and leave within that time are not counted;
+// neither is a visitor who leaves before it.
 (function () {
   var cfg = window.cortiqConfig || {};
   if (cfg.aggregate !== true || !cfg.siteId || !cfg.apiKey || window.__cortiqAggregate) return;
@@ -13,6 +16,11 @@
   var formGoals = [];
   var lastPath = null;
   var firstView = true;
+  var HUMAN_DWELL_MS = 3000;
+  var human = false;
+  var pending = [];
+  var dwellTimer = null;
+  var interactions = ['pointerdown', 'keydown', 'scroll', 'touchstart', 'mousemove'];
   // Same prefix semantics as spa-tracking.js: comma-separated, trimmed, empty entries ignored.
   var excludePaths = String(cfg.excludePaths || '').split(',')
     .map(function (s) { return s.trim(); }).filter(Boolean);
@@ -68,13 +76,7 @@
     return out;
   }
 
-  function pageview() {
-    var path = location.pathname;
-    if (path === lastPath) return;
-    lastPath = path;
-    if (isExcludedPath(path)) { firstView = false; return; }
-    var body = { kind: 'pageview', url: location.origin + path, referrer: firstView ? (document.referrer || '') : '', utm: utm() };
-    firstView = false;
+  function sendPageview(body) {
     send(body).then(function (res) {
       if (res && Array.isArray(res.goals)) {
         formGoals = res.goals.filter(function (g) { return g && typeof g.id === 'string' && typeof g.selector === 'string'; });
@@ -82,11 +84,43 @@
     });
   }
 
+  function pageview() {
+    var path = location.pathname;
+    if (path === lastPath) return;
+    lastPath = path;
+    if (isExcludedPath(path)) { firstView = false; return; }
+    var body = { kind: 'pageview', url: location.origin + path, referrer: firstView ? (document.referrer || '') : '', utm: utm() };
+    firstView = false;
+    if (human) sendPageview(body);
+    else if (pending.length < 20) pending.push(body);
+  }
+
+  function markHuman() {
+    if (human) return;
+    human = true;
+    if (dwellTimer !== null) clearTimeout(dwellTimer);
+    interactions.forEach(function (type) { window.removeEventListener(type, markHuman, true); });
+    var queued = pending;
+    pending = [];
+    queued.forEach(sendPageview);
+  }
+
+  // Only time the page is actually visible counts (not prerendered or background tabs).
+  function onVisibility() {
+    if (human) return;
+    if (document.visibilityState === 'hidden' || document.visibilityState === 'prerender') {
+      if (dwellTimer !== null) { clearTimeout(dwellTimer); dwellTimer = null; }
+    } else if (dwellTimer === null) {
+      dwellTimer = setTimeout(markHuman, HUMAN_DWELL_MS);
+    }
+  }
+
   function matches(el, selector) {
     try { return !!(el && el.closest && el.closest(selector)); } catch (e) { return false; }
   }
 
   document.addEventListener('submit', function (e) {
+    markHuman();
     if (isExcludedPath(location.pathname)) return;
     var target = e.target;
     var url = location.origin + location.pathname;
@@ -114,6 +148,9 @@
     };
   });
   window.addEventListener('popstate', pageview);
+  interactions.forEach(function (type) { window.addEventListener(type, markHuman, { capture: true, passive: true }); });
+  document.addEventListener('visibilitychange', onVisibility);
 
   pageview();
+  onVisibility();
 })();

@@ -11,7 +11,7 @@
  * id, or the account key (companies.api_key, WordPress plugin) with body.siteId = account id, in
  * which case the site is resolved from the page URL's domain and must belong to that account.
  *
- * Conditions the page cannot fix (disabled, GPC, bots, rate limit, DB trouble) answer
+ * Conditions the page cannot fix (disabled, GPC, bots, bursts, rate limit, DB trouble) answer
  * 200 { skipped } so customers' consoles stay clean.
  */
 import { createClient } from '../_shared/supabase.ts';
@@ -107,14 +107,18 @@ Deno.serve(async (req) => {
   const base = { p_site_id: site.id, p_hash: hash, p_path: cleanPath(pageUrl), p_device: deviceFromUA(ua) };
   const noSource = { p_referrer_domain: '', p_utm_source: '', p_utm_medium: '', p_utm_campaign: '' };
   const ingest = async (args: Record<string, unknown>) => {
-    const { error } = await supabase.rpc('ingest_aggregate_hit', args);
+    const { data, error } = await supabase.rpc('ingest_aggregate_hit', args);
     if (error) console.error('aggregate-hit: ingest failed:', error.message);
+    return data;
   };
   const goals = normalizeGoals(site.conversion_goals);
 
   if (kind === 'pageview') {
-    await ingest({ ...base, p_kind: 'pageview', p_referrer_domain: referrerSource(body.referrer, siteHost),
+    const counted = await ingest({ ...base, p_kind: 'pageview', p_referrer_domain: referrerSource(body.referrer, siteHost),
       ...utmFrom(body.utm), p_goal_id: null, p_goal_name: null, p_value: null });
+    // false = dropped as part of a burst of new direct visitors (likely a crawler). A page-visit
+    // goal would otherwise create the visitor the burst filter just refused.
+    if (counted === false) return skipped('burst');
     for (const goal of matchPageVisitGoals(goals, pageUrl.href)) {
       await ingest({ ...base, ...noSource, p_kind: 'goal', p_goal_id: goal.id, p_goal_name: goal.name, p_value: num(goal.value) });
     }

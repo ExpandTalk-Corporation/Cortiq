@@ -28,3 +28,5 @@ This is not a production end-to-end check. The React banner's server journal int
 ## Aggregate measurement (2026-10-30)
 
 `aggregate-measurement.test.mjs` runs the migration in PGlite: visit rule, once-per-visit goals, midnight split, retention, privileges and tenant isolation of `get_aggregate_summary`. `aggregate-hit.test.mjs` covers the endpoint (sanitizing, skips, auth incl. WordPress account keys; IP/UA never reach the RPC). `aggregate-beacon.test.mjs` runs the beacon in a VM: no storage writes, refusal/GPC/Consent Mode suppression, SPA navigation, double-load guard. These do not prove the legal position; that review is separate.
+
+Bot bursts (2026-11-07): the SQL fixture also loads `20261107000001_aggregate_burst_filter.sql` and checks that from the 4th new direct visitor on one page within 10 seconds nothing is counted, while external sources, returning hashes, other pages and later hits still count. The beacon tests use fake timers: no page view before an interaction or 3 s of visible page.

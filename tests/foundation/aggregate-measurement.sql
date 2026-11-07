@@ -8,6 +8,7 @@ CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
 CREATE TABLE public.sites (id uuid PRIMARY KEY, user_id uuid NOT NULL);
 GRANT SELECT ON public.sites TO authenticated;
 \ir ../../supabase/migrations/20261030000001_aggregate_measurement.sql
+\ir ../../supabase/migrations/20261107000001_aggregate_burst_filter.sql
 
 INSERT INTO sites VALUES ('11111111-1111-4111-8111-111111111111','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
                          ('22222222-2222-4222-8222-222222222222','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
@@ -18,6 +19,7 @@ DECLARE
   s2 uuid := '22222222-2222-4222-8222-222222222222';
   t0 timestamptz := '2026-10-30 10:00:00+00';
   salt text;
+  i int;
   sig text := 'public.ingest_aggregate_hit(uuid,text,text,text,text,text,text,text,text,text,text,numeric,timestamptz)';
 BEGIN
   ASSERT (SELECT aggregate_measurement FROM public.sites WHERE id = s1) = false, 'off by default';
@@ -84,6 +86,26 @@ BEGIN
     'late goal not credited to direct';
   ASSERT (SELECT sum(visits) FROM public.aggregate_sources_daily WHERE site_id = s2 AND day = '2026-10-30') = 2,
     'hashRace 1 + hashLate 1: the late goal added no visit';
+
+  -- Burst filter: from the 4th new direct visitor on one page within 10 seconds, nothing is
+  -- counted. External sources, returning hashes and other pages are unaffected (site s2).
+  FOR i IN 1..6 LOOP
+    PERFORM public.ingest_aggregate_hit(s2, 'burst' || i, 'pageview', '/explore', '', '', '', '', 'desktop', NULL, NULL, NULL,
+                                        t0 + interval '2 hours' + i * interval '1 second');
+  END LOOP;
+  ASSERT (SELECT pageviews FROM public.aggregate_pages_daily WHERE site_id = s2 AND path = '/explore') = 3, 'burst capped at 3';
+  ASSERT (SELECT count(*) FROM public.aggregate_visitors WHERE site_id = s2 AND visitor_hash LIKE 'burst%') = 3, 'no row for dropped hits';
+  ASSERT NOT public.ingest_aggregate_hit(s2, 'burst7', 'pageview', '/explore', '', '', '', '', 'desktop', NULL, NULL, NULL,
+                                         t0 + interval '2 hours 8 seconds'), 'dropped hit reports false';
+  ASSERT public.ingest_aggregate_hit(s2, 'burstRef', 'pageview', '/explore', 'google.com', '', '', '', 'desktop', NULL, NULL, NULL,
+                                     t0 + interval '2 hours 8 seconds'), 'external source still counted';
+  ASSERT public.ingest_aggregate_hit(s2, 'burst1', 'pageview', '/explore', '', '', '', '', 'desktop', NULL, NULL, NULL,
+                                     t0 + interval '2 hours 9 seconds'), 'returning hash still counted';
+  ASSERT public.ingest_aggregate_hit(s2, 'burstOther', 'pageview', '/', '', '', '', '', 'desktop', NULL, NULL, NULL,
+                                     t0 + interval '2 hours 9 seconds'), 'other page still counted';
+  ASSERT public.ingest_aggregate_hit(s2, 'burstLater', 'pageview', '/explore', '', '', '', '', 'desktop', NULL, NULL, NULL,
+                                     t0 + interval '2 hours 20 seconds'), 'counted again once the window has passed';
+  ASSERT (SELECT pageviews FROM public.aggregate_pages_daily WHERE site_id = s2 AND path = '/explore') = 6, '3 + ref + return + later';
 
   -- Invalid input is refused without writes
   ASSERT NOT public.ingest_aggregate_hit(s1, '', 'pageview', '/', '', '', '', '', '', NULL, NULL, NULL, t0), 'empty hash';

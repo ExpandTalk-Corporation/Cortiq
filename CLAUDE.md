@@ -145,6 +145,8 @@ Spec: `docs/superpowers/specs/2026-10-29-aggregate-measurement-and-pixel-readine
   GPC. Inlined by the install snippet when enabled; bundled in the WP plugin as `assets/cortiq-aggregate.js`.
   `spa-tracking.js` is unchanged and still waits for consent.
 - **Server:** `aggregate-hit` Edge Function → daily-salted SHA-256 of salt|site|IP|UA → `ingest_aggregate_hit`.
+  Bot defences: the beacon sends page views only after a first interaction or 3 s of visible page; the RPC drops
+  new direct visitors beyond 3 per page per 10 s (`20261107000001_aggregate_burst_filter.sql`).
   Salts and `aggregate_visitors` are deleted when the UTC day ends (`aggregate_retention`, hourly cron).
 - **Reads:** `get_aggregate_summary(site, from, to)` (RLS, SECURITY INVOKER). Overview shows it when enabled.
 - **Pixel readiness:** `src/lib/pixelReadiness.ts` + `PixelReadinessCard` (Ads → Attribution, Conversion Goals).
