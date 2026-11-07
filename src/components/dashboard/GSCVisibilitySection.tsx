@@ -24,7 +24,7 @@ function fmt(n: number) {
 const PAGE_SIZE = 25;
 
 export function GSCVisibilitySection({ siteId, onNavigateToIntegrations }: GSCVisibilitySectionProps) {
-  const { isConnected, brandKeywords, queries, pages, summary, loading, lastSync } = useGSCData(siteId);
+  const { isConnected, needsProperty, brandKeywords, queries, pages, summary, loading, lastSync } = useGSCData(siteId);
   const monthly = useGSCMonthly(siteId);
 
   const [activeTab,      setActiveTab]      = useState<'keywords' | 'pages'>('keywords');
@@ -52,9 +52,10 @@ export function GSCVisibilitySection({ siteId, onNavigateToIntegrations }: GSCVi
       if (isBranded) entry.branded += row.clicks;
       else           entry.organic += row.clicks;
       entry.impressions += row.impressions;
-      if (row.clicks > 0) {
-        entry.posWeightedSum  += row.position * row.clicks;
-        entry.posWeightTotal  += row.clicks;
+      // Weighted by impressions, like Search Console's average position.
+      if (row.impressions > 0 && row.position != null) {
+        entry.posWeightedSum  += row.position * row.impressions;
+        entry.posWeightTotal  += row.impressions;
       }
       map.set(month, entry);
     }
@@ -97,11 +98,17 @@ export function GSCVisibilitySection({ siteId, onNavigateToIntegrations }: GSCVi
           <div className="flex items-center gap-3">
             <Search className="h-5 w-5 text-muted-foreground" />
             <div>
-              <p className="text-sm font-medium">Google Search Console</p>
-              <p className="text-xs text-muted-foreground">Connect to see monthly search visibility here.</p>
+              <p className="text-sm font-medium">
+                {needsProperty ? 'Google Search Console connected: choose a property' : 'Google Search Console is not connected to this site'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {needsProperty
+                  ? 'Your Google account is connected, but no Search Console property is chosen for this site, so nothing is synced yet.'
+                  : 'Connect a Google account to see monthly search visibility here. The connection is made per site.'}
+              </p>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={onNavigateToIntegrations}>Connect</Button>
+          <Button variant="outline" size="sm" onClick={onNavigateToIntegrations}>{needsProperty ? 'Choose property' : 'Connect'}</Button>
         </CardContent>
       </Card>
     );
@@ -296,11 +303,11 @@ export function GSCVisibilitySection({ siteId, onNavigateToIntegrations }: GSCVi
                           <td className="py-1.5 pr-3 text-right tabular-nums">{fmt(q.impressions)}</td>
                           <td className="py-1.5 pr-3 text-right tabular-nums">{(q.ctr * 100).toFixed(1)}%</td>
                           <td className="py-1.5 text-right tabular-nums">
-                            <span className={`inline-flex items-center gap-0.5 ${q.position <= 10 ? 'text-green-600' : 'text-muted-foreground'}`}>
-                              {q.position <= 10
+                            <span className={`inline-flex items-center gap-0.5 ${q.position != null && q.position <= 10 ? 'text-green-600' : 'text-muted-foreground'}`}>
+                              {q.position != null && q.position <= 10
                                 ? <TrendingUp className="h-3 w-3" />
                                 : <TrendingDown className="h-3 w-3" />}
-                              #{q.position.toFixed(0)}
+                              {q.position != null ? `#${q.position.toFixed(0)}` : '–'}
                             </span>
                           </td>
                         </tr>
@@ -366,8 +373,8 @@ export function GSCVisibilitySection({ siteId, onNavigateToIntegrations }: GSCVi
                           <td className="py-1.5 pr-3 text-right tabular-nums">{fmt(p.impressions)}</td>
                           <td className="py-1.5 pr-3 text-right tabular-nums">{(p.ctr * 100).toFixed(1)}%</td>
                           <td className="py-1.5 text-right tabular-nums">
-                            <span className={p.position <= 10 ? 'text-green-600' : 'text-muted-foreground'}>
-                              #{p.position.toFixed(0)}
+                            <span className={p.position != null && p.position <= 10 ? 'text-green-600' : 'text-muted-foreground'}>
+                              {p.position != null ? `#${p.position.toFixed(0)}` : '–'}
                             </span>
                           </td>
                         </tr>
