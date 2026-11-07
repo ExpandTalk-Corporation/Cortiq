@@ -19,7 +19,7 @@ export function AggregateOverview({ siteId, from, to }: { siteId: string; from: 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">All visitors (aggregate)</CardTitle>
+        <CardTitle className="text-base">All counted visitors (aggregate)</CardTitle>
         <CardDescription>
           Counted without consent: no cookies, no device storage, no persistent IDs. Visitors are counted
           per day, so someone who returns on two days counts twice. Engagement uses the GA4 definitions:

@@ -299,7 +299,8 @@ export default function Features() {
                 <CardTitle className="text-lg flex items-center gap-2"><Lock className="h-5 w-5 text-primary" /> Privacy Layer</CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground">
-                Cross-cutting, EU-first: cookieless mode, consent gating for all visitor analytics, IP anonymisation,
+                Cross-cutting, EU-first: cookieless mode, consent gating for visitor analytics, optional aggregate
+                measurement designed to not require consent, IP anonymisation,
                 a server-side consent ledger, retention automation and EU data residency.
               </CardContent>
             </Card>

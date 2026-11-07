@@ -339,7 +339,8 @@ export default function ApiDocs() {
                     <h3 className="font-semibold mb-1">Consent-Gated Data</h3>
                     <p className="text-muted-foreground">
                       Visitor analytics are collected only after analytics consent, in both cookieless and full
-                      mode. AI crawlers are measured server-side, without access to the visitor's device.
+                      mode. Aggregate measurement data, if a site owner enables it, is not available through the
+                      API. AI crawlers are measured server-side, without access to the visitor's device.
                     </p>
                   </div>
                 </div>

@@ -192,7 +192,7 @@ export const ABOUT: ContentPageData = {
         {
           type: 'list',
           items: [
-            '**Consent first.** Everything in the browser waits for consent, including cookieless mode and in-browser bot detection. AI crawlers are measured server-side, from the HTTP request, without touching the visitor\'s device.',
+            '**Consent first.** Visitor analytics, including cookieless mode and in-browser bot detection, waits for consent. Optional aggregate measurement stores nothing on the device and respects refusals and Global Privacy Control; the site owner decides whether to use it. AI crawlers are measured server-side.',
             '**EU-hosted.** Analytics data is stored in Stockholm.',
             '**Open source.** The source code is public under the AGPL-3.0 licence on [GitHub](https://github.com/ExpandTalk-Corporation/Cortiq).',
             '**Honest about status.** CortIQ is in beta. Features that are not ready are marked "in development", and the [changelog](/changelog/) shows what has shipped.',
@@ -232,6 +232,18 @@ export const CHANGELOG: ContentPageData = {
   h1: 'Changelog',
   lead: 'What has shipped in CortIQ, newest first. Tracking script and WordPress plugin versions share one number.',
   sections: [
+    {
+      id: '2026-11',
+      heading: 'November 2026',
+      blocks: [
+        {
+          type: 'list',
+          items: [
+            '**Aggregate measurement.** Site owners can turn on an opt-in mode, off by default, that counts page views, visits, traffic sources and form goals without cookies or any storage on the visitor\'s device, designed to not require consent – the site owner makes the legal assessment. An analytics refusal in the CortIQ banner, Cookiebot or Google Consent Mode, or Global Privacy Control, stops it.',
+          ],
+        },
+      ],
+    },
     {
       id: '2026-10',
       heading: 'October 2026',
