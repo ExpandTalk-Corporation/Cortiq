@@ -47,6 +47,10 @@ const FAQ = [
     a: "The browser answers Cookiebot, OneTrust, CookieYes, Complianz, Dynamicweb and the CortIQ banner through their own APIs. Other banners are answered by clicking the button with a matching label. If a state cannot be reached, the report says so instead of guessing.",
   },
   {
+    q: "How is this different from other cookie checkers?",
+    a: "Most cookie scanners crawl your site once and list the cookies they find. This one loads each page several times, once per consent state, so you see what runs before the visitor chooses and after \"Reject all\". It also lists tracking requests that set no cookie, and the Consent Mode signals Google receives.",
+  },
+  {
     q: "Do I need to install anything?",
     a: "No. The check visits your public pages like a visitor would. Sites behind a password (basic auth), such as staging, can be checked too.",
   },
@@ -77,9 +81,9 @@ export default function CookieConsentChecker() {
         <DotPattern />
         <div className="container relative z-10 mx-auto grid items-center gap-12 lg:grid-cols-[1.1fr_1fr]">
           <div>
-            <Badge className="mb-5 border-0 bg-gradient-primary text-white">Free cookie consent checker</Badge>
+            <Badge className="mb-5 border-0 bg-gradient-primary text-white">Free cookie checker</Badge>
             <h1 className="mb-5 text-4xl font-black leading-[1.1] lg:text-5xl">
-              Check what your site loads <span className="text-gradient-primary">before and after the cookie banner</span>
+              Cookie checker: see what your site loads <span className="text-gradient-primary">before and after the cookie banner</span>
             </h1>
             <p className="mb-7 max-w-xl text-lg leading-relaxed text-muted-foreground">
               A real browser visits your pages without answering the banner, after "Reject all" and after "Accept all",
@@ -156,6 +160,10 @@ export default function CookieConsentChecker() {
           <p className="mt-10 text-center text-muted-foreground">
             Moving to a new site? The same tool compares the old and new site:{" "}
             <Link to="/website-migration-check/" className="font-medium text-primary underline-offset-4 hover:underline">website migration check</Link>.
+          </p>
+          <p className="mt-4 text-center text-muted-foreground">
+            Prefer to check by hand?{" "}
+            <Link to="/guides/find-cookies-before-consent/" className="font-medium text-primary underline-offset-4 hover:underline">How to find cookies loaded before consent</Link>.
           </p>
         </div>
       </section>
