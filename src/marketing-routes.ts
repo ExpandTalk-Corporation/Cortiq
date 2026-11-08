@@ -52,7 +52,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   {
     path: '/features/analytics/',
     title: 'Cookieless Web Analytics with Heatmaps — CortIQ',
-    description: 'Consent-first web analytics: cookieless mode, heatmaps, form analytics, link clicks and conversion attribution. EU-hosted, designed to support GDPR compliance.',
+    description: 'Consent-first web analytics: cookieless mode, heatmaps, form analytics, link clicks and conversion attribution. EU-hosted, built to support GDPR compliance.',
     changefreq: 'monthly',
     priority: 0.8,
     source: 'src/pages/FeaturesAnalytics.tsx',
@@ -97,7 +97,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   {
     path: '/website-migration-check/',
     title: 'Website Migration Check: Redirects, Tags & Click IDs',
-    description: 'Compare your current and new site before launch: 301 redirects, UTM and gclid survival, GA4, Ads and Meta tags, forms and cookie banner. Free with an account.',
+    description: 'Compare your current and new site before launch: 301 redirects, UTM and gclid survival, GA4, Ads and Meta tags, forms and banner. Free with an account.',
     changefreq: 'monthly',
     priority: 0.7,
     source: 'src/pages/WebsiteMigrationCheck.tsx',
@@ -133,7 +133,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   {
     path: '/docs/metrics/',
     title: 'How CortIQ Counts Visits, Conversions & AI Traffic',
-    description: 'CortIQ metric definitions: a visit ends after 30 idle minutes, goals count once per visit, AI hits by category, and how aggregate visitors and engagement count.',
+    description: 'CortIQ metric definitions: a visit ends after 30 idle minutes, goals count once per visit, AI hits by category, aggregate visitors and engagement.',
     changefreq: 'monthly',
     priority: 0.6,
     source: 'src/content/docs.ts',
@@ -208,7 +208,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   {
     path: '/integrations/server-side/',
     title: 'Server-Side AI Agent Measurement — CortIQ',
-    description: 'Measure GPTBot, ClaudeBot and other AI crawlers that never run JavaScript on your server: adapters for Next.js, Vercel, Netlify, Cloudflare, Node and WordPress.',
+    description: 'Measure GPTBot, ClaudeBot and other AI crawlers that skip JavaScript, on your server: adapters for Next.js, Vercel, Netlify, Cloudflare, Node and WordPress.',
     changefreq: 'monthly',
     priority: 0.8,
     source: 'src/content/docs.ts',
@@ -240,7 +240,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   {
     path: '/changelog/',
     title: 'Changelog — CortIQ',
-    description: 'What has shipped in CortIQ, month by month: tracking script and WordPress plugin releases, integrations, AI bot classification, GEO audits and security fixes.',
+    description: 'What has shipped in CortIQ, month by month: tracking script and WordPress plugin releases, integrations, AI bot classification, GEO audits, security fixes.',
     changefreq: 'weekly',
     priority: 0.6,
     source: 'src/content/company.ts',
@@ -249,7 +249,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   {
     path: '/about/',
     title: 'About CortIQ — Expandtalk Corporation AB',
-    description: 'CortIQ is web analytics for the agentic web, built in Gothenburg, Sweden, by Expandtalk Corporation AB. Consent-first, EU-hosted and open source under AGPL-3.0.',
+    description: 'CortIQ is web analytics for the agentic web, built in Gothenburg by Expandtalk Corporation AB. Consent-first, EU-hosted and open source under AGPL-3.0.',
     changefreq: 'yearly',
     priority: 0.5,
     source: 'src/content/company.ts',
