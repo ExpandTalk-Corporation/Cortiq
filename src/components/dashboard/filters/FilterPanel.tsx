@@ -10,6 +10,7 @@ import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
 import { useSavedFilters } from '@/hooks/useSavedFilters';
 import { useUTMSegments } from '@/contexts/UTMSegmentContext';
 import { useTopPaths } from '@/hooks/useTopPaths';
+import { BUILTIN_SEGMENTS, SEGMENT_PRESETS, builtinSegment, builtinSegmentId } from '@/lib/dashboard/builtinSegments';
 import { DATE_PRESETS, normalizePath, presetRange, type DatePresetId } from '@/lib/dashboard/filters';
 
 const toIso = (d: Date) => new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())).toISOString().slice(0, 10);
@@ -24,13 +25,20 @@ export function FilterPanel({ siteId }: { siteId: string }) {
   const [name, setName] = useState('');
 
   // A segment id from the URL that no longer exists is treated as "All".
-  const segmentValue = segments.some((s) => s.id === filters.segmentId) ? filters.segmentId! : ALL;
+  const activeBuiltin = builtinSegment(filters.segmentId);
+  const segmentValue = activeBuiltin || segments.some((s) => s.id === filters.segmentId) ? filters.segmentId! : ALL;
 
-  // Values are "preset:<id>" (built-in date range, keeps URL and segment) or "saved:<id>".
+  // Values are "preset:<id>" (date range, keeps URL and segment), "segment:<id>" (date range
+  // plus built-in segment, keeps URL) or "saved:<id>".
   const applyQuick = (value: string) => {
     const [kind, id] = [value.slice(0, value.indexOf(':')), value.slice(value.indexOf(':') + 1)];
     if (kind === 'preset') {
       setFilters(presetRange(id as DatePresetId, new Date()));
+      return;
+    }
+    if (kind === 'segment') {
+      const p = SEGMENT_PRESETS.find((x) => x.id === id);
+      if (p) setFilters({ ...presetRange(p.range, new Date()), segmentId: builtinSegmentId(p.segment) });
       return;
     }
     const s = saved.find((x) => x.id === id);
@@ -59,6 +67,10 @@ export function FilterPanel({ siteId }: { siteId: string }) {
             <SelectGroup>
               <SelectLabel>Date range</SelectLabel>
               {DATE_PRESETS.map((p) => <SelectItem key={p.id} value={`preset:${p.id}`}>{p.label}</SelectItem>)}
+            </SelectGroup>
+            <SelectGroup>
+              <SelectLabel>Segment</SelectLabel>
+              {SEGMENT_PRESETS.map((p) => <SelectItem key={p.id} value={`segment:${p.id}`}>{p.label}</SelectItem>)}
             </SelectGroup>
             {saved.length > 0 && (
               <SelectGroup>
@@ -103,9 +115,19 @@ export function FilterPanel({ siteId }: { siteId: string }) {
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL}>All visits</SelectItem>
-            {segments.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+            <SelectGroup>
+              <SelectLabel>Built-in</SelectLabel>
+              {BUILTIN_SEGMENTS.map((b) => <SelectItem key={b.key} value={builtinSegmentId(b.key)}>{b.label}</SelectItem>)}
+            </SelectGroup>
+            {segments.length > 0 && (
+              <SelectGroup>
+                <SelectLabel>UTM segments</SelectLabel>
+                {segments.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+              </SelectGroup>
+            )}
           </SelectContent>
         </Select>
+        {activeBuiltin && <p className="text-xs text-muted-foreground">{activeBuiltin.description}</p>}
       </div>
 
       <form className="space-y-2 border-t pt-4"
