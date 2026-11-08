@@ -3,13 +3,14 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Trash2 } from 'lucide-react';
 import { DateRangePicker } from '@/components/dashboard/DateRangePicker';
 import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
 import { useSavedFilters } from '@/hooks/useSavedFilters';
 import { useUTMSegments } from '@/contexts/UTMSegmentContext';
-import { normalizePath } from '@/lib/dashboard/filters';
+import { useTopPaths } from '@/hooks/useTopPaths';
+import { DATE_PRESETS, normalizePath, presetRange, type DatePresetId } from '@/lib/dashboard/filters';
 
 const toIso = (d: Date) => new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())).toISOString().slice(0, 10);
 const ALL = '__all__';
@@ -18,13 +19,20 @@ export function FilterPanel({ siteId }: { siteId: string }) {
   const { filters, setFilters, dateRange } = useDashboardFilters();
   const { saved, save, remove } = useSavedFilters(siteId);
   const { segments } = useUTMSegments();
+  const { data: topPaths = [] } = useTopPaths(siteId, filters.from, filters.to);
   const [pathDraft, setPathDraft] = useState(filters.path ?? '');
   const [name, setName] = useState('');
 
   // A segment id from the URL that no longer exists is treated as "All".
   const segmentValue = segments.some((s) => s.id === filters.segmentId) ? filters.segmentId! : ALL;
 
-  const applySaved = (id: string) => {
+  // Values are "preset:<id>" (built-in date range, keeps URL and segment) or "saved:<id>".
+  const applyQuick = (value: string) => {
+    const [kind, id] = [value.slice(0, value.indexOf(':')), value.slice(value.indexOf(':') + 1)];
+    if (kind === 'preset') {
+      setFilters(presetRange(id as DatePresetId, new Date()));
+      return;
+    }
     const s = saved.find((x) => x.id === id);
     if (!s) return;
     const to = new Date();
@@ -38,11 +46,26 @@ export function FilterPanel({ siteId }: { siteId: string }) {
       <h2 className="text-lg font-semibold">Filter</h2>
 
       <div className="space-y-2">
-        <Label>Saved filter</Label>
-        <Select onValueChange={applySaved}>
-          <SelectTrigger><SelectValue placeholder={saved.length ? 'Choose a saved filter' : 'No saved filters'} /></SelectTrigger>
+        <Label>Date range</Label>
+        <DateRangePicker dateRange={dateRange}
+          onDateRangeChange={(r) => { if (r?.from && r?.to) setFilters({ from: toIso(r.from), to: toIso(r.to) }); }} />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Quick filter</Label>
+        <Select value="" onValueChange={applyQuick}>
+          <SelectTrigger><SelectValue placeholder="Choose a filter" /></SelectTrigger>
           <SelectContent>
-            {saved.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+            <SelectGroup>
+              <SelectLabel>Date range</SelectLabel>
+              {DATE_PRESETS.map((p) => <SelectItem key={p.id} value={`preset:${p.id}`}>{p.label}</SelectItem>)}
+            </SelectGroup>
+            {saved.length > 0 && (
+              <SelectGroup>
+                <SelectLabel>Saved</SelectLabel>
+                {saved.map((s) => <SelectItem key={s.id} value={`saved:${s.id}`}>{s.name}</SelectItem>)}
+              </SelectGroup>
+            )}
           </SelectContent>
         </Select>
         {saved.map((s) => (
@@ -58,16 +81,20 @@ export function FilterPanel({ siteId }: { siteId: string }) {
       <div className="space-y-2">
         <Label htmlFor="filter-path">Website URL</Label>
         <Input id="filter-path" placeholder="All URLs — e.g. /pricing" value={pathDraft}
-          onChange={(e) => setPathDraft(e.target.value)}
+          onChange={(e) => {
+            setPathDraft(e.target.value);
+            // Picking a suggestion from the list applies it straight away.
+            if (topPaths.some((p) => p.path === e.target.value)) setFilters({ path: e.target.value });
+          }}
           onBlur={() => setFilters({ path: normalizePath(pathDraft) })}
-          onKeyDown={(e) => { if (e.key === 'Enter') setFilters({ path: normalizePath(pathDraft) }); }} />
-        <p className="text-xs text-muted-foreground">Matches pages that start with this path.</p>
-      </div>
-
-      <div className="space-y-2">
-        <Label>Date range</Label>
-        <DateRangePicker dateRange={dateRange}
-          onDateRangeChange={(r) => { if (r?.from && r?.to) setFilters({ from: toIso(r.from), to: toIso(r.to) }); }} />
+          onKeyDown={(e) => { if (e.key === 'Enter') setFilters({ path: normalizePath(pathDraft) }); }}
+          list="filter-path-suggestions" autoComplete="off" />
+        <datalist id="filter-path-suggestions">
+          {topPaths.map((p) => <option key={p.path} value={p.path}>{`${p.views} page views`}</option>)}
+        </datalist>
+        <p className="text-xs text-muted-foreground">
+          Matches pages that start with this path.{topPaths.length > 0 && ' Suggestions are the most viewed pages in the date range.'}
+        </p>
       </div>
 
       <div className="space-y-2">

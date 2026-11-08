@@ -1,6 +1,7 @@
 // tests/foundation/dashboard-filters.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   defaultFilters, parseFilters, writeFilters, previousPeriod, percentChange, normalizePath,
 } from '../../src/lib/dashboard/filters.ts';
@@ -51,4 +52,22 @@ test('paths are normalised from full URLs and bare input', () => {
   assert.equal(normalizePath('pricing'), '/pricing');
   assert.equal(normalizePath('  '), null);
   assert.equal(normalizePath('/50%_off'), '/50%_off');
+});
+
+test('date presets are inclusive and month presets follow calendar months', async () => {
+  const { presetRange, DATE_PRESETS } = await import('../../src/lib/dashboard/filters.ts');
+  assert.deepEqual(presetRange('last7', TODAY), { from: '2026-10-08', to: '2026-10-14' });
+  assert.deepEqual(presetRange('last30', TODAY), { from: '2026-09-15', to: '2026-10-14' });
+  assert.deepEqual(presetRange('last90', TODAY), { from: '2026-07-17', to: '2026-10-14' });
+  assert.deepEqual(presetRange('thisMonth', TODAY), { from: '2026-10-01', to: '2026-10-14' });
+  assert.deepEqual(presetRange('lastMonth', TODAY), { from: '2026-09-01', to: '2026-09-30' });
+  assert.deepEqual(presetRange('lastMonth', new Date('2026-01-10T00:00:00Z')), { from: '2025-12-01', to: '2025-12-31' });
+  assert.equal(DATE_PRESETS.length, 5);
+});
+
+test('top paths RPC checks site ownership and strips query strings', () => {
+  const sql = readFileSync('supabase/migrations/20261109000002_top_paths.sql', 'utf8');
+  assert.match(sql, /user_id = auth\.uid\(\)/);
+  assert.match(sql, /REVOKE EXECUTE[^;]+FROM PUBLIC, anon/);
+  assert.match(sql, /\[\?#\]/);
 });
