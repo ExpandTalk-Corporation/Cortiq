@@ -7,7 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Search, Globe, BarChart3, Info, TrendingUp, Target, Tag, Settings, CheckCircle } from 'lucide-react';
+import { Globe, BarChart3, Info, TrendingUp, Target, Tag, Settings, CheckCircle } from 'lucide-react';
 import { GoogleAnalyticsIntegration } from '@/components/dashboard/GoogleAnalyticsIntegration';
 import { GoogleSearchConsoleSetup } from '@/components/dashboard/GoogleSearchConsoleSetup';
 import { BrandKeywordsSettings } from '@/components/dashboard/BrandKeywordsSettings';
@@ -285,6 +285,12 @@ export function ExternalIntegrationsTab({ selectedSite }: ExternalIntegrationsTa
         </p>
       </div>
 
+      {/* Search Console first: it feeds Acquisition → Google Search, Zero-click risk and GEO. */}
+      <div className="space-y-4">
+        <GoogleSearchConsoleSetup selectedSite={selectedSite} />
+        <BrandKeywordsSettings selectedSite={selectedSite} />
+      </div>
+
       {/* Important Notice */}
       <Alert>
         <Info className="h-4 w-4" />
@@ -355,13 +361,8 @@ export function ExternalIntegrationsTab({ selectedSite }: ExternalIntegrationsTa
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="google-search-console" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="google-search-console" className="flex items-center gap-2">
-                <Search className="h-4 w-4" />
-                <span className="hidden sm:inline">Google Search Console</span>
-                <span className="sm:hidden">GSC</span>
-              </TabsTrigger>
+          <Tabs defaultValue="bing-webmaster" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="bing-webmaster" className="flex items-center gap-2">
                 <Globe className="h-4 w-4" />
                 <span className="hidden sm:inline">Bing Webmaster</span>
@@ -373,11 +374,6 @@ export function ExternalIntegrationsTab({ selectedSite }: ExternalIntegrationsTa
                 <span className="sm:hidden">GA API</span>
               </TabsTrigger>
             </TabsList>
-
-            <TabsContent value="google-search-console" className="mt-6 space-y-4">
-              <GoogleSearchConsoleSetup selectedSite={selectedSite} />
-              <BrandKeywordsSettings selectedSite={selectedSite} />
-            </TabsContent>
 
             <TabsContent value="bing-webmaster" className="mt-6">
               <BingWebmasterSetup selectedSite={selectedSite} />
