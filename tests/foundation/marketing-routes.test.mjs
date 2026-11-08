@@ -66,7 +66,15 @@ test('.htaccess 301s every retired path to its registered target', () => {
 
 test('titles and meta descriptions fit in a search result without truncation', () => {
   for (const r of MARKETING_ROUTES) {
-    assert.ok(r.title.length <= 60, `${r.path} title is ${r.title.length} chars (max 60)`);
-    assert.ok(r.description.length <= 160, `${r.path} description is ${r.description.length} chars (max 160)`);
+    assert.ok(r.title.length >= 40 && r.title.length <= 58, `${r.path} title is ${r.title.length} chars (40–58)`);
+    assert.ok(r.description.length <= 157, `${r.path} description is ${r.description.length} chars (max 157)`);
+  }
+});
+
+test('every route has a valid publication date that is not in the future', () => {
+  const today = new Date().toISOString().slice(0, 10);
+  for (const r of MARKETING_ROUTES) {
+    assert.match(r.published, /^\d{4}-\d{2}-\d{2}$/, `${r.path} published must be YYYY-MM-DD`);
+    assert.ok(r.published <= today, `${r.path} published ${r.published} is in the future`);
   }
 });
