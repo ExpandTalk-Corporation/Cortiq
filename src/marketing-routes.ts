@@ -33,7 +33,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   },
   {
     path: '/features/',
-    title: 'Features — CortIQ Analytics Platform',
+    title: 'CortIQ Features: AI Bot Analytics, Heatmaps, Consent & MCP',
     description: 'AI bot classification, server-side bot ingestion, heatmaps, form analytics, conversion attribution, an MCP server and a built-in consent banner (CMP).',
     changefreq: 'monthly',
     priority: 0.9,
@@ -78,7 +78,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   },
   {
     path: '/tracking-check/',
-    title: 'Free Website Tracking Audit: Consent & Migration — CortIQ',
+    title: 'Free Tracking Audit: Consent & Migration Check — CortIQ',
     description: 'Is your site tracking visitors before consent? See which cookies, pixels and tags load before the banner and after "Reject all", with a fix for each finding.',
     changefreq: 'monthly',
     priority: 0.8,
@@ -87,7 +87,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   },
   {
     path: '/cookie-consent-checker/',
-    title: 'Cookie Checker: Scan Cookies Before & After Consent — CortIQ',
+    title: 'Cookie Checker: Scan Before & After Consent — CortIQ',
     description: 'Free cookie checker: a real browser visits your pages before the banner is answered, after "Reject all" and "Accept all", and lists cookies, pixels and tags.',
     changefreq: 'monthly',
     priority: 0.7,
@@ -105,7 +105,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   },
   {
     path: '/pricing/',
-    title: 'Pricing — CortIQ Analytics',
+    title: 'CortIQ Pricing: Free During Beta, Enterprise on Request',
     description: 'CortIQ is free during beta: AI agent analytics, cookie-free tracking and a built-in consent banner. Create a free account, or contact us about Enterprise.',
     changefreq: 'monthly',
     priority: 0.9,
@@ -114,7 +114,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   },
   {
     path: '/api/',
-    title: 'API Documentation — CortIQ',
+    title: 'CortIQ REST API: Read-Only Analytics Data in JSON & CSV',
     description: 'CortIQ read-only REST API: sessions, page views, referrers, AI agent sessions, conversions and heatmaps as JSON or CSV. OpenAPI spec, API key authentication.',
     changefreq: 'monthly',
     priority: 0.7,
@@ -123,7 +123,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   },
   {
     path: '/docs/',
-    title: 'Getting Started — CortIQ Docs',
+    title: 'Getting Started: Install CortIQ Tracking & Consent',
     description: 'Install the CortIQ tracking script, connect your consent banner (Cookiebot or any CMP), use cookieless mode and check that data arrives. Works with SPAs.',
     changefreq: 'monthly',
     priority: 0.8,
@@ -223,7 +223,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   },
   {
     path: '/integrations/google-analytics/',
-    title: 'Google Analytics 4 Integration — CortIQ',
+    title: 'GA4 Integration: Import Google Analytics Reports — CortIQ',
     description: 'Import GA4 reports into CortIQ with read-only access: KPIs by channel, AI assistant referrals and traffic sources, next to server-side AI crawler data.',
     changefreq: 'monthly',
     priority: 0.6,
@@ -231,7 +231,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   },
   {
     path: '/integrations/mcp/',
-    title: 'MCP Server for Web Analytics — CortIQ',
+    title: 'MCP Server for Web Analytics in Claude Code — CortIQ',
     description: 'Query your web analytics from Claude Code and other MCP clients: 22 read-only tools for traffic, engagement, heatmaps, forms and AI agents. One key per site.',
     changefreq: 'monthly',
     priority: 0.7,
@@ -239,7 +239,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   },
   {
     path: '/changelog/',
-    title: 'Changelog — CortIQ',
+    title: 'CortIQ Changelog: New Features & Fixes Month by Month',
     description: 'What has shipped in CortIQ, month by month: tracking script and WordPress plugin releases, integrations, AI bot classification, GEO audits, security fixes.',
     changefreq: 'weekly',
     priority: 0.6,
@@ -257,7 +257,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   },
   {
     path: '/security/',
-    title: 'Security & Data Protection — CortIQ',
+    title: 'Security & Data Protection: EU Storage, RLS — CortIQ',
     description: 'Where CortIQ stores data (EU, Stockholm), customer isolation with row-level security, API key handling, subprocessors and how to report a vulnerability.',
     changefreq: 'monthly',
     priority: 0.6,
@@ -266,7 +266,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   },
   {
     path: '/cookies/',
-    title: 'Cookies & Browser Storage — CortIQ',
+    title: 'Cookie Policy: What CortIQ Stores in Your Browser',
     description: 'Everything cortiq.se and the CortIQ tracking script store in the browser: one consent cookie on cortiq.se, and no cookies from the tracking script.',
     changefreq: 'yearly',
     priority: 0.4,
@@ -293,7 +293,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   },
   {
     path: '/privacy/',
-    title: 'Privacy Policy — CortIQ',
+    title: 'Privacy Policy: How CortIQ Handles Your Data',
     description: 'CortIQ privacy policy: what server-side agent measurement processes, what needs analytics or marketing consent, EU storage, retention and your rights.',
     changefreq: 'yearly',
     priority: 0.4,
