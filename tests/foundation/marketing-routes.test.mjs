@@ -70,3 +70,11 @@ test('titles and meta descriptions fit in a search result without truncation', (
     assert.ok(r.description.length <= 157, `${r.path} description is ${r.description.length} chars (max 157)`);
   }
 });
+
+test('every route has a valid publication date that is not in the future', () => {
+  const today = new Date().toISOString().slice(0, 10);
+  for (const r of MARKETING_ROUTES) {
+    assert.match(r.published, /^\d{4}-\d{2}-\d{2}$/, `${r.path} published must be YYYY-MM-DD`);
+    assert.ok(r.published <= today, `${r.path} published ${r.published} is in the future`);
+  }
+});

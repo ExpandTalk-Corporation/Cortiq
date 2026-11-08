@@ -53,6 +53,42 @@ function injectSEO(html, { title, description, canonical }) {
     .replace(/(<link\s+rel="canonical"\s+href=")[^"]*(")/i, `$1${esc(canonical)}$2`);
 }
 
+// sitemap.xml — lastmod is the last commit touching the page component, so it only
+// moves when the page actually changed (falls back to today outside a git checkout).
+const today = new Date().toISOString().slice(0, 10);
+const lastmod = (file) => {
+  try {
+    return execFileSync('git', ['log', '-1', '--format=%cs', '--', file], { cwd: resolve('.'), encoding: 'utf-8' }).trim() || today;
+  } catch {
+    return today;
+  }
+};
+// Author and dates: meta tags for crawlers and SEO tools, plus WebPage JSON-LD.
+const AUTHOR = { '@type': 'Person', name: 'Daniel Larsson' };
+function injectDates(html, { title, description, canonical, published, modified }) {
+  const esc = (v) => v.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+  const ld = {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: title,
+    description,
+    url: canonical,
+    datePublished: published,
+    dateModified: modified,
+    author: AUTHOR,
+    publisher: { '@type': 'Organization', name: 'Expandtalk Corporation AB', url: SITE_ORIGIN },
+  };
+  // Escape < so page text can never close the script element.
+  const LT_ESCAPE = String.fromCharCode(92) + 'u003c';
+  const tags = [
+    `<meta property="article:published_time" content="${esc(published)}" />`,
+    `<meta property="article:modified_time" content="${esc(modified)}" />`,
+    `<meta property="article:author" content="Daniel Larsson" />`,
+    `<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, LT_ESCAPE)}</script>`,
+  ].join('\n    ');
+  return html.replace('</head>', `    ${tags}\n  </head>`);
+}
+
 let rendered = 0;
 let errors = 0;
 
@@ -62,6 +98,11 @@ for (const route of MARKETING_ROUTES) {
     const appHtml = render(url);
     let html = template.replace('<!--app-html-->', appHtml);
     html = injectSEO(html, { title: route.title, description: route.description, canonical: SITE_ORIGIN + url });
+    const modified = lastmod(route.source);
+    html = injectDates(html, {
+      title: route.title, description: route.description, canonical: SITE_ORIGIN + url,
+      published: route.published, modified: modified < route.published ? route.published : modified,
+    });
 
     const outPath = resolve(`dist${url}index.html`);
 
@@ -75,16 +116,6 @@ for (const route of MARKETING_ROUTES) {
   }
 }
 
-// sitemap.xml — lastmod is the last commit touching the page component, so it only
-// moves when the page actually changed (falls back to today outside a git checkout).
-const today = new Date().toISOString().slice(0, 10);
-const lastmod = (file) => {
-  try {
-    return execFileSync('git', ['log', '-1', '--format=%cs', '--', file], { cwd: resolve('.'), encoding: 'utf-8' }).trim() || today;
-  } catch {
-    return today;
-  }
-};
 const sitemap = [
   '<?xml version="1.0" encoding="UTF-8"?>',
   '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
