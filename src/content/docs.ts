@@ -155,7 +155,7 @@ export const INTEGRATIONS: ContentPageData = {
         {
           type: 'list',
           items: [
-            '[WordPress plugin](/integrations/wordpress/): tracking script, consent banner and Google Consent Mode v2 in one plugin.',
+            '[WordPress plugin](/integrations/wordpress/): tracking script, consent banner (Swedish, English, German, French, Portuguese) and Google Consent Mode v2 in one plugin.',
             '[Server-side agent measurement](/integrations/server-side/): adapters for Next.js / Vercel, Netlify, Cloudflare, Node / Express, WordPress and any server. Classifies crawlers that never run JavaScript.',
             '[Cloudflare Worker](/integrations/cloudflare/): the zero-code option for any site behind Cloudflare, whatever builds or hosts it.',
             '[Google Analytics 4](/integrations/google-analytics/): read-only import of GA4 reports next to CortIQ data.',
