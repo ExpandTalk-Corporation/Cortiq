@@ -8,7 +8,6 @@ import { DashboardSidebar } from '@/components/dashboard/nav/DashboardSidebar';
 import { TAB_ALIASES } from '@/components/dashboard/nav/navSections';
 import { useHasConversions } from '@/hooks/useHasConversions';
 import { useSites } from '@/hooks/useSites';
-import { useAnalytics } from '@/hooks/useAnalytics';
 import { DashboardFiltersProvider, useDashboardFilters } from '@/contexts/DashboardFiltersContext';
 import { UTMSegmentProvider } from '@/contexts/UTMSegmentContext';
 
@@ -23,7 +22,6 @@ export default function Dashboard() {
 function DashboardBody() {
   const { sites, selectedSite, setSelectedSite, loadSites, patchSite, loading } = useSites();
   const { dateRange } = useDashboardFilters();
-  const { analytics } = useAnalytics(selectedSite?.id || null, dateRange);
   // Active tab lives in the URL (?tab=) so it deep-links, survives refresh and works with Back.
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get('tab') || 'overview';
@@ -71,7 +69,6 @@ function DashboardBody() {
               <main className="min-w-0">
                 <DashboardTabs
                   selectedSite={selectedSite}
-                  analytics={analytics}
                   dateRange={dateRange}
                   activeTab={activeTab}
                   onTabChange={setActiveTab}

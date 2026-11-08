@@ -10103,7 +10103,13 @@ export type Database = {
         }[]
       }
       get_analytics_summary: {
-        Args: { p_from: string; p_site_id: string; p_to: string }
+        Args: {
+          p_from: string
+          p_path?: string
+          p_segment?: Json
+          p_site_id: string
+          p_to: string
+        }
         Returns: Json
       }
       get_attribution_gap: {
@@ -10130,7 +10136,13 @@ export type Database = {
         }[]
       }
       get_campaign_breakdown: {
-        Args: { p_from: string; p_site_id: string; p_to: string }
+        Args: {
+          p_from: string
+          p_path?: string
+          p_segment?: Json
+          p_site_id: string
+          p_to: string
+        }
         Returns: Json
       }
       get_cloudflare_traffic_summary: {
@@ -10144,7 +10156,13 @@ export type Database = {
       get_freshness_emoji: { Args: { last_updated: string }; Returns: string }
       get_freshness_status: { Args: { last_updated: string }; Returns: string }
       get_geo_breakdown: {
-        Args: { p_from: string; p_site_id: string; p_to: string }
+        Args: {
+          p_from: string
+          p_path?: string
+          p_segment?: Json
+          p_site_id: string
+          p_to: string
+        }
         Returns: Json
       }
       get_gsc_aggregated: {
@@ -10218,7 +10236,13 @@ export type Database = {
         }[]
       }
       get_navigation_flow: {
-        Args: { p_from: string; p_site_id: string; p_to: string }
+        Args: {
+          p_from: string
+          p_path?: string
+          p_segment?: Json
+          p_site_id: string
+          p_to: string
+        }
         Returns: Json
       }
       get_overview_metrics: {
@@ -10261,7 +10285,13 @@ export type Database = {
         }[]
       }
       get_social_daily: {
-        Args: { p_from: string; p_site_id: string; p_to: string }
+        Args: {
+          p_from: string
+          p_path?: string
+          p_segment?: Json
+          p_site_id: string
+          p_to: string
+        }
         Returns: Json
       }
       get_social_monthly: {
