@@ -14,7 +14,7 @@ export const BUILTIN_SEGMENTS: { key: BuiltinSegmentKey; label: string; descript
   { key: 'organic', label: 'Organic search', description: 'Came from a search engine without a paid utm_medium.' },
   { key: 'paid', label: 'Paid traffic', description: 'Landing link has a paid utm_medium, as in Ads.' },
   { key: 'social', label: 'Social media', description: 'Same platforms as the Social media tab, paid social included.' },
-  { key: 'ai', label: 'AI referrals', description: 'People who clicked a link in ChatGPT, Perplexity, Claude or Gemini. AI bots are not visits and are not included.' },
+  { key: 'ai', label: 'AI referrals', description: 'People who clicked a link in ChatGPT, Perplexity, Claude, Gemini, Copilot, You.com or Phind. AI bots are not visits and are not included.' },
   { key: 'direct', label: 'Direct', description: 'No referrer and no UTM tags.' },
 ];
 

@@ -111,7 +111,7 @@ export const GLOSSARY: ContentPageData = {
             {
               id: 'ai-referral',
               term: 'AI referral',
-              definition: 'A human visit that arrived from an AI assistant: the referrer is ChatGPT, Perplexity, Claude or Gemini, or the UTM source names one of them. These are people clicking a link in an answer, not bots. See [AI traffic](#ai-traffic) for the bots themselves.',
+              definition: 'A human visit that arrived from an AI assistant: the referrer is ChatGPT, Perplexity, Claude, Gemini, Microsoft Copilot, You.com or Phind, or the UTM source names one of them. These are people clicking a link in an answer, not bots. See [AI traffic](#ai-traffic) for the bots themselves.',
             },
           ],
         },
