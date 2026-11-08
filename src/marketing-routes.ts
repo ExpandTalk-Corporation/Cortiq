@@ -190,7 +190,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   },
   {
     path: '/integrations/',
-    title: 'Integrations — CortIQ',
+    title: 'Integrations: WordPress, Cloudflare, GA4 & MCP — CortIQ',
     description: 'Connect CortIQ to WordPress, Cloudflare, Google Analytics 4 and MCP clients like Claude Code, or use the REST API. What works today and what is coming.',
     changefreq: 'monthly',
     priority: 0.8,
@@ -275,7 +275,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   },
   {
     path: '/terms/',
-    title: 'Terms of Service — CortIQ',
+    title: 'Terms of Service: Free Beta, DPA & Swedish Law — CortIQ',
     description: 'Terms of Service for CortIQ: beta and fees, your data and the Data Processing Agreement, acceptable use, liability, termination and Swedish governing law.',
     changefreq: 'yearly',
     priority: 0.4,
@@ -284,7 +284,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   },
   {
     path: '/contact/',
-    title: 'Contact — CortIQ',
+    title: 'Contact CortIQ: Help With AI Bot & Cookieless Analytics',
     description: 'Get in touch with the CortIQ team. CortIQ is free during beta — ask about AI agent tracking, cookie-free analytics or Enterprise onboarding.',
     changefreq: 'yearly',
     priority: 0.5,
