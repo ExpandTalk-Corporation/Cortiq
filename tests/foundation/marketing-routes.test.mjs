@@ -61,3 +61,10 @@ test('.htaccess 301s every retired path to its registered target', () => {
     assert.ok(htaccess.includes(`RewriteRule ^${from.slice(1)}/?$ https://%{HTTP_HOST}${to} [L,R=301]`), `missing 301 for ${from}`);
   }
 });
+
+test('titles and meta descriptions fit in a search result without truncation', () => {
+  for (const r of MARKETING_ROUTES) {
+    assert.ok(r.title.length <= 60, `${r.path} title is ${r.title.length} chars (max 60)`);
+    assert.ok(r.description.length <= 160, `${r.path} description is ${r.description.length} chars (max 160)`);
+  }
+});
