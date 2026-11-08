@@ -155,3 +155,28 @@ export function trendBuckets(from: string, to: string): {
   }
   return { granularity: 'month', keys: monthsInRange(from, to), keyOf: (date) => date.slice(0, 7) };
 }
+
+export type DatePresetId = 'last7' | 'last30' | 'last90' | 'thisMonth' | 'lastMonth';
+
+/** Built-in date ranges, offered before the user has saved any filter of their own. */
+export const DATE_PRESETS: { id: DatePresetId; label: string }[] = [
+  { id: 'last7', label: 'Last 7 days' },
+  { id: 'last30', label: 'Last 30 days' },
+  { id: 'last90', label: 'Last 90 days' },
+  { id: 'thisMonth', label: 'This month' },
+  { id: 'lastMonth', label: 'Last month' },
+];
+
+/** Inclusive range for a preset; "last N days" includes today (UTC). */
+export function presetRange(id: DatePresetId, today: Date): { from: string; to: string } {
+  const end = utcDay(today);
+  const y = end.getUTCFullYear();
+  const m = end.getUTCMonth();
+  switch (id) {
+    case 'last7': return { from: toIso(addDays(end, -6)), to: toIso(end) };
+    case 'last30': return { from: toIso(addDays(end, -29)), to: toIso(end) };
+    case 'last90': return { from: toIso(addDays(end, -89)), to: toIso(end) };
+    case 'thisMonth': return { from: toIso(new Date(Date.UTC(y, m, 1))), to: toIso(end) };
+    case 'lastMonth': return { from: toIso(new Date(Date.UTC(y, m - 1, 1))), to: toIso(new Date(Date.UTC(y, m, 0))) };
+  }
+}
