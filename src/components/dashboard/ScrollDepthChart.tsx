@@ -2,10 +2,10 @@ import { useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { TrendingDown, Users } from 'lucide-react';
-import type { HeatmapPoint } from '@/types/dashboard';
 
 interface ScrollDepthChartProps {
-  heatmapData: HeatmapPoint[];
+  /** Page views that reached each milestone (25, 50, 75, 100), counted server-side. */
+  counts: Record<number, number>;
   selectedUrl: string;
   loading?: boolean;
 }
@@ -19,7 +19,7 @@ function CustomTooltip({ active, payload }: any) {
   return (
     <div className="bg-background border border-border rounded-lg p-3 shadow-lg text-sm">
       <p className="font-medium">{d.label}</p>
-      <p className="text-muted-foreground">{d.sessions.toLocaleString()} sessions reached this depth</p>
+      <p className="text-muted-foreground">{d.views.toLocaleString()} page views reached this depth</p>
       {d.dropoff > 0 && (
         <p className="text-red-400 text-xs mt-1">−{d.dropoff}% dropped off before here</p>
       )}
@@ -27,57 +27,29 @@ function CustomTooltip({ active, payload }: any) {
   );
 }
 
-export function ScrollDepthChart({ heatmapData, selectedUrl, loading }: ScrollDepthChartProps) {
+// The tracker sends each milestone once per page view (passing 75% on load sends 25, 50 and 75),
+// and heatmap_data rows carry no session, so the funnel counts page views per milestone.
+export function ScrollDepthChart({ counts, selectedUrl, loading }: ScrollDepthChartProps) {
   const chartData = useMemo(() => {
-    // Count unique sessions per scroll milestone
-    const sessionsByDepth: Record<number, Set<string>> = { 25: new Set(), 50: new Set(), 75: new Set(), 100: new Set() };
-
-    for (const point of heatmapData) {
-      const depth = point.y_coordinate ?? (point as any).scroll_depth;
-      const sessionId = (point as any).session_id ?? String(point.x_coordinate);
-      if (MILESTONES.includes(depth)) {
-        // A session that reached 75% also reached 25% and 50%
-        for (const m of MILESTONES) {
-          if (m <= depth) sessionsByDepth[m].add(sessionId);
-        }
-      }
-    }
-
-    // If no session_id available, count raw events per milestone
-    const hasSessionData = Object.values(sessionsByDepth).some(s => s.size > 0);
-    if (!hasSessionData) {
-      const counts: Record<number, number> = { 25: 0, 50: 0, 75: 0, 100: 0 };
-      for (const point of heatmapData) {
-        const depth = point.y_coordinate ?? (point as any).scroll_depth;
-        if (MILESTONES.includes(depth)) counts[depth] = (counts[depth] || 0) + 1;
-      }
-      const max = counts[25] || 1;
-      return MILESTONES.map((m, i) => ({
-        milestone: m,
-        label: `${m}% scroll depth`,
-        sessions: counts[m],
-        pct: max > 0 ? Math.round((counts[m] / max) * 100) : 0,
-        dropoff: i === 0 ? 0 : Math.max(0, Math.round(((counts[MILESTONES[i - 1]] - counts[m]) / Math.max(counts[MILESTONES[i - 1]], 1)) * 100)),
-      }));
-    }
-
-    const max = sessionsByDepth[25].size || 1;
+    const at = (m: number) => counts[m] ?? 0;
+    const max = at(25) || 1;
     return MILESTONES.map((m, i) => ({
       milestone: m,
       label: `${m}% scroll depth`,
-      sessions: sessionsByDepth[m].size,
-      pct: Math.round((sessionsByDepth[m].size / max) * 100),
-      dropoff: i === 0 ? 0 : Math.max(0, Math.round(((sessionsByDepth[MILESTONES[i - 1]].size - sessionsByDepth[m].size) / Math.max(sessionsByDepth[MILESTONES[i - 1]].size, 1)) * 100)),
+      views: at(m),
+      pct: Math.round((at(m) / max) * 100),
+      dropoff: i === 0 ? 0 : Math.max(0, Math.round(((at(MILESTONES[i - 1]) - at(m)) / Math.max(at(MILESTONES[i - 1]), 1)) * 100)),
     }));
-  }, [heatmapData]);
+  }, [counts]);
 
-  const totalSessions = chartData[0]?.sessions ?? 0;
-  const reachedBottom = chartData[3]?.sessions ?? 0;
+  const totalViews = chartData[0]?.views ?? 0;
+  const reachedBottom = chartData[3]?.views ?? 0;
+  // Average of the deepest milestone each page view reached (page views that reached 25%).
   const avgDepth = useMemo(() => {
-    if (totalSessions === 0) return 0;
-    const weights = chartData.map(d => d.sessions * d.milestone);
-    return Math.round(weights.reduce((a, b) => a + b, 0) / (totalSessions * MILESTONES.length));
-  }, [chartData, totalSessions]);
+    if (totalViews === 0) return 0;
+    const sum = chartData.reduce((acc, d, i) => acc + Math.max(0, d.views - (chartData[i + 1]?.views ?? 0)) * d.milestone, 0);
+    return Math.round(sum / totalViews);
+  }, [chartData, totalViews]);
 
   if (loading) {
     return (
@@ -89,7 +61,7 @@ export function ScrollDepthChart({ heatmapData, selectedUrl, loading }: ScrollDe
     );
   }
 
-  if (totalSessions === 0) {
+  if (totalViews === 0) {
     return (
       <Card className="border-dashed">
         <CardContent className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
@@ -111,9 +83,9 @@ export function ScrollDepthChart({ heatmapData, selectedUrl, loading }: ScrollDe
           <CardContent className="pt-5">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
               <Users className="h-4 w-4" />
-              <span className="text-xs font-medium">Total sessions</span>
+              <span className="text-xs font-medium">Page views past 25%</span>
             </div>
-            <div className="text-2xl font-bold">{totalSessions.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{totalViews.toLocaleString()}</div>
           </CardContent>
         </Card>
         <Card>
@@ -123,9 +95,9 @@ export function ScrollDepthChart({ heatmapData, selectedUrl, loading }: ScrollDe
               <span className="text-xs font-medium">Reached bottom</span>
             </div>
             <div className="text-2xl font-bold">
-              {totalSessions > 0 ? Math.round((reachedBottom / totalSessions) * 100) : 0}%
+              {totalViews > 0 ? Math.round((reachedBottom / totalViews) * 100) : 0}%
             </div>
-            <p className="text-xs text-muted-foreground">{reachedBottom.toLocaleString()} sessions</p>
+            <p className="text-xs text-muted-foreground">{reachedBottom.toLocaleString()} page views</p>
           </CardContent>
         </Card>
         <Card>

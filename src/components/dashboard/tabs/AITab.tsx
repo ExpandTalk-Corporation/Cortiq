@@ -36,7 +36,6 @@ export function AITab({ selectedSite }: AITabProps) {
   // Normalize data structure
   const data = useNative && nativeResult.data ? {
     totalSessions: nativeResult.data.totalSessions,
-    totalUsers: nativeResult.data.totalUsers,
     totalPageviews: nativeResult.data.totalPageviews,
     bounceRate: nativeResult.data.bounceRate,
     avgSessionDuration: nativeResult.data.avgSessionDuration,
@@ -145,11 +144,12 @@ export function AITab({ selectedSite }: AITabProps) {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Unique Users</CardTitle>
+            {/* Cookie-free tracking stores no visitor ID, so it reports page views instead of users. */}
+            <CardTitle className="text-sm font-medium">{useNative ? 'Page Views' : 'Unique Users'}</CardTitle>
             <MousePointer className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data?.totalUsers || 0}</div>
+            <div className="text-2xl font-bold">{(useNative ? (data as any)?.totalPageviews : (data as any)?.totalUsers) || 0}</div>
             <p className="text-xs text-muted-foreground">
               From AI platforms
             </p>
@@ -201,7 +201,7 @@ export function AITab({ selectedSite }: AITabProps) {
                 <TableRow>
                   <TableHead>Platform</TableHead>
                   <TableHead className="text-right">Sessions</TableHead>
-                  <TableHead className="text-right">Users</TableHead>
+                  {!useNative && <TableHead className="text-right">Users</TableHead>}
                   <TableHead className="text-right">Conversions</TableHead>
                   <TableHead className="text-right">Engagement</TableHead>
                   <TableHead className="text-right">Avg. duration</TableHead>
@@ -221,7 +221,7 @@ export function AITab({ selectedSite }: AITabProps) {
                       </div>
                     </TableCell>
                     <TableCell className="text-right">{platform.sessions}</TableCell>
-                    <TableCell className="text-right">{platform.users}</TableCell>
+                    {!useNative && <TableCell className="text-right">{(platform as any).users}</TableCell>}
                     <TableCell className="text-right">{useNative ? 'N/A' : (platform as any).conversions || 0}</TableCell>
                     <TableCell className="text-right">
                       <Badge 
@@ -284,17 +284,17 @@ export function AITab({ selectedSite }: AITabProps) {
                 <TableRow>
                   <TableHead>Page</TableHead>
                   <TableHead className="text-right">Sessions</TableHead>
-                  <TableHead className="text-right">Users</TableHead>
+                  {!useNative && <TableHead className="text-right">Users</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {data.topLandingPages.slice(0, 5).map((page, index) => (
                   <TableRow key={index}>
                     <TableCell className="font-mono text-sm max-w-md truncate">
-                      {page.page}
+                      {(page as any).page ?? (page as any).url}
                     </TableCell>
                     <TableCell className="text-right">{page.sessions}</TableCell>
-                    <TableCell className="text-right">{page.users}</TableCell>
+                    {!useNative && <TableCell className="text-right">{(page as any).users}</TableCell>}
                   </TableRow>
                 ))}
               </TableBody>

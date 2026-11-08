@@ -1,7 +1,7 @@
 /**
  * CortIQ Advanced Tracking Script
  * Unified visitor profiling with AI agent detection
- * Version: 5.5.9 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
+ * Version: 5.5.10 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
  *
  * Usage:
  * <script>
@@ -17,7 +17,7 @@
   'use strict';
 
   // Keep in sync with wordpress-plugin/cortiq-analytics.php (CORTIQ_VERSION).
-  const CORTIQ_VERSION = '5.5.9';
+  const CORTIQ_VERSION = '5.5.10';
 
   // Configuration: window.cortiqConfig, overridden by data-* attributes on this script
   // tag, so a single-tag install (<script src=… data-site-id=…>) works and a tag that
@@ -1060,17 +1060,25 @@
   };
   function detectKnownAgent(ua) { for (const k in AI_BOT_UA) if (ua.indexOf(k) !== -1) return AI_BOT_UA[k]; return null; }
 
+  // Same hosts and utm_source prefixes as builtin_segment_match (20261110000001_ai_referral_hosts.sql).
+  // Hosts match exactly or as a subdomain, so bayou.com is not you.com; sources match as a prefix,
+  // so "mail" or "email" no longer count as AI.
   const AI_REFERRER = {
     'chat.openai.com': 'chatgpt', 'chatgpt.com': 'chatgpt', 'perplexity.ai': 'perplexity',
-    'www.perplexity.ai': 'perplexity', 'claude.ai': 'claude', 'anthropic.com': 'claude',
-    'gemini.google.com': 'gemini', 'bard.google.com': 'gemini', 'copilot.microsoft.com': 'copilot',
-    'you.com': 'you', 'phind.com': 'phind',
+    'claude.ai': 'claude', 'gemini.google.com': 'gemini', 'bard.google.com': 'gemini',
+    'copilot.microsoft.com': 'copilot', 'you.com': 'you', 'phind.com': 'phind',
   };
+  const AI_SOURCE = /^(chatgpt|openai|perplexity|claude|gemini|bard|copilot|phind)/;
   function detectAIReferrer() {
     const ref = document.referrer;
-    if (ref) { try { const h = new URL(ref).hostname.toLowerCase(); for (const k in AI_REFERRER) if (h.indexOf(k) !== -1) return AI_REFERRER[k]; } catch (_) {} }
+    if (ref) {
+      try {
+        const h = new URL(ref).hostname.toLowerCase();
+        for (const k in AI_REFERRER) if (h === k || h.slice(-(k.length + 1)) === '.' + k) return AI_REFERRER[k];
+      } catch (_) {}
+    }
     const src = (new URLSearchParams(window.location.search).get('utm_source') || '').toLowerCase();
-    return ['chatgpt', 'perplexity', 'claude', 'gemini', 'ai'].some(function (k) { return src.indexOf(k) !== -1; }) ? 'other_ai' : null;
+    return AI_SOURCE.test(src) ? 'other_ai' : null;
   }
 
   function getBotSignals() {
@@ -1141,8 +1149,7 @@
   function trackAICitation() {
     const p = new URLSearchParams(window.location.search);
     const src = p.get('utm_source') || '';
-    const ref = document.referrer.toLowerCase();
-    if (!['chatgpt', 'perplexity', 'claude', 'gemini', 'ai'].some(function (k) { return src.includes(k) || ref.includes(k); })) return;
+    if (!detectAIReferrer()) return;
     const payload = JSON.stringify({ siteId: SITE_ID, url: window.location.href, referrer: document.referrer, userAgent: navigator.userAgent, sessionId: SECURITY_SESSION_ID, citationData: { url: window.location.href, utm_source: src, utm_medium: p.get('utm_medium'), utm_campaign: p.get('utm_campaign') } });
     try {
       if (navigator.sendBeacon) navigator.sendBeacon(API_URL + '/ai-bot-tracker', payload);

@@ -104,7 +104,7 @@ export function AnalyticsOverview({ analytics }: AnalyticsOverviewProps) {
             <p className="text-xs text-muted-foreground">
               <strong>GA4 Update:</strong> We now use Engagement Rate and Average Engagement Time
               instead of Bounce Rate, in line with Google Analytics 4 standards.
-              Engagement = session {'>'}10s OR {'>'}1 page view OR conversion.
+              Engaged visit = visit longer than 10 s OR more than 1 page view. Unlike GA4, conversions do not count.
             </p>
           </div>
         </CardContent>

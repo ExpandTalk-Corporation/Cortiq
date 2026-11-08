@@ -14,11 +14,14 @@ export interface HeatmapFilters {
   interactionType?: 'click' | 'scroll' | 'mousemove' | 'all';
 }
 
+const SCROLL_MILESTONES = [25, 50, 75, 100];
+
 export function useHeatmapData(siteId: string | null) {
   const [heatmapData, setHeatmapData] = useState<HeatmapPoint[]>([]);
   const [topPages, setTopPages] = useState<PageHeatmapData[]>([]);
   const [selectedUrl, setSelectedUrl] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [scrollCounts, setScrollCounts] = useState<Record<number, number>>({});
 
   const loadTopPages = async (siteId: string) => {
     try {
@@ -50,37 +53,65 @@ export function useHeatmapData(siteId: string | null) {
     }
   };
 
+  // Shared filters for the point query and the scroll milestone counts.
+  const applyFilters = <Q extends { gte: any; lte: any; eq: any }>(query: Q, deviceType: string, days: number, dateRange?: { from: Date; to: Date }): Q => {
+    let q = query;
+    // Apply date filter: prefer explicit dateRange, else days
+    if (dateRange?.from && dateRange?.to) {
+      const fromIso = new Date(dateRange.from).toISOString();
+      const toBase = new Date(dateRange.to);
+      const today = new Date();
+      const toIso = new Date(Math.min(toBase.getTime(), today.getTime())).toISOString();
+      q = q.gte('created_at', fromIso).lte('created_at', toIso);
+    } else if (days && days < 365) {
+      const filterDate = new Date();
+      filterDate.setDate(filterDate.getDate() - days);
+      q = q.gte('created_at', filterDate.toISOString());
+    }
+    if (deviceType !== 'all') {
+      q = q.eq('device_type', deviceType);
+    }
+    return q;
+  };
+
   const loadHeatmapData = async (siteId: string, url: string, filters: HeatmapFilters = {}, dateRange?: { from: Date; to: Date }) => {
     if (!url) return;
     
     try {
       setLoading(true);
       const { deviceType = 'all', days = 365, interactionType = 'click' } = filters;
-      
-      let query = supabase
-        .from('heatmap_data')
-        .select('x_coordinate, y_coordinate, grid_x, grid_y, viewport_width, viewport_height, intensity, interaction_type, device_type, url, created_at')
-        .eq('site_id', siteId)
-        .eq('url', url)
-        .order('intensity', { ascending: false })
-        .limit(625);
-      
-      // Apply date filter: prefer explicit dateRange, else days
-      if (dateRange?.from && dateRange?.to) {
-        const fromIso = new Date(dateRange.from).toISOString();
-        const toBase = new Date(dateRange.to);
-        const today = new Date();
-        const toIso = new Date(Math.min(toBase.getTime(), today.getTime())).toISOString();
-        query = query.gte('created_at', fromIso).lte('created_at', toIso);
-      } else if (days && days < 365) {
-        const filterDate = new Date();
-        filterDate.setDate(filterDate.getDate() - days);
-        query = query.gte('created_at', filterDate.toISOString());
+
+      if (interactionType === 'scroll') {
+        // One row per page view and milestone (y_coordinate = 25/50/75/100). Exact counts per
+        // milestone, so busy pages are not cut off by a row limit.
+        const results = await Promise.all(SCROLL_MILESTONES.map((m) =>
+          applyFilters(
+            supabase
+              .from('heatmap_data')
+              .select('id', { count: 'exact', head: true })
+              .eq('site_id', siteId)
+              .eq('url', url)
+              .eq('interaction_type', 'scroll')
+              .eq('y_coordinate', m),
+            deviceType, days, dateRange,
+          )
+        ));
+        const failed = results.find((r) => r.error);
+        if (failed?.error) throw failed.error;
+        setScrollCounts(Object.fromEntries(SCROLL_MILESTONES.map((m, i) => [m, results[i].count ?? 0])));
+        return;
       }
 
-      if (deviceType !== 'all') {
-        query = query.eq('device_type', deviceType);
-      }
+      let query = applyFilters(
+        supabase
+          .from('heatmap_data')
+          .select('x_coordinate, y_coordinate, grid_x, grid_y, viewport_width, viewport_height, intensity, interaction_type, device_type, url, created_at')
+          .eq('site_id', siteId)
+          .eq('url', url)
+          .order('intensity', { ascending: false })
+          .limit(625),
+        deviceType, days, dateRange,
+      );
 
       if (interactionType !== 'all') {
         query = query.or(`interaction_type.eq.${interactionType},interaction_type.like.${interactionType}_%`);
@@ -112,6 +143,7 @@ export function useHeatmapData(siteId: string | null) {
 
   return { 
     heatmapData, 
+    scrollCounts,
     topPages, 
     selectedUrl, 
     setSelectedUrl, 

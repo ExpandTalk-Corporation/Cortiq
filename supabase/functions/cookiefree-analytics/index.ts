@@ -152,7 +152,11 @@ serve(async (req) => {
     }, {} as Record<string, number>) || {};
 
     // 🎯 Estimated Business Metrics
-    const consentRate = acceptanceRate / 100;
+    // Sessions are tracked after analytics consent, so the estimate scales by the share of
+    // banner answers that granted analytics — the same rule as src/lib/consentAcceptance.ts.
+    // acceptanceRate above is "accept all" (analytics + marketing + preferences), a stricter figure.
+    const analyticsGranted = cookieConsents?.filter(c => c.consent_types?.analytics === true).length || 0;
+    const consentRate = totalBannerViews > 0 ? analyticsGranted / totalBannerViews : 0;
     const estimatedTotalSessions = consentRate > 0 ? Math.round(totalSessions / consentRate) : totalSessions;
     const estimatedLostData = Math.round(estimatedTotalSessions - totalSessions);
     const dataLossPercentage = estimatedTotalSessions > 0 ? (estimatedLostData / estimatedTotalSessions * 100) : 0;
