@@ -312,7 +312,7 @@ export const GLOSSARY: ContentPageData = {
             {
               id: 'effective-conversions',
               term: 'Effective conversions',
-              definition: 'The conversions an ad platform pixel could actually see in the last 30 days. Aggregate conversions are counted without consent, so they are scaled by the banner acceptance rate (50% when there is no banner data yet). Consent-based conversions are used as they are.',
+              definition: 'The conversions an ad platform pixel could actually see in the last 30 days. Aggregate conversions do not depend on the banner choice, so they are scaled by the banner acceptance rate (50% when there is no banner data yet). Consent-based conversions are used as they are.',
               formula: 'aggregate conversions × banner acceptance rate',
             },
             {
