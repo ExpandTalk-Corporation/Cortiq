@@ -7,7 +7,7 @@ import PublicNavigation from "@/components/PublicNavigation";
 import PublicFooter from "@/components/PublicFooter";
 import { useSEO } from "@/hooks/useSEO";
 import { seoFor, SITE_ORIGIN } from "@/marketing-routes";
-import type { Block, ContentPageData } from "@/content/types";
+import type { Block, ContentPageData, Term } from "@/content/types";
 
 // Renders `[label](href)` as links, `code` spans and **bold**; everything else is plain text.
 function inline(text: string): ReactNode[] {
@@ -54,6 +54,30 @@ function renderBlock(block: Block, i: number) {
           <code>{block.code}</code>
         </pre>
       );
+    case "terms":
+      return (
+        <dl key={i} className="divide-y border-y">
+          {block.items.map((t) => (
+            <div key={t.id} id={t.id} className="py-5 scroll-mt-24 space-y-2">
+              <dt className="text-lg font-semibold">
+                <a href={`#${t.id}`} className="hover:text-primary">{t.term}</a>
+              </dt>
+              <dd className="text-muted-foreground leading-relaxed">{inline(t.definition)}</dd>
+              {t.formula && (
+                <dd className="text-sm">
+                  <span className="font-medium">Formula: </span>
+                  <code className="px-1.5 py-0.5 rounded bg-muted font-mono text-[0.9em]">{t.formula}</code>
+                </dd>
+              )}
+              {t.ga4 && (
+                <dd className="text-sm text-muted-foreground">
+                  <span className="font-medium text-foreground">GA4: </span>{inline(t.ga4)}
+                </dd>
+              )}
+            </div>
+          ))}
+        </dl>
+      );
     case "note": {
       const warning = block.tone === "warning";
       const Icon = warning ? AlertTriangle : Info;
@@ -76,11 +100,27 @@ export default function ContentPage({ page }: { page: ContentPageData }) {
     "@type": "BreadcrumbList",
     itemListElement: crumbs.map((c, i) => ({ "@type": "ListItem", position: i + 1, name: c.label, item: SITE_ORIGIN + c.path })),
   };
+  const terms = page.sections.flatMap((s) => s.blocks.flatMap((b): Term[] => (b.type === "terms" ? b.items : [])));
+  const termSetLd = terms.length > 0 && {
+    "@context": "https://schema.org",
+    "@type": "DefinedTermSet",
+    "@id": SITE_ORIGIN + page.path,
+    name: page.h1,
+    hasDefinedTerm: terms.map((t) => ({
+      "@type": "DefinedTerm",
+      "@id": `${SITE_ORIGIN}${page.path}#${t.id}`,
+      name: t.term,
+      // Strip the inline link/code/bold markers so the description is plain text.
+      description: t.definition.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").replace(/[`*]/g, ""),
+      inDefinedTermSet: SITE_ORIGIN + page.path,
+    })),
+  };
 
   return (
     <div className="min-h-screen bg-background">
       <PublicNavigation />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
+      {termSetLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(termSetLd) }} />}
 
       <div className="container mx-auto px-4 py-12 max-w-6xl">
         <nav aria-label="Breadcrumb" className="mb-8 text-sm text-muted-foreground">
