@@ -5,8 +5,11 @@ import { OverviewTab } from './tabs/OverviewTab';
 import { FilterScopeNotice } from './FilterScopeNotice';
 import { HIDDEN_TABS } from './nav/navSections';
 import { PixelReadinessCard } from './PixelReadinessCard';
-import type { Site, Analytics } from '@/types/dashboard';
+import type { Site } from '@/types/dashboard';
 import type { SitePatch } from '@/hooks/useSites';
+import { useAnalytics } from '@/hooks/useAnalytics';
+import { useFilterParams } from '@/hooks/useFilterParams';
+import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
 
 const HeatmapTab               = lazy(() => import('./tabs/HeatmapTab').then(m => ({ default: m.HeatmapTab })));
 const AnalyticsTab             = lazy(() => import('./tabs/AnalyticsTab').then(m => ({ default: m.AnalyticsTab })));
@@ -60,6 +63,9 @@ const DATE_AWARE = new Set([
   'ecommerce', 'social-media', 'kpi', 'paid-ads',
 ]);
 
+// Tabs whose RPCs also apply the URL and segment filters (public.session_matches_filters).
+const FILTER_AWARE = new Set(['analytics', 'geolocation', 'campaigns', 'navigation', 'social-media']);
+
 // Tabs where the global filters have no meaning (settings, live view, latest alerts):
 // no "does not apply the filter" notice.
 const NO_FILTER_NOTICE = new Set([
@@ -70,7 +76,6 @@ const NO_FILTER_NOTICE = new Set([
 
 interface DashboardTabsProps {
   selectedSite: Site;
-  analytics: Analytics | null;
   dateRange?: import('react-day-picker').DateRange;
   onSiteDeleted?: () => void;
   onSiteUpdated?: (patch: SitePatch) => void;
@@ -78,14 +83,17 @@ interface DashboardTabsProps {
   onTabChange: (value: string) => void;
 }
 
-function DashboardTabsInner({ selectedSite, analytics, dateRange, onSiteDeleted, onSiteUpdated, activeTab, onTabChange }: DashboardTabsProps) {
+function DashboardTabsInner({ selectedSite, dateRange, onSiteDeleted, onSiteUpdated, activeTab, onTabChange }: DashboardTabsProps) {
   // Active tab lives in the URL (?tab=); Dashboard.tsx owns it so the numbered sidebar
   // (DashboardSidebar) and this content switch share one value.
   const setActiveTab = onTabChange;
+  const filterParams = useFilterParams();
+  const { dateRange: filterRange } = useDashboardFilters();
+  const { analytics } = useAnalytics(selectedSite.id, filterRange, filterParams);
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 w-full">
-      {!NO_FILTER_NOTICE.has(activeTab) && !HIDDEN_TABS[activeTab] && <FilterScopeNotice supports={{ date: DATE_AWARE.has(activeTab) }} />}
+      {!NO_FILTER_NOTICE.has(activeTab) && !HIDDEN_TABS[activeTab] && <FilterScopeNotice supports={{ date: DATE_AWARE.has(activeTab), filters: FILTER_AWARE.has(activeTab) }} />}
       {HIDDEN_TABS[activeTab] && (
         <div role="note" className="rounded-md border bg-muted/40 px-4 py-6 text-sm text-muted-foreground">
           {HIDDEN_TABS[activeTab]}

@@ -2,11 +2,11 @@
 import { Info } from 'lucide-react';
 import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
 
-export function FilterScopeNotice({ supports }: { supports: { date: boolean } }) {
+export function FilterScopeNotice({ supports }: { supports: { date: boolean; filters?: boolean } }) {
   const { filters } = useDashboardFilters();
   const ignored = [
-    filters.path && 'URL',
-    filters.segmentId && 'segment',
+    !supports.filters && filters.path && 'URL',
+    !supports.filters && filters.segmentId && 'segment',
     !supports.date && 'date range',
   ].filter(Boolean) as string[];
   if (!ignored.length) return null;

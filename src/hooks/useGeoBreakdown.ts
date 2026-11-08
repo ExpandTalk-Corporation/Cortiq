@@ -2,6 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
+import { useFilterParams } from '@/hooks/useFilterParams';
 
 /** One row per country; country_code null = sessions with no recorded country. */
 export type GeoRow = {
@@ -15,12 +16,13 @@ export type GeoRow = {
 
 export function useGeoBreakdown(siteId: string) {
   const { filters } = useDashboardFilters();
+  const fp = useFilterParams();
   return useQuery({
-    queryKey: ['geo-breakdown', siteId, filters.from, filters.to],
+    queryKey: ['geo-breakdown', siteId, filters.from, filters.to, fp],
     enabled: !!siteId,
     queryFn: async () => {
       const { data, error } = await (supabase as any).rpc('get_geo_breakdown', {
-        p_site_id: siteId, p_from: filters.from, p_to: filters.to,
+        p_site_id: siteId, p_from: filters.from, p_to: filters.to, ...fp,
       });
       if (error) throw error;
       return (data ?? []) as GeoRow[];

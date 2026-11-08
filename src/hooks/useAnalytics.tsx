@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Analytics } from '@/types/dashboard';
+import type { FilterParams } from '@/hooks/useFilterParams';
 
-// Server-side shape returned by public.get_analytics_summary(p_site_id, p_from, p_to).
+// Server-side shape returned by public.get_analytics_summary(p_site_id, p_from, p_to, p_path, p_segment).
 interface AnalyticsSummary {
   total_page_views: number;
   total_sessions: number;
@@ -13,7 +14,7 @@ interface AnalyticsSummary {
   device_breakdown: Record<string, number> | null;
 }
 
-export function useAnalytics(siteId: string | null, dateRange?: { from: Date; to: Date }) {
+export function useAnalytics(siteId: string | null, dateRange?: { from: Date; to: Date }, filterParams?: FilterParams) {
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
 
   const loadAnalytics = async (siteId: string, range?: { from: Date; to: Date }) => {
@@ -32,6 +33,8 @@ export function useAnalytics(siteId: string | null, dateRange?: { from: Date; to
         p_site_id: siteId,
         p_from: fromDate.toISOString(),
         p_to: toDate.toISOString(),
+        p_path: filterParams?.p_path ?? null,
+        p_segment: filterParams?.p_segment ?? null,
       });
 
       if (error) throw error;
@@ -76,7 +79,7 @@ export function useAnalytics(siteId: string | null, dateRange?: { from: Date; to
     } else {
       setAnalytics(null);
     }
-  }, [siteId, dateRange?.from?.getTime(), dateRange?.to?.getTime()]);
+  }, [siteId, dateRange?.from?.getTime(), dateRange?.to?.getTime(), JSON.stringify(filterParams ?? null)]);
 
   return { analytics };
 }

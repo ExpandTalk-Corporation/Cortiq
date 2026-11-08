@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { sameRangeLastYear, trendBuckets } from '@/lib/dashboard/filters';
+import { useFilterParams, type FilterParams } from '@/hooks/useFilterParams';
 
 // ── Platform definitions ───────────────────────────────────────────────────
 export interface SocialPlatformDef {
@@ -68,9 +69,9 @@ type SocialRow = {
   sessions: number; unique_users: number; page_views: number; avg_duration: number; bounces: number;
 };
 
-async function fetchSocialRows(siteId: string, from: string, to: string): Promise<SocialRow[]> {
+async function fetchSocialRows(siteId: string, from: string, to: string, fp: FilterParams): Promise<SocialRow[]> {
   const { data, error } = await (supabase as any)
-    .rpc('get_social_daily', { p_site_id: siteId, p_from: from, p_to: to });
+    .rpc('get_social_daily', { p_site_id: siteId, p_from: from, p_to: to, ...fp });
   if (error) throw error;
   return (data ?? []) as SocialRow[];
 }
@@ -91,6 +92,8 @@ export function useSocialMedia(siteId: string, range: { from: string; to: string
   const [granularity, setGranularity] = useState<'day' | 'month'>('day');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fp = useFilterParams();
+  const fpKey = JSON.stringify(fp);
 
   const fetch = useCallback(async () => {
     if (!siteId) return;
@@ -100,8 +103,8 @@ export function useSocialMedia(siteId: string, range: { from: string; to: string
     try {
       const previous = sameRangeLastYear(range.from, range.to);
       const [rows, previousRows] = await Promise.all([
-        fetchSocialRows(siteId, range.from, range.to),
-        fetchSocialRows(siteId, previous.from, previous.to),
+        fetchSocialRows(siteId, range.from, range.to, fp),
+        fetchSocialRows(siteId, previous.from, previous.to, fp),
       ]);
       const buckets = trendBuckets(range.from, range.to);
       const bucketIdx = new Map(buckets.keys.map((k, i) => [k, i]));
@@ -200,7 +203,8 @@ export function useSocialMedia(siteId: string, range: { from: string; to: string
     } finally {
       setLoading(false);
     }
-  }, [siteId, range.from, range.to]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fp is compared by value (fpKey)
+  }, [siteId, range.from, range.to, fpKey]);
 
   useEffect(() => { fetch(); }, [fetch]);
 
