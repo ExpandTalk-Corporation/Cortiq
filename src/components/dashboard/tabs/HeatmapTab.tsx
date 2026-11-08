@@ -23,6 +23,7 @@ export function HeatmapTab({ siteId, selectedSite, dateRange }: HeatmapTabProps)
 
   const { 
     heatmapData, 
+    scrollCounts,
     topPages, 
     selectedUrl, 
     setSelectedUrl, 
@@ -60,7 +61,7 @@ export function HeatmapTab({ siteId, selectedSite, dateRange }: HeatmapTabProps)
       {/* Visualization first; filters refine it below. */}
       {filters.interactionType === 'scroll' ? (
         <ScrollDepthChart
-          heatmapData={heatmapData}
+          counts={scrollCounts}
           selectedUrl={selectedUrl}
           loading={loading}
         />

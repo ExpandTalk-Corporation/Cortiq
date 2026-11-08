@@ -485,7 +485,7 @@ export function CookiefreeAnalyticsTab({ selectedSite, dateRange }: CookiefreeAn
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Consent Rate</CardTitle>
+                <CardTitle className="text-sm font-medium">Analytics consent rate</CardTitle>
                 <Badge variant="default" className="bg-green-100 text-green-800">
                   {analytics.consentRate}%
                 </Badge>
@@ -514,7 +514,7 @@ export function CookiefreeAnalyticsTab({ selectedSite, dateRange }: CookiefreeAn
               <div className="p-3 border rounded-lg">
                 <h4 className="font-medium text-sm">Improve Cookie Banner Acceptance</h4>
                 <p className="text-sm text-muted-foreground mt-1">
-                  With {analytics.acceptanceRate}% acceptance rate there is potential to increase to 70–80% through better UX and a clearer value proposition.
+                  With {analytics.acceptanceRate}% of visitors accepting all cookies there is potential to increase to 70–80% through better UX and a clearer value proposition.
                 </p>
               </div>
               <div className="p-3 border rounded-lg">

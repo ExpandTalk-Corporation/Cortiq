@@ -4,7 +4,6 @@ import { rangeBounds } from "@/lib/dashboard/filters";
 
 interface AISearchTrafficData {
   totalSessions: number;
-  totalUsers: number;
   totalPageviews: number;
   avgSessionDuration: number;
   bounceRate: number;
@@ -12,7 +11,6 @@ interface AISearchTrafficData {
   platforms: {
     name: string;
     sessions: number;
-    users: number;
     pageviews: number;
     avgDuration: number;
     bounceRate: number;
@@ -21,7 +19,6 @@ interface AISearchTrafficData {
   dailyTrend: {
     date: string;
     sessions: number;
-    users: number;
   }[];
   topLandingPages: {
     url: string;
@@ -54,7 +51,8 @@ export const useAISearchTraffic = (siteId: string | null, range: { from: string;
 
       // Calculate metrics
       const totalSessions = traffic?.length || 0;
-      const uniqueUsers = new Set(traffic?.map(t => t.user_hash).filter(Boolean)).size;
+      // No visitor count: ai-search-tracker stores no visitor identifier (user_hash is always null),
+      // so the only honest unit is the session.
       const totalPageviews = traffic?.reduce((sum, t) => sum + (t.pages_viewed || 0), 0) || 0;
       const avgSessionDuration = traffic?.length 
         ? Math.round(traffic.reduce((sum, t) => sum + (t.session_duration || 0), 0) / traffic.length)
@@ -67,7 +65,6 @@ export const useAISearchTraffic = (siteId: string | null, range: { from: string;
       // Platform breakdown
       const platformCounts: Record<string, {
         sessions: number;
-        users: Set<string>;
         pageviews: number;
         duration: number[];
         bounces: number;
@@ -78,14 +75,12 @@ export const useAISearchTraffic = (siteId: string | null, range: { from: string;
         if (!platformCounts[platform]) {
           platformCounts[platform] = {
             sessions: 0,
-            users: new Set(),
             pageviews: 0,
             duration: [],
             bounces: 0
           };
         }
         platformCounts[platform].sessions++;
-        if (t.user_hash) platformCounts[platform].users.add(t.user_hash);
         platformCounts[platform].pageviews += t.pages_viewed || 0;
         if (t.session_duration) platformCounts[platform].duration.push(t.session_duration);
         if (t.bounce) platformCounts[platform].bounces++;
@@ -95,7 +90,6 @@ export const useAISearchTraffic = (siteId: string | null, range: { from: string;
         .map(([name, data]) => ({
           name: name.charAt(0).toUpperCase() + name.slice(1),
           sessions: data.sessions,
-          users: data.users.size,
           pageviews: data.pageviews,
           avgDuration: data.duration.length 
             ? Math.round(data.duration.reduce((a, b) => a + b, 0) / data.duration.length)
@@ -106,21 +100,19 @@ export const useAISearchTraffic = (siteId: string | null, range: { from: string;
         .sort((a, b) => b.sessions - a.sessions);
 
       // Daily trend
-      const dailyData: Record<string, { sessions: Set<string>; users: Set<string> }> = {};
+      const dailyData: Record<string, { sessions: Set<string> }> = {};
       traffic?.forEach(t => {
         const date = new Date(t.landed_at).toISOString().split('T')[0];
         if (!dailyData[date]) {
-          dailyData[date] = { sessions: new Set(), users: new Set() };
+          dailyData[date] = { sessions: new Set() };
         }
         dailyData[date].sessions.add(t.session_id);
-        if (t.user_hash) dailyData[date].users.add(t.user_hash);
       });
 
       const dailyTrend = Object.entries(dailyData)
         .map(([date, data]) => ({
           date,
           sessions: data.sessions.size,
-          users: data.users.size,
         }))
         .sort((a, b) => a.date.localeCompare(b.date));
 
@@ -145,7 +137,6 @@ export const useAISearchTraffic = (siteId: string | null, range: { from: string;
 
       return {
         totalSessions,
-        totalUsers: uniqueUsers,
         totalPageviews,
         avgSessionDuration,
         bounceRate,

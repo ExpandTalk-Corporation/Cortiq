@@ -24,7 +24,6 @@ export function useConversionGoalHealth(siteId: string) {
   return useQuery({
     queryKey: ['conversion-goal-health', siteId],
     queryFn: async (): Promise<GoalHealth[]> => {
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
       // Load goals from sites.conversion_goals JSONB
@@ -66,7 +65,6 @@ export function useConversionGoalHealth(siteId: string) {
         const count = matching.length;
         const firingRate = count / totalSessions;
 
-        const recentEvents = matching.filter(e => e.created_at >= sevenDaysAgo);
         const lastFiredAt = matching.length > 0
           ? matching.sort((a, b) => b.created_at.localeCompare(a.created_at))[0].created_at
           : null;
@@ -80,9 +78,9 @@ export function useConversionGoalHealth(siteId: string) {
         } else if (firingRate > 0.30) {
           status = 'fires_too_often';
           warning = `Fires on ${Math.round(firingRate * 100)}% of sessions — not a commercial signal. Change to Observation or deactivate.`;
-        } else if (recentEvents.length === 0 && count === 0) {
+        } else if (count === 0) {
           status = 'silent';
-          warning = 'No conversions in the last 7 days. Verify the tracking tag is firing.';
+          warning = 'No conversions in the last 30 days. Verify the tracking tag is firing.';
         }
 
         return {

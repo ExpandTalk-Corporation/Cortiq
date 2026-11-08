@@ -98,7 +98,7 @@ Five features that make CortIQ the single source of truth for paid conversion me
 ### 2. Conversion Goal Health Monitor
 `src/hooks/useConversionGoalHealth.ts` — flags misconfigured goals:
 - `fires_too_often` — firing rate >30% of sessions (e.g. `user_engagement` wrongly set as a goal)
-- `silent` — zero conversions in 7 days (broken tag)
+- `silent` — zero conversions in 30 days (broken tag)
 - `duplicate_primary` — multiple Primary goals corrupting Smart Bidding signal
 
 Shown inline in `ConversionGoalsConfig.tsx`. Each goal now has a Primary/Observation toggle.
