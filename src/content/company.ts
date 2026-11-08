@@ -1,7 +1,7 @@
 import type { ContentPageData } from './types';
 
 // Company and trust pages. Facts verified against the code, the live site and the
-// Supabase project on 2026-10-03; subprocessor list re-checked against DPA.md on 2026-10-14. Update the page in the same commit as the change.
+// Supabase project on 2026-10-03; subprocessor list re-checked against DPA.md on 2026-11-06. Update the page in the same commit as the change.
 
 const REPO = 'https://github.com/ExpandTalk-Corporation/Cortiq';
 
@@ -83,6 +83,7 @@ export const SECURITY: ContentPageData = {
           type: 'list',
           items: [
             '**Cloudflare** (USA, EU-US Data Privacy Framework): edge analytics and geo lookup.',
+            '**Hetzner** (Germany, EU): servers for our own headless browser, used by Tracking Check (including basic-auth credentials you enter for a protected site) and page screenshots for heatmaps.',
             '**Resend** (USA, EU-US Data Privacy Framework): when you send a report export by email.',
             '**Anthropic** (USA, Standard Contractual Clauses): AI insights on the dashboard, which receive aggregated statistics only.',
           ],

@@ -8,7 +8,7 @@ import { useSEO } from "@/hooks/useSEO";
 import { seoFor } from "@/marketing-routes";
 import { Shield, CheckCircle, Mail, FileText, Database, Users, BarChart3, Megaphone } from "lucide-react";
 
-const LAST_UPDATED = "November 7, 2026";
+const LAST_UPDATED = "November 8, 2026";
 
 const Privacy = () => {
   useSEO(seoFor("/privacy/"));
@@ -310,6 +310,27 @@ const Privacy = () => {
                   interest (GDPR Art. 6(1)(f)), and the log is deleted together with the API key.
                 </p>
                 <p className="text-sm text-muted-foreground mt-2">
+                  <strong className="text-foreground">Tracking Check:</strong> when you run a check, we process the
+                  addresses of the pages you check and, if you enter them, the username and password for a
+                  password-protected (HTTP basic auth) site. The credentials are stored encrypted (AES-GCM), are decrypted
+                  only to start the check and are sent to our own browser on servers in Germany (Hetzner, section 5B) to load
+                  the pages. We delete our copy when the check finishes. If a check does not finish, they are no longer
+                  used after 2 hours and are deleted within the following hour. Use credentials created for the check
+                  rather than personal ones, and change them afterwards. Our legal basis for this data, and for the
+                  report we produce, is the contract with you (Art. 6.1.b).
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  <strong className="text-foreground">Personal data on checked pages:</strong> the pages you check may
+                  show personal data about other people, for example names or email addresses. Our browser loads those
+                  pages only to produce the report you asked for. It does not store page content, but the report keeps the
+                  addresses of requests the page made for 90 days, and these can include personal data such as an email
+                  address in a URL. For that data we act
+                  on your behalf as your processor under our Data Processing Agreement, and you need your own legal basis
+                  for having that data processed, for example because it is your own site or a client&apos;s site you are
+                  engaged to check. Only check sites you
+                  are allowed to test.
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
                   <strong className="text-foreground">Note:</strong> This covers account holders of the CortIQ
                   platform. It is separate from the visitor analytics in section 5, which requires consent, and from
                   the optional aggregate measurement in section 3C.
@@ -438,6 +459,7 @@ const Privacy = () => {
                 <li>• <strong>Resend</strong> (Plus Five Five, Inc., USA) — email delivery of large report exports (over 10,000 rows); Resend receives the recipient address and a download link that expires after one hour, not the report itself.</li>
                 <li>• <strong>Cloudflare</strong> (Cloudflare, Inc., USA) — when the operator enables the Cloudflare integration, Cloudflare processes visitor IP addresses at its edge; CortIQ receives the country and a truncated IP address for security and bot classification (section 3B).</li>
                 <li>• <strong>Anthropic</strong> (USA) — AI insights on the dashboard use CortIQ&apos;s own key and receive aggregated statistics for a site (page paths without query strings, counts, device breakdown, form conversion rates, monthly KPI figures). No visitor identifiers, IP addresses or email addresses are sent.</li>
+                <li>• <strong>Hetzner</strong> (Hetzner Online GmbH, Germany) — servers in Germany for our own headless browser, which loads pages for Tracking Check and for the page screenshots behind heatmaps. For Tracking Check the browser receives the addresses of the pages you check and, if you enter them, the username and password for a password-protected (HTTP basic auth) site, and it loads those pages, including any personal data shown on them. Page content is not stored on the server. Technical logs (request time, status and error type, without page addresses) are deleted within 14 days.</li>
               </ul>
               <p className="text-muted-foreground leading-relaxed">
                 Services that a site operator connects with its own account. These providers act under the
@@ -474,6 +496,7 @@ const Privacy = () => {
                 <li>• <strong>Resend</strong> — USA; the EU–US Data Privacy Framework (Art. 45 GDPR), with Standard Contractual Clauses in Resend&apos;s data processing agreement.</li>
                 <li>• <strong>Anthropic</strong> — USA; Standard Contractual Clauses (Art. 46 GDPR) in Anthropic&apos;s data processing addendum. Only aggregated statistics are sent.</li>
                 <li>• <strong>Cloudflare</strong> — the EU–US Data Privacy Framework (Art. 45 GDPR), with Standard Contractual Clauses in Cloudflare&apos;s data processing agreement.</li>
+                <li>• <strong>Hetzner</strong> — Germany; no transfer.</li>
                 <li>• <strong>Services the operator connects</strong> (Anthropic, Google, HubSpot) — the transfer basis follows the operator&apos;s own agreement with each provider.</li>
               </ul>
               <p className="text-sm">
@@ -636,9 +659,19 @@ const Privacy = () => {
               </div>
 
               <div className="bg-primary/5 p-4 rounded-lg">
+                <h4 className="font-semibold mb-2 text-foreground">Tracking Check</h4>
+                <ul className="text-sm text-muted-foreground space-y-1 ml-4">
+                  <li>• <strong>Basic-auth credentials:</strong> deleted when the check finishes; at the latest about 3 hours after the check starts</li>
+                  <li>• <strong>Page observations</strong> (requests, cookies and forms seen on each page; not the page content): 90 days</li>
+                  <li>• <strong>Reports:</strong> until you delete them or close your account</li>
+                  <li>• <strong>Browser server logs (Hetzner):</strong> 14 days</li>
+                </ul>
+              </div>
+
+              <div className="bg-primary/5 p-4 rounded-lg">
                 <h4 className="font-semibold mb-2 text-foreground">Hosting providers</h4>
                 <p className="text-sm text-muted-foreground">
-                  Request logs held by our hosting providers (Supabase, Loopia and, where enabled, Cloudflare) follow
+                  Request logs held by our hosting providers (Supabase, Loopia, Hetzner and, where enabled, Cloudflare) follow
                   those providers' own log retention. Deleting a site from CortIQ deletes all of its data immediately.
                 </p>
               </div>
