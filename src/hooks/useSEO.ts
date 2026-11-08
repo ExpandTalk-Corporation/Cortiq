@@ -4,9 +4,11 @@ interface SEOProps {
   title: string;
   description: string;
   canonical?: string;
+  /** Keep the page out of search results (404s). Drops the canonical link while mounted. */
+  noindex?: boolean;
 }
 
-export function useSEO({ title, description, canonical }: SEOProps) {
+export function useSEO({ title, description, canonical, noindex = false }: SEOProps) {
   useEffect(() => {
     document.title = title;
 
@@ -26,6 +28,14 @@ export function useSEO({ title, description, canonical }: SEOProps) {
     setMeta('name', 'twitter:title', title);
     setMeta('name', 'twitter:description', description);
 
+    if (noindex) {
+      // The SPA fallback serves the prerendered homepage head for unknown URLs, so its
+      // canonical has to go too or the 404 reads as a duplicate of the homepage.
+      document.querySelector('link[rel="canonical"]')?.remove();
+      setMeta('name', 'robots', 'noindex');
+      return () => document.querySelector('meta[name="robots"]')?.remove();
+    }
+
     const base = 'https://cortiq.se';
     const href = canonical ?? (base + window.location.pathname);
     let link = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
@@ -36,5 +46,5 @@ export function useSEO({ title, description, canonical }: SEOProps) {
     }
     link.href = href;
     setMeta('property', 'og:url', href);
-  }, [title, description, canonical]);
+  }, [title, description, canonical, noindex]);
 }

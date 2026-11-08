@@ -26,7 +26,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   {
     path: '/',
     title: 'CortIQ — AI Agent Analytics & Cookie-Free Tracking',
-    description: 'Analytics for the Agentic Web: classify AI training crawlers, agent fetches and citation crawlers. Consent-first, cookieless visitor analytics, heatmaps, form analytics. EU-hosted. Free during beta.',
+    description: 'Classify AI training crawlers, agent fetches and citation crawlers. Consent-first, cookieless visitor analytics with heatmaps. EU-hosted, free during beta.',
     changefreq: 'weekly',
     priority: 1.0,
     source: 'src/pages/Index.tsx',
@@ -34,7 +34,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   {
     path: '/features/',
     title: 'Features — CortIQ Analytics Platform',
-    description: 'Full feature overview: AI bot classification, server-side bot ingestion, click and scroll heatmaps, form analytics, conversion attribution, an MCP server and a built-in consent banner (CMP).',
+    description: 'AI bot classification, server-side bot ingestion, heatmaps, form analytics, conversion attribution, an MCP server and a built-in consent banner (CMP).',
     changefreq: 'monthly',
     priority: 0.9,
     source: 'src/pages/Features.tsx',
@@ -43,7 +43,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   {
     path: '/features/ai/',
     title: 'AI Bot & Agent Traffic Analytics — CortIQ',
-    description: 'Not all AI traffic is equal. CortIQ classifies training crawlers, agentic fetches and citation crawlers — GPTBot, ClaudeBot, ChatGPT-User, PerplexityBot and more — from the JS tag and a Cloudflare Worker.',
+    description: 'CortIQ classifies AI training crawlers, agentic fetches and citation crawlers, such as GPTBot, ClaudeBot, ChatGPT-User and PerplexityBot.',
     changefreq: 'monthly',
     priority: 0.9,
     source: 'src/pages/FeaturesAI.tsx',
@@ -52,7 +52,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   {
     path: '/features/analytics/',
     title: 'Web Analytics — CortIQ',
-    description: 'Consent-first web analytics: cookieless mode, click and scroll heatmaps, form analytics, link click counts and conversion attribution. EU-hosted and designed to support GDPR compliance.',
+    description: 'Consent-first web analytics: cookieless mode, heatmaps, form analytics, link clicks and conversion attribution. EU-hosted, designed to support GDPR compliance.',
     changefreq: 'monthly',
     priority: 0.8,
     source: 'src/pages/FeaturesAnalytics.tsx',
@@ -70,7 +70,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   {
     path: '/cmp/',
     title: 'Consent Management Platform (CMP) — CortIQ',
-    description: 'Built-in consent banner with Google Consent Mode v2. Visitor analytics and GA4 start only after analytics consent, valid for 12 months. EU-hosted, privacy by design.',
+    description: 'Built-in consent banner with Google Consent Mode v2. Visitor analytics and GA4 start only after analytics consent, valid for 12 months. EU-hosted.',
     changefreq: 'monthly',
     priority: 0.8,
     source: 'src/pages/CMP.tsx',
@@ -78,8 +78,8 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   },
   {
     path: '/tracking-check/',
-    title: 'Free Website Tracking Audit: Cookie Consent & Migration Check — CortIQ',
-    description: 'Is your website tracking visitors before they consent? See which cookies, pixels and tags load before the banner and after "Reject all", with evidence and a fix for each finding.',
+    title: 'Free Website Tracking Audit: Consent & Migration — CortIQ',
+    description: 'Is your site tracking visitors before consent? See which cookies, pixels and tags load before the banner and after "Reject all", with a fix for each finding.',
     changefreq: 'monthly',
     priority: 0.8,
     source: 'src/pages/TrackingCheckLanding.tsx',
@@ -87,8 +87,8 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   },
   {
     path: '/cookie-consent-checker/',
-    title: 'Cookie Consent Checker: What Loads Before and After the Banner — CortIQ',
-    description: 'Free cookie consent checker: a real browser visits your pages before the banner is answered, after "Reject all" and after "Accept all", and lists the cookies, pixels and Consent Mode signals it finds on the pages you choose.',
+    title: 'Cookie Consent Checker: Before & After the Banner — CortIQ',
+    description: 'A real browser visits your pages before the banner is answered, after "Reject all" and "Accept all", and lists the cookies, pixels and Consent Mode signals.',
     changefreq: 'monthly',
     priority: 0.7,
     source: 'src/pages/CookieConsentChecker.tsx',
@@ -96,8 +96,8 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   },
   {
     path: '/website-migration-check/',
-    title: 'Website Migration Check: Redirects, Tags & Click IDs — CortIQ',
-    description: 'Compare your current site with the new one before launch: 301 redirects, UTM tags and gclid through redirects, GA4, Ads and Meta tags, forms and the cookie banner. Free with a CortIQ account.',
+    title: 'Website Migration Check: Redirects, Tags & Click IDs',
+    description: 'Compare your current and new site before launch: 301 redirects, UTM and gclid survival, GA4, Ads and Meta tags, forms and cookie banner. Free with an account.',
     changefreq: 'monthly',
     priority: 0.7,
     source: 'src/pages/WebsiteMigrationCheck.tsx',
@@ -124,7 +124,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   {
     path: '/docs/',
     title: 'Getting Started — CortIQ Docs',
-    description: 'Install the CortIQ tracking script, connect your consent banner (Cookiebot or any CMP), use cookieless mode and check that data arrives. Works with single-page apps.',
+    description: 'Install the CortIQ tracking script, connect your consent banner (Cookiebot or any CMP), use cookieless mode and check that data arrives. Works with SPAs.',
     changefreq: 'monthly',
     priority: 0.8,
     source: 'src/content/docs.ts',
@@ -132,8 +132,8 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   },
   {
     path: '/docs/metrics/',
-    title: 'How CortIQ Counts: Visits, Conversions, AI Traffic — CortIQ Docs',
-    description: 'Metric definitions in CortIQ: a visit ends after 30 minutes without a page view, goals count once per visit, AI hits by category, and how aggregate visitors and engagement are counted.',
+    title: 'How CortIQ Counts Visits, Conversions & AI Traffic',
+    description: 'CortIQ metric definitions: a visit ends after 30 idle minutes, goals count once per visit, AI hits by category, and how aggregate visitors and engagement count.',
     changefreq: 'monthly',
     priority: 0.6,
     source: 'src/content/docs.ts',
@@ -141,7 +141,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   {
     path: '/integrations/',
     title: 'Integrations — CortIQ',
-    description: 'Connect CortIQ to WordPress, Cloudflare, Google Analytics 4 and MCP clients like Claude Code, or pull data through the REST API. What works today and what is in development.',
+    description: 'Connect CortIQ to WordPress, Cloudflare, Google Analytics 4 and MCP clients like Claude Code, or use the REST API. What works today and what is coming.',
     changefreq: 'monthly',
     priority: 0.8,
     source: 'src/content/docs.ts',
@@ -150,7 +150,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   {
     path: '/integrations/wordpress/',
     title: 'WordPress Plugin: Analytics & Consent Banner — CortIQ',
-    description: 'One WordPress plugin for CortIQ tracking, a consent banner in five languages and Google Consent Mode v2 for GA4. Cookieless mode, geo-gating and admin exclusion.',
+    description: 'One WordPress plugin for CortIQ tracking, a consent banner in five languages and Google Consent Mode v2 for GA4. Cookieless mode and geo-gating.',
     changefreq: 'monthly',
     priority: 0.7,
     source: 'src/content/docs.ts',
@@ -158,7 +158,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   {
     path: '/integrations/server-side/',
     title: 'Server-Side AI Agent Measurement — CortIQ',
-    description: 'Measure GPTBot, ClaudeBot and other AI crawlers that never run JavaScript, on your own server: adapters for Next.js, Vercel, Netlify, Cloudflare, Node and WordPress. No device access, truncated IPs.',
+    description: 'Measure GPTBot, ClaudeBot and other AI crawlers that never run JavaScript on your server: adapters for Next.js, Vercel, Netlify, Cloudflare, Node and WordPress.',
     changefreq: 'monthly',
     priority: 0.8,
     source: 'src/content/docs.ts',
@@ -166,7 +166,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   {
     path: '/integrations/cloudflare/',
     title: 'Track AI Crawlers Server-Side with Cloudflare — CortIQ',
-    description: 'A paste-ready Cloudflare Worker that reports AI crawler traffic to CortIQ, including GPTBot, ClaudeBot and other bots that never run JavaScript. Human requests never leave Cloudflare.',
+    description: 'A paste-ready Cloudflare Worker that reports GPTBot, ClaudeBot and other AI crawlers that never run JavaScript. Human requests never leave Cloudflare.',
     changefreq: 'monthly',
     priority: 0.7,
     source: 'src/content/docs.ts',
@@ -182,7 +182,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   {
     path: '/integrations/mcp/',
     title: 'MCP Server for Web Analytics — CortIQ',
-    description: 'Query your web analytics from Claude Code and other MCP clients. 22 read-only tools for traffic, engagement, heatmaps, forms and AI agent traffic. One API key per site.',
+    description: 'Query your web analytics from Claude Code and other MCP clients: 22 read-only tools for traffic, engagement, heatmaps, forms and AI agents. One key per site.',
     changefreq: 'monthly',
     priority: 0.7,
     source: 'src/content/docs.ts',
@@ -190,7 +190,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   {
     path: '/changelog/',
     title: 'Changelog — CortIQ',
-    description: 'What has shipped in CortIQ, month by month: tracking script and WordPress plugin releases, new integrations, AI bot classification, GEO audits and security fixes.',
+    description: 'What has shipped in CortIQ, month by month: tracking script and WordPress plugin releases, integrations, AI bot classification, GEO audits and security fixes.',
     changefreq: 'weekly',
     priority: 0.6,
     source: 'src/content/company.ts',
@@ -208,7 +208,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   {
     path: '/security/',
     title: 'Security & Data Protection — CortIQ',
-    description: 'Where CortIQ stores data (EU, Stockholm), how customers are isolated with row-level security, API key handling, subprocessors, and how to report a vulnerability.',
+    description: 'Where CortIQ stores data (EU, Stockholm), customer isolation with row-level security, API key handling, subprocessors and how to report a vulnerability.',
     changefreq: 'monthly',
     priority: 0.6,
     source: 'src/content/company.ts',
@@ -244,7 +244,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   {
     path: '/privacy/',
     title: 'Privacy Policy — CortIQ',
-    description: 'CortIQ privacy policy: what server-side agent measurement processes, what requires analytics or marketing consent, EU data storage, retention periods and your rights.',
+    description: 'CortIQ privacy policy: what server-side agent measurement processes, what needs analytics or marketing consent, EU storage, retention and your rights.',
     changefreq: 'yearly',
     priority: 0.4,
     source: 'src/pages/Privacy.tsx',

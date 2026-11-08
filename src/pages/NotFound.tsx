@@ -1,9 +1,15 @@
 import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import PublicLayout from "@/components/PublicLayout";
+import { useSEO } from "@/hooks/useSEO";
 
 const NotFound = () => {
   const location = useLocation();
+  useSEO({
+    title: "Page not found — CortIQ",
+    description: "The page you are looking for does not exist or has moved.",
+    noindex: true,
+  });
 
   useEffect(() => {
     console.error(
