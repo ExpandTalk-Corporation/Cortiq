@@ -8,8 +8,9 @@ import { MARKETING_ROUTES, MARKETING_REDIRECTS } from '../../src/marketing-route
 import { DOCS_PAGES } from '../../src/content/docs.ts';
 import { COMPANY_PAGES } from '../../src/content/company.ts';
 import { TERMS } from '../../src/content/legal.ts';
+import { GLOSSARY } from '../../src/content/glossary.ts';
 
-const CONTENT_PAGES = [...DOCS_PAGES, ...COMPANY_PAGES, TERMS];
+const CONTENT_PAGES = [...DOCS_PAGES, ...COMPANY_PAGES, GLOSSARY, TERMS];
 
 const root = new URL('../../', import.meta.url);
 const read = (p) => readFileSync(new URL(p, root), 'utf8');

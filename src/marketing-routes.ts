@@ -139,6 +139,15 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
     source: 'src/content/docs.ts',
   },
   {
+    path: '/glossary/',
+    title: 'Web Analytics Glossary: Metrics & Formulas — CortIQ',
+    description: 'Definitions and formulas for CortIQ metrics: visits, engagement rate, conversions, forms, scroll depth, AI crawler traffic, consent and attribution gap.',
+    changefreq: 'monthly',
+    priority: 0.6,
+    source: 'src/content/glossary.ts',
+    footer: { group: 'resources', label: 'Glossary' },
+  },
+  {
     path: '/integrations/',
     title: 'Integrations — CortIQ',
     description: 'Connect CortIQ to WordPress, Cloudflare, Google Analytics 4 and MCP clients like Claude Code, or use the REST API. What works today and what is coming.',

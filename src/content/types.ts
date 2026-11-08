@@ -9,7 +9,20 @@ export type Block =
   | { type: 'list'; items: string[] }
   | { type: 'steps'; items: string[] }
   | { type: 'code'; code: string; lang?: string }
-  | { type: 'note'; tone?: 'info' | 'warning'; text: string };
+  | { type: 'note'; tone?: 'info' | 'warning'; text: string }
+  | { type: 'terms'; items: Term[] };
+
+/** A glossary entry. Pages with terms also get a schema.org DefinedTermSet. */
+export interface Term {
+  /** Anchor id, so a term can be linked as /glossary/#id. */
+  id: string;
+  term: string;
+  definition: string;
+  /** How the figure is calculated, e.g. 'conversions ÷ visits × 100'. */
+  formula?: string;
+  /** How it relates to the GA4 metric of the same or similar name. */
+  ga4?: string;
+}
 
 export interface Section {
   /** Anchor id, also used for the on-page table of contents. */

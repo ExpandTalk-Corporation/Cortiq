@@ -668,6 +668,7 @@ export const METRICS: ContentPageData = {
     },
   ],
   related: [
+    { label: 'Glossary', path: '/glossary/' },
     { label: 'Getting started', path: '/docs/' },
     { label: 'MCP server', path: '/integrations/mcp/' },
     { label: 'REST API', path: '/api/' },
