@@ -23,8 +23,8 @@ export default function CMP() {
     },
     {
       icon: <Users className="h-6 w-6" />,
-      title: "User-Friendly Banner",
-      description: "Elegant consent banner with customizable categories"
+      title: "Banner in Five Languages",
+      description: "Swedish, English, German, French and Portuguese, picked from the page language, with customizable categories"
     },
     {
       icon: <Eye className="h-6 w-6" />,
@@ -46,7 +46,7 @@ export default function CMP() {
   const benefits = [
     "Consent-first by design",
     "Consent valid for 12 months",
-    "Better user trust",
+    "Banner text in sv, en, de, fr and pt",
     "Professional cookie management",
     "Consent-check decisions logged server-side",
     "Google Consent Mode v2 included"
