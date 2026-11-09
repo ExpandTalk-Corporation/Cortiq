@@ -182,6 +182,10 @@ ${CONSENT_DEFAULT_SNIPPET}`, typicalOwner: 'gtm', evidence: ev(hits.missing),
 
 const EMAIL = /[a-z0-9._%+-]+@[a-z0-9.-]+/gi;
 const FILE_EXT = new Set(['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'avif', 'ico', 'css', 'js', 'json', 'pdf', 'html', 'php']);
+/** Machine identities, not people: Google Cloud service accounts (e.g. in signed Cloud Storage URLs). */
+const SERVICE_ACCOUNT = /(^|\.)gserviceaccount\.com$/i;
+/** Signed-URL credentials (Google Cloud Storage, S3) name a service account, never a visitor. */
+const SIGNED_URL_CREDENTIAL = /^x-(goog|amz)-credential$/i;
 
 function decodeDeep(v: string): string {
   let s = v;
@@ -199,7 +203,9 @@ export function containsEmail(value: string): boolean {
   for (const m of s.matchAll(EMAIL)) {
     // Not credentials in "https://key@host", and file extensions are not TLDs ("logo@2x.png").
     if (m.index && /[/:]/.test(s[m.index - 1])) continue;
-    const labels = m[0].split('@')[1].replace(/\.+$/, '').split('.');
+    const domain = m[0].split('@')[1].replace(/\.+$/, '');
+    if (SERVICE_ACCOUNT.test(domain)) continue;
+    const labels = domain.split('.');
     const tld = labels.at(-1)!.toLowerCase();
     if (labels.length >= 2 && labels.every(Boolean) && /^[a-z]{2,24}$/.test(tld) && !FILE_EXT.has(tld)) return true;
   }
@@ -211,7 +217,7 @@ export function emailParams(url: string): string[] {
   let u: URL;
   try { u = new URL(url); } catch { return []; }
   const names = new Set<string>();
-  for (const [k, v] of u.searchParams) if (containsEmail(v)) names.add(k);
+  for (const [k, v] of u.searchParams) if (!SIGNED_URL_CREDENTIAL.test(k) && containsEmail(v)) names.add(k);
   if (containsEmail(u.pathname)) names.add('path');
   return [...names];
 }

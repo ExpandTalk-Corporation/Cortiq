@@ -50,6 +50,13 @@ export function ReportView({ summary, findings, mode, baselineUrl, targetUrl, fi
             {finishedAt && ` · ${new Date(finishedAt).toLocaleString()}`}
           </p>
           <CardTitle className="text-2xl">{summary.headline}</CardTitle>
+          {summary.commitments && (
+            <p className="text-sm text-muted-foreground">
+              {summary.commitments.length
+                ? <>Checked against: {summary.commitments.join('; ')}. A problem means a commitment is not met.</>
+                : 'No commitments were ticked: findings show what the site does, not whether it meets a policy.'}
+            </p>
+          )}
         </CardHeader>
         <CardContent className="space-y-3">
           {summary.lines.map((line) => {

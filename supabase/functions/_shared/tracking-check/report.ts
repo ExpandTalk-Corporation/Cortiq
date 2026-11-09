@@ -1,10 +1,29 @@
 // Turns findings into the report headline, summary lines and tracker-compatible CSV.
-import type { Finding, FindingStatus, Mode, Owner } from './types.ts';
+import type { Finding, FindingStatus, Mode, Owner, PolicyTemplate } from './types.ts';
 
 export interface SummaryLine { status: FindingStatus; text: string; checkKey: string }
-export interface ReportSummary { headline: string; counts: Record<FindingStatus, number>; blocking: number; lines: SummaryLine[] }
+export interface ReportSummary {
+  headline: string; counts: Record<FindingStatus, number>; blocking: number; lines: SummaryLine[];
+  /** Policy runs: the commitments the site was checked against, so "Problem" reads as "not met", not as a legal verdict. */
+  commitments?: string[];
+}
 
-export function summarize(findings: Finding[], mode: Mode): ReportSummary {
+export type CommitmentFlag = Exclude<keyof PolicyTemplate, 'expectedIds' | 'manualItems'>;
+export const COMMITMENT_LABEL: Record<CommitmentFlag, string> = {
+  noGoogleBeforeConsent: 'Nothing is sent to Google before consent or after "Reject all" (Consent Mode basic)',
+  consentDefaultsDenied: 'Consent Mode v2 defaults are "denied"',
+  ga4RequiresAnalytics: 'Google Analytics only runs with Statistics consent',
+  adsRequiresMarketing: 'Google Ads only runs with Marketing consent',
+  enhancedConversionsOff: 'Enhanced Conversions is off',
+  noUnknownVendorsAfterReject: 'No unknown third parties after "Reject all"',
+};
+
+export function commitmentsOf(policy: PolicyTemplate | null | undefined): string[] {
+  if (!policy) return [];
+  return (Object.keys(COMMITMENT_LABEL) as CommitmentFlag[]).filter((k) => policy[k]).map((k) => COMMITMENT_LABEL[k]);
+}
+
+export function summarize(findings: Finding[], mode: Mode, policy?: PolicyTemplate | null): ReportSummary {
   const counts: Record<FindingStatus, number> = { pass: 0, fail: 0, warning: 0, manual: 0, untestable: 0 };
   for (const f of findings) counts[f.status]++;
   const blocking = findings.filter((f) => f.status === 'fail' && f.priority === 'high').length;
@@ -28,7 +47,7 @@ export function summarize(findings: Finding[], mode: Mode): ReportSummary {
     const p = findings.find((f) => f.scope === scope && f.status === 'pass');
     if (p) lines.push({ status: 'pass', text: p.title, checkKey: p.checkKey });
   }
-  return { headline: parts.join(' · '), counts, blocking, lines };
+  return { headline: parts.join(' · '), counts, blocking, lines, ...(mode === 'policy' ? { commitments: commitmentsOf(policy) } : {}) };
 }
 
 export const CSV_COLUMNS = ['Scope', 'Details', 'Deliverable', 'Owner', 'Status', 'Priority', 'Double Check / Blocker', 'Notes'];

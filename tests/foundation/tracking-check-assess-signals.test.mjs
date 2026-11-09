@@ -65,6 +65,18 @@ test('email detection ignores credentials in URLs, retina images and hashed valu
   assert.deepEqual(emailParams('https://region1.google-analytics.com/g/collect?v=2&dl=https%3A%2F%2Fnew.example%2Fthanks%3Femail%3Danna%2540example.se&en=page_view'), ['dl']);
 });
 
+test('signed Cloud Storage and S3 URLs are not email leaks (service accounts, not visitors)', () => {
+  // Paligo report, row 12: a signed GCS URL whose credential names a service account.
+  const gcs = 'https://storage.googleapis.com/bucket/video.mp4?X-Goog-Algorithm=GOOG4-RSA-SHA256'
+    + '&X-Goog-Credential=media-signer%40paligo-prod.iam.gserviceaccount.com%2F20261107%2Fauto%2Fstorage%2Fgoog4_request'
+    + '&X-Goog-Date=20261107T120000Z&X-Goog-Expires=3600&X-Goog-SignedHeaders=host&X-Goog-Signature=abc';
+  assert.deepEqual(emailParams(gcs), []);
+  assert.equal(containsEmail('123-compute@developer.gserviceaccount.com'), false);
+  assert.deepEqual(emailParams('https://bucket.s3.amazonaws.com/a.pdf?X-Amz-Credential=ops%40example.com%2F20261107%2Feu-north-1%2Fs3%2Faws4_request'), []);
+  // A visitor's address in another parameter of the same request is still found.
+  assert.deepEqual(emailParams(`${gcs}&ref=anna%40example.se`), ['ref']);
+});
+
 test('an email address sent to a third party fails without echoing the address', () => {
   const leak = 'https://www.facebook.com/tr/?id=1&ev=PageView&dl=https%3A%2F%2Fnew.example%2Fthanks%3Femail%3Danna%2540example.se';
   const findings = run([st('none'), st('reject'), st('accept', { requests: [req(leak), req('https://new.example/api?email=anna@example.se')] })], { path: '/thanks?email=anna@example.se' });

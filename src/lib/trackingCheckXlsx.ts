@@ -33,6 +33,8 @@ export async function trackingCheckXlsx({ summary, findings, mode, baselineUrl, 
     ['Check', mode === 'comparison' ? 'Migration comparison' : 'Consent policy'],
     ['Finished', finishedAt ? new Date(finishedAt).toLocaleString() : ''],
     ['Result', summary.headline],
+    ...(summary.commitments ? [['Checked against', summary.commitments.length
+      ? summary.commitments.map((c) => `• ${c}`).join('\n') : 'No commitments ticked']] as [string, string][] : []),
     ...(['fail', 'warning', 'manual', 'untestable', 'pass'] as FindingStatus[]).map((s): [string, number] => [FINDING_STATUS_LABEL[s], summary.counts[s]]),
   ];
   for (const r of rows) info.addRow(r);
