@@ -49,8 +49,11 @@ export const TRACKING_VENDORS: Vendor[] = [
       { host: /^((region\d+|www)\.)?google-analytics\.com$|^(region\d+\.)?analytics\.google\.com$/, path: /^\/(g|j)\/collect/ },
       // Google signals: the GA4 tag copies hits here when signals are on.
       { host: /^stats\.g\.doubleclick\.net$/, path: /^\/(g|j)\/collect/ },
+      // Server-side tagging on the site's own domain (e.g. analytics.example.com): the tagging server forwards to GA4.
+      { host: ANY, path: /^\/g\/collect$/, query: /[?&]tid=G-/ },
     ],
-    cookies: [/^_ga$/, /^_ga_/, /^_gid$/, /^_gat/],
+    // FPID, FPLC, FPGSID: first-party cookies set by a server-side tagging server.
+    cookies: [/^_ga$/, /^_ga_/, /^_gid$/, /^_gat/, /^FPID$/, /^FPLC$/, /^FPGSID$/],
     idFrom: (u) => param('id', 'G-')(u) ?? param('tid', 'G-')(u),
     csp: { 'script-src': ['*.googletagmanager.com'], 'img-src': ['*.google-analytics.com', '*.googletagmanager.com'], 'connect-src': ['*.google-analytics.com', '*.analytics.google.com', '*.googletagmanager.com'] },
     impact: 'Google Analytics records no visits or conversions from these pages.',
@@ -117,7 +120,7 @@ export const TRACKING_VENDORS: Vendor[] = [
   {
     id: 'linkedin', name: 'LinkedIn Insight Tag', category: 'marketing', googleTag: false,
     requests: [{ host: /^(snap\.licdn\.com|px\.ads\.linkedin\.com|dc\.ads\.linkedin\.com)$/ }],
-    cookies: [/^li_fat_id$/, /^li_sugr$/, /^bcookie$/, /^lidc$/, /^UserMatchHistory$/, /^AnalyticsSyncHistory$/, /^ln_or$/],
+    cookies: [/^li_fat_id$/, /^li_sugr$/, /^li_gc$/, /^bcookie$/, /^lidc$/, /^UserMatchHistory$/, /^AnalyticsSyncHistory$/, /^ln_or$/],
     idFrom: (u) => (u.hostname === 'px.ads.linkedin.com' ? u.searchParams.get('pid') : null),
     csp: { 'script-src': ['snap.licdn.com'], 'connect-src': ['px.ads.linkedin.com'], 'img-src': ['px.ads.linkedin.com'] },
     impact: 'LinkedIn Ads cannot attribute conversions or build retargeting audiences.',
@@ -226,6 +229,14 @@ export const TRACKING_VENDORS: Vendor[] = [
     csp: { 'script-src': ['launcher.1mind.com'], 'connect-src': ['*.1mind.com'], 'frame-src': ['*.1mind.com'] },
     impact: 'The 1mind AI assistant does not appear.',
     verify: 'An AI sales assistant is functional when a visitor talks to it, but it processes what visitors type and may identify or track them before anyone uses it.',
+  },
+  {
+    id: 'ip-lookup', name: 'IP address lookup (ipify and similar)', category: 'preferences', googleTag: false,
+    requests: [{ host: /(^|\.)(ipify\.org|ipapi\.co|ipinfo\.io|ip-api\.com|ipwho\.is|ipgeolocation\.io|ipdata\.co|ipregistry\.co|db-ip\.com|geolocation-db\.com|freeipapi\.com)$/ }],
+    cookies: [],
+    csp: { 'connect-src': ['api.ipify.org', 'api64.ipify.org', 'ipapi.co', 'ipinfo.io', 'ip-api.com', 'ipwho.is'] },
+    impact: 'Scripts that look up the visitor\'s IP address or location get no answer.',
+    verify: 'An IP lookup service returns the visitor\'s IP address, often with location, to a script on the page. It stores nothing itself, but the address is usually looked up to identify the visitor\'s company or to pass it on to another tool. Find the script that calls it (DevTools → Network → the request → Initiator).',
   },
   {
     id: 'libsyn', name: 'Libsyn podcast player', category: 'preferences', googleTag: false,
@@ -407,6 +418,8 @@ export function vendorForUrl(raw: string): Vendor | null {
 }
 
 const GOOGLE_HOST = /(^|\.)(google\.([a-z]{2,3}|com?\.[a-z]{2})|doubleclick\.net|googlesyndication\.com|googleadservices\.com|google-analytics\.com|googletagmanager\.com)$/;
+/** True for a Google-owned advertising/analytics hostname, as opposed to a site's own server-side tagging domain. */
+export const isGoogleDomain = (host: string): boolean => GOOGLE_HOST.test(host);
 /** Exempt from "nothing is sent to Google": they carry no advertising or analytics data. */
 export const GOOGLE_EXEMPT_VENDORS = ['google-fonts', 'recaptcha'];
 

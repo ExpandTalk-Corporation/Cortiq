@@ -177,6 +177,9 @@ test('observeState only flags Enhanced Conversions on requests to Google hosts',
   assert.equal(other.none.enhancedConversions, false);
   const google = await probe(['none'], { none: [{ requests: [{ url: 'https://www.google.com/ccm/collect?em=tv.1~em.abc' }] }] });
   assert.equal(google.none.enhancedConversions, true);
+  // Server-side tagging: a GA4 hit to the site's own domain is forwarded to Google.
+  const sgtm = await probe(['none'], { none: [{ requests: [{ url: 'https://analytics.new.example/g/collect?v=2&tid=G-1&em=tv.1~em.abc' }] }] });
+  assert.equal(sgtm.none.enhancedConversions, true);
 });
 
 test('observeState keeps an adapter choice only when it is verified after the reload', async () => {

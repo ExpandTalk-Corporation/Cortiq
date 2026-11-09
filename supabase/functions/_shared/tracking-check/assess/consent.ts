@@ -1,5 +1,5 @@
 import type { AssessInput, Finding, PageObservation, StateObservation } from '../types.ts';
-import { GOOGLE_EXEMPT_VENDORS, isGoogleHost, vendorForName, vendorForUrl, type Vendor } from '../../tracking-vendors.ts';
+import { GOOGLE_EXEMPT_VENDORS, isGoogleDomain, isGoogleHost, vendorForName, vendorForUrl, type Vendor } from '../../tracking-vendors.ts';
 import { MANUAL_STEPS } from '../instructions.ts';
 import { cmpOrigin, finding, plural, requestVendors, siteKey, stateOf, testablePages, vendorOrigin, type ScriptOrigin } from './util.ts';
 import { CONSENT_DEFAULT_SNIPPET } from './signals.ts';
@@ -176,6 +176,14 @@ function choiceCheck({ mode, policy }: AssessInput, pages: PageObservation[], st
     return parts.join(' ');
   };
 
+  /** A Google tag reached through the site's own domain: server-side tagging, so the domain alone does not reveal Google. */
+  const serverSide = (v: Vendor, hosts: Set<string>): string => {
+    const own = [...hosts].filter((x) => !isGoogleDomain(x));
+    return v.googleTag && own.length
+      ? `${own.join(', ')} is not a Google domain but received ${v.name} hits: this is server-side tagging, where a tagging server on the site's own domain forwards the data to Google. What Google receives is decided by that server's configuration.`
+      : '';
+  };
+
   /** GTM settings only help when GTM loads the tag; a script in the page source has to be blocked where it is. */
   const blockSteps = (v: Vendor, origin: ScriptOrigin | null): string =>
     v.googleTag && origin !== 'page' ? gtmBlockSteps(cmp, v) : vendorBlockSteps(cmp, v, origin);
@@ -193,7 +201,7 @@ function choiceCheck({ mode, policy }: AssessInput, pages: PageObservation[], st
       out.push(finding({
         scope: 'Consent', checkKey: `${key}.${id}`, status: 'fail', priority: 'high',
         title: `${v.name} stores data on the device ${label}`,
-        explanation: [`${v.name} set ${[...h.stored].join(', ')} in the browser ${label} on ${where}.`, diagnosis(v, h.pages), consequence,
+        explanation: [`${v.name} set ${[...h.stored].join(', ')} in the browser ${label} on ${where}.`, serverSide(v, h.hosts), diagnosis(v, h.pages), consequence,
           `Storing or reading data on the device for analytics or marketing ${LEGAL}`].filter(Boolean).join(' '),
         fix: v.googleTag
           ? [blockSteps(v, origin), `Check it yourself: in an incognito window, before answering the cookie banner, DevTools → Application → Cookies should show no ${[...h.stored].join(', ')}.`, DATA_DROP].join('\n\n')
@@ -221,7 +229,7 @@ function choiceCheck({ mode, policy }: AssessInput, pages: PageObservation[], st
       out.push(finding({
         scope: 'Consent', checkKey: `${key}.${id}`, status: 'fail', priority: 'high',
         title: `${v.name} sends requests to Google ${label}`,
-        explanation: [`${v.name} contacted ${hosts} ${label} on ${where}, without setting cookies.`, diagnosis(v, h.pages),
+        explanation: [`${v.name} contacted ${hosts} ${label} on ${where}, without setting cookies.`, serverSide(v, h.hosts), diagnosis(v, h.pages),
           'Cookieless pings still give Google the visitor\'s IP address, browser and page address (Consent Mode advanced).', STRICT_GOOGLE, GOOGLE_EXEMPTION].filter(Boolean).join(' '),
         fix: [blockSteps(v, origin), DATA_DROP].join('\n\n'),
         typicalOwner: origin === 'page' ? 'developer' : 'gtm', evidence,
@@ -230,7 +238,8 @@ function choiceCheck({ mode, policy }: AssessInput, pages: PageObservation[], st
       out.push(finding({
         scope: 'Consent', checkKey: `${key}.cookieless.${id}`, status: 'warning', priority: 'medium',
         title: `${v.name} sends requests ${label} without cookies`,
-        explanation: `${v.name} contacted ${hosts} ${label} on ${where}, without setting cookies or local storage. Without cookies, the visitor's IP address, browser and page address still reach ${v.name}. Cookieless measurement ${LEGAL}`,
+        explanation: [`${v.name} contacted ${hosts} ${label} on ${where}, without setting cookies or local storage.`, serverSide(v, h.hosts),
+          `Without cookies, the visitor's IP address, browser and page address still reach ${v.name}. Cookieless measurement ${LEGAL}`].filter(Boolean).join(' '),
         fix: [v.note ?? `Check ${v.name}'s settings (for example a "track visitors always" option).`,
           `Decide with the controller whether measuring visitors ${state === 'none' ? 'before they choose' : 'who rejected cookies'} is acceptable.`,
           origin ? `If it should wait for consent: ${blockSteps(v, origin)}` : ''].filter(Boolean).join('\n\n'),

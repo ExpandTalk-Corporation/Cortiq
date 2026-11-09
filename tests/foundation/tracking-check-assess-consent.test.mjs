@@ -351,3 +351,27 @@ test('the GTM container row recommends loading GTM after consent when the banner
   assert.match(run(GTM).fix, /The cookie banner is loaded by GTM/);
   assert.match(run(undefined).fix, /^Choose one:/);
 });
+
+test('Paligo case 3: GA4 through server-side tagging on the own domain is GA4, says so, and fails the Google commitment', () => {
+  const SGTM = 'https://analytics.new.example/g/collect?v=2&tid=G-6J9DFZLXNL&gcs=G100';
+  const states = [st('none', { consentCommands: [DENIED], requests: [req(SGTM)] }), st('reject', { requests: [req(SGTM)] }), st('accept'), ...granular];
+  const findings = policyRun(states);
+  for (const key of ['consent.before_choice.ga4', 'consent.after_reject.ga4']) {
+    const [f] = byKey(findings, key);
+    assert.equal(f.status, 'fail', key);
+    assert.match(f.explanation, /analytics\.new\.example/);
+    assert.match(f.explanation, /server-side tagging/);
+  }
+  assert.equal(byKey(findings, 'consent.after_reject.google_commitment').length, 0);
+  assert.equal(byKey(findings, 'consent.unknown_after_reject')[0].status, 'pass', 'the own-domain GA4 endpoint is a known tool');
+  const [cookieless] = byKey(compareRun(states.slice(0, 3)), 'consent.after_reject.cookieless.ga4');
+  assert.match(cookieless.explanation, /server-side tagging/);
+});
+
+test('an IP lookup service before choice and after reject is "verify", not an unknown third party', () => {
+  const IPIFY = 'https://api.ipify.org/?format=json';
+  const findings = policyRun([st('none', { consentCommands: [DENIED], requests: [req(IPIFY, 'fetch')] }), st('reject', { requests: [req(IPIFY, 'fetch')] }), st('accept'), ...granular]);
+  assert.equal(byKey(findings, 'consent.before_choice.verify.ip-lookup')[0].status, 'manual');
+  assert.equal(byKey(findings, 'consent.after_reject.verify.ip-lookup')[0].status, 'manual');
+  assert.equal(byKey(findings, 'consent.unknown_after_reject')[0].status, 'pass');
+});

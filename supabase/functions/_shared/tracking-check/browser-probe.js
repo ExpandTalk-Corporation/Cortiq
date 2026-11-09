@@ -278,12 +278,14 @@ async function observeState(browser, state, context, inPageSource) {
   const googleHost = /(^|\.)(google\.([a-z]{2,3}|com?\.[a-z]{2})|doubleclick\.net|googlesyndication\.com|googleadservices\.com|google-analytics\.com|googletagmanager\.com)$/;
   // Compared by name|domain, not value: a cookie whose value merely changes on reload is not a "new" cookie.
   const cookieKey = (c) => `${c.name}|${c.domain}`;
+  // GA4 hits through server-side tagging on the site's own domain also go to Google.
+  const ga4Hit = (u) => u.pathname === '/g/collect' && /[?&]tid=G-/.test(u.search);
   p.on('request', (r) => {
     const url = r.url();
     if (out.requests.length >= 2000 || !/^https?:/.test(url)) return;
-    let host = '';
-    try { host = new URL(url).hostname; } catch (e) { /* not a URL */ }
-    if (googleHost.test(host) && (userData.test(url) || userData.test(r.postData() || ''))) out.enhancedConversions = true;
+    let toGoogle = false;
+    try { const u = new URL(url); toGoogle = googleHost.test(u.hostname) || ga4Hit(u); } catch (e) { /* not a URL */ }
+    if (toGoogle && (userData.test(url) || userData.test(r.postData() || ''))) out.enhancedConversions = true;
     const type = r.resourceType();
     const entry = { url, type };
     if (type === 'script' && typeof r.initiator === 'function') {
