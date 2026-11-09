@@ -147,7 +147,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   {
     path: '/docs/metrics/',
     title: 'How CortIQ Counts Visits, Conversions & AI Traffic',
-    description: 'CortIQ metric definitions: a visit ends after 30 idle minutes, goals count once per visit, AI hits by category, aggregate visitors and engagement.',
+    description: 'CortIQ metric definitions: sampling and thresholds, a visit ends after 30 idle minutes, goals count once per visit, AI hits and custom dimensions.',
     published: '2026-11-07',
     changefreq: 'monthly',
     priority: 0.6,

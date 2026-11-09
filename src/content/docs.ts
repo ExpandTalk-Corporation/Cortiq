@@ -590,12 +590,14 @@ export const MCP: ContentPageData = {
 
 // Checked against ingest_pageview (20261108000001), get_overview_metrics, record_conversion_event,
 // ingest_aggregate_hit (20261107000001), KpiRow.tsx, aggregateStats.ts and dashboard/filters.ts on 2026-11-07.
+// Processing and custom dimensions checked against 20261109000004 (report RPCs), 20261111000001 and
+// aggregateStats.ts on 2026-11-09.
 export const METRICS: ContentPageData = {
   path: '/docs/metrics/',
   breadcrumb: [{ label: 'Docs', path: '/docs/' }, { label: 'Metrics', path: '/docs/metrics/' }],
   eyebrow: 'Documentation',
   h1: 'How CortIQ counts',
-  lead: 'Definitions of the numbers in the dashboard: what a visit is, when it ends, how conversions and AI traffic are counted, and how the aggregate figures differ.',
+  lead: 'Definitions of the numbers in the dashboard: what a visit is, when it ends, how conversions and AI traffic are counted, how the aggregate figures differ, and what happens to the data before it is shown.',
   sections: [
     {
       id: 'visits',
@@ -650,6 +652,40 @@ export const METRICS: ContentPageData = {
           ],
         },
         { type: 'p', text: 'Visitors who refuse analytics or send Global Privacy Control are not counted, and the figures are not available through the API or MCP server. The [privacy policy](/privacy/) describes what is processed.' },
+      ],
+    },
+    {
+      id: 'processing',
+      heading: 'Processing: sampling, thresholds and bots',
+      blocks: [
+        {
+          type: 'list',
+          items: [
+            '**No sampling.** The overview key figures, the analytics summary, geolocation, campaigns, navigation, social media, the aggregate card and custom dimensions are computed in the database from all recorded rows for the period, however long the range or however many filters are applied.',
+            '**Row limit in older views.** Some tables still load raw rows into the browser (the top pages and traffic-source tables, page funnels and segments). They read at most 1,000 rows per query, so on busy sites or long ranges they cover only part of the period.',
+            '**No thresholds.** Small numbers are shown as they are. Nothing is withheld or rounded because a row has few visits.',
+            '**No modelled data.** Visitors who refuse consent are not estimated or filled in. Consent-based figures cover consenting visitors only; the aggregate card is the only place that counts without consent.',
+            '**Bots:** consent-based page views have no separate bot filter. A page view is recorded only when the tracking script runs and analytics consent is given, which most crawlers never do. AI crawlers and agents are counted as AI visits. Aggregate figures drop crawler bursts, as described above.',
+            '**Top lists:** the Sources and Top pages lists in the aggregate card end with an **Other** row, so they add up to the totals above them. Other top lists in the dashboard show only the leading rows and can add up to less than the total.',
+          ],
+        },
+      ],
+    },
+    {
+      id: 'custom-dimensions',
+      heading: 'Custom dimensions',
+      blocks: [
+        { type: 'p', text: 'Properties sent as the third argument of `CortIQ.track()` are stored with the event but are not reported until you register them under Report Builder → Custom dimensions (GA4: register custom dimension).' },
+        {
+          type: 'list',
+          items: [
+            '**Up to 25 dimensions per site.** Only properties with a text, number or true/false value can be registered.',
+            '**Reserved keys** that identify a person or device, or hold full URLs, cannot be registered: for example `visitor_id`, `session_id`, `email`, `url`, `user_agent`, `referrer` and click IDs such as `gclid`.',
+            '**Breakdown:** events and visits per value for the period. The 25 most common values are listed and the rest are grouped as **(other)**, so the rows add up to the number of events that carry the property. Values longer than 100 characters are cut.',
+            '**Coverage:** events are counted per site from November 2026. Older events are included only if their page URL matches the site.',
+          ],
+        },
+        { type: 'note', tone: 'warning', text: 'Never send names, email addresses or other personal data as properties. Use categories such as a plan or a form name.' },
       ],
     },
     {
