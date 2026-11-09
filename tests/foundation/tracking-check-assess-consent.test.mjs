@@ -455,3 +455,38 @@ test('storage inside a tracking vendor frame counts as stored data', () => {
   assert.equal(li.status, 'fail');
   assert.match(li.explanation, /li_adsId/);
 });
+
+test('Paligo case 3: a Wistia player is a verify embed; its "wistia" visitor record after "Reject all" is a fail', () => {
+  const findings = compareRun([
+    st('none', { requests: [req('https://fast.wistia.net/embed/iframe/opl6lzlenp')] }),
+    st('reject', { requests: [req('https://fast.wistia.net/embed/iframe/opl6lzlenp'), req('https://pipedream.wistia.com/mput')], frameStorage: [{ origin: 'https://fast.wistia.net', key: 'wistia' }] }),
+    st('accept'),
+  ]);
+  assert.equal(byKey(findings, 'consent.before_choice.verify.wistia')[0].status, 'manual');
+  const [after] = byKey(findings, 'consent.after_reject.verify.wistia');
+  assert.equal(after.status, 'fail');
+  assert.match(after.explanation, /Wistia\.consent\(false\)/);
+});
+
+test('a widget keeping only its scroll position after "Reject all" is verify, not a fail', () => {
+  const findings = compareRun([
+    st('none'),
+    st('reject', { requests: [req('https://launcher.1mind.com/deployment-1')], frameStorage: [{ origin: 'https://app.1mind.com', key: 'react-router-scroll-positions' }] }),
+    st('accept'),
+  ]);
+  const [f] = byKey(findings, 'consent.after_reject.verify.1mind');
+  assert.equal(f.status, 'manual');
+  assert.doesNotMatch(f.explanation, /react-router-scroll-positions/);
+});
+
+test('storage inside a frame from an unknown domain after "Reject all" is listed with that domain', () => {
+  const findings = policyRun([
+    st('none', { consentCommands: [DENIED] }),
+    st('reject', { requests: [req('https://player.videohost.example/embed/1')], frameStorage: [{ origin: 'https://player.videohost.example', key: 'vh_visitor' }, { origin: 'https://player.videohost.example', key: 'react-router-scroll-positions' }] }),
+    st('accept'), ...granular,
+  ]);
+  const [u] = byKey(findings, 'consent.unknown_after_reject');
+  assert.equal(u.status, 'warning');
+  assert.deepEqual(u.evidence.details, ['player.videohost.example (on /; stored vh_visitor)']);
+  assert.match(u.explanation, /embedded frames that stored data/);
+});
