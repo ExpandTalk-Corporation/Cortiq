@@ -4,7 +4,8 @@ import { safeGet, type ProbeOptions } from './fetch-probe.ts';
 
 export interface SuggestedPage { path: string; reason: 'home' | 'form' | 'sitemap'; selected: boolean }
 
-const FORM_HINT = /(contact|kontakt|demo|get-started|trial|signup|sign-up|register|quote|offert|pricing|price|priser|book|boka|request)/i;
+// Hint words must start a word, so "lookbook" is not a booking page.
+const FORM_HINT = /(^|[/._-])(contact|kontakt|demo|get-started|trial|signup|sign-up|register|quote|offert|pricing|price|priser|book|boka|request)/i;
 const CANDIDATES = ['/sitemap.xml', '/sitemap_index.xml', '/wp-sitemap.xml'];
 
 export function parseSitemap(xml: string): { pages: string[]; sitemaps: string[] } {
@@ -125,9 +126,21 @@ export function suggestPages(urls: string[], origin: string, limit = 12): Sugges
     } catch { /* skip malformed entries */ }
   }
   const all = [...paths];
+  // A directory full of hint matches (a staff list under /contacts/) is one kind of page: suggest two of it as forms.
+  const perParent = new Map<string, number>();
+  const formLike = (p: string) => {
+    if (!FORM_HINT.test(p)) return false;
+    // Group by the folder whose name matched (/sv/contacts/ for /sv/contacts/m/name.html), else by the parent folder.
+    const segments = p.split('/').filter(Boolean);
+    const hit = segments.findIndex((seg) => FORM_HINT.test(`/${seg}`));
+    const group = hit >= 0 && hit < segments.length - 1 ? segments.slice(0, hit + 1).join('/') : p.replace(/[^/]+\/?$/, '');
+    perParent.set(group, (perParent.get(group) ?? 0) + 1);
+    return perParent.get(group)! <= 2;
+  };
+  const forms = new Set(all.sort(byDepthThenLength).filter(formLike));
   const ordered = [
-    ...all.filter((p) => FORM_HINT.test(p)).sort(byDepthThenLength).map((path) => ({ path, reason: 'form' as const })),
-    ...all.filter((p) => !FORM_HINT.test(p)).sort(byDepthThenLength).map((path) => ({ path, reason: 'sitemap' as const })),
+    ...[...forms].map((path) => ({ path, reason: 'form' as const })),
+    ...all.filter((p) => !forms.has(p)).map((path) => ({ path, reason: 'sitemap' as const })),
   ];
   return [{ path: '/', reason: 'home' as const }, ...ordered]
     .slice(0, 200)

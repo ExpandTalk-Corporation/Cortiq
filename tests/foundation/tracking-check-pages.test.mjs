@@ -19,6 +19,15 @@ test('suggests home, then form pages, then shallow pages, capped by limit', () =
   assert.ok(!pages.some((p) => p.path === '/contact/'), 'other hosts are ignored');
 });
 
+test('a directory of hint matches counts as form pages only twice', () => {
+  const people = 'abcdefgh'.split('').map((c) => `https://a.example/sv/contacts/${c}.html`);
+  const pages = suggestPages(['https://a.example/offert', 'https://a.example/kontakt', 'https://a.example/tjanster/', ...people], 'https://a.example', 6);
+  assert.deepEqual(pages.filter((p) => p.selected).map((p) => p.path), ['/', '/offert', '/kontakt', '/sv/contacts/a.html', '/sv/contacts/b.html', '/tjanster/']);
+  assert.equal(pages.find((p) => p.path === '/sv/contacts/c.html').reason, 'sitemap');
+  const nested = suggestPages(['https://a.example/sv/contacts/a/anna.html', 'https://a.example/sv/contacts/m/my.html', 'https://a.example/sv/contacts/x.html', 'https://a.example/lookbook/'], 'https://a.example');
+  assert.deepEqual(nested.filter((p) => p.reason === 'form').map((p) => p.path), ['/sv/contacts/x.html', '/sv/contacts/m/my.html']);
+});
+
 const resolve = async () => ['93.184.215.14'];
 const html = (paths) => `<html><body>${paths.map((p) => `<a class="x" href="${p}">${p}</a>`).join('')}</body></html>`;
 
