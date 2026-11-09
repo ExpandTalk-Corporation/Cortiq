@@ -55,7 +55,6 @@ export const SETTINGS_ITEMS: NavItem[] = [
   { value: 'gdpr', label: 'GDPR' },
   { value: 'notifications', label: 'Notifications' },
   { value: 'tag-manager', label: 'Tag manager' },
-  { value: 'warehouse', label: 'Data warehouse' },
   { value: 'segments', label: 'Segments' },
   { value: 'utm-segments', label: 'UTM segments' },
   { value: 'ip-segments', label: 'Network segments' },

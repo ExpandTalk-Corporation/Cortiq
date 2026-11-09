@@ -22,7 +22,6 @@ CortIQ connects to the tools you already run for measurement and attribution.
 | Document | Integration |
 |----------|-------------|
 | [INTEGRATION-GUIDE](../INTEGRATION-GUIDE.md) | Overview of every external connection |
-| [DATA_WAREHOUSE_GUIDE](../DATA_WAREHOUSE_GUIDE.md) | BigQuery, Snowflake, Redshift, PostgreSQL, MySQL export |
 | [GEOLOCATION_GUIDE](../GEOLOCATION_GUIDE.md) | Visitor geolocation and density maps |
 | [CONTENT_TRACKING_ADVANCED_GUIDE](../CONTENT_TRACKING_ADVANCED_GUIDE.md) | Advanced content and engagement tracking |
 | [MEDIA_ANALYTICS_GUIDE](../MEDIA_ANALYTICS_GUIDE.md) | Video and audio analytics |
