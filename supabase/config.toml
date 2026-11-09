@@ -126,3 +126,6 @@ verify_jwt = false
 
 [functions.gsc-sync]
 verify_jwt = false
+
+[functions.pipeline-freshness]
+verify_jwt = false
