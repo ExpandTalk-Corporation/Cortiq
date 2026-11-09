@@ -3,7 +3,7 @@
 // Display helpers live in report.ts so the browser bundle does not pull in the vendor registry.
 import type { ConsentState, Finding, FindingStatus, SiteObservation } from './types.ts';
 import { vendorForName, vendorForUrl, type Vendor } from '../tracking-vendors.ts';
-import { displayPath, testablePages, vendorOrigin } from './assess/util.ts';
+import { displayPath, frameStored, testablePages, vendorOrigin } from './assess/util.ts';
 import { MATRIX_STATES, type VendorRow } from './report.ts';
 
 const SEVERITY: FindingStatus[] = ['fail', 'warning', 'manual', 'untestable', 'pass'];
@@ -28,6 +28,7 @@ export function vendorMatrix(site: SiteObservation, findings: Finding[]): Vendor
       };
       for (const r of st.requests) { const s = add(vendorForUrl(r.url)); if (s) s.sends = true; }
       for (const name of [...st.cookies.map((c) => c.name), ...st.storageKeys]) add(vendorForName(name))?.stored.add(name);
+      for (const { vendor, key } of frameStored(st)) add(vendor)?.stored.add(key);
       // Left over from before the choice: only telling after "Reject all" (after "Accept all" it is expected).
       if (st.state === 'reject') for (const c of st.keptCookies ?? []) add(vendorForName(c.name))?.kept.add(c.name);
       for (const [id, { vendor, stored, kept, sends }] of seen) {

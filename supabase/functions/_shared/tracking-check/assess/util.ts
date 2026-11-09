@@ -9,6 +9,14 @@ export function errorStatus(page: PageObservation): number | null {
   return st ? st.status : null;
 }
 
+/** Storage written inside embedded frames, attributed by the frame's origin (a YouTube player's keys belong to YouTube). */
+export function frameStored(st: StateObservation): { vendor: Vendor; key: string }[] {
+  return (st.frameStorage ?? []).flatMap(({ origin, key }) => {
+    const vendor = vendorForUrl(`${origin}/`);
+    return vendor ? [{ vendor, key }] : [];
+  });
+}
+
 export function isTestable(page: PageObservation): boolean {
   if (page.failed) return false;
   const f = page.fetch;

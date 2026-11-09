@@ -434,3 +434,24 @@ test('a widget cookie kept from before "Reject all" is not a fail after it', () 
   const findings = compareRun([st('none'), st('reject', { requests: [req('https://launcher.1mind.com/deployment-1')], keptCookies: [{ name: 'om_user_token', domain: 'www.paligo.net' }] }), st('accept')]);
   assert.equal(byKey(findings, 'consent.after_reject.verify.1mind')[0].status, 'manual');
 });
+
+test('storage inside an embed frame is attributed to the embed: a YouTube player writing after "Reject all" is a fail', () => {
+  const findings = compareRun([
+    st('none', { requests: [req('https://www.youtube-nocookie.com/embed/abc')], frameStorage: [{ origin: 'https://www.youtube-nocookie.com', key: 'yt-remote-device-id' }] }),
+    st('reject', { requests: [req('https://www.youtube-nocookie.com/embed/abc')], frameStorage: [{ origin: 'https://www.youtube-nocookie.com', key: 'yt-remote-device-id' }, { origin: 'https://unknown.example', key: 'x' }] }),
+    st('accept'),
+  ]);
+  const [before] = byKey(findings, 'consent.before_choice.verify.youtube');
+  assert.equal(before.status, 'manual');
+  assert.match(before.explanation, /It set yt-remote-device-id/);
+  const [after] = byKey(findings, 'consent.after_reject.verify.youtube');
+  assert.equal(after.status, 'fail');
+  assert.match(after.fix, /only click-to-load stores nothing/);
+});
+
+test('storage inside a tracking vendor frame counts as stored data', () => {
+  const findings = policyRun([st('none', { frameStorage: [{ origin: 'https://snap.licdn.com', key: 'li_adsId' }] }), st('reject'), st('accept')]);
+  const [li] = byKey(findings, 'consent.before_choice.linkedin');
+  assert.equal(li.status, 'fail');
+  assert.match(li.explanation, /li_adsId/);
+});
