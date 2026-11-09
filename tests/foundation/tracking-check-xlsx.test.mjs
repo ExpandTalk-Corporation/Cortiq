@@ -27,6 +27,8 @@ test('the workbook has a summary sheet and a filterable findings sheet; formulas
   const summary = wb.getWorksheet('Summary');
   assert.equal(summary.getCell('B1').value, 'https://paligo.net');
   assert.match(String(summary.getCell('B4').value), /^1 commitment is not met/);
+  assert.equal(summary.getCell('A5').value, 'Checked against');
+  assert.equal(summary.getCell('B5').value, 'No commitments ticked');
   const ws = wb.getWorksheet('Findings');
   assert.deepEqual(ws.getRow(1).values.slice(1), SHEET_COLUMNS);
   assert.equal(ws.rowCount, 3);

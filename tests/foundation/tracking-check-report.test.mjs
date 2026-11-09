@@ -22,6 +22,16 @@ test('policy headline and pass lines skip scopes that have failures', () => {
   assert.deepEqual(bad.lines.map((l) => l.text), ['Google after reject']);
 });
 
+test('policy summaries name the commitments the site was checked against', () => {
+  const policy = { noGoogleBeforeConsent: false, consentDefaultsDenied: true, ga4RequiresAnalytics: false, adsRequiresMarketing: false,
+    enhancedConversionsOff: true, noUnknownVendorsAfterReject: false, expectedIds: [], manualItems: [] };
+  const s = summarize([f('pass', null, 'Consent', 'Defaults denied')], 'policy', policy);
+  assert.deepEqual(s.commitments, ['Consent Mode v2 defaults are "denied"', 'Enhanced Conversions is off']);
+  const strict = summarize([], 'policy', { ...policy, noGoogleBeforeConsent: true });
+  assert.match(strict.commitments[0], /Nothing is sent to Google before consent.*Consent Mode basic/);
+  assert.equal('commitments' in summarize([], 'comparison', policy), false);
+});
+
 test('CSV matches the tracker columns, maps statuses and escapes safely', () => {
   const csv = toCsv([
     f('fail', 'high', 'Tags', 'HubSpot is missing'),

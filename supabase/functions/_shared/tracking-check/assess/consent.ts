@@ -11,6 +11,7 @@ const automated = (st?: StateObservation) => !!st && st.method !== 'not_automate
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const paths = (pages: Iterable<PageObservation | string>) => [...pages].map((p) => (typeof p === 'string' ? p : p.path));
 const GOOGLE_EXEMPTION = 'Google Fonts and reCAPTCHA were exempted.';
+const STRICT_GOOGLE = 'This check was run with the commitment that nothing is sent to Google before consent (Consent Mode basic). If the site uses Consent Mode advanced, untick that commitment: these pings are then reported for review instead.';
 const LEGAL = 'may require consent under ePrivacy rules (in Sweden: LEK 9 kap. 28 §); this is assessed by the controller.';
 const hasDefault = (st?: StateObservation) => !!st && st.consentCommands.some((c) => c.kind === 'default');
 /** Google endpoints that are not one of the registry's Google tags (strict "nothing to Google" policy only). */
@@ -196,7 +197,7 @@ function choiceCheck({ mode, policy }: AssessInput, pages: PageObservation[], st
       out.push(finding({
         scope: 'Consent', checkKey: `${key}.${id}`, status: 'fail', priority: 'high',
         title: `${v.name} sends requests to Google ${label}`,
-        explanation: `The GTM container file (gtm.js) was downloaded from ${hosts} ${label} on ${where}. It sets no cookies, but Google receives the visitor's IP address and the page address. Many sites accept this because GTM often loads the cookie banner itself; under the agreed setup (nothing is sent to Google before consent) it is a deviation. This is a decision for the controller rather than a configuration error. ${GOOGLE_EXEMPTION}`,
+        explanation: `The GTM container file (gtm.js) was downloaded from ${hosts} ${label} on ${where}. It sets no cookies, but Google receives the visitor's IP address and the page address. Many sites accept this because GTM often loads the cookie banner itself; under the commitment this check was run with (nothing is sent to Google before consent) it is a deviation. This is a decision for the controller rather than a configuration error. ${GOOGLE_EXEMPTION}`,
         fix: 'Choose one:\n1) Record the container request as an accepted exception (the most common choice), with the reasoning.\n2) Load GTM only after consent. The cookie banner must then load directly in the page, not through GTM, and visitors who never answer the banner are not measured at all.',
         typicalOwner: 'legal', evidence,
       }));
@@ -204,7 +205,7 @@ function choiceCheck({ mode, policy }: AssessInput, pages: PageObservation[], st
       out.push(finding({
         scope: 'Consent', checkKey: `${key}.${id}`, status: 'fail', priority: 'high',
         title: `Requests are sent to Google ${label}`,
-        explanation: `The page contacted ${hosts} ${label} on ${where}, without setting cookies. No tag CortIQ recognises sent these requests, so the sender has to be found in the browser. The agreed setup is that nothing is sent to Google before consent (Consent Mode basic). ${GOOGLE_EXEMPTION}`,
+        explanation: `The page contacted ${hosts} ${label} on ${where}, without setting cookies. No tag CortIQ recognises sent these requests, so the sender has to be found in the browser. ${STRICT_GOOGLE} ${GOOGLE_EXEMPTION}`,
         fix: 'Find the tag that calls these Google endpoints (DevTools → Network → click the request → Initiator, or Tag Assistant) and give it a consent requirement in GTM, or block it in the cookie banner.',
         typicalOwner: 'gtm',
         evidence: { ...evidence, details: [...h.hosts].map((x) => { const what = googleHostLabel(x); return `requests to ${x}${what ? ` (${what})` : ''}`; }) },
@@ -214,7 +215,7 @@ function choiceCheck({ mode, policy }: AssessInput, pages: PageObservation[], st
         scope: 'Consent', checkKey: `${key}.${id}`, status: 'fail', priority: 'high',
         title: `${v.name} sends requests to Google ${label}`,
         explanation: [`${v.name} contacted ${hosts} ${label} on ${where}, without setting cookies.`, diagnosis(v, h.pages),
-          'Cookieless pings still give Google the visitor\'s IP address, browser and page address (Consent Mode advanced). The agreed setup is that nothing is sent to Google before consent (Consent Mode basic).', GOOGLE_EXEMPTION].filter(Boolean).join(' '),
+          'Cookieless pings still give Google the visitor\'s IP address, browser and page address (Consent Mode advanced).', STRICT_GOOGLE, GOOGLE_EXEMPTION].filter(Boolean).join(' '),
         fix: [gtmBlockSteps(cmp, v), DATA_DROP].join('\n\n'),
         typicalOwner: 'gtm', evidence,
       }));
@@ -403,7 +404,7 @@ function enhancedConversions({ mode, policy }: AssessInput, pages: PageObservati
     return [finding({
       scope: 'Ads/GA4', checkKey: 'ads.enhanced_conversions', status: 'fail', priority: 'high',
       title: 'Enhanced Conversions appears to be switched on',
-      explanation: 'The Google tag configuration or its requests include user data for Enhanced Conversions (hashed email), which the agreed setup excludes.',
+      explanation: 'The Google tag configuration or its requests include user data for Enhanced Conversions (hashed email), which the commitments for this check exclude.',
       fix: 'Turn off Enhanced Conversions in Google Ads (Goals → Settings), and remove user_data and allow_enhanced_conversions from the Google tag or GTM.',
       typicalOwner: 'gtm', evidence: { pages: paths(seen) },
     })];

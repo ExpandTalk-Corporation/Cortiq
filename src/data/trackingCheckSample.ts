@@ -35,6 +35,14 @@ export const TRACKING_CHECK_SAMPLE: { targetUrl: string; summary: ReportSummary;
         "text": "Ad and campaign parameters survive on all 3 tested pages",
         "checkKey": "params.survive"
       }
+    ],
+    "commitments": [
+      "Nothing is sent to Google before consent or after \"Reject all\" (Consent Mode basic)",
+      "Consent Mode v2 defaults are \"denied\"",
+      "Google Analytics only runs with Statistics consent",
+      "Google Ads only runs with Marketing consent",
+      "Enhanced Conversions is off",
+      "No unknown third parties after \"Reject all\""
     ]
   },
   "findings": [

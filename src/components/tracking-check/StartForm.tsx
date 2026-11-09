@@ -10,17 +10,17 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useCreateRun, useSuggestPages, type RunRow } from '@/hooks/useTrackingCheck';
-import type { Mode, PolicyTemplate } from '../../../supabase/functions/_shared/tracking-check/types.ts';
+import type { Mode } from '../../../supabase/functions/_shared/tracking-check/types.ts';
+import { COMMITMENT_LABEL, type CommitmentFlag } from '../../../supabase/functions/_shared/tracking-check/report.ts';
 
-type Flag = Exclude<keyof PolicyTemplate, 'expectedIds' | 'manualItems'>;
-const FLAGS: { key: Flag; label: string }[] = [
-  { key: 'noGoogleBeforeConsent', label: 'Nothing is sent to Google before consent or after "Reject all"' },
-  { key: 'consentDefaultsDenied', label: 'Consent Mode v2 defaults are "denied" (untick if you do not use Consent Mode)' },
-  { key: 'ga4RequiresAnalytics', label: 'Google Analytics only runs with Statistics consent' },
-  { key: 'adsRequiresMarketing', label: 'Google Ads only runs with Marketing consent' },
-  { key: 'enhancedConversionsOff', label: 'Enhanced Conversions is off' },
-  { key: 'noUnknownVendorsAfterReject', label: 'No unknown third parties after "Reject all"' },
-];
+type Flag = CommitmentFlag;
+const FLAGS: { key: Flag; label: string; hint?: string }[] = (Object.keys(COMMITMENT_LABEL) as Flag[]).map((key) => ({
+  key,
+  label: COMMITMENT_LABEL[key],
+  hint: key === 'noGoogleBeforeConsent'
+    ? 'Tick only if the site has decided on Consent Mode basic. Unticked, cookieless Google pings are reported as "Review", not "Problem".'
+    : key === 'consentDefaultsDenied' ? 'Untick if you do not use Consent Mode.' : undefined,
+}));
 const MANUAL_ITEMS = [
   { key: 'ga4_retention', label: 'GA4 data retention is set to the agreed period (Admin → Data collection and modification → Data retention)' },
   { key: 'google_terms', label: 'Google Ads and GA4 data processing terms are accepted' },
@@ -29,7 +29,8 @@ const MANUAL_ITEMS = [
   { key: 'privacy_policy', label: 'The privacy policy names Google as a recipient, the US transfer (Data Privacy Framework) and how to withdraw consent' },
   { key: 'consent_mode_decision', label: 'Consent Mode basic or advanced is decided and documented by the controller' },
 ];
-const allFlags = () => Object.fromEntries(FLAGS.map((f) => [f.key, true])) as Record<Flag, boolean>;
+// Consent Mode basic vs advanced is the controller's decision: the strict Google commitment is opt-in.
+const defaultFlags = () => Object.fromEntries(FLAGS.map((f) => [f.key, f.key !== 'noGoogleBeforeConsent'])) as Record<Flag, boolean>;
 
 interface PageChoice { path: string; selected: boolean; note?: string }
 
@@ -56,7 +57,7 @@ export function StartForm({ prefill, initialUrl, initialMode, limits }: { prefil
   const [pages, setPages] = useState<PageChoice[]>((prefill?.pages.pages ?? ['/']).map((path) => ({ path, selected: true })));
   const [extraPath, setExtraPath] = useState('');
   const [legacy, setLegacy] = useState((prefill?.pages.legacy ?? []).join('\n'));
-  const [flags, setFlags] = useState<Record<Flag, boolean>>(prefill?.policy ? (Object.fromEntries(FLAGS.map((f) => [f.key, prefill.policy![f.key]])) as Record<Flag, boolean>) : allFlags());
+  const [flags, setFlags] = useState<Record<Flag, boolean>>(prefill?.policy ? (Object.fromEntries(FLAGS.map((f) => [f.key, prefill.policy![f.key]])) as Record<Flag, boolean>) : defaultFlags());
   const [expectedIds, setExpectedIds] = useState((prefill?.policy?.expectedIds ?? []).join(', '));
   const [manual, setManual] = useState<string[]>(prefill?.policy?.manualItems.map((i) => i.key) ?? MANUAL_ITEMS.map((i) => i.key));
 
@@ -172,11 +173,12 @@ export function StartForm({ prefill, initialUrl, initialMode, limits }: { prefil
           <Collapsible>
           <CollapsibleTrigger asChild><Button variant="link" className="h-auto p-0">Advanced: what to check and expected IDs</Button></CollapsibleTrigger>
           <CollapsibleContent className="mt-3 space-y-3">
-            <p className="text-xs text-muted-foreground">Everything is checked by default. Untick what does not apply to the site.</p>
+            <p className="text-xs text-muted-foreground">The report lists the ticked commitments and checks the site against them. Untick what does not apply to the site.</p>
             <Label>Commitments to check</Label>
             {FLAGS.map((f) => (
               <label key={f.key} className="flex items-start gap-2 text-sm">
-                <Checkbox checked={flags[f.key]} onCheckedChange={(v) => setFlags({ ...flags, [f.key]: v === true })} />{f.label}
+                <Checkbox checked={flags[f.key]} onCheckedChange={(v) => setFlags({ ...flags, [f.key]: v === true })} />
+                <span>{f.label}{f.hint && <span className="block text-xs text-muted-foreground">{f.hint}</span>}</span>
               </label>
             ))}
             <div className="space-y-2">
