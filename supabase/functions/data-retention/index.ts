@@ -19,11 +19,11 @@ serve(async (req) => {
   if (req.method === 'POST') {
     try {
       // Delegate to the single authoritative retention routine (run_data_retention),
-      // which applies each site's own gdpr_settings.data_retention_days (default 730),
+      // which applies each site's own gdpr_settings.data_retention_days (default 365),
       // scopes deletes correctly, and wraps every table separately.
       //
       // This function previously ran its own hardcoded 30-day GLOBAL purge with no
-      // per-site scoping, which both contradicted the 730-day cron and risked deleting
+      // per-site scoping, which contradicted the per-site retention and risked deleting
       // real customers' data prematurely. It now shares one source of truth.
       const { data, error } = await supabase.rpc('run_data_retention');
       if (error) throw error;
