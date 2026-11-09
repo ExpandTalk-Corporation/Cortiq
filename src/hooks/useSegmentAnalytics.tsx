@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { rangeBounds } from '@/lib/dashboard/filters';
 
 export interface Segment {
   id: string;
@@ -54,56 +53,35 @@ export function useSegmentAnalytics(siteId: string | null, range: { from: string
   const loadSegmentAnalytics = async (siteId: string) => {
     setIsLoading(true);
     try {
-      const { start, end } = rangeBounds(range.from, range.to);
+      // Counted in the database (get_segment_stats): every session in the range, and
+      // conversions matched to sessions by ID.
+      const { data, error } = await (supabase as any).rpc('get_segment_stats', {
+        p_site_id: siteId, p_from: range.from, p_to: range.to,
+      });
 
-      // Sessions in the selected range for the segment analysis
-      const { data: sessions, error: sessionError } = await supabase
-        .from('tracking_sessions')
-        .select('device_type, duration_seconds, page_views, started_at, referrer, session_id')
-        .eq('site_id', siteId)
-        .gte('started_at', start)
-        .lt('started_at', end);
+      if (error) throw error;
 
-      if (sessionError) throw sessionError;
-
-      // Conversions in the same range
-      const { data: conversions, error: conversionError } = await supabase
-        .from('conversion_events')
-        .select('event_type, event_value, session_id, created_at')
-        .eq('site_id', siteId)
-        .gte('created_at', start)
-        .lt('created_at', end);
-
-      if (conversionError) throw conversionError;
-
-      if (!sessions || sessions.length === 0) {
+      const totalSessions = Number(data?.total_sessions ?? 0);
+      if (totalSessions === 0) {
         setSegmentMetrics([]);
         setInsights([]);
         setIsLoading(false);
         return;
       }
 
-      // Analysera enhetssegment för konverteringsgrad
-      const deviceStats = sessions.reduce((acc, session) => {
-        const device = session.device_type || 'unknown';
-        if (!acc[device]) {
-          acc[device] = { sessions: 0, conversions: 0 };
-        }
-        acc[device].sessions++;
-        
-        // Räkna konverteringar för denna session
-        const sessionConversions = conversions?.filter(c => c.session_id === session.session_id) || [];
-        if (sessionConversions.length > 0) {
-          acc[device].conversions++;
-        }
-        
-        return acc;
-      }, {} as Record<string, { sessions: number; conversions: number }>);
+      type Row = { key: string; sessions: number; converting_sessions: number; conversion_value: number };
+      const toStats = (rows: Row[] = []) => Object.fromEntries(rows.map((r) => [r.key, {
+        sessions: Number(r.sessions),
+        conversions: Number(r.converting_sessions),
+        totalValue: Number(r.conversion_value),
+      }]));
+      const deviceStats = toStats(data.devices);
+      const arrivalStats = toStats(data.arrivals);
 
       // Beräkna konverteringsgrad per enhet
       const deviceSegments: Segment[] = Object.entries(deviceStats).map(([device, stats]) => {
         const conversionRate = stats.sessions > 0 ? (stats.conversions / stats.sessions) * 100 : 0;
-        const volumeImpact = stats.sessions / sessions.length * 100;
+        const volumeImpact = stats.sessions / totalSessions * 100;
         
         return {
           id: device,
@@ -118,7 +96,6 @@ export function useSegmentAnalytics(siteId: string | null, range: { from: string
 
       // Beräkna genomsnittlig konverteringsgrad
       const totalConversions = Object.values(deviceStats).reduce((sum, stats) => sum + stats.conversions, 0);
-      const totalSessions = sessions.length;
       const overallConversionRate = totalSessions > 0 ? (totalConversions / totalSessions) * 100 : 0;
 
       // Beräkna variance för varje segment
@@ -136,33 +113,16 @@ export function useSegmentAnalytics(siteId: string | null, range: { from: string
         maxVariance: Math.max(...deviceSegments.map(s => Math.abs(s.variance)))
       };
 
-      // Analysera användarsegment (ny vs återkommande baserat på sessioner)
-      const userTypeStats = sessions.reduce((acc, session) => {
-        // Enkel heuristik: om referrer är tom eller samma domän = direktbesök
-        const isReturning = session.referrer && !session.referrer.includes('(direct)');
-        const userType = isReturning ? 'returning' : 'new';
-        
-        if (!acc[userType]) {
-          acc[userType] = { sessions: 0, conversions: 0, totalValue: 0 };
-        }
-        acc[userType].sessions++;
-        
-        const sessionConversions = conversions?.filter(c => c.session_id === session.session_id) || [];
-        if (sessionConversions.length > 0) {
-          acc[userType].conversions++;
-          acc[userType].totalValue += sessionConversions.reduce((sum, c) => sum + (c.event_value || 0), 0);
-        }
-        
-        return acc;
-      }, {} as Record<string, { sessions: number; conversions: number; totalValue: number }>);
+      // Direct vs referred arrival (no referrer vs a referrer).
+      const userTypeStats = arrivalStats;
 
       const userTypeSegments: Segment[] = Object.entries(userTypeStats).map(([type, stats]) => {
         const revenuePerSession = stats.sessions > 0 ? stats.totalValue / stats.sessions : 0;
-        const volumeImpact = stats.sessions / sessions.length * 100;
+        const volumeImpact = stats.sessions / totalSessions * 100;
         
         return {
           id: type,
-          name: type === 'new' ? 'New visitors' : 'Returning',
+          name: type === 'direct' ? 'Direct' : 'Referred',
           value: revenuePerSession,
           variance: 0,
           impact: volumeImpact > 40 ? 'high' : 'medium',

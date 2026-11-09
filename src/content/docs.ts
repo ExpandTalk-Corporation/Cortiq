@@ -661,8 +661,8 @@ export const METRICS: ContentPageData = {
         {
           type: 'list',
           items: [
-            '**No sampling.** The overview key figures, the analytics summary, geolocation, campaigns, navigation, social media, the aggregate card and custom dimensions are computed in the database from all recorded rows for the period, however long the range or however many filters are applied.',
-            '**Row limit in older views.** Some tables still load raw rows into the browser (the top pages and traffic-source tables, page funnels and segments). They read at most 1,000 rows per query, so on busy sites or long ranges they cover only part of the period.',
+            '**No sampling.** The overview key figures, the analytics summary, top pages, traffic sources, page funnels, segments, geolocation, campaigns, navigation, social media, the aggregate card and custom dimensions are computed in the database from all recorded rows for the period, however long the range or however many filters are applied.',
+            '**Previews:** the element and heatmap previews under content tracking read at most 500 rows for the period. They are examples, not totals.',
             '**No thresholds.** Small numbers are shown as they are. Nothing is withheld or rounded because a row has few visits.',
             '**No modelled data.** Visitors who refuse consent are not estimated or filled in. Consent-based figures cover consenting visitors only; the aggregate card is the only place that counts without consent.',
             '**Bots:** consent-based page views have no separate bot filter. A page view is recorded only when the tracking script runs and analytics consent is given, which most crawlers never do. AI crawlers and agents are counted as AI visits. Aggregate figures drop crawler bursts, as described above.',
