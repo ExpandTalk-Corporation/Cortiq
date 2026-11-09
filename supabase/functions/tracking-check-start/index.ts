@@ -1,7 +1,8 @@
 // Tracking Check API: access check, page suggestions, run creation, status and sharing.
 import { createClient } from '../_shared/supabase.ts';
 import { assertSafeUrl } from '../_shared/safe-url.ts';
-import { fetchSitemapUrls, suggestPages } from '../_shared/tracking-check/pages.ts';
+import { discoverPages, suggestPages } from '../_shared/tracking-check/pages.ts';
+import { runLinkProbe } from '../_shared/tracking-check/browserless.ts';
 import { randomToken, seal } from '../_shared/tracking-check/secret-box.ts';
 import { kickWorker } from '../_shared/tracking-check/kick.ts';
 import { browserAccess } from '../_shared/browser-access.ts';
@@ -105,7 +106,15 @@ function parsePolicy(raw: unknown): PolicyTemplate {
 
 async function suggest(body: Body) {
   const origin = await siteOrigin(body.url);
-  return { pages: suggestPages(await fetchSitemapUrls(origin), origin) };
+  const found = await discoverPages(origin, {
+    browserLinks: (urls, enough) => runLinkProbe({
+      endpoint: Deno.env.get('BROWSERLESS_URL') ?? '', token: Deno.env.get('BROWSERLESS_API_KEY') ?? '', urls, enough,
+    }),
+  });
+  return {
+    pages: suggestPages(found.urls, origin),
+    source: found.source, from: found.from, blockedStatus: found.blockedStatus, viaBrowser: found.viaBrowser,
+  };
 }
 
 async function runsToday(userId: string, service: Db): Promise<number> {

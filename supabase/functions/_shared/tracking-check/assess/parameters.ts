@@ -83,7 +83,7 @@ export function assessParameters({ mode, target }: AssessInput): Finding[] {
       })
       : finding({
         scope: 'Parameters', checkKey: 'params.survive', status: 'pass', priority: null,
-        title: `Ad and campaign parameters survive on all ${plural(probed.length, 'tested page', 'tested pages')}`,
+        title: probed.length === 1 ? 'Ad and campaign parameters survive on the tested page' : `Ad and campaign parameters survive on all ${probed.length} tested pages`,
         explanation: 'UTM parameters and click IDs stay in the URL, including through redirects.',
         fix: '', typicalOwner: null, evidence: { pages: probed.map((p) => displayPath(p.path)) },
       }));

@@ -56,7 +56,7 @@ const FAQ = [
   },
   {
     q: "Does it crawl the whole site?",
-    a: "No. You choose up to five pages per check, plus the old URLs to test. Suggest from sitemap helps you pick. Larger migrations can contact info@expandtalk.se for higher limits.",
+    a: "No. You choose up to five pages per check, plus the old URLs to test. Suggest pages helps you pick. Larger migrations can contact info@expandtalk.se for higher limits.",
   },
   {
     q: "Is this an SEO audit?",

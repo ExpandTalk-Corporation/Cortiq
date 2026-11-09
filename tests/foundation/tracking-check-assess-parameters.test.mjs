@@ -11,6 +11,7 @@ test('parameters pass when every page keeps them', () => {
   const [f] = byKey(run([page('/'), page('/pricing/')]), 'params.survive');
   assert.equal(f.status, 'pass');
   assert.match(f.title, /all 2 tested pages/);
+  assert.equal(byKey(run([page('/')]), 'params.survive')[0].title, 'Ad and campaign parameters survive on the tested page');
 });
 
 test('parameters fail and name the lost parameters per page', () => {

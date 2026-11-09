@@ -58,7 +58,16 @@ export const useTrackingCheckAccess = () =>
   useQuery({ queryKey: ['tracking-check', 'access'], queryFn: () => call<TrackingCheckAccess>({ action: 'access' }), staleTime: 5 * 60_000 });
 
 export const useSuggestPages = () =>
-  useMutation({ mutationFn: (url: string) => call<{ pages: SuggestedPage[] }>({ action: 'suggest', url }) });
+  useMutation({ mutationFn: (url: string) => call<SuggestResult>({ action: 'suggest', url }) });
+
+export interface SuggestResult {
+  pages: SuggestedPage[];
+  /** Missing on responses from before page discovery had fallbacks. */
+  source?: 'sitemap' | 'html-sitemap' | 'links' | null;
+  from?: string | null;
+  blockedStatus?: number | null;
+  viaBrowser?: boolean;
+}
 
 export function useCreateRun() {
   const qc = useQueryClient();

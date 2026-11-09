@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { useCreateRun, useSuggestPages, type RunRow } from '@/hooks/useTrackingCheck';
+import { useCreateRun, useSuggestPages, type RunRow, type SuggestResult } from '@/hooks/useTrackingCheck';
 import type { Mode } from '../../../supabase/functions/_shared/tracking-check/types.ts';
 import { COMMITMENT_LABEL, type CommitmentFlag } from '../../../supabase/functions/_shared/tracking-check/report.ts';
 
@@ -46,6 +46,17 @@ const MODES: { mode: Mode; title: string; text: string }[] = [
 
 interface Limits { policyPages: number; comparisonPages: number }
 
+/** Where the suggested pages came from, when it is not the XML sitemap. */
+function suggestNote({ pages, source, from, blockedStatus, viaBrowser }: SuggestResult): string | null {
+  const blocked = blockedStatus ? `The sitemap is blocked (HTTP ${blockedStatus}). ` : '';
+  // The homepage is always suggested, so one page means nothing was found.
+  if (pages.length <= 1) return `${blocked || 'No sitemap found. '}Add the pages to test below.`;
+  const how = viaBrowser ? ', read in a browser' : '';
+  if (source === 'html-sitemap') return `${blocked}Pages from the sitemap page ${from ?? ''}${how}.`;
+  if (source === 'links') return `${blocked || 'No sitemap found. '}Pages are links from the homepage${how}.`;
+  return null;
+}
+
 export function StartForm({ prefill, initialUrl, initialMode, limits }: { prefill?: RunRow; initialUrl?: string; initialMode?: Mode; limits: Limits }) {
   const navigate = useNavigate();
   const suggest = useSuggestPages();
@@ -70,8 +81,10 @@ export function StartForm({ prefill, initialUrl, initialMode, limits }: { prefil
   const sourceUrl = mode === 'comparison' ? baselineUrl : targetUrl;
 
   const loadPages = () => suggest.mutate(sourceUrl, {
-    onSuccess: ({ pages: found }) => {
-      if (!found.length) toast.info('No sitemap found. Add the pages to test below.');
+    onSuccess: (result) => {
+      const found = result.pages;
+      const note = suggestNote(result);
+      if (note) toast.info(note);
       setPages(found.map((p) => ({ path: p.path, selected: p.selected && found.indexOf(p) < limit, note: p.reason === 'form' ? 'likely form' : undefined })));
     },
     onError: (e) => toast.error(e.message),
@@ -140,10 +153,10 @@ export function StartForm({ prefill, initialUrl, initialMode, limits }: { prefil
           <div className="flex items-center justify-between gap-2">
             <Label>Pages to test ({selected.length} of max {limit})</Label>
             <Button type="button" variant="outline" size="sm" disabled={!sourceUrl || suggest.isPending} onClick={loadPages}>
-              {suggest.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}Suggest from sitemap
+              {suggest.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}Suggest pages
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground">The homepage is a good start. Add pages with forms (contact, demo), or click Suggest from sitemap to choose from the site's pages.</p>
+          <p className="text-xs text-muted-foreground">The homepage is a good start. Add pages with forms (contact, demo), or click Suggest pages to choose from the site's sitemap or links.</p>
           {pages.length > 0 && (
             <div className="max-h-64 space-y-1 overflow-y-auto rounded-md border p-3">
               {pages.map((p) => (
