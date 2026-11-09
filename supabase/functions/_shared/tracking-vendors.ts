@@ -256,6 +256,15 @@ export const TRACKING_VENDORS: Vendor[] = [
     verify: 'An embedded YouTube video loads from Google when the page loads, before anyone presses play. The standard embed (youtube.com) can set YouTube cookies at that point; in privacy-enhanced mode (youtube-nocookie.com) Google says it stores no information about the visit until the video is played, but the player and thumbnail still load from Google. A click-to-load preview loads nothing until the visitor asks.',
   },
   {
+    // The player keeps a visitor record in localStorage under "wistia" (loads, plays, email) and reports views to Wistia.
+    id: 'wistia', name: 'Wistia video', category: 'preferences', googleTag: false,
+    requests: [{ host: /(^|\.)wistia\.(com|net|io)$/ }],
+    cookies: [/^wistia$/],
+    csp: { 'script-src': ['fast.wistia.com', 'fast.wistia.net'], 'frame-src': ['fast.wistia.net'], 'connect-src': ['*.wistia.com', '*.wistia.net'] },
+    impact: 'Embedded Wistia videos do not play.',
+    verify: `${embedNote('Wistia video', 'Wistia')} The Wistia player keeps a visitor record in local storage and reports viewing statistics to Wistia; Wistia documents privacy mode and Wistia.consent(false), which stop visitor tracking until consent.`,
+  },
+  {
     id: 'x-embed', name: 'X (Twitter) embed', category: 'preferences', googleTag: false,
     requests: [{ host: /^(platform|syndication)\.(twitter|x)\.com$/ }, { host: /^cdn\.syndication\.twimg\.com$/ }],
     cookies: [],

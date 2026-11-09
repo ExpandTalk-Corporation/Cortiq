@@ -9,11 +9,23 @@ export function errorStatus(page: PageObservation): number | null {
   return st ? st.status : null;
 }
 
+/** Interface state a widget keeps for itself (scroll position), not data about the visitor. */
+const UI_STATE_KEYS = [/^react-router-scroll-positions$/];
+const isUiState = (key: string): boolean => UI_STATE_KEYS.some((re) => re.test(key));
+
 /** Storage written inside embedded frames, attributed by the frame's origin (a YouTube player's keys belong to YouTube). */
 export function frameStored(st: StateObservation): { vendor: Vendor; key: string }[] {
   return (st.frameStorage ?? []).flatMap(({ origin, key }) => {
-    const vendor = vendorForUrl(`${origin}/`);
+    const vendor = isUiState(key) ? null : vendorForUrl(`${origin}/`);
     return vendor ? [{ vendor, key }] : [];
+  });
+}
+
+/** Storage inside frames from origins no known tool matches, as { hostname, key }. */
+export function unknownFrameStored(st: StateObservation): { host: string; key: string }[] {
+  return (st.frameStorage ?? []).flatMap(({ origin, key }) => {
+    if (isUiState(key) || vendorForUrl(`${origin}/`)) return [];
+    try { return [{ host: new URL(origin).hostname, key }]; } catch { return []; }
   });
 }
 

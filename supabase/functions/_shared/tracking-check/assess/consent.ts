@@ -1,7 +1,7 @@
 import type { AssessInput, Finding, PageObservation, StateObservation } from '../types.ts';
 import { GOOGLE_EXEMPT_VENDORS, isGoogleDomain, isGoogleHost, vendorForName, vendorForUrl, type Vendor } from '../../tracking-vendors.ts';
 import { MANUAL_STEPS } from '../instructions.ts';
-import { cmpOrigin, finding, frameStored, plural, requestVendors, siteKey, stateOf, testablePages, vendorOrigin, type ScriptOrigin } from './util.ts';
+import { cmpOrigin, finding, frameStored, plural, requestVendors, siteKey, stateOf, testablePages, unknownFrameStored, vendorOrigin, type ScriptOrigin } from './util.ts';
 import { CONSENT_DEFAULT_SNIPPET, parseGcs } from './signals.ts';
 import { DATA_DROP, ORIGIN_LABEL, cmpName, cmpOf, consentModeSteps, googleHostLabel, gtmBlockSteps, gtmContainerFix, vendorBlockSteps, verifyInConsole } from './guides.ts';
 
@@ -449,7 +449,11 @@ function categoryCheck({ mode, policy }: AssessInput, pages: PageObservation[]):
 function unknownAfterReject({ mode, policy, target }: AssessInput, pages: PageObservation[]): Finding[] {
   if (mode !== 'policy' || !policy?.noUnknownVendorsAfterReject) return [];
   const own = siteKey(new URL(target.origin).hostname);
-  const hosts = new Map<string, Set<string>>();
+  const hosts = new Map<string, { pages: Set<string>; stored: Set<string> }>();
+  const at = (host: string) => {
+    if (!hosts.has(host)) hosts.set(host, { pages: new Set(), stored: new Set() });
+    return hosts.get(host)!;
+  };
   const evaluated: PageObservation[] = [];
   for (const p of pages) {
     const st = stateOf(p, 'reject');
@@ -459,8 +463,12 @@ function unknownAfterReject({ mode, policy, target }: AssessInput, pages: PageOb
       let host = '';
       try { host = new URL(r.url).hostname; } catch { continue; }
       if (!host || siteKey(host) === own || vendorForUrl(r.url)) continue;
-      if (!hosts.has(host)) hosts.set(host, new Set());
-      hosts.get(host)!.add(p.path);
+      at(host).pages.add(p.path);
+    }
+    // An embedded frame from an unknown domain that writes to its own storage is reported with the domain.
+    for (const { host, key } of unknownFrameStored(st)) {
+      if (siteKey(host) === own) continue;
+      const h = at(host); h.pages.add(p.path); h.stored.add(key);
     }
   }
   if (!evaluated.length) return [];
@@ -471,10 +479,13 @@ function unknownAfterReject({ mode, policy, target }: AssessInput, pages: PageOb
   return [finding({
     scope: 'Consent', checkKey: 'consent.unknown_after_reject', status: 'warning', priority: 'medium',
     title: `${plural(hosts.size, 'unknown third party is', 'unknown third parties are')} contacted after "Reject all"`,
-    explanation: "These domains are not in CortIQ's list of known tools. They may be harmless (CDNs, video, fonts) or tracking tools.",
+    explanation: `These domains are not in CortIQ's list of known tools. They may be harmless (CDNs, video, fonts) or tracking tools.${[...hosts.values()].some((h) => h.stored.size) ? ' Some are embedded frames that stored data in the browser after "Reject all"; the stored keys are listed with the domain.' : ''}`,
     fix: 'Identify each domain. If it is a tracking or marketing tool, block it until consent in the cookie banner.',
     typicalOwner: 'marketing',
-    evidence: { pages: [...new Set([...hosts.values()].flatMap((s) => [...s]))], details: [...hosts].map(([h, ps]) => `${h} (on ${[...ps].join(', ')})`) },
+    evidence: {
+      pages: [...new Set([...hosts.values()].flatMap((h) => [...h.pages]))],
+      details: [...hosts].map(([h, { pages: ps, stored }]) => `${h} (on ${[...ps].join(', ')}${stored.size ? `; stored ${[...stored].join(', ')}` : ''})`),
+    },
   })];
 }
 
