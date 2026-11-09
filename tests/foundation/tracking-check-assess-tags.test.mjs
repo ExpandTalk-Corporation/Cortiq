@@ -69,6 +69,7 @@ test('a blocked reCAPTCHA gets the full reCAPTCHA CSP, minus what is already all
   assert.match(blocked.explanation, /^1 request to Google reCAPTCHA was blocked/);
   assert.match(blocked.fix, /script-src: add www\.google\.com www\.gstatic\.com/);
   assert.match(blocked.fix, /frame-src: add www\.google\.com recaptcha\.google\.com/);
+  assert.deepEqual(blocked.evidence.details, ['script-src blocked https://www.google.com/recaptcha/api.js (After "Accept all")']);
 });
 
 test('a non-necessary embed blocked before consent: fix offers removal or consent-gating, not just "allow it"', () => {

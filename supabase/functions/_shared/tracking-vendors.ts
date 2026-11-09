@@ -102,7 +102,11 @@ export const TRACKING_VENDORS: Vendor[] = [
   },
   {
     id: 'hubspot', name: 'HubSpot tracking code', category: 'analytics', googleTag: false,
-    requests: [{ host: /^(js(-eu1)?\.hs-(scripts|analytics|banner)\.(com|net)|js\.hscollectedforms\.net|track(-eu1)?\.hubspot\.com|js(-eu1)?\.usemessages\.com)$/ }],
+    // js.hubspot.com and cta-service-*: CTAs (web interactives) loaded by the tracking code. Verified 2026-11-09 against paligo.net.
+    requests: [
+      { host: /^(js(-eu1)?\.hs-(scripts|analytics|banner)\.(com|net)|(js|forms)\.hscollectedforms\.net|track(-eu1)?\.hubspot\.com|js(-eu1)?\.usemessages\.com)$/ },
+      { host: /^(js(-eu1)?|cta-service-[a-z0-9-]+)\.hubspot\.com$/ }, { host: /^api(-eu1)?\.hubapi\.com$/, path: /^\/hs-script-loader-public\// },
+    ],
     cookies: [/^__hstc$/, /^hubspotutk$/, /^__hssc$/, /^__hssrc$/],
     idFrom: (u) => (/^js(-eu1)?\.hs-scripts\.com$/.test(u.hostname) ? u.pathname.match(/^\/(\d+)\.js/)?.[1] ?? null : null),
     csp: { 'script-src': ['js.hs-scripts.com', 'js.hs-analytics.net', 'js.hs-banner.com', 'js.hscollectedforms.net', 'js.usemessages.com'], 'connect-src': ['*.hubspot.com', 'forms.hscollectedforms.net'], 'img-src': ['track.hubspot.com'] },
@@ -118,7 +122,7 @@ export const TRACKING_VENDORS: Vendor[] = [
   },
   {
     id: 'hubspot-forms', name: 'HubSpot forms', category: 'necessary', googleTag: false,
-    requests: [{ host: /^(js(-eu1)?\.hsforms\.net|forms(-eu1)?\.hsforms\.com|forms(-eu1)?\.hubspot\.com)$/ }],
+    requests: [{ host: /^(js(-eu1)?\.hsforms\.net|(forms|perf)(-[a-z]+\d+)?\.hsforms\.com|forms(-eu1)?\.hubspot\.com)$/ }],
     cookies: [],
     csp: { 'script-src': ['js.hsforms.net'], 'connect-src': ['forms.hsforms.com', 'forms.hubspot.com'], 'frame-src': ['forms.hsforms.com'], 'img-src': ['forms.hsforms.com'] },
     impact: 'HubSpot forms do not render or cannot be submitted.',

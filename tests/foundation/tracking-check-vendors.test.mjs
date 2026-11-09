@@ -203,3 +203,13 @@ test('Contentsquare, Hotjar, Salesforce CloudPages and Google Hosted Libraries a
   assert.equal(vendorForUrl('https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js')?.id, 'public-cdn');
   assert.equal(isGoogleHost('https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js'), false);
 });
+
+// Observed on paligo.net 2026-11-09.
+test('HubSpot CTAs, collected forms and regional form hosts are HubSpot', () => {
+  for (const url of ['https://js.hubspot.com/web-interactives-embed.js', 'https://cta-service-cms2.hubspot.com/web-interactives/public/v1/embed',
+    'https://forms.hscollectedforms.net/collected-forms/v1/config/json', 'https://api.hubapi.com/hs-script-loader-public/v2/config'])
+    assert.equal(vendorForUrl(url)?.id, 'hubspot', url);
+  for (const url of ['https://forms-na1.hsforms.com/embed/v3/counters.gif', 'https://perf-na1.hsforms.com/embed/v3/counters.gif'])
+    assert.equal(vendorForUrl(url)?.id, 'hubspot-forms', url);
+  assert.equal(vendorForUrl('https://api.hubapi.com/crm/v3/objects'), null);
+});
