@@ -38,3 +38,18 @@ test('the workbook has a summary sheet and a filterable findings sheet; formulas
   assert.ok(ws.autoFilter);
   assert.equal(ws.views[0].state, 'frozen');
 });
+
+test('runs with a vendor matrix get a By tool sheet before the findings', async () => {
+  const findings = [f('fail', 'high', 'HubSpot before choice', { checkKey: 'consent.before_choice.hubspot' })];
+  const vendors = [{ id: 'hubspot', name: 'HubSpot tracking code', category: 'analytics', origin: 'page', status: 'fail', findings: ['consent.before_choice.hubspot'],
+    states: { none: { pages: ['/'], of: 2, stored: ['hubspotutk'] }, reject: { pages: [], of: 2, stored: [] } } }];
+  const blob = await trackingCheckXlsx({ summary: { ...summarize(findings, 'policy'), vendors }, findings, mode: 'policy', baselineUrl: null, targetUrl: 'https://paligo.net', finishedAt: null });
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(await blob.arrayBuffer());
+  assert.deepEqual(wb.worksheets.map((w) => w.name), ['Summary', 'By tool', 'Findings']);
+  const ws = wb.getWorksheet('By tool');
+  assert.deepEqual(ws.getRow(2).values.slice(1, 6), ['Problem', 'HubSpot tracking code', 'Analytics', 'Page source', 'Stores hubspotutk (1 of 2 pages: /)']);
+  assert.equal(ws.getCell('F2').value, 'Nothing');
+  assert.match(String(ws.getCell('H2').value), /^Step one/);
+  assert.match(String(ws.getCell('A4').value), /fresh browser/);
+});

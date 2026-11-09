@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import type { FindingStatus, Mode } from '../../../supabase/functions/_shared/tracking-check/types.ts';
-import { OWNER_LABEL, type ReportSummary } from '../../../supabase/functions/_shared/tracking-check/report.ts';
+import { MATRIX_NOTE, ORIGIN_SHORT, OWNER_LABEL, STATE_LABEL, cellText, matrixStates, type ReportSummary, type VendorRow } from '../../../supabase/functions/_shared/tracking-check/report.ts';
 import type { FindingRow } from '@/hooks/useTrackingCheck';
 
 const STATUS: Record<FindingStatus, { label: string; icon: typeof XCircle; className: string }> = {
@@ -79,6 +79,8 @@ export function ReportView({ summary, findings, mode, baselineUrl, targetUrl, fi
         </CardContent>
       </Card>
 
+      {summary.vendors && summary.vendors.length > 0 && <VendorTable rows={summary.vendors} onShow={showFix} />}
+
       <Collapsible open={listOpen} onOpenChange={setListOpen}>
         <CollapsibleTrigger asChild>
           <Button variant="ghost" className="gap-2 px-0"><ChevronDown className={`h-4 w-4 transition-transform ${listOpen ? '' : '-rotate-90'}`} aria-hidden />All {findings.length} checks</Button>
@@ -91,6 +93,50 @@ export function ReportView({ summary, findings, mode, baselineUrl, targetUrl, fi
         </CollapsibleContent>
       </Collapsible>
     </div>
+  );
+}
+
+function VendorTable({ rows, onShow }: { rows: VendorRow[]; onShow: (checkKey: string) => void }) {
+  const states = matrixStates(rows);
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">By tool</CardTitle>
+        <p className="text-sm text-muted-foreground">{MATRIX_NOTE}</p>
+      </CardHeader>
+      <CardContent className="overflow-x-auto">
+        <table className="w-full min-w-[640px] text-sm">
+          <thead>
+            <tr className="border-b text-left text-muted-foreground">
+              <th className="py-2 pr-3 font-medium">Tool</th>
+              {states.map((s) => <th key={s} className="py-2 pr-3 font-medium">{STATE_LABEL[s]}</th>)}
+              <th className="py-2 font-medium">Loaded by</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const s = r.status ? STATUS[r.status] : null;
+              const Icon = s?.icon;
+              const key = r.findings[0];
+              return (
+                <tr key={r.id} className="border-b align-top last:border-0">
+                  <td className="py-2 pr-3">
+                    <div className="flex items-start gap-2">
+                      {s && Icon && <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${s.className}`} role="img" aria-label={s.label} />}
+                      {key && r.status !== 'pass'
+                        ? <Button variant="link" className="h-auto p-0 text-left font-medium" onClick={() => onShow(key)}>{r.name}</Button>
+                        : <span className="font-medium">{r.name}</span>}
+                    </div>
+                  </td>
+                  {states.map((st) => <td key={st} className="py-2 pr-3">{cellText(r.states[st])}</td>)}
+                  <td className="py-2 text-muted-foreground">{r.origin ? ORIGIN_SHORT[r.origin] : ''}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </CardContent>
+    </Card>
   );
 }
 

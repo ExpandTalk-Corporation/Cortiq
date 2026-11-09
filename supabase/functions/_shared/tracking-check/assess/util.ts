@@ -1,4 +1,4 @@
-import type { ConsentState, Finding, PageObservation, SiteObservation, StateObservation } from '../types.ts';
+import type { ConsentState, Finding, PageObservation, ScriptOrigin, SiteObservation, StateObservation } from '../types.ts';
 import { vendorForUrl, type Vendor } from '../../tracking-vendors.ts';
 
 /** HTTP error status that makes the page untestable, or null. Legacy URLs that end in an error are assessed as broken redirects instead. */
@@ -56,8 +56,7 @@ export function attemptedVendors(site: SiteObservation, paths?: Set<string>): Ma
   return out;
 }
 
-/** Where a script came from: the page source, Google Tag Manager, the cookie banner, or another script. */
-export type ScriptOrigin = 'page' | 'gtm' | 'cmp' | 'other';
+export type { ScriptOrigin };
 const ORIGIN_ORDER: ScriptOrigin[] = ['page', 'gtm', 'cmp', 'other'];
 
 /** Follows "what loaded this script" up through vendor loaders (HubSpot's loader, gtag.js) until the page, GTM or a CMP. */

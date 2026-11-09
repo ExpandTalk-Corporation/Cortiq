@@ -1,6 +1,7 @@
 // Queue processing for Tracking Check, independent of Supabase so it can be tested with a fake store.
 import { assess } from './assess/index.ts';
 import { summarize, type ReportSummary } from './report.ts';
+import { vendorMatrix } from './vendor-matrix.ts';
 import type {
   BasicAuth, BrowserObservation, ConsentState, FetchObservation, Finding, Mode, PageObservation, PolicyTemplate, SiteObservation, SiteRole,
 } from './types.ts';
@@ -73,7 +74,7 @@ export async function processBatch(store: TrackingCheckStore, probes: Probes, li
       const run = await store.getRun(runId);
       const { target, baseline } = buildSites(run, await store.loadResults(runId));
       const findings = assess({ mode: run.mode, target, baseline, policy: run.policy });
-      await store.saveResults(runId, findings, summarize(findings, run.mode, run.policy));
+      await store.saveResults(runId, findings, { ...summarize(findings, run.mode, run.policy), vendors: vendorMatrix(target, findings) });
       finalized.push(runId);
     } catch (e) {
       await store.failRun(runId, message(e));

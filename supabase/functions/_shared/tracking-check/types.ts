@@ -19,6 +19,9 @@ export interface FetchObservation {
   error: string | null;
 }
 
+/** Where a script came from: the page source, Google Tag Manager, the cookie banner, or another script. */
+export type ScriptOrigin = 'page' | 'gtm' | 'cmp' | 'other';
+
 export interface ObservedRequest {
   url: string;
   type: string;

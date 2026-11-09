@@ -43,6 +43,112 @@ export const TRACKING_CHECK_SAMPLE: { targetUrl: string; summary: ReportSummary;
       "Google Ads only runs with Marketing consent",
       "Enhanced Conversions is off",
       "No unknown third parties after \"Reject all\""
+    ],
+    "vendors": [
+      {
+        "id": "ga4",
+        "name": "Google Analytics 4",
+        "category": "analytics",
+        "origin": null,
+        "states": {
+          "none": {
+            "pages": [
+              "/"
+            ],
+            "of": 3,
+            "stored": [
+              "_ga",
+              "_ga_SAMPLE123"
+            ]
+          },
+          "accept": {
+            "pages": [
+              "/",
+              "/podcast",
+              "/thanks?email"
+            ],
+            "of": 3,
+            "stored": []
+          },
+          "reject": {
+            "pages": [],
+            "of": 3,
+            "stored": []
+          }
+        },
+        "status": "fail",
+        "findings": [
+          "consent.before_choice.ga4"
+        ]
+      },
+      {
+        "id": "meta",
+        "name": "Meta Pixel",
+        "category": "marketing",
+        "origin": null,
+        "states": {
+          "reject": {
+            "pages": [
+              "/"
+            ],
+            "of": 3,
+            "stored": [
+              "_fbp"
+            ]
+          },
+          "accept": {
+            "pages": [
+              "/",
+              "/thanks?email"
+            ],
+            "of": 3,
+            "stored": []
+          },
+          "none": {
+            "pages": [],
+            "of": 3,
+            "stored": []
+          }
+        },
+        "status": "fail",
+        "findings": [
+          "consent.after_reject.meta"
+        ]
+      },
+      {
+        "id": "libsyn",
+        "name": "Libsyn podcast player",
+        "category": "preferences",
+        "origin": null,
+        "states": {
+          "none": {
+            "pages": [
+              "/podcast"
+            ],
+            "of": 3,
+            "stored": []
+          },
+          "reject": {
+            "pages": [
+              "/podcast"
+            ],
+            "of": 3,
+            "stored": []
+          },
+          "accept": {
+            "pages": [
+              "/podcast"
+            ],
+            "of": 3,
+            "stored": []
+          }
+        },
+        "status": "manual",
+        "findings": [
+          "consent.before_choice.verify.libsyn",
+          "consent.after_reject.verify.libsyn"
+        ]
+      }
     ]
   },
   "findings": [
