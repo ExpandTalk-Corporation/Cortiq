@@ -766,6 +766,35 @@ export type Database = {
           },
         ]
       }
+      aggregate_filtered_daily: {
+        Row: {
+          day: string
+          hits: number
+          reason: string
+          site_id: string
+        }
+        Insert: {
+          day: string
+          hits?: number
+          reason: string
+          site_id: string
+        }
+        Update: {
+          day?: string
+          hits?: number
+          reason?: string
+          site_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "aggregate_filtered_daily_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       aggregate_pages_daily: {
         Row: {
           day: string
@@ -817,6 +846,8 @@ export type Database = {
         Row: {
           day: string
           device: string
+          engaged_visits: number
+          engagement_ms: number
           referrer_domain: string
           site_id: string
           utm_campaign: string
@@ -828,6 +859,8 @@ export type Database = {
         Insert: {
           day: string
           device?: string
+          engaged_visits?: number
+          engagement_ms?: number
           referrer_domain?: string
           site_id: string
           utm_campaign?: string
@@ -839,6 +872,8 @@ export type Database = {
         Update: {
           day?: string
           device?: string
+          engaged_visits?: number
+          engagement_ms?: number
           referrer_domain?: string
           site_id?: string
           utm_campaign?: string
@@ -861,6 +896,7 @@ export type Database = {
         Row: {
           day: string
           device: string
+          entry_path: string
           goals_hit: string[]
           last_seen_at: string
           referrer_domain: string
@@ -868,12 +904,16 @@ export type Database = {
           utm_campaign: string
           utm_medium: string
           utm_source: string
+          visit_engaged: boolean
+          visit_engagement_ms: number
+          visit_pageviews: number
           visit_started_at: string
           visitor_hash: string
         }
         Insert: {
           day: string
           device?: string
+          entry_path?: string
           goals_hit?: string[]
           last_seen_at: string
           referrer_domain?: string
@@ -881,12 +921,16 @@ export type Database = {
           utm_campaign?: string
           utm_medium?: string
           utm_source?: string
+          visit_engaged?: boolean
+          visit_engagement_ms?: number
+          visit_pageviews?: number
           visit_started_at: string
           visitor_hash: string
         }
         Update: {
           day?: string
           device?: string
+          entry_path?: string
           goals_hit?: string[]
           last_seen_at?: string
           referrer_domain?: string
@@ -894,6 +938,9 @@ export type Database = {
           utm_campaign?: string
           utm_medium?: string
           utm_source?: string
+          visit_engaged?: boolean
+          visit_engagement_ms?: number
+          visit_pageviews?: number
           visit_started_at?: string
           visitor_hash?: string
         }
@@ -3316,6 +3363,38 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      custom_dimensions: {
+        Row: {
+          created_at: string
+          id: string
+          key: string
+          label: string
+          site_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key: string
+          label: string
+          site_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key?: string
+          label?: string
+          site_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_dimensions_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       custom_reports: {
         Row: {
@@ -8086,6 +8165,7 @@ export type Database = {
           metadata: Json | null
           platform: string | null
           session_id: string
+          site_id: string | null
           timestamp: string
         }
         Insert: {
@@ -8098,6 +8178,7 @@ export type Database = {
           metadata?: Json | null
           platform?: string | null
           session_id: string
+          site_id?: string | null
           timestamp?: string
         }
         Update: {
@@ -8110,6 +8191,7 @@ export type Database = {
           metadata?: Json | null
           platform?: string | null
           session_id?: string
+          site_id?: string | null
           timestamp?: string
         }
         Relationships: [
@@ -8118,6 +8200,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tracking_events_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
             referencedColumns: ["id"]
           },
         ]
@@ -9188,299 +9277,6 @@ export type Database = {
         }
         Relationships: []
       }
-      warehouse_audit_log: {
-        Row: {
-          action: string
-          action_by: string | null
-          changes: Json | null
-          connector_id: string | null
-          created_at: string | null
-          description: string | null
-          id: string
-        }
-        Insert: {
-          action: string
-          action_by?: string | null
-          changes?: Json | null
-          connector_id?: string | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-        }
-        Update: {
-          action?: string
-          action_by?: string | null
-          changes?: Json | null
-          connector_id?: string | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "warehouse_audit_log_connector_id_fkey"
-            columns: ["connector_id"]
-            isOneToOne: false
-            referencedRelation: "warehouse_connectors"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      warehouse_connectors: {
-        Row: {
-          company_id: string | null
-          connection_tested_at: string | null
-          created_at: string | null
-          credentials: Json
-          description: string | null
-          error_message: string | null
-          id: string
-          last_sync_at: string | null
-          name: string
-          next_sync_at: string | null
-          schema_name: string | null
-          settings: Json | null
-          site_id: string | null
-          status: string | null
-          sync_enabled: boolean | null
-          sync_frequency: string | null
-          table_prefix: string | null
-          updated_at: string | null
-          warehouse_type: string
-        }
-        Insert: {
-          company_id?: string | null
-          connection_tested_at?: string | null
-          created_at?: string | null
-          credentials: Json
-          description?: string | null
-          error_message?: string | null
-          id?: string
-          last_sync_at?: string | null
-          name: string
-          next_sync_at?: string | null
-          schema_name?: string | null
-          settings?: Json | null
-          site_id?: string | null
-          status?: string | null
-          sync_enabled?: boolean | null
-          sync_frequency?: string | null
-          table_prefix?: string | null
-          updated_at?: string | null
-          warehouse_type: string
-        }
-        Update: {
-          company_id?: string | null
-          connection_tested_at?: string | null
-          created_at?: string | null
-          credentials?: Json
-          description?: string | null
-          error_message?: string | null
-          id?: string
-          last_sync_at?: string | null
-          name?: string
-          next_sync_at?: string | null
-          schema_name?: string | null
-          settings?: Json | null
-          site_id?: string | null
-          status?: string | null
-          sync_enabled?: boolean | null
-          sync_frequency?: string | null
-          table_prefix?: string | null
-          updated_at?: string | null
-          warehouse_type?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "warehouse_connectors_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "warehouse_connectors_site_id_fkey"
-            columns: ["site_id"]
-            isOneToOne: false
-            referencedRelation: "sites"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      warehouse_data_quality: {
-        Row: {
-          connector_id: string | null
-          created_at: string | null
-          date: string
-          duplicate_records: number | null
-          id: string
-          invalid_records: number | null
-          latest_data_timestamp: string | null
-          null_records: number | null
-          staleness_hours: number | null
-          sync_success_rate: number | null
-          total_records: number | null
-        }
-        Insert: {
-          connector_id?: string | null
-          created_at?: string | null
-          date: string
-          duplicate_records?: number | null
-          id?: string
-          invalid_records?: number | null
-          latest_data_timestamp?: string | null
-          null_records?: number | null
-          staleness_hours?: number | null
-          sync_success_rate?: number | null
-          total_records?: number | null
-        }
-        Update: {
-          connector_id?: string | null
-          created_at?: string | null
-          date?: string
-          duplicate_records?: number | null
-          id?: string
-          invalid_records?: number | null
-          latest_data_timestamp?: string | null
-          null_records?: number | null
-          staleness_hours?: number | null
-          sync_success_rate?: number | null
-          total_records?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "warehouse_data_quality_connector_id_fkey"
-            columns: ["connector_id"]
-            isOneToOne: false
-            referencedRelation: "warehouse_connectors"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      warehouse_sync_jobs: {
-        Row: {
-          bytes_transferred: number | null
-          completed_at: string | null
-          connector_id: string | null
-          created_at: string | null
-          duration_seconds: number | null
-          error_details: Json | null
-          error_message: string | null
-          id: string
-          job_type: string
-          progress_percentage: number | null
-          rows_failed: number | null
-          rows_synced: number | null
-          started_at: string | null
-          status: string
-          sync_from: string | null
-          sync_to: string | null
-          total_rows: number | null
-        }
-        Insert: {
-          bytes_transferred?: number | null
-          completed_at?: string | null
-          connector_id?: string | null
-          created_at?: string | null
-          duration_seconds?: number | null
-          error_details?: Json | null
-          error_message?: string | null
-          id?: string
-          job_type: string
-          progress_percentage?: number | null
-          rows_failed?: number | null
-          rows_synced?: number | null
-          started_at?: string | null
-          status?: string
-          sync_from?: string | null
-          sync_to?: string | null
-          total_rows?: number | null
-        }
-        Update: {
-          bytes_transferred?: number | null
-          completed_at?: string | null
-          connector_id?: string | null
-          created_at?: string | null
-          duration_seconds?: number | null
-          error_details?: Json | null
-          error_message?: string | null
-          id?: string
-          job_type?: string
-          progress_percentage?: number | null
-          rows_failed?: number | null
-          rows_synced?: number | null
-          started_at?: string | null
-          status?: string
-          sync_from?: string | null
-          sync_to?: string | null
-          total_rows?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "warehouse_sync_jobs_connector_id_fkey"
-            columns: ["connector_id"]
-            isOneToOne: false
-            referencedRelation: "warehouse_connectors"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      warehouse_table_schemas: {
-        Row: {
-          auto_sync: boolean | null
-          columns: Json
-          connector_id: string | null
-          created_at: string | null
-          description: string | null
-          display_name: string | null
-          id: string
-          indexes: Json | null
-          partition_column: string | null
-          partition_interval: string | null
-          primary_keys: string[] | null
-          table_name: string
-          updated_at: string | null
-        }
-        Insert: {
-          auto_sync?: boolean | null
-          columns: Json
-          connector_id?: string | null
-          created_at?: string | null
-          description?: string | null
-          display_name?: string | null
-          id?: string
-          indexes?: Json | null
-          partition_column?: string | null
-          partition_interval?: string | null
-          primary_keys?: string[] | null
-          table_name: string
-          updated_at?: string | null
-        }
-        Update: {
-          auto_sync?: boolean | null
-          columns?: Json
-          connector_id?: string | null
-          created_at?: string | null
-          description?: string | null
-          display_name?: string | null
-          id?: string
-          indexes?: Json | null
-          partition_column?: string | null
-          partition_interval?: string | null
-          primary_keys?: string[] | null
-          table_name?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "warehouse_table_schemas_connector_id_fkey"
-            columns: ["connector_id"]
-            isOneToOne: false
-            referencedRelation: "warehouse_connectors"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       watchlist_items: {
         Row: {
           added_at: string | null
@@ -9887,6 +9683,7 @@ export type Database = {
           output_price: number
         }[]
       }
+      _is_reserved_event_key: { Args: { p_key: string }; Returns: boolean }
       _norm_host: { Args: { u: string }; Returns: string }
       _url_param: { Args: { p_key: string; p_url: string }; Returns: string }
       aggregate_campaign_stats: {
@@ -9943,6 +9740,16 @@ export type Database = {
           p_until: string
         }
         Returns: Json
+      }
+      builtin_segment_match: {
+        Args: {
+          p_device: string
+          p_key: string
+          p_referrer: string
+          p_utm_medium: string
+          p_utm_source: string
+        }
+        Returns: boolean
       }
       calculate_cohort_retention: { Args: never; Returns: undefined }
       calculate_data_age: { Args: { last_updated: string }; Returns: number }
@@ -10153,6 +9960,29 @@ export type Database = {
         Args: { p_from: string; p_site_id: string; p_to: string }
         Returns: Json
       }
+      get_custom_dimension_breakdown: {
+        Args: {
+          p_from: string
+          p_key: string
+          p_limit?: number
+          p_site_id: string
+          p_to: string
+        }
+        Returns: {
+          events: number
+          is_other: boolean
+          sessions: number
+          value: string
+        }[]
+      }
+      get_event_property_keys: {
+        Args: { p_from: string; p_site_id: string; p_to: string }
+        Returns: {
+          events: number
+          key: string
+          registered: boolean
+        }[]
+      }
       get_freshness_emoji: { Args: { last_updated: string }; Returns: string }
       get_freshness_status: { Args: { last_updated: string }; Returns: string }
       get_geo_breakdown: {
@@ -10313,6 +10143,18 @@ export type Database = {
         Args: { p_limit?: number; p_site_id: string }
         Returns: Json
       }
+      get_top_paths: {
+        Args: {
+          p_from: string
+          p_limit?: number
+          p_site_id: string
+          p_to: string
+        }
+        Returns: {
+          path: string
+          views: number
+        }[]
+      }
       get_visitor_profile: {
         Args: { p_visitor_id: string }
         Returns: {
@@ -10340,6 +10182,7 @@ export type Database = {
           visitor_type: string
         }[]
       }
+      gsc_cron_secret_matches: { Args: { p_secret: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -10482,15 +10325,6 @@ export type Database = {
         }
         Returns: undefined
       }
-      log_warehouse_audit: {
-        Args: {
-          p_action: string
-          p_changes?: Json
-          p_connector_id: string
-          p_description: string
-        }
-        Returns: undefined
-      }
       match_bot: {
         Args: { p_ip?: string; p_user_agent?: string }
         Returns: {
@@ -10512,6 +10346,7 @@ export type Database = {
           segment_name: string
         }[]
       }
+      path_like_prefix: { Args: { p_path: string }; Returns: string }
       record_ai_usage: {
         Args: {
           p_company_id: string
@@ -10565,26 +10400,18 @@ export type Database = {
       run_bot_detection_retention: { Args: never; Returns: Json }
       run_canary_retention: { Args: never; Returns: Json }
       run_data_retention: { Args: never; Returns: Json }
-      schedule_warehouse_sync: {
-        Args: {
-          p_connector_id: string
-          p_job_type: string
-          p_sync_from?: string
-          p_sync_to?: string
-        }
-        Returns: string
-      }
       seed_cyber_alerts: { Args: { p_site_id: string }; Returns: Json }
+      session_matches_filters: {
+        Args: {
+          p_path: string
+          p_segment: Json
+          p_session: Database["public"]["Tables"]["tracking_sessions"]["Row"]
+        }
+        Returns: boolean
+      }
       should_rotate_session: {
         Args: { p_session_id: string; p_site_id: string }
         Returns: boolean
-      }
-      test_warehouse_connection: {
-        Args: { p_connector_id: string }
-        Returns: {
-          message: string
-          success: boolean
-        }[]
       }
       tracking_check_claim_tasks: {
         Args: { p_kind: string; p_limit: number }
