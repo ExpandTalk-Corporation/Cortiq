@@ -52,6 +52,7 @@ const ContentTrackingAdvanced      = lazy(() => import('./ContentTrackingAdvance
 const ConversionGoalsConfig        = lazy(() => import('./ConversionGoalsConfig').then(m => ({ default: m.ConversionGoalsConfig })));
 const AttributionTab               = lazy(() => import('./tabs/AttributionTab').then(m => ({ default: m.AttributionTab })));
 const ReportBuilder                = lazy(() => import('./ReportBuilder').then(m => ({ default: m.ReportBuilder })));
+const CustomDimensions             = lazy(() => import('./CustomDimensions').then(m => ({ default: m.CustomDimensions })));
 const ServerLogAnalytics           = lazy(() => import('./ServerLogAnalytics').then(m => ({ default: m.ServerLogAnalytics })));
 const RealTimeWidget               = lazy(() => import('./RealTimeWidget').then(m => ({ default: m.RealTimeWidget })));
 
@@ -368,6 +369,7 @@ function DashboardTabsInner({ selectedSite, dateRange, onSiteDeleted, onSiteUpda
       {/* More / Settings */}
       <TabsContent value="report-builder" className="space-y-6">
         <TabErrorBoundary tabName="Report Builder">
+          <CustomDimensions siteId={selectedSite.id} />
           <ReportBuilder siteId={selectedSite.id} />
         </TabErrorBoundary>
       </TabsContent>
