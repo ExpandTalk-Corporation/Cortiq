@@ -43,6 +43,14 @@ export const TRACKING_VENDORS: Vendor[] = [
     impact: 'Tags managed in GTM (for example GA4, Google Ads and Meta) do not run.',
   },
   {
+    // Adobe's tag manager (Launch): like GTM it loads other tags and sends nothing itself.
+    id: 'adobe-tags', name: 'Adobe Tags (Launch)', category: 'necessary', googleTag: false,
+    requests: [{ host: /^assets\.adobedtm\.com$/ }],
+    cookies: [],
+    csp: { 'script-src': ['assets.adobedtm.com'] },
+    impact: 'Tags managed in Adobe Tags (for example Adobe Analytics and Target) do not run.',
+  },
+  {
     id: 'ga4', name: 'Google Analytics 4', category: 'analytics', googleTag: true,
     requests: [
       { host: /^www\.googletagmanager\.com$/, path: /^\/gtag\/js/, query: /[?&]id=(G|GT)-/ },
@@ -57,6 +65,21 @@ export const TRACKING_VENDORS: Vendor[] = [
     idFrom: (u) => param('id', 'G-')(u) ?? param('tid', 'G-')(u),
     csp: { 'script-src': ['*.googletagmanager.com'], 'img-src': ['*.google-analytics.com', '*.googletagmanager.com'], 'connect-src': ['*.google-analytics.com', '*.analytics.google.com', '*.googletagmanager.com'] },
     impact: 'Google Analytics records no visits or conversions from these pages.',
+  },
+  {
+    // One entry for both embed modes: thumbnails (ytimg) and video (googlevideo) are shared by them.
+    // Before Google Ads: the player itself calls googleads.g.doubleclick.net/pagead/id and static.doubleclick.net/instream
+    // (ad status), plus www.google.com/js/th and jnn-pa.googleapis.com (bot check). Verified 2026-11-09 against www.pwc.se.
+    id: 'youtube', name: 'YouTube embed', category: 'preferences', googleTag: false,
+    requests: [
+      { host: /(^|\.)youtube(-nocookie)?\.com$/ }, { host: /(^|\.)ytimg\.com$/ }, { host: /(^|\.)googlevideo\.com$/ },
+      { host: /^googleads\.g\.doubleclick\.net$/, path: /^\/pagead\/id$/ }, { host: /^static\.doubleclick\.net$/, path: /^\/instream\// },
+      { host: /^www\.google\.com$/, path: /^\/js\/th\// }, { host: /^jnn-pa\.googleapis\.com$/ },
+    ],
+    cookies: [/^YSC$/, /^VISITOR_INFO1_LIVE$/, /^VISITOR_PRIVACY_METADATA$/, /^__Secure-YNID$/, /^__Secure-ROLLOUT_TOKEN$/],
+    csp: { 'frame-src': ['www.youtube.com', 'www.youtube-nocookie.com'] },
+    impact: 'Embedded YouTube videos do not play.',
+    verify: 'An embedded YouTube video loads from Google when the page loads, before anyone presses play. The standard embed (youtube.com) can set YouTube cookies at that point; in privacy-enhanced mode (youtube-nocookie.com) Google says it stores no information about the visit until the video is played, but the player and thumbnail still load from Google. A click-to-load preview loads nothing until the visitor asks.',
   },
   {
     id: 'google-ads', name: 'Google Ads', category: 'marketing', googleTag: true,
@@ -79,7 +102,11 @@ export const TRACKING_VENDORS: Vendor[] = [
   },
   {
     id: 'hubspot', name: 'HubSpot tracking code', category: 'analytics', googleTag: false,
-    requests: [{ host: /^(js(-eu1)?\.hs-(scripts|analytics|banner)\.(com|net)|js\.hscollectedforms\.net|track(-eu1)?\.hubspot\.com|js(-eu1)?\.usemessages\.com)$/ }],
+    // js.hubspot.com and cta-service-*: CTAs (web interactives) loaded by the tracking code. Verified 2026-11-09 against paligo.net.
+    requests: [
+      { host: /^(js(-eu1)?\.hs-(scripts|analytics|banner)\.(com|net)|(js|forms)\.hscollectedforms\.net|track(-eu1)?\.hubspot\.com|js(-eu1)?\.usemessages\.com)$/ },
+      { host: /^(js(-eu1)?|cta-service-[a-z0-9-]+)\.hubspot\.com$/ }, { host: /^api(-eu1)?\.hubapi\.com$/, path: /^\/hs-script-loader-public\// },
+    ],
     cookies: [/^__hstc$/, /^hubspotutk$/, /^__hssc$/, /^__hssrc$/],
     idFrom: (u) => (/^js(-eu1)?\.hs-scripts\.com$/.test(u.hostname) ? u.pathname.match(/^\/(\d+)\.js/)?.[1] ?? null : null),
     csp: { 'script-src': ['js.hs-scripts.com', 'js.hs-analytics.net', 'js.hs-banner.com', 'js.hscollectedforms.net', 'js.usemessages.com'], 'connect-src': ['*.hubspot.com', 'forms.hscollectedforms.net'], 'img-src': ['track.hubspot.com'] },
@@ -95,10 +122,18 @@ export const TRACKING_VENDORS: Vendor[] = [
   },
   {
     id: 'hubspot-forms', name: 'HubSpot forms', category: 'necessary', googleTag: false,
-    requests: [{ host: /^(js(-eu1)?\.hsforms\.net|forms(-eu1)?\.hsforms\.com|forms(-eu1)?\.hubspot\.com)$/ }],
+    requests: [{ host: /^(js(-eu1)?\.hsforms\.net|(forms|perf)(-[a-z]+\d+)?\.hsforms\.com|forms(-eu1)?\.hubspot\.com)$/ }],
     cookies: [],
     csp: { 'script-src': ['js.hsforms.net'], 'connect-src': ['forms.hsforms.com', 'forms.hubspot.com'], 'frame-src': ['forms.hsforms.com'], 'img-src': ['forms.hsforms.com'] },
     impact: 'HubSpot forms do not render or cannot be submitted.',
+  },
+  {
+    // Forms hosted on Salesforce Marketing Cloud CloudPages. Verified 2026-11-09 against www.pwc.se/kontakt.
+    id: 'salesforce-cloudpages', name: 'Salesforce Marketing Cloud forms (CloudPages)', category: 'necessary', googleTag: false,
+    requests: [{ host: /(^|\.)mc-content\.com$/ }, { host: /(^|\.)fuelcdn\.com$/ }],
+    cookies: [],
+    csp: { 'frame-src': ['cloudpages.mc-content.com'], 'script-src': ['cloudpages.mc-content.com'], 'img-src': ['www.fuelcdn.com'] },
+    impact: 'Forms hosted on Salesforce CloudPages do not render or cannot be submitted.',
   },
   {
     // Before Meta Pixel: the social SDK (sdk.js) and plugin iframes share connect.facebook.net / www.facebook.com with it.
@@ -136,7 +171,8 @@ export const TRACKING_VENDORS: Vendor[] = [
   {
     id: 'microsoft-ads', name: 'Microsoft Advertising (UET)', category: 'marketing', googleTag: false,
     requests: [{ host: /^bat\.bing\.com$/ }],
-    cookies: [/^_uetsid$/, /^_uetvid$/, /^MUID$/],
+    // MUID alone does not show UET: Clarity and Bing set it too.
+    cookies: [/^_uetsid$/, /^_uetvid$/],
     idFrom: (u) => u.searchParams.get('ti'),
     csp: { 'script-src': ['bat.bing.com'], 'connect-src': ['bat.bing.com'], 'img-src': ['bat.bing.com'] },
     impact: 'Microsoft Advertising cannot attribute conversions.',
@@ -144,7 +180,8 @@ export const TRACKING_VENDORS: Vendor[] = [
   {
     id: 'clarity', name: 'Microsoft Clarity', category: 'analytics', googleTag: false,
     requests: [{ host: /(^|\.)clarity\.ms$/ }],
-    cookies: [/^_clck$/, /^_clsk$/, /^CLID$/],
+    // ANONCHK, SM, MR: Microsoft cookies the Clarity docs list. MUID is shared with Bing and UET, so it stays unattributed.
+    cookies: [/^_clck$/, /^_clsk$/, /^CLID$/, /^ANONCHK$/, /^SM$/, /^MR$/],
     idFrom: (u) => u.pathname.match(/^\/tag\/(\w+)/)?.[1] ?? null,
     csp: { 'script-src': ['*.clarity.ms'], 'connect-src': ['*.clarity.ms'], 'img-src': ['*.clarity.ms'] },
     impact: 'Clarity records no sessions or heatmaps.',
@@ -173,6 +210,58 @@ export const TRACKING_VENDORS: Vendor[] = [
     csp: { 'script-src': ['*.go-mpulse.net'], 'connect-src': ['*.go-mpulse.net', '*.akstat.io'] },
     impact: 'Akamai mPulse records no page-load measurements.',
     note: 'mPulse measures page speed for real visitors and is usually injected by the Akamai CDN, not by GTM, so it is easy to miss. Switch it off in the Akamai property configuration if nobody uses the data, or make it wait for Statistics consent.',
+  },
+  // Adobe Experience Cloud. Verified 2026-11-09 against www.pwc.se.
+  {
+    id: 'adobe-analytics', name: 'Adobe Analytics', category: 'analytics', googleTag: false,
+    requests: [{ host: /\.sc\.omtrdc\.net$/ }, { host: /(^|\.)2o7\.net$/ }],
+    cookies: [/^s_(cc|sq|vi|fid|ecid|tp|ips|plt|lv|lv_s|vnum|invisit|nr\d*|ppvl?)$/, /^gpv(_|$)/],
+    csp: { 'script-src': ['assets.adobedtm.com'], 'connect-src': ['*.sc.omtrdc.net', '*.2o7.net'], 'img-src': ['*.sc.omtrdc.net', '*.2o7.net'] },
+    impact: 'Adobe Analytics records no visits or conversions from these pages.',
+  },
+  {
+    id: 'adobe-edge', name: 'Adobe Experience Platform Web SDK', category: 'analytics', googleTag: false,
+    requests: [{ host: /(^|\.)data\.adobedc\.net$/ }, { host: /^edge\.adobedc\.net$/ }],
+    cookies: [/^kndctr_/],
+    csp: { 'connect-src': ['*.data.adobedc.net', 'edge.adobedc.net'] },
+    impact: 'Adobe Experience Platform receives no events, so Analytics, Target and audiences fed by the Web SDK get no data.',
+  },
+  {
+    // The visitor ID shared by Adobe products. The ID service fetches it from dpm.demdex.net/id; other demdex calls are Audience Manager.
+    id: 'adobe-ecid', name: 'Adobe Experience Cloud ID', category: 'analytics', googleTag: false,
+    requests: [{ host: /^dpm\.demdex\.net$/, path: /^\/id$/ }],
+    cookies: [/^AMCVS?_/],
+    csp: { 'connect-src': ['*.demdex.net'] },
+    impact: 'Adobe tools cannot recognise returning visitors across Adobe products.',
+  },
+  {
+    id: 'adobe-target', name: 'Adobe Target', category: 'marketing', googleTag: false,
+    requests: [{ host: /\.tt\.omtrdc\.net$/ }],
+    cookies: [/^mbox$/, /^at_check$/, /^mboxEdgeCluster$/],
+    csp: { 'connect-src': ['*.tt.omtrdc.net'] },
+    impact: 'Adobe Target shows no personalised content or A/B test variants.',
+    note: 'Adobe Target personalises content and runs A/B tests per visitor. It usually loads through Adobe Tags (Launch): make the Target rule wait for consent there.',
+  },
+  {
+    id: 'adobe-audience-manager', name: 'Adobe Audience Manager', category: 'marketing', googleTag: false,
+    requests: [{ host: /(^|\.)demdex\.net$/ }, { host: /(^|\.)everesttech\.net$/ }],
+    cookies: [/^demdex$/, /^dpm$/, /^dextp$/, /^dst$/, /^aam_uuid$/],
+    csp: { 'connect-src': ['*.demdex.net'], 'img-src': ['*.demdex.net', '*.everesttech.net'], 'frame-src': ['*.demdex.net'] },
+    impact: 'Adobe Audience Manager cannot build or sync advertising audiences.',
+  },
+  {
+    id: 'contentsquare', name: 'Contentsquare', category: 'analytics', googleTag: false,
+    requests: [{ host: /(^|\.)contentsquare\.(net|com)$/ }],
+    cookies: [/^_cs_/],
+    csp: { 'script-src': ['t.contentsquare.net'], 'connect-src': ['*.contentsquare.net'] },
+    impact: 'Contentsquare records no sessions or heatmaps.',
+  },
+  {
+    id: 'hotjar', name: 'Hotjar', category: 'analytics', googleTag: false,
+    requests: [{ host: /(^|\.)hotjar\.(com|io)$/ }],
+    cookies: [/^_hj/],
+    csp: { 'script-src': ['*.hotjar.com'], 'connect-src': ['*.hotjar.com', '*.hotjar.io', 'wss://*.hotjar.com'], 'img-src': ['*.hotjar.com'] },
+    impact: 'Hotjar records no sessions, heatmaps or surveys.',
   },
   {
     id: 'cortiq', name: 'CortIQ', category: 'analytics', googleTag: false,
@@ -245,15 +334,6 @@ export const TRACKING_VENDORS: Vendor[] = [
     csp: { 'frame-src': ['html5-player.libsyn.com'] },
     impact: 'Embedded podcast episodes do not play.',
     verify: 'An embedded podcast player is content the visitor asked for, but it loads from Libsyn on every page view and may count listeners or set cookies before anyone presses play.',
-  },
-  {
-    // One entry for both embed modes: thumbnails (ytimg) and video (googlevideo) are shared by them.
-    id: 'youtube', name: 'YouTube embed', category: 'preferences', googleTag: false,
-    requests: [{ host: /(^|\.)youtube(-nocookie)?\.com$/ }, { host: /(^|\.)ytimg\.com$/ }, { host: /(^|\.)googlevideo\.com$/ }],
-    cookies: [/^YSC$/, /^VISITOR_INFO1_LIVE$/, /^VISITOR_PRIVACY_METADATA$/],
-    csp: { 'frame-src': ['www.youtube.com', 'www.youtube-nocookie.com'] },
-    impact: 'Embedded YouTube videos do not play.',
-    verify: 'An embedded YouTube video loads from Google when the page loads, before anyone presses play. The standard embed (youtube.com) can set YouTube cookies at that point; in privacy-enhanced mode (youtube-nocookie.com) Google says it stores no information about the visit until the video is played, but the player and thumbnail still load from Google. A click-to-load preview loads nothing until the visitor asks.',
   },
   {
     // The player keeps a visitor record in localStorage under "wistia" (loads, plays, email) and reports views to Wistia.
@@ -384,7 +464,7 @@ export const TRACKING_VENDORS: Vendor[] = [
   },
   {
     id: 'recaptcha', kind: 'infrastructure', name: 'Google reCAPTCHA', category: 'necessary', googleTag: false,
-    requests: [{ host: /^www\.(google|gstatic)\.com$/, path: /^\/recaptcha\// }], cookies: [],
+    requests: [{ host: /^www\.(google|gstatic)\.com$/, path: /^\/recaptcha\// }], cookies: [/^_GRECAPTCHA$/],
     // Google's documented reCAPTCHA CSP: the script loads from both hosts and the challenge runs in an iframe.
     csp: { 'script-src': ['www.google.com', 'www.gstatic.com'], 'frame-src': ['www.google.com', 'recaptcha.google.com'] },
     impact: 'Forms protected by reCAPTCHA cannot be submitted.',
@@ -402,8 +482,8 @@ export const TRACKING_VENDORS: Vendor[] = [
     impact: 'Files served from the Akamai CDN do not load.',
   },
   {
-    id: 'public-cdn', kind: 'infrastructure', name: 'Public JavaScript CDN (jsDelivr, unpkg)', category: 'necessary', googleTag: false,
-    requests: [{ host: /^(cdn|fastly|gcore)\.jsdelivr\.net$/ }, { host: /^unpkg\.com$/ }], cookies: [], csp: {},
+    id: 'public-cdn', kind: 'infrastructure', name: 'Public JavaScript CDN (jsDelivr, unpkg, Google Hosted Libraries)', category: 'necessary', googleTag: false,
+    requests: [{ host: /^(cdn|fastly|gcore)\.jsdelivr\.net$/ }, { host: /^unpkg\.com$/ }, { host: /^ajax\.googleapis\.com$/ }], cookies: [], csp: {},
     impact: 'Libraries loaded from the public CDN do not load.',
   },
 ];

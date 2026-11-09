@@ -2,6 +2,7 @@ import type { AssessInput, Finding, FormHit, SiteObservation } from '../types.ts
 import { vendorForUrl, extractVendorIds, vendorById, type CspDirective, type Vendor } from '../../tracking-vendors.ts';
 import { cspAllows } from '../fetch-probe.ts';
 import { MANUAL_STEPS } from '../instructions.ts';
+import { STATE_LABEL } from '../report.ts';
 import { allRequestUrls, attemptedVendors, comparablePaths, finding, fullLoadReliable, plural, testablePages } from './util.ts';
 
 const firstCsp = (site: SiteObservation) => testablePages(site).find((p) => p.fetch?.csp)?.fetch?.csp ?? null;
@@ -151,26 +152,26 @@ export function assessCsp({ target }: AssessInput): Finding[] {
   const pages = testablePages(target).filter((p) => p.browser);
   if (!pages.length) return [];
   const csp = firstCsp(target);
-  const byVendor = new Map<string, { vendor: Vendor; pages: Set<string>; count: number; extra: Map<string, Set<string>>; beforeConsent: boolean }>();
-  const byHost = new Map<string, { directive: string; pages: Set<string> }>();
+  const byVendor = new Map<string, { vendor: Vendor; pages: Set<string>; count: number; extra: Map<string, Set<string>>; beforeConsent: boolean; blocked: Set<string> }>();
+  const byHost = new Map<string, { directive: string; pages: Set<string>; blocked: Set<string> }>();
   for (const p of pages) {
     for (const st of p.browser!.states) {
       for (const v of st.cspViolations) {
         if (!/^https?:/.test(v.blockedUrl)) continue;          // inline/eval violations are not tracking requests
         const directive = v.directive.replace(/-(elem|attr)$/, '');
-        let host = '';
-        try { host = new URL(v.blockedUrl).hostname; } catch { continue; }   // malformed report
+        let host = '', blocked = '';
+        try { const u = new URL(v.blockedUrl); host = u.hostname; blocked = `${directive} blocked ${u.origin}${u.pathname} (${STATE_LABEL[st.state]})`; } catch { continue; }   // malformed report
         const vendor = vendorForUrl(v.blockedUrl);
         if (vendor) {
-          const e = byVendor.get(vendor.id) ?? { vendor, pages: new Set(), count: 0, extra: new Map(), beforeConsent: false };
-          e.pages.add(p.path); e.count++;
+          const e = byVendor.get(vendor.id) ?? { vendor, pages: new Set(), count: 0, extra: new Map(), beforeConsent: false, blocked: new Set() };
+          e.pages.add(p.path); e.count++; e.blocked.add(blocked);
           if (st.state === 'none' || st.state === 'reject') e.beforeConsent = true;
           if (!e.extra.has(directive)) e.extra.set(directive, new Set());
           e.extra.get(directive)!.add(host);
           byVendor.set(vendor.id, e);
         } else {
-          const e = byHost.get(host) ?? { directive, pages: new Set() };
-          e.pages.add(p.path);
+          const e = byHost.get(host) ?? { directive, pages: new Set(), blocked: new Set() };
+          e.pages.add(p.path); e.blocked.add(blocked);
           byHost.set(host, e);
         }
       }
@@ -183,7 +184,7 @@ export function assessCsp({ target }: AssessInput): Finding[] {
       title: `The Content-Security-Policy blocks ${e.vendor.name}`,
       explanation: `${plural(e.count, 'request', 'requests')} to ${e.vendor.name} ${e.count === 1 ? 'was' : 'were'} blocked on ${pageList(e.pages)}. ${e.vendor.impact}`,
       fix: cspVendorFix(e.vendor, cspFixLines(e.vendor, csp, e.extra), e.beforeConsent),
-      typicalOwner: 'developer', evidence: { pages: [...e.pages] },
+      typicalOwner: 'developer', evidence: { pages: [...e.pages], details: [...e.blocked].slice(0, 10) },
     }));
   }
   for (const [host, e] of byHost) {
@@ -191,7 +192,7 @@ export function assessCsp({ target }: AssessInput): Finding[] {
       scope: 'CSP', checkKey: `csp.blocked.host.${host}`, status: 'warning', priority: 'medium',
       title: `The Content-Security-Policy blocks requests to ${host}`,
       explanation: `Requests to ${host} were blocked on ${pageList(e.pages)}. It is not a tool CortIQ recognises.`,
-      fix: `If ${host} is intended, add it to ${e.directive}.`, typicalOwner: 'developer', evidence: { pages: [...e.pages] },
+      fix: `If ${host} is intended, add it to ${e.directive}.`, typicalOwner: 'developer', evidence: { pages: [...e.pages], details: [...e.blocked].slice(0, 10) },
     }));
   }
   if (!out.length && !fullLoadReliable(target)) out.push(finding({
