@@ -1,4 +1,5 @@
-// Page suggestions for a new run, from the site's sitemap.
+// Page suggestions for a new run: the XML sitemap, else an HTML sitemap, else links on the homepage.
+// Sites behind bot protection (Akamai, Cloudflare) answer plain requests with 403; a browser can then read the links.
 import { safeGet, type ProbeOptions } from './fetch-probe.ts';
 
 export interface SuggestedPage { path: string; reason: 'home' | 'form' | 'sitemap'; selected: boolean }
@@ -11,26 +12,103 @@ export function parseSitemap(xml: string): { pages: string[]; sitemaps: string[]
   return /<sitemapindex/i.test(xml) ? { pages: [], sitemaps: locs } : { pages: locs, sitemaps: [] };
 }
 
-export async function fetchSitemapUrls(origin: string, opts: ProbeOptions = {}): Promise<string[]> {
-  const get = async (url: string) => {
+export type PageSource = 'sitemap' | 'html-sitemap' | 'links';
+export interface Discovery {
+  urls: string[];
+  source: PageSource | null;
+  /** Path the pages were read from, e.g. "/sitemap.html". */
+  from: string | null;
+  /** HTTP status when the sitemap requests were refused (401/403/429/503), else null. */
+  blockedStatus: number | null;
+  viaBrowser: boolean;
+}
+export interface LinkPage { url: string; status: number; links: string[] }
+/** Opens each URL in a real browser, in order, and returns the links on it; stops once a page has enough. */
+export type BrowserLinks = (urls: string[], enough: number) => Promise<LinkPage[]>;
+
+const BLOCKED = new Set([401, 403, 429, 503]);
+const HTML_CANDIDATES = ['/sitemap.html', '/sitemap/', '/sitemap'];
+const NOT_A_PAGE = /\.(pdf|jpe?g|png|gif|svg|webp|ico|zip|docx?|xlsx?|pptx?|mp[34]|xml|css|js|json|txt)$/i;
+/** An HTML sitemap or homepage needs this many same-site links to be worth suggesting from. */
+const ENOUGH_LINKS = 5;
+
+export function parseRobotsSitemaps(txt: string): string[] {
+  return [...txt.matchAll(/^\s*sitemap:\s*(\S+)/gim)].map((m) => m[1]);
+}
+
+/** Same-site page links in `hrefs`, resolved against `base`; files and other sites are dropped. */
+export function pageLinks(hrefs: string[], base: string): string[] {
+  const host = bareHost(new URL(base).hostname);
+  const out = new Set<string>();
+  for (const href of hrefs) {
+    try {
+      const u = new URL(href.replace(/&amp;/g, '&'), base);
+      if (!/^https?:$/.test(u.protocol) || bareHost(u.hostname) !== host || NOT_A_PAGE.test(u.pathname)) continue;
+      out.add(`${u.origin}${u.pathname}`);
+    } catch { /* skip malformed links */ }
+  }
+  return [...out];
+}
+
+export function parseLinks(html: string, base: string): string[] {
+  return pageLinks([...html.matchAll(/<a\b[^>]*?\bhref\s*=\s*["']([^"'#]+)/gi)].map((m) => m[1]), base);
+}
+
+export async function discoverPages(origin: string, opts: ProbeOptions & { browserLinks?: BrowserLinks } = {}): Promise<Discovery> {
+  let blockedStatus: number | null = null;
+  const get = async (url: string, sitemap = true) => {
     try {
       const res = await safeGet(url, opts);
-      return res.status === 200 ? res.body : null;
+      if (sitemap && blockedStatus === null && BLOCKED.has(res.status)) blockedStatus = res.status;
+      return res.status === 200 ? res : null;
     } catch { return null; }
   };
-  for (const candidate of CANDIDATES) {
-    const xml = await get(new URL(candidate, origin).toString());
+  const done = (urls: string[], source: PageSource, from: string, viaBrowser = false): Discovery =>
+    ({ urls, source, from, blockedStatus, viaBrowser });
+
+  // 1. XML sitemaps: the ones robots.txt names first, then the usual locations.
+  const robots = await get(new URL('/robots.txt', origin).toString());
+  const named = robots ? parseRobotsSitemaps(robots.body).slice(0, 3) : [];
+  const xmlCandidates = [...new Set([...named, ...CANDIDATES.map((c) => new URL(c, origin).toString())])];
+  for (const candidate of xmlCandidates) {
+    const xml = (await get(candidate))?.body;
     if (!xml || !/<(urlset|sitemapindex)/i.test(xml)) continue;
     const first = parseSitemap(xml);
     const urls = [...first.pages];
     for (const child of first.sitemaps.slice(0, 5)) {
-      const childXml = await get(child);
+      const childXml = (await get(child))?.body;
       if (childXml) urls.push(...parseSitemap(childXml).pages);
       if (urls.length >= 5000) break;
     }
-    return urls.slice(0, 5000);
+    if (urls.length) return done(urls.slice(0, 5000), 'sitemap', new URL(candidate).pathname);
   }
-  return [];
+
+  // 2. An HTML sitemap page. A redirect away from it (often to the homepage) does not count.
+  for (const candidate of HTML_CANDIDATES) {
+    const res = await get(new URL(candidate, origin).toString());
+    if (!res || !/sitemap/i.test(new URL(res.finalUrl).pathname)) continue;
+    const urls = parseLinks(res.body, res.finalUrl);
+    if (urls.length >= ENOUGH_LINKS) return done(urls, 'html-sitemap', candidate);
+  }
+
+  // 3. Links on the homepage.
+  const home = await get(new URL('/', origin).toString(), false);
+  const homeLinks = home ? parseLinks(home.body, home.finalUrl) : [];
+  if (homeLinks.length) return done(homeLinks, 'links', '/');
+
+  // 4. Blocked or rendered by JavaScript: read the same pages in a browser.
+  if (opts.browserLinks) {
+    try {
+      const pages = await opts.browserLinks([new URL('/sitemap.html', origin).toString(), new URL('/', origin).toString()], ENOUGH_LINKS);
+      for (const page of pages) {
+        if (page.status >= 400) continue;
+        const path = new URL(page.url).pathname;
+        const urls = pageLinks(page.links, page.url);
+        if (path === '/' ? urls.length : urls.length >= ENOUGH_LINKS) return done(urls, path === '/' ? 'links' : 'html-sitemap', path, true);
+      }
+    } catch (e) { console.error('tracking-check page discovery (browser)', e); }
+  }
+  return { urls: [], source: null, from: null, blockedStatus, viaBrowser: false };
 }
 
 const bareHost = (h: string) => h.toLowerCase().replace(/^www\./, '');

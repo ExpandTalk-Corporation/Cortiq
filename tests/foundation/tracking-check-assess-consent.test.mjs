@@ -7,7 +7,8 @@ const DENIED = { kind: 'default', params: { ad_storage: 'denied', analytics_stor
 const GA = 'https://www.googletagmanager.com/gtag/js?id=G-6J9DFZLXNL';
 const GA_HIT = 'https://region1.google-analytics.com/g/collect?v=2&tid=G-6J9DFZLXNL&gcs=G100';
 const ADS = 'https://www.googletagmanager.com/gtag/js?id=AW-18424645060';
-const ADS_HIT = 'https://www.google.com/pagead/1p-conversion/18424645060/?gcs=G100';
+// A conversion hit without Consent Mode signals; with gcs=G100 (ad_storage denied) it is a cookieless ping.
+const ADS_HIT = 'https://www.google.com/pagead/1p-conversion/18424645060/';
 const GTM = 'https://www.googletagmanager.com/gtm.js?id=GTM-ABC123';
 const EXT = 'https://cdn.extellio.com/tracker.js';
 const policyRun = (states, policy = POLICY) => assess({ mode: 'policy', baseline: null, policy, target: site('target', [page('/', { states })]) });
@@ -240,8 +241,26 @@ test('category check ignores the shared gtag.js library and counts data hits', (
   const library = policyRun([...base, st('analytics_only', { requests: [req(GA), req(ADS)] }), st('marketing_only', { requests: [req(ADS)] })]);
   assert.equal(byKey(library, 'consent.category.google-ads').length, 0);
   assert.equal(byKey(library, 'consent.category')[0].status, 'pass');
-  const hit = policyRun([...base, st('analytics_only', { requests: [req('https://www.google.com/pagead/1p-conversion/18424645060/?gcs=G100')] }), st('marketing_only')]);
+  const hit = policyRun([...base, st('analytics_only', { requests: [req(ADS_HIT)] }), st('marketing_only')]);
   assert.equal(byKey(hit, 'consent.category.google-ads')[0].status, 'fail');
+});
+
+test('category check: a cookieless ping that marks the storage denied is a warning, not a fail', () => {
+  const base = [NONE, st('reject'), st('accept')];
+  const GA_PING = 'https://region1.google-analytics.com/g/collect?v=2&tid=G-6J9DFZLXNL&gcs=G110';
+  const ping = policyRun([...base, st('analytics_only'), st('marketing_only', { requests: [req(GA_PING, 'fetch')] })]);
+  const [w] = byKey(ping, 'consent.category.cookieless.ga4');
+  assert.equal(w.status, 'warning');
+  assert.match(w.explanation, /analytics_storage as denied/);
+  assert.equal(byKey(ping, 'consent.category.ga4').length, 0);
+  assert.equal(byKey(ping, 'consent.category').length, 0, 'no pass while a warning stands');
+
+  const withCookie = policyRun([...base, st('analytics_only'), st('marketing_only', { requests: [req(GA_PING, 'fetch')], cookies: [{ name: '_ga', domain: '.new.example' }] })]);
+  const [f] = byKey(withCookie, 'consent.category.ga4');
+  assert.equal(f.status, 'fail');
+  assert.match(f.explanation, /is an analytics tool/);
+  const granted = policyRun([...base, st('analytics_only'), st('marketing_only', { requests: [req(GA_PING.replace('G110', 'G111'), 'fetch')] })]);
+  assert.equal(byKey(granted, 'consent.category.ga4')[0].status, 'fail');
 });
 
 test('stored-data and unknown-third-party wording states facts, not a legal verdict', () => {

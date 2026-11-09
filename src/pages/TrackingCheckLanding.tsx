@@ -128,7 +128,7 @@ const CHECKS = [
 ];
 
 const STEPS = [
-  { title: "Enter the address", text: "Pick a few pages: the homepage and pages with forms, such as contact or demo. Suggest from sitemap helps you choose." },
+  { title: "Enter the address", text: "Pick a few pages: the homepage and pages with forms, such as contact or demo. Suggest pages helps you choose." },
   { title: "A real browser visits each page", text: "Without answering the banner, after \"Reject all\", after \"Accept all\", and with only statistics or only marketing accepted." },
   { title: "You get a report", text: "Findings ranked by priority, each with evidence, a suggested fix and who typically owns it. Share it with a link." },
 ];

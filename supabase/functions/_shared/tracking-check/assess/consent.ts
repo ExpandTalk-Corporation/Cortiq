@@ -2,7 +2,7 @@ import type { AssessInput, Finding, PageObservation, StateObservation } from '..
 import { GOOGLE_EXEMPT_VENDORS, isGoogleDomain, isGoogleHost, vendorForName, vendorForUrl, type Vendor } from '../../tracking-vendors.ts';
 import { MANUAL_STEPS } from '../instructions.ts';
 import { cmpOrigin, finding, frameStored, plural, requestVendors, siteKey, stateOf, testablePages, vendorOrigin, type ScriptOrigin } from './util.ts';
-import { CONSENT_DEFAULT_SNIPPET } from './signals.ts';
+import { CONSENT_DEFAULT_SNIPPET, parseGcs } from './signals.ts';
 import { DATA_DROP, ORIGIN_LABEL, cmpName, cmpOf, consentModeSteps, googleHostLabel, gtmBlockSteps, gtmContainerFix, vendorBlockSteps, verifyInConsole } from './guides.ts';
 
 const REQUIRED_DEFAULTS = ['ad_storage', 'analytics_storage', 'ad_user_data', 'ad_personalization'];
@@ -384,11 +384,12 @@ function categoryCheck({ mode, policy }: AssessInput, pages: PageObservation[]):
   );
 
   // Check for violations in automated states
-  const wrong = new Map<string, { vendor: Vendor; only: string; pages: Set<string> }>();
+  const wrong = new Map<string, { vendor: Vendor; only: string; pages: Set<string>; stored: boolean; consented: boolean }>();
   for (const p of pages) {
     for (const c of checks) {
       const st = stateOf(p, c.state as any);
       if (!automated(st)) continue;
+      const storedIds = new Set([...st!.cookies.map((k) => k.name), ...st!.storageKeys].map((n) => vendorForName(n)?.id).filter(Boolean));
       for (const r of st!.requests) {
         let u: URL;
         try { u = new URL(r.url); } catch { continue; }
@@ -396,19 +397,35 @@ function categoryCheck({ mode, policy }: AssessInput, pages: PageObservation[]):
         if (/(^|\.)googletagmanager\.com$/.test(u.hostname) && u.pathname.startsWith('/gtag/js')) continue;
         const v = vendorForUrl(r.url);
         if (!v || v.category !== c.forbidden) continue;
-        if (!wrong.has(v.id)) wrong.set(v.id, { vendor: v, only: c.only, pages: new Set() });
-        wrong.get(v.id)!.pages.add(p.path);
+        if (!wrong.has(v.id)) wrong.set(v.id, { vendor: v, only: c.only, pages: new Set(), stored: false, consented: false });
+        const w = wrong.get(v.id)!;
+        w.pages.add(p.path);
+        if (storedIds.has(v.id)) w.stored = true;
+        // A Google hit whose gcs marks the forbidden storage as denied is a cookieless Consent Mode ping.
+        const gcs = parseGcs(u.searchParams.get('gcs') ?? '');
+        if (!gcs || (c.forbidden === 'analytics' ? gcs.analytics : gcs.ad) !== '0') w.consented = true;
       }
     }
   }
 
   const out: Finding[] = [];
   for (const [id, w] of wrong) {
+    const signal = w.vendor.category === 'marketing' ? 'ad_storage' : 'analytics_storage';
+    if (!w.stored && !w.consented) {
+      out.push(finding({
+        scope: 'Consent', checkKey: `consent.category.cookieless.${id}`, status: 'warning', priority: 'medium',
+        title: `${w.vendor.name} sends cookieless pings with only ${w.only} accepted`,
+        explanation: `${w.vendor.name} sent requests when only the ${w.only} category was accepted, on ${[...w.pages].join(', ')}. The requests mark ${signal} as denied and no ${w.vendor.name} cookies were set, so the tag follows the choice the way Consent Mode advanced does; the visitor's IP address, browser and page address still reach Google.`,
+        fix: `Decide with the controller whether cookieless pings are acceptable. If not, require ${signal} in the tag's GTM consent settings (Consent Mode basic).`,
+        typicalOwner: 'legal', evidence: { pages: [...w.pages] },
+      }));
+      continue;
+    }
     out.push(finding({
       scope: 'Consent', checkKey: `consent.category.${id}`, status: 'fail', priority: 'high',
       title: `${w.vendor.name} runs with only ${w.only} accepted`,
-      explanation: `${w.vendor.name} is a ${w.vendor.category} tool but sent requests when only the ${w.only} category was accepted, on ${[...w.pages].join(', ')}.`,
-      fix: `Assign ${w.vendor.name} to the ${cap(w.vendor.category)} category in the cookie banner, or require ${w.vendor.category === 'marketing' ? 'ad_storage' : 'analytics_storage'} in its GTM consent settings.`,
+      explanation: `${w.vendor.name} is ${/^[aeiou]/i.test(w.vendor.category) ? 'an' : 'a'} ${w.vendor.category} tool but sent requests when only the ${w.only} category was accepted, on ${[...w.pages].join(', ')}.`,
+      fix: `Assign ${w.vendor.name} to the ${cap(w.vendor.category)} category in the cookie banner, or require ${signal} in its GTM consent settings.`,
       typicalOwner: 'cmp', evidence: { pages: [...w.pages] },
     }));
   }
