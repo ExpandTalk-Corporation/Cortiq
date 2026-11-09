@@ -346,11 +346,43 @@ Deno.serve(async (req) => {
       );
     }
 
+    // The event's site, for per-site reports such as custom dimensions. Matched by the page
+    // URL's domain (as the page-view bridge below needs), else the site_id the tracker sent.
+    // Normalize IDN/host form to punycode so domain resolution matches sites.domain.
+    // Browsers send location.href with the Unicode host (e.g. "båtguide.nu"); the
+    // WHATWG URL parser rewrites it to "xn--btguide-exa.nu" as stored.
+    let pageUrl: string | null = typeof metadata.url === 'string' ? metadata.url : null;
+    if (pageUrl) { try { pageUrl = new URL(pageUrl).href; } catch { /* keep raw */ } }
+    let domainSiteId: string | null = null;
+    let foreignSiteId: string | null = null;
+    try {
+      // TENANT GUARD: resolve_site_by_domain routes purely by the URL's domain. Without an
+      // ownership check, any caller with a valid credential could set metadata.url to
+      // another customer's domain and forge data into that tenant's dashboard. Confirm the
+      // site belongs to the authenticated company (companies.id == sites.user_id).
+      if (pageUrl) {
+        const { data: resolvedSiteId } = await supabase.rpc('resolve_site_by_domain', { p_url: pageUrl });
+        if (resolvedSiteId) {
+          const { data: siteRow } = await supabase
+            .from('sites')
+            .select('user_id')
+            .eq('id', resolvedSiteId)
+            .maybeSingle();
+          if (!!siteRow && siteRow.user_id === company.id) domainSiteId = resolvedSiteId;
+          else foreignSiteId = resolvedSiteId;
+        }
+      }
+    } catch (resolveErr) {
+      console.error('site resolution failed (non-fatal):', resolveErr);
+    }
+    const eventSiteId = domainSiteId ?? await resolveOwnedSite();
+
     // Insert tracking event
     const { data: event, error: insertError } = await supabase
       .from('tracking_events')
       .insert({
         company_id: body.company_id,
+        site_id: eventSiteId,
         content_type: body.content_type,
         content_id: contentIdUuid, // Use generated UUID
         event_type: body.event_type,
@@ -383,30 +415,11 @@ Deno.serve(async (req) => {
     let viewSiteId: string | null = null;
     let goalsForTracker: ReturnType<typeof clientGoals> | undefined;
     if (body.content_type === 'page' && body.event_type === 'view') {
-      // Normalize IDN/host form to punycode so domain resolution matches sites.domain.
-      // Browsers send location.href with the Unicode host (e.g. "båtguide.nu"); the
-      // WHATWG URL parser rewrites it to "xn--btguide-exa.nu" as stored.
-      let pageUrl: string | null = metadata.url ?? null;
-      if (pageUrl) { try { pageUrl = new URL(pageUrl).href; } catch { /* keep raw */ } }
       try {
-        // TENANT GUARD: ingest_pageview routes purely by the URL's domain. Without an
-        // ownership check, any caller with a valid credential could set metadata.url to
-        // another customer's domain and forge page views into that tenant's dashboard.
-        // Resolve the domain-matched site and confirm it belongs to the authenticated
-        // company (companies.id == sites.user_id) before bridging.
-        const { data: resolvedSiteId } = await supabase.rpc('resolve_site_by_domain', { p_url: pageUrl });
-        let ownedByCaller = false;
-        if (resolvedSiteId) {
-          const { data: siteRow } = await supabase
-            .from('sites')
-            .select('user_id')
-            .eq('id', resolvedSiteId)
-            .maybeSingle();
-          ownedByCaller = !!siteRow && siteRow.user_id === company.id;
-        }
-
-        if (ownedByCaller) {
-          viewSiteId = resolvedSiteId;
+        // ingest_pageview routes by the URL's domain, so it only runs for a domain-matched
+        // site owned by the caller (see the tenant guard above).
+        if (domainSiteId) {
+          viewSiteId = domainSiteId;
           await supabase.rpc('ingest_pageview', {
             p_url: pageUrl,
             p_session: body.session_id ?? null,
@@ -419,9 +432,9 @@ Deno.serve(async (req) => {
             // XX/T1/non-ISO values.
             p_country: req.headers.get('cf-ipcountry') ?? countryFromTimeZone(body.metadata?.timezone),
           });
-        } else if (resolvedSiteId) {
+        } else if (foreignSiteId) {
           console.warn('page_view bridge: domain-resolved site not owned by caller; skipping', {
-            company_id: company.id, resolved_site: resolvedSiteId,
+            company_id: company.id, resolved_site: foreignSiteId,
           });
         }
       } catch (bridgeErr) {

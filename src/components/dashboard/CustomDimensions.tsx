@@ -1,0 +1,200 @@
+/**
+ * Custom dimensions: report on properties sent with CortIQ.track().
+ *
+ * Keys are discovered from the site's events in the selected range; registering one makes it
+ * a dimension with a value breakdown. Rows include "(other)" so they add up to the total.
+ */
+
+import { useEffect, useMemo, useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { X } from 'lucide-react';
+import { toast } from 'sonner';
+import { ExportButton } from './ExportButton';
+import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
+import {
+  MAX_CUSTOM_DIMENSIONS,
+  useCustomDimensionBreakdown,
+  useCustomDimensionList,
+  useCustomDimensionMutations,
+  useEventPropertyKeys,
+} from '@/hooks/useCustomDimensions';
+
+interface CustomDimensionsProps {
+  siteId: string;
+}
+
+const EXAMPLE = `CortIQ.track('conversion', 'signup', { plan: 'pro', seats: 5 });`;
+
+export function CustomDimensions({ siteId }: CustomDimensionsProps) {
+  const { filters } = useDashboardFilters();
+  const { data: dimensions = [] } = useCustomDimensionList(siteId);
+  const { data: keys = [], isLoading: keysLoading } = useEventPropertyKeys(siteId);
+  const { register, remove } = useCustomDimensionMutations(siteId);
+
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [newKey, setNewKey] = useState('');
+  const [newLabel, setNewLabel] = useState('');
+
+  useEffect(() => {
+    if (!dimensions.some((d) => d.key === selectedKey)) setSelectedKey(dimensions[0]?.key ?? null);
+  }, [dimensions, selectedKey]);
+
+  const { data: rows = [], isLoading: rowsLoading } = useCustomDimensionBreakdown(siteId, selectedKey);
+  const total = useMemo(() => rows.reduce((sum, r) => sum + Number(r.events), 0), [rows]);
+  const unregistered = keys.filter((k) => !k.registered);
+  const selected = dimensions.find((d) => d.key === selectedKey);
+  const atLimit = dimensions.length >= MAX_CUSTOM_DIMENSIONS;
+
+  function handleRegister() {
+    if (!newKey) return;
+    register.mutate(
+      { key: newKey, label: newLabel },
+      {
+        onSuccess: () => {
+          toast.success(`"${newKey}" registered`);
+          setSelectedKey(newKey);
+          setNewKey('');
+          setNewLabel('');
+        },
+        onError: () => toast.error('Could not register the dimension'),
+      },
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Custom dimensions</CardTitle>
+        <CardDescription>
+          Properties you send with <code>CortIQ.track()</code> are stored but not reported until you register
+          them here. Up to {MAX_CUSTOM_DIMENSIONS} per site. Identifiers such as visitor ID, URL and user agent
+          cannot be registered. Never send names, email addresses or other personal data as properties.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {dimensions.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {dimensions.map((d) => (
+              <Badge
+                key={d.id}
+                variant={d.key === selectedKey ? 'default' : 'outline'}
+                className="pl-3 pr-1 py-1.5 cursor-pointer"
+                onClick={() => setSelectedKey(d.key)}
+              >
+                {d.label}
+                {d.label !== d.key && <span className="ml-1 opacity-60 font-mono text-xs">{d.key}</span>}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 ml-1"
+                  aria-label={`Remove ${d.label}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    remove.mutate(d.id, { onError: () => toast.error('Could not remove the dimension') });
+                  }}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </Badge>
+            ))}
+          </div>
+        )}
+
+        {unregistered.length > 0 && !atLimit ? (
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Select value={newKey} onValueChange={setNewKey}>
+              <SelectTrigger className="sm:w-64">
+                <SelectValue placeholder="Property seen in events..." />
+              </SelectTrigger>
+              <SelectContent>
+                {unregistered.map((k) => (
+                  <SelectItem key={k.key} value={k.key}>
+                    <span className="font-mono">{k.key}</span>
+                    <span className="ml-2 text-xs text-muted-foreground">{Number(k.events).toLocaleString()} events</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              className="sm:w-56"
+              placeholder="Label (optional)"
+              maxLength={60}
+              value={newLabel}
+              onChange={(e) => setNewLabel(e.target.value)}
+            />
+            <Button onClick={handleRegister} disabled={!newKey || register.isPending}>
+              Register
+            </Button>
+          </div>
+        ) : !keysLoading && keys.length === 0 ? (
+          <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground space-y-2">
+            <p>No custom properties in events for this period. Send them as the third argument:</p>
+            <pre className="overflow-x-auto rounded bg-muted p-2 text-xs"><code>{EXAMPLE}</code></pre>
+          </div>
+        ) : atLimit ? (
+          <p className="text-sm text-muted-foreground">Limit of {MAX_CUSTOM_DIMENSIONS} dimensions reached.</p>
+        ) : null}
+
+        {selected && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-medium">{selected.label}</h3>
+              <ExportButton
+                config={{
+                  reportType: 'custom-dimension',
+                  data: rows.map((r) => ({ [selected.key]: r.value, events: r.events, sessions: r.sessions })),
+                  siteId,
+                  dateRange: { from: filters.from, to: filters.to },
+                  filename: `dimension-${selected.key}`,
+                }}
+                size="sm"
+                variant="outline"
+              />
+            </div>
+            {rowsLoading ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">Loading...</p>
+            ) : rows.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                No events with <code>{selected.key}</code> in this period.
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Value</TableHead>
+                    <TableHead className="text-right">Events</TableHead>
+                    <TableHead className="text-right">Sessions</TableHead>
+                    <TableHead className="text-right">Share of events</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rows.map((r) => (
+                    <TableRow key={`${r.is_other}-${r.value}`}>
+                      <TableCell className={r.is_other ? 'italic text-muted-foreground' : 'font-mono text-sm break-all'}>
+                        {r.value}
+                      </TableCell>
+                      <TableCell className="text-right">{Number(r.events).toLocaleString()}</TableCell>
+                      <TableCell className="text-right">{Number(r.sessions).toLocaleString()}</TableCell>
+                      <TableCell className="text-right">
+                        {total > 0 ? `${((Number(r.events) / total) * 100).toFixed(1)}%` : '–'}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Counts events that carry the property (consent-based tracking only). The top 25 values are shown;
+              the rest are grouped as "(other)". Values longer than 100 characters are cut.
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
