@@ -28,6 +28,11 @@ test('a directory of hint matches counts as form pages only twice', () => {
   assert.deepEqual(nested.filter((p) => p.reason === 'form').map((p) => p.path), ['/sv/contacts/x.html', '/sv/contacts/m/my.html']);
 });
 
+test('"demo" must be the whole word', () => {
+  const pages = suggestPages(['https://a.example/ai/democratisation-of-ai.html', 'https://a.example/demo', 'https://a.example/sv/demos/', 'https://a.example/en/book-a-demo/'], 'https://a.example');
+  assert.deepEqual(pages.filter((p) => p.reason === 'form').map((p) => p.path).sort(), ['/demo', '/en/book-a-demo/', '/sv/demos/']);
+});
+
 const resolve = async () => ['93.184.215.14'];
 const html = (paths) => `<html><body>${paths.map((p) => `<a class="x" href="${p}">${p}</a>`).join('')}</body></html>`;
 
