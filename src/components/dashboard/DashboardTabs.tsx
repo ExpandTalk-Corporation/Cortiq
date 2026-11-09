@@ -33,7 +33,6 @@ const UserLTVTab               = lazy(() => import('./tabs/UserLTVTab').then(m =
 const ClickFraudTab            = lazy(() => import('./tabs/ClickFraudTab').then(m => ({ default: m.ClickFraudTab })));
 const TagManager               = lazy(() => import('./TagManager').then(m => ({ default: m.TagManager })));
 const GeolocationDashboard     = lazy(() => import('./GeolocationDashboard').then(m => ({ default: m.GeolocationDashboard })));
-const WarehouseConnectorManager = lazy(() => import('./WarehouseConnectorManager').then(m => ({ default: m.WarehouseConnectorManager })));
 const IPSegmentsTab                = lazy(() => import('./tabs/IPSegmentsTab').then(m => ({ default: m.IPSegmentsTab })));
 const AgentOpsTab                  = lazy(() => import('./tabs/AgentOpsTab').then(m => ({ default: m.AgentOpsTab })));
 const ZeroClickRiskIndex           = lazy(() => import('./ZeroClickRiskIndex').then(m => ({ default: m.ZeroClickRiskIndex })));
@@ -72,7 +71,7 @@ const FILTER_AWARE = new Set(['analytics', 'geolocation', 'campaigns', 'navigati
 const NO_FILTER_NOTICE = new Set([
   'overview', 'realtime', 'alerts',
   'setup', 'integrations', 'cortiq-api', 'api-keys', 'gdpr', 'notifications', 'tag-manager',
-  'warehouse', 'utm-segments', 'agent-macros', 'agent-registry', 'conversion-goals', 'report-builder',
+  'utm-segments', 'agent-macros', 'agent-registry', 'conversion-goals', 'report-builder',
 ]);
 
 interface DashboardTabsProps {
@@ -215,7 +214,6 @@ function DashboardTabsInner({ selectedSite, dateRange, onSiteDeleted, onSiteUpda
         </TabErrorBoundary>
       </TabsContent>
 
-
       <TabsContent value="cookiefree" className="space-y-6">
         <TabErrorBoundary tabName="Cookie-Free">
           <CookiefreeAnalyticsTab selectedSite={selectedSite} dateRange={dateRange} />
@@ -263,12 +261,6 @@ function DashboardTabsInner({ selectedSite, dateRange, onSiteDeleted, onSiteUpda
       <TabsContent value="geolocation" className="space-y-6">
         <TabErrorBoundary tabName="Geolocation">
           <GeolocationDashboard siteId={selectedSite.id} />
-        </TabErrorBoundary>
-      </TabsContent>
-
-      <TabsContent value="warehouse" className="space-y-6">
-        <TabErrorBoundary tabName="Data Warehouse">
-          <WarehouseConnectorManager siteId={selectedSite.id} />
         </TabErrorBoundary>
       </TabsContent>
 

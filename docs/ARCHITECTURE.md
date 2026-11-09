@@ -39,7 +39,6 @@ CortIQ is a full-stack web analytics platform built on modern cloud-native archi
 │  External Integrations                                   │
 │  ├─ Google Analytics 4                                   │
 │  ├─ Google Search Console                                │
-│  ├─ Data Warehouses (BigQuery, Snowflake, etc.)         │
 │  └─ External Sites (tracking script)                    │
 │                                                          │
 └─────────────────────────────────────────────────────────┘
@@ -251,7 +250,6 @@ sites                     -- Registered websites
 companies                 -- Customer companies
 google_analytics_configs  -- GA4 settings
 search_console_configs    -- GSC settings
-warehouse_connectors      -- Data warehouse configs
 ```
 
 #### 6. GDPR & Compliance
@@ -308,7 +306,6 @@ user-lifetime-value     -- LTV calculation
 
 #### Integration Functions (10)
 ```
-warehouse-connector     -- Data warehouse sync
 geolocation-lookup     -- IP to location
 send-export-email      -- Email exports
 sitekit-sync           -- Google SiteKit sync
