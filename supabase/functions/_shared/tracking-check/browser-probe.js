@@ -270,7 +270,7 @@ export function requestOrigin(initiator, documentUrl) {
 async function observeState(browser, state, context, inPageSource) {
   const ctx = await (browser.createBrowserContext ? browser.createBrowserContext() : browser.createIncognitoBrowserContext());
   const p = await ctx.newPage();
-  const out = { state, method: state === 'none' ? 'not_needed' : 'not_automated', status: 0, requests: [], cookies: [], keptCookies: [], storageKeys: [], cspViolations: [], consentCommands: [], enhancedConversions: false, challenge: false, error: null, bannerSeen: false, bannerAfterChoice: null };
+  const out = { state, method: state === 'none' ? 'not_needed' : 'not_automated', status: 0, requests: [], cookies: [], keptCookies: [], storageKeys: [], frameStorage: [], cspViolations: [], consentCommands: [], enhancedConversions: false, challenge: false, error: null, bannerSeen: false, bannerAfterChoice: null };
   let cmp = null;
   let html = '';
   const userData = /[?&;]em=|"em"\s*:|user_data/;
@@ -280,6 +280,30 @@ async function observeState(browser, state, context, inPageSource) {
   // to tell a cookie left over from before the choice from one the page wrote again after it.
   const cookieKey = (c) => `${c.name}|${c.domain}`;
   const cookieSig = (c) => `${c.value}|${c.expires}`;
+  // Storage inside embedded frames (video players, chat widgets) belongs to the frame's origin, which the page's own
+  // localStorage does not show. Read per cross-origin frame, as "origin|key".
+  const frameKeys = async () => {
+    if (typeof p.frames !== 'function') return [];
+    let top = '';
+    try { top = new URL(p.url()).origin; } catch (e) { /* no page URL */ }
+    const keys = [];
+    for (const f of p.frames().slice(0, 40)) {
+      if (f === p.mainFrame()) continue;
+      let origin = '';
+      try { origin = new URL(f.url()).origin; } catch (e) { continue; }
+      if (!/^https?:/.test(origin) || origin === top) continue;
+      // A frame that never answers (busy or detached) must not stall the run.
+      const found = await Promise.race([f.evaluate(() => {
+        const k = [];
+        for (const st of [window.localStorage, window.sessionStorage]) {
+          try { for (let i = 0; i < st.length && k.length < 200; i++) k.push(st.key(i)); } catch (e) { /* storage blocked */ }
+        }
+        return k;
+      }), new Promise((r) => setTimeout(() => r([]), 3000))]).catch(() => []);
+      for (const k of found) keys.push(`${origin}|${k}`);
+    }
+    return keys;
+  };
   const snapshot = async (cdp) => new Map((await cdp.send('Network.getAllCookies')).cookies.map((c) => [cookieKey(c), cookieSig(c)]));
   // GA4 hits through server-side tagging on the site's own domain also go to Google.
   const ga4Hit = (u) => u.pathname === '/g/collect' && /[?&]tid=G-/.test(u.search);
@@ -329,10 +353,12 @@ async function observeState(browser, state, context, inPageSource) {
     let before = new Map();
     let afterClick = null;
     let beforeKeys = new Set();
+    let beforeFrameKeys = new Set();
     let done = false;
     if (state !== 'none') {
       before = await snapshot(cdp);
       beforeKeys = new Set((await p.evaluate(() => window.__tc.collect(false))).storageKeys);
+      beforeFrameKeys = new Set(await frameKeys());
       done = cmp ? await p.evaluate((c, a) => window.__tc.apply(c, a), cmp, state) : false;
       if (done) out.method = out.bannerSeen ? 'adapter' : 'not_automated';
       else if (state === 'accept' || state === 'reject') {
@@ -360,6 +386,10 @@ async function observeState(browser, state, context, inPageSource) {
     out.cookies = cookies.filter((c) => !kept(c)).map((c) => ({ name: c.name, domain: c.domain }));
     out.keptCookies = cookies.filter(kept).map((c) => ({ name: c.name, domain: c.domain }));
     out.storageKeys = collected.storageKeys.filter((k) => !beforeKeys.has(k));
+    out.frameStorage = [...new Set(await frameKeys())].filter((k) => !beforeFrameKeys.has(k)).map((k) => {
+      const i = k.indexOf('|');
+      return { origin: k.slice(0, i), key: k.slice(i + 1) };
+    });
     out.cspViolations = collected.csp;
     out.consentCommands = collected.consentCommands;
     out.enhancedConversions = out.enhancedConversions || collected.ec;

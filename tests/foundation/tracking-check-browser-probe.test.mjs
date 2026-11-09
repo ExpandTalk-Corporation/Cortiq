@@ -109,6 +109,8 @@ function fakeBrowser(loadsFor) {
           const loads = [];
           let win = null;
           let cookies = [];
+          let frames = [];
+          const main = { url: () => 'https://new.example/' };
           const listeners = [];
           const elements = (banner) => (banner ? [{ getBoundingClientRect: () => ({ width: 400, height: 120 }) }] : []);
           // spec.elements: { '<exact selector or #id>': true | { visible: false, checked: true } } — arbitrary
@@ -137,6 +139,8 @@ function fakeBrowser(loadsFor) {
             };
             // A cookie in a later load replaces the one with the same name and domain (the page wrote it again).
             const same = (a, b) => a.name === b.name && (a.domain ?? '') === (b.domain ?? '');
+            // spec.frames: [{ url, storage }] — embedded frames and the storage keys inside them.
+            frames = (spec.frames ?? []).map((fr) => ({ url: () => fr.url, evaluate: async () => fr.storage ?? [] }));
             cookies = [...cookies.filter((c) => !(spec.cookies ?? []).some((n) => same(c, n))), ...(spec.cookies ?? [])];
             for (const r of spec.requests ?? []) for (const fn of listeners) fn({ url: () => r.url, postData: () => r.postData ?? null, resourceType: () => 'script', ...(r.initiator ? { initiator: () => r.initiator, frame: () => ({ url: () => 'https://new.example/' }) } : {}) });
             return { status: () => spec.status ?? 200 };
@@ -152,6 +156,7 @@ function fakeBrowser(loadsFor) {
             async goto() { loads.push(...loadsFor()); return load(loads.shift()); },
             async reload() { return load(loads.shift() ?? {}); },
             async waitForNetworkIdle() {},
+            url: () => 'https://new.example/', mainFrame: () => main, frames: () => [main, ...frames],
             async evaluate(fn, ...args) { return run(fn, args); },
             async createCDPSession() { return { send: async () => ({ cookies: cookies.map((c) => ({ value: '1', domain: '.new.example', ...c })) }) }; },
           };
@@ -451,4 +456,15 @@ test('observeState reports no kept cookies for the state without a choice', asyn
   const out = await probe(['none'], { none: [{ cookies: [{ name: '_ga' }] }] });
   assert.deepEqual(out.none.cookies.map((c) => c.name), ['_ga']);
   assert.deepEqual(out.none.keptCookies, []);
+});
+
+test('observeState reads storage inside cross-origin frames, new since the choice', async () => {
+  const yt = (storage) => ({ url: 'https://www.youtube-nocookie.com/embed/abc', storage });
+  const out = await probe(['reject'], { reject: [
+    { globals: cookiebot(false), banner: true, frames: [yt(['yt-player-bandwidth']), { url: 'https://new.example/same-origin', storage: ['own'] }] },
+    { globals: cookiebot(false), banner: false, frames: [yt(['yt-player-bandwidth', 'yt-remote-device-id']), { url: 'about:blank', storage: ['x'] }] },
+  ] });
+  assert.deepEqual(out.reject.frameStorage, [{ origin: 'https://www.youtube-nocookie.com', key: 'yt-remote-device-id' }]);
+  const none = await probe(['none'], { none: [{ frames: [yt(['ytidb::LAST_RESULT_ENTRY_KEY'])] }] });
+  assert.deepEqual(none.none.frameStorage.map((f) => f.key), ['ytidb::LAST_RESULT_ENTRY_KEY']);
 });

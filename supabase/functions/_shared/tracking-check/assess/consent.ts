@@ -1,7 +1,7 @@
 import type { AssessInput, Finding, PageObservation, StateObservation } from '../types.ts';
 import { GOOGLE_EXEMPT_VENDORS, isGoogleDomain, isGoogleHost, vendorForName, vendorForUrl, type Vendor } from '../../tracking-vendors.ts';
 import { MANUAL_STEPS } from '../instructions.ts';
-import { cmpOrigin, finding, plural, requestVendors, siteKey, stateOf, testablePages, vendorOrigin, type ScriptOrigin } from './util.ts';
+import { cmpOrigin, finding, frameStored, plural, requestVendors, siteKey, stateOf, testablePages, vendorOrigin, type ScriptOrigin } from './util.ts';
 import { CONSENT_DEFAULT_SNIPPET } from './signals.ts';
 import { DATA_DROP, ORIGIN_LABEL, cmpName, cmpOf, consentModeSteps, googleHostLabel, gtmBlockSteps, gtmContainerFix, vendorBlockSteps, verifyInConsole } from './guides.ts';
 
@@ -149,6 +149,10 @@ function choiceCheck({ mode, policy }: AssessInput, pages: PageObservation[], st
     for (const name of [...st.cookies.map((c) => c.name), ...st.storageKeys]) {
       const v = vendorForName(name);
       if (!v || !needsConsent(v)) continue;
+      const h = hit(v); h.pages.add(p.path); h.stored.add(name);
+    }
+    for (const { vendor: v, key: name } of frameStored(st)) {
+      if (!needsConsent(v)) continue;
       const h = hit(v); h.pages.add(p.path); h.stored.add(name);
     }
     // Cookies left over from before "Reject all" that the tool did not write again (a returning visitor's cookies).
@@ -332,6 +336,7 @@ function verifyWidgets(evaluated: PageObservation[], state: 'none' | 'reject', k
       const v = vendorForName(name);
       if (v?.verify) add(v, p.path, `stored ${name}`);
     }
+    for (const { vendor: v, key: name } of frameStored(st)) if (v.verify) add(v, p.path, `stored ${name}`);
   }
   return [...seen].map(([id, s]) => {
     // After "no", a widget nobody has used that still writes to the device is not a configuration question.
@@ -342,7 +347,7 @@ function verifyWidgets(evaluated: PageObservation[], state: 'none' | 'reject', k
         title: `${s.vendor.name} stores data on the device ${label}`,
         explanation: `${s.vendor.name} set ${names.join(', ')} in the browser ${label} on ${[...s.pages].join(', ')}, before anyone used it. ${s.vendor.verify} The visitor said no and had not used ${s.vendor.name}, so the storage is hard to justify as strictly necessary. Storing data on the device ${LEGAL}`,
         fix: [`Load ${s.vendor.name} only when the visitor asks for it: let the cookie banner block the script or iframe until consent and show a placeholder in its place ("Load video", "Open chat") that loads it on click.`,
-          id === 'youtube' ? 'At the least, switch the embed to youtube-nocookie.com (privacy-enhanced mode).' : `If ${s.vendor.name} has a mode that stores nothing until the visitor uses it, turn it on.`].join('\n\n'),
+          id === 'youtube' ? 'youtube-nocookie.com (privacy-enhanced mode) sets no YouTube cookies before the video is played, but the player can still write to its own local storage when it loads; only click-to-load stores nothing.' : `If ${s.vendor.name} has a mode that stores nothing until the visitor uses it, turn it on.`].join('\n\n'),
         typicalOwner: 'cmp', evidence: { pages: [...s.pages], details: [...s.details] },
       });
     }

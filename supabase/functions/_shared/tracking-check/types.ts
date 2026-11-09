@@ -37,6 +37,8 @@ export interface StateObservation {
   cookies: { name: string; domain: string }[];   // set or written again since the consent action (all cookies for `none`)
   /** Cookies from before the consent action that were left untouched after it. Absent in observations from before this field. */
   keptCookies?: { name: string; domain: string }[];
+  /** Local and session storage keys inside cross-origin frames (embeds), new since the consent action. Absent in older observations. */
+  frameStorage?: { origin: string; key: string }[];
   storageKeys: string[];                          // new since the consent action, without the local:/session: prefix
   cspViolations: { blockedUrl: string; directive: string }[];
   consentCommands: { kind: 'default' | 'update'; params: Record<string, string> }[];
