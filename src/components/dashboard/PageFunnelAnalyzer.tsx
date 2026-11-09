@@ -59,26 +59,16 @@ export function PageFunnelAnalyzer({ siteId }: PageFunnelAnalyzerProps) {
 
   const loadAvailablePages = async () => {
     try {
-      // Hämta alla sidor med antal besök
-      const { data, error } = await supabase
-        .from('page_views')
-        .select('url, title')
-        .eq('site_id', siteId)
-        .order('viewed_at', { ascending: false });
+      // Most viewed pages over the last year, counted in the database (get_top_pages).
+      const today = new Date().toISOString().slice(0, 10);
+      const yearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const { data, error } = await (supabase as any).rpc('get_top_pages', {
+        p_site_id: siteId, p_from: yearAgo, p_to: today, p_limit: 200,
+      });
 
       if (error) throw error;
 
-      // Räkna besök per sida
-      const pageCounts = data.reduce((acc, page) => {
-        const url = page.url;
-        acc[url] = (acc[url] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
-
-      // Sortera efter popularitet
-      const sortedPages = Object.entries(pageCounts)
-        .sort(([,a], [,b]) => b - a)
-        .map(([url]) => url);
+      const sortedPages: string[] = (data?.pages ?? []).map((p: { url: string }) => p.url);
 
       // Prioritera viktiga sidor
       const importantPages = sortedPages.filter(url => 
@@ -118,70 +108,22 @@ export function PageFunnelAnalyzer({ siteId }: PageFunnelAnalyzerProps) {
     
     setIsLoading(true);
     try {
+      // Counted in the database (get_page_funnel), so busy pages are not cut at 1,000 rows.
       const daysAgo = parseInt(timeRange);
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - daysAgo);
+      const today = new Date().toISOString().slice(0, 10);
+      const from = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const { data, error } = await (supabase as any).rpc('get_page_funnel', {
+        p_site_id: siteId, p_url: selectedUrl, p_from: from, p_to: today,
+      });
 
-      // 1. Sidbesök
-      const { data: pageVisitsData, error: pageError } = await supabase
-        .from('page_views')
-        .select('id, session_id')
-        .eq('site_id', siteId)
-        .eq('url', selectedUrl)
-        .gte('viewed_at', startDate.toISOString());
+      if (error) throw error;
 
-      if (pageError) throw pageError;
-
-      // 2. Alla klick på sidan
-      const { data: clicksData, error: clickError } = await supabase
-        .from('heatmap_data')
-        .select('*')
-        .eq('site_id', siteId)
-        .eq('url', selectedUrl)
-        .gte('created_at', startDate.toISOString());
-
-      if (clickError) throw clickError;
-
-      // 3. Konverteringshändelser
-      const { data: conversionsData, error: convError } = await supabase
-        .from('conversion_events')
-        .select('*')
-        .eq('site_id', siteId)
-        .gte('created_at', startDate.toISOString());
-
-      if (convError) console.warn('Conversion events error:', convError);
-
-      // Analysera data
-      const pageVisits = pageVisitsData?.length || 0;
-      const totalClicks = clicksData?.length || 0;
-      
-      // Identifiera formulärinteraktioner baserat på element_text och interaction_type
-      const formStarts = clicksData?.filter(click => 
-        click.interaction_type?.includes('form') ||
-        click.element_text?.toLowerCase().includes('input') ||
-        click.element_text?.toLowerCase().includes('textarea') ||
-        click.interaction_type?.includes('input')
-      ).length || 0;
-
-      const formSubmissions = clicksData?.filter(click =>
-        click.interaction_type?.includes('submit') ||
-        click.element_text?.toLowerCase().includes('skicka') ||
-        click.element_text?.toLowerCase().includes('send') ||
-        click.element_text?.toLowerCase().includes('submit')
-      ).length || 0;
-
-      const phoneClicks = clicksData?.filter(click =>
-        click.interaction_type?.includes('phone') ||
-        click.element_text?.toLowerCase().includes('ring') ||
-        click.element_text?.toLowerCase().includes('telefon') ||
-        click.element_text?.toLowerCase().includes('call')
-      ).length || 0;
-
-      const emailClicks = clicksData?.filter(click =>
-        click.element_text?.toLowerCase().includes('email') ||
-        click.element_text?.toLowerCase().includes('mejl') ||
-        click.element_text?.toLowerCase().includes('@')
-      ).length || 0;
+      const pageVisits = Number(data?.page_visits ?? 0);
+      const totalClicks = Number(data?.total_clicks ?? 0);
+      const formStarts = Number(data?.form_starts ?? 0);
+      const formSubmissions = Number(data?.form_submissions ?? 0);
+      const phoneClicks = Number(data?.phone_clicks ?? 0);
+      const emailClicks = Number(data?.email_clicks ?? 0);
 
       const conversionRate = pageVisits > 0 ? (formSubmissions / pageVisits) * 100 : 0;
       const dropoffRate = formStarts > 0 ? ((formStarts - formSubmissions) / formStarts) * 100 : 0;

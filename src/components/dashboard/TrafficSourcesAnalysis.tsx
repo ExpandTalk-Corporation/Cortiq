@@ -331,125 +331,37 @@ export function TrafficSourcesAnalysis({ siteId, startDate, endDate, selectedSit
 
   const loadTrackingData = async () => {
     try {
-      // Hämta sessionsdata för trafikkällor med valda datum
-      const defaultStartDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      const defaultEndDate = new Date().toISOString();
-      
-      const actualStartDate = startDate || defaultStartDate;
-      const actualEndDate = endDate || defaultEndDate;
-      
-      console.log(`📊 Fetching tracking data for date range: ${actualStartDate} to ${actualEndDate}`);
-      
-      const { data: sessionData } = await supabase
-        .from('tracking_sessions')
-        .select(`
-          session_id,
-          referrer,
-          device_type,
-          duration_seconds,
-          page_views,
-          started_at
-        `)
-        .eq('site_id', siteId)
-        .gte('started_at', actualStartDate)
-        .lte('started_at', actualEndDate);
+      // First-party fallback, counted in the database (get_source_breakdown) so every session
+      // in the range is included, not only the first 1,000 rows.
+      const today = new Date().toISOString().slice(0, 10);
+      const defaultFrom = new Date(Date.now() - 29 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const { data, error } = await (supabase as any).rpc('get_source_breakdown', {
+        p_site_id: siteId,
+        p_from: startDate ? startDate.slice(0, 10) : defaultFrom,
+        p_to: endDate ? endDate.slice(0, 10) : today,
+      });
+      if (error) throw error;
 
-      console.log(`📊 Found ${sessionData?.length || 0} sessions in tracking data for this date range`);
-
-      // Hämta konverteringsdata med valda datum
-      const { data: conversions } = await supabase
-        .from('conversion_events')
-        .select('session_id, event_value')
-        .eq('site_id', siteId)
-        .gte('created_at', startDate || defaultStartDate)
-        .lte('created_at', endDate || defaultEndDate);
-
-      if (!sessionData || sessionData.length === 0) {
-        setTrafficSources([]);
-        setLastUpdated(new Date());
-        return;
-      }
-
-      // Analysera trafikkällor från verklig data
-      const sourcesMap = new Map<string, TrafficSource>();
-      
-      sessionData.forEach((session) => {
-        let source = '(direct)';
-        let medium = '(none)';
-        
-        // Analysera referrer för att bestämma källa och medium
-        if (session.referrer && session.referrer !== '(direct)') {
-          try {
-            const refUrl = new URL(session.referrer);
-            const hostname = refUrl.hostname.toLowerCase();
-            
-            // Identifiera trafikkällor baserat på referrer
-            if (hostname.includes('google')) {
-              source = 'google';
-              medium = 'organic';
-            } else if (hostname.includes('facebook')) {
-              source = 'facebook';
-              medium = 'social';
-            } else if (hostname.includes('instagram')) {
-              source = 'instagram';
-              medium = 'social';
-            } else if (hostname.includes('youtube')) {
-              source = 'youtube';
-              medium = 'social';
-            } else if (hostname.includes('twitter') || hostname.includes('x.com')) {
-              source = 'twitter';
-              medium = 'social';
-            } else if (hostname.includes('linkedin')) {
-              source = 'linkedin';
-              medium = 'social';
-            } else {
-              source = hostname.replace('www.', '');
-              medium = 'referral';
-            }
-          } catch (e) {
-            // Fallback för ogiltiga URLs
-            source = 'unknown';
-            medium = 'referral';
-          }
-        }
-        
-        const key = `${source}_${medium}`;
-        if (!sourcesMap.has(key)) {
-          sourcesMap.set(key, {
-            source,
-            medium,
-            sessions: 0,
-            users: 0,
-            pageviews: 0,
-            bounceRate: 0,
-            avgSessionDuration: 0,
-            conversions: 0,
-            percentage: 0
-          });
-        }
-        
-        const sourceData = sourcesMap.get(key)!;
-        sourceData.sessions++;
-        sourceData.users++; // Förenklad: en användare per session
-        sourceData.pageviews += session.page_views || 1;
-        sourceData.avgSessionDuration += session.duration_seconds || 0;
-        
-        // Räkna konverteringar för denna session
-        const sessionConversions = conversions?.filter(c => c.session_id === session.session_id) || [];
-        sourceData.conversions += sessionConversions.length;
+      const totalSessions = Number(data?.total_sessions ?? 0);
+      const sources: TrafficSource[] = (data?.sources ?? []).map((s: {
+        source: string; medium: string; sessions: number; page_views: number;
+        bounces: number; duration_seconds: number; conversions: number;
+      }) => {
+        const sessions = Number(s.sessions);
+        return {
+          source: s.source,
+          medium: s.medium,
+          sessions,
+          users: sessions, // No visitor ID on sessions; one user per session.
+          pageviews: Number(s.page_views),
+          bounceRate: sessions > 0 ? (Number(s.bounces) / sessions) * 100 : 0,
+          avgSessionDuration: sessions > 0 ? Number(s.duration_seconds) / sessions : 0,
+          conversions: Number(s.conversions),
+          percentage: totalSessions > 0 ? (sessions / totalSessions) * 100 : 0,
+        };
       });
 
-      // Beräkna genomsnitt och procentsatser
-      const sources = Array.from(sourcesMap.values());
-      const totalSessions = sources.reduce((sum, s) => sum + s.sessions, 0);
-      
-      sources.forEach(source => {
-        source.avgSessionDuration = source.sessions > 0 ? source.avgSessionDuration / source.sessions : 0;
-        source.bounceRate = source.sessions > 0 ? ((source.sessions - source.pageviews + source.sessions) / source.sessions) * 100 : 0;
-        source.percentage = totalSessions > 0 ? (source.sessions / totalSessions) * 100 : 0;
-      });
-
-      setTrafficSources(sources.sort((a, b) => b.sessions - a.sessions));
+      setTrafficSources(sources);
       setLastUpdated(new Date());
     } catch (error) {
       toast({

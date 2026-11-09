@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { rangeBounds } from '@/lib/dashboard/filters';
 
 export interface GASegment {
   id: string;
@@ -154,47 +153,38 @@ export function useGASegmentAnalytics(siteId: string | null, range: { from: stri
   };
 
   const loadFallbackSegmentData = async (siteId: string) => {
-    // First-party tracking data as fallback, same range (end day inclusive)
-    const { start, end } = rangeBounds(startDate, endDate);
+    // First-party fallback, counted in the database (get_segment_stats).
+    const { data, error } = await (supabase as any).rpc('get_segment_stats', {
+      p_site_id: siteId, p_from: startDate, p_to: endDate,
+    });
+    const totalSessions = Number(data?.total_sessions ?? 0);
 
-    const { data: sessions } = await supabase
-      .from('tracking_sessions')
-      .select('device_type, duration_seconds, referrer, session_id')
-      .eq('site_id', siteId)
-      .gte('started_at', start)
-      .lt('started_at', end);
-
-    if (!sessions || sessions.length === 0) {
+    if (error || totalSessions === 0) {
       setSegmentMetrics([]);
       return;
     }
 
-    // Gruppera per enhet
-    const deviceStats = sessions.reduce((acc, session) => {
-      const device = session.device_type || 'unknown';
-      if (!acc[device]) {
-        acc[device] = { sessions: 0, totalDuration: 0 };
-      }
-      acc[device].sessions++;
-      acc[device].totalDuration += session.duration_seconds || 0;
-      return acc;
-    }, {} as Record<string, { sessions: number; totalDuration: number }>);
-
-    const deviceSegments: GASegment[] = Object.entries(deviceStats).map(([device, stats]) => ({
-      id: device,
-      name: device === 'mobile' ? 'Mobile' : device === 'desktop' ? 'Desktop' : device,
-      sessions: stats.sessions,
-      users: stats.sessions, // Approximation
-      conversions: 0,
-      conversionRate: 0,
-      bounceRate: 0,
-      avgSessionDuration: stats.sessions > 0 ? stats.totalDuration / stats.sessions : 0,
-      percentage: (stats.sessions / sessions.length) * 100
-    }));
+    const deviceSegments: GASegment[] = (data.devices ?? []).map((d: {
+      key: string; sessions: number; converting_sessions: number; duration_seconds: number;
+    }) => {
+      const sessions = Number(d.sessions);
+      const conversions = Number(d.converting_sessions);
+      return {
+        id: d.key,
+        name: d.key === 'mobile' ? 'Mobile' : d.key === 'desktop' ? 'Desktop' : d.key,
+        sessions,
+        users: sessions, // Approximation
+        conversions,
+        conversionRate: sessions > 0 ? (conversions / sessions) * 100 : 0,
+        bounceRate: 0,
+        avgSessionDuration: sessions > 0 ? Number(d.duration_seconds) / sessions : 0,
+        percentage: (sessions / totalSessions) * 100,
+      };
+    });
 
     const fallbackMetric: GASegmentMetric = {
       name: 'Device segment (internal data)',
-      totalValue: sessions.length,
+      totalValue: totalSessions,
       unit: 'sessions',
       segments: deviceSegments
     };

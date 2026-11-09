@@ -27,56 +27,27 @@ export function TopPagesData({ siteId, startDate, endDate }: TopPagesDataProps) 
   const { toast } = useToast();
 
   const loadTopPages = async () => {
-    console.log('📊 Fetching top pages for site:', siteId, 'from', startDate, 'to', endDate);
     setIsLoading(true);
     try {
-      // Använd valda datum eller default till senaste 30 dagarna
-      const defaultStartDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      const defaultEndDate = new Date().toISOString();
-      
-      const { data: pageViews, error } = await supabase
-        .from('page_views')
-        .select('url, title')
-        .eq('site_id', siteId)
-        .gte('viewed_at', startDate || defaultStartDate)
-        .lte('viewed_at', endDate || defaultEndDate);
+      // Counted in the database (get_top_pages), so long ranges are not cut at the API row limit.
+      const today = new Date().toISOString().slice(0, 10);
+      const defaultFrom = new Date(Date.now() - 29 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const { data, error } = await (supabase as any).rpc('get_top_pages', {
+        p_site_id: siteId,
+        p_from: startDate ? startDate.slice(0, 10) : defaultFrom,
+        p_to: endDate ? endDate.slice(0, 10) : today,
+        p_limit: 10,
+      });
 
       if (error) throw error;
 
-      if (!pageViews || pageViews.length === 0) {
-        setTopPages([]);
-        setTotalViews(0);
-        setLastUpdated(new Date());
-        return;
-      }
-
-      // Gruppera och räkna per URL
-      const urlCounts = new Map<string, { count: number; title?: string }>();
-      
-      pageViews.forEach(view => {
-        const existing = urlCounts.get(view.url) || { count: 0, title: view.title };
-        urlCounts.set(view.url, {
-          count: existing.count + 1,
-          title: existing.title || view.title
-        });
-      });
-
-      // Konvertera till array och sortera
-      const pages = Array.from(urlCounts.entries())
-        .map(([url, data]) => ({
-          url,
-          views: data.count,
-          title: data.title,
-          percentage: 0 // Beräknas senare
-        }))
-        .sort((a, b) => b.views - a.views)
-        .slice(0, 10); // Top 10
-
-      // Beräkna procentsatser
-      const total = pages.reduce((sum, page) => sum + page.views, 0);
-      pages.forEach(page => {
-        page.percentage = total > 0 ? (page.views / total) * 100 : 0;
-      });
+      const total = Number(data?.total_views ?? 0);
+      const pages: TopPage[] = (data?.pages ?? []).map((p: { url: string; title: string | null; views: number }) => ({
+        url: p.url,
+        title: p.title ?? undefined,
+        views: Number(p.views),
+        percentage: total > 0 ? (Number(p.views) / total) * 100 : 0,
+      }));
 
       setTopPages(pages);
       setTotalViews(total);
@@ -117,7 +88,7 @@ export function TopPagesData({ siteId, startDate, endDate }: TopPagesDataProps) 
         </CardTitle>
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            Period: Last 30 days • Total {totalViews.toLocaleString()} views
+            {startDate && endDate ? `${startDate.slice(0, 10)} – ${endDate.slice(0, 10)}` : 'Last 30 days'} • Total {totalViews.toLocaleString()} views
           </p>
           {lastUpdated && (
             <Badge variant="secondary" className="text-xs">
@@ -186,7 +157,7 @@ export function TopPagesData({ siteId, startDate, endDate }: TopPagesDataProps) 
                 {isLoading ? 'Loading...' : 'Refresh data'}
               </Button>
               <div className="text-sm text-muted-foreground">
-                Showing top {topPages.length} of all pages
+                Top {topPages.length} pages · share of all views
               </div>
             </div>
           </>
