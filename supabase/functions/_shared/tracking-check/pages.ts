@@ -4,8 +4,8 @@ import { safeGet, type ProbeOptions } from './fetch-probe.ts';
 
 export interface SuggestedPage { path: string; reason: 'home' | 'form' | 'sitemap'; selected: boolean }
 
-// Hint words must start a word, so "lookbook" is not a booking page.
-const FORM_HINT = /(^|[/._-])(contact|kontakt|demo|get-started|trial|signup|sign-up|register|quote|offert|pricing|price|priser|book|boka|request)/i;
+// Hint words must start a word, so "lookbook" is not a booking page; "demo" must not run on ("democratisation").
+const FORM_HINT = /(^|[/._-])(contact|kontakt|demos?(?![a-z])|get-started|trial|signup|sign-up|register|quote|offert|pricing|price|priser|book|boka|request)/i;
 const CANDIDATES = ['/sitemap.xml', '/sitemap_index.xml', '/wp-sitemap.xml'];
 
 export function parseSitemap(xml: string): { pages: string[]; sitemaps: string[] } {
