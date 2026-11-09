@@ -1,9 +1,9 @@
 import type { AssessInput, Finding, PageObservation, StateObservation } from '../types.ts';
 import { GOOGLE_EXEMPT_VENDORS, isGoogleHost, vendorForName, vendorForUrl, type Vendor } from '../../tracking-vendors.ts';
 import { MANUAL_STEPS } from '../instructions.ts';
-import { finding, plural, requestVendors, siteKey, stateOf, testablePages } from './util.ts';
+import { cmpOrigin, finding, plural, requestVendors, siteKey, stateOf, testablePages, vendorOrigin, type ScriptOrigin } from './util.ts';
 import { CONSENT_DEFAULT_SNIPPET } from './signals.ts';
-import { DATA_DROP, cmpName, cmpOf, consentModeSteps, googleHostLabel, gtmBlockSteps, verifyInConsole } from './guides.ts';
+import { DATA_DROP, ORIGIN_LABEL, cmpName, cmpOf, consentModeSteps, googleHostLabel, gtmBlockSteps, gtmContainerFix, vendorBlockSteps, verifyInConsole } from './guides.ts';
 
 const REQUIRED_DEFAULTS = ['ad_storage', 'analytics_storage', 'ad_user_data', 'ad_personalization'];
 const needsConsent = (v: Vendor) => v.category === 'analytics' || v.category === 'marketing';
@@ -176,12 +176,19 @@ function choiceCheck({ mode, policy }: AssessInput, pages: PageObservation[], st
     return parts.join(' ');
   };
 
+  /** GTM settings only help when GTM loads the tag; a script in the page source has to be blocked where it is. */
+  const blockSteps = (v: Vendor, origin: ScriptOrigin | null): string =>
+    v.googleTag && origin !== 'page' ? gtmBlockSteps(cmp, v) : vendorBlockSteps(cmp, v, origin);
+
   const out: Finding[] = [];
   for (const [id, h] of hits) {
     const v = h.vendor;
     const where = [...h.pages].join(', ');
     const hosts = [...h.hosts].join(', ') || v.name;
-    const evidence = { pages: [...h.pages], details: [...[...h.hosts].map((x) => `requests to ${x}`), ...[...h.stored].map((n) => `stored ${n}`)] };
+    const onPages = evaluated.filter((p) => h.pages.has(p.path));
+    const origin = id === 'gtm' || id === 'google' ? null : vendorOrigin(onPages, id);
+    const evidence = { pages: [...h.pages], details: [...[...h.hosts].map((x) => `requests to ${x}`), ...[...h.stored].map((n) => `stored ${n}`),
+      ...(origin ? [`script ${ORIGIN_LABEL[origin]}`] : [])] };
     if (h.stored.size) {
       out.push(finding({
         scope: 'Consent', checkKey: `${key}.${id}`, status: 'fail', priority: 'high',
@@ -189,16 +196,16 @@ function choiceCheck({ mode, policy }: AssessInput, pages: PageObservation[], st
         explanation: [`${v.name} set ${[...h.stored].join(', ')} in the browser ${label} on ${where}.`, diagnosis(v, h.pages), consequence,
           `Storing or reading data on the device for analytics or marketing ${LEGAL}`].filter(Boolean).join(' '),
         fix: v.googleTag
-          ? [gtmBlockSteps(cmp, v), `Check it yourself: in an incognito window, before answering the cookie banner, DevTools → Application → Cookies should show no ${[...h.stored].join(', ')}.`, DATA_DROP].join('\n\n')
-          : [`Load ${v.name} only after consent for the "${v.category}" category: block it in the cookie banner${banner ? ` (${banner})` : ''}, or give its GTM tag a consent requirement.`, v.note ?? ''].filter(Boolean).join('\n\n'),
-        typicalOwner: v.googleTag ? 'gtm' : 'cmp', evidence,
+          ? [blockSteps(v, origin), `Check it yourself: in an incognito window, before answering the cookie banner, DevTools → Application → Cookies should show no ${[...h.stored].join(', ')}.`, DATA_DROP].join('\n\n')
+          : [blockSteps(v, origin), v.note ?? ''].filter(Boolean).join('\n\n'),
+        typicalOwner: origin === 'page' ? 'developer' : v.googleTag || origin === 'gtm' ? 'gtm' : 'cmp', evidence,
       }));
     } else if (v.googleTag && strictGoogle && id === 'gtm') {
       out.push(finding({
         scope: 'Consent', checkKey: `${key}.${id}`, status: 'fail', priority: 'high',
         title: `${v.name} sends requests to Google ${label}`,
         explanation: `The GTM container file (gtm.js) was downloaded from ${hosts} ${label} on ${where}. It sets no cookies, but Google receives the visitor's IP address and the page address. Many sites accept this because GTM often loads the cookie banner itself; under the commitment this check was run with (nothing is sent to Google before consent) it is a deviation. This is a decision for the controller rather than a configuration error. ${GOOGLE_EXEMPTION}`,
-        fix: 'Choose one:\n1) Record the container request as an accepted exception (the most common choice), with the reasoning.\n2) Load GTM only after consent. The cookie banner must then load directly in the page, not through GTM, and visitors who never answer the banner are not measured at all.',
+        fix: gtmContainerFix(cmp, cmpOrigin(onPages)),
         typicalOwner: 'legal', evidence,
       }));
     } else if (v.googleTag && strictGoogle && id === 'google') {
@@ -216,8 +223,8 @@ function choiceCheck({ mode, policy }: AssessInput, pages: PageObservation[], st
         title: `${v.name} sends requests to Google ${label}`,
         explanation: [`${v.name} contacted ${hosts} ${label} on ${where}, without setting cookies.`, diagnosis(v, h.pages),
           'Cookieless pings still give Google the visitor\'s IP address, browser and page address (Consent Mode advanced).', STRICT_GOOGLE, GOOGLE_EXEMPTION].filter(Boolean).join(' '),
-        fix: [gtmBlockSteps(cmp, v), DATA_DROP].join('\n\n'),
-        typicalOwner: 'gtm', evidence,
+        fix: [blockSteps(v, origin), DATA_DROP].join('\n\n'),
+        typicalOwner: origin === 'page' ? 'developer' : 'gtm', evidence,
       }));
     } else {
       out.push(finding({
@@ -225,7 +232,8 @@ function choiceCheck({ mode, policy }: AssessInput, pages: PageObservation[], st
         title: `${v.name} sends requests ${label} without cookies`,
         explanation: `${v.name} contacted ${hosts} ${label} on ${where}, without setting cookies or local storage. Without cookies, the visitor's IP address, browser and page address still reach ${v.name}. Cookieless measurement ${LEGAL}`,
         fix: [v.note ?? `Check ${v.name}'s settings (for example a "track visitors always" option).`,
-          `Decide with the controller whether measuring visitors ${state === 'none' ? 'before they choose' : 'who rejected cookies'} is acceptable.`].join('\n\n'),
+          `Decide with the controller whether measuring visitors ${state === 'none' ? 'before they choose' : 'who rejected cookies'} is acceptable.`,
+          origin ? `If it should wait for consent: ${blockSteps(v, origin)}` : ''].filter(Boolean).join('\n\n'),
         typicalOwner: 'legal', evidence,
       }));
     }

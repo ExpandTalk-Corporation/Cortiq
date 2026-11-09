@@ -245,6 +245,28 @@ export function inPageCollect(withHtml) {
   };
 }
 
+/**
+ * What loaded a script, from Puppeteer's request.initiator() (CDP Network.Initiator):
+ * 'page' when it is in the page source (a <script src> tag, or an inline script in the HTML), else the URL of the
+ * script that injected it (e.g. gtm.js, a CMP or a vendor loader). undefined when unknown.
+ * Serialised into the probe: must not reference anything outside its body.
+ */
+export function requestOrigin(initiator, documentUrl) {
+  if (!initiator) return undefined;
+  if (initiator.type === 'parser') return 'page';
+  let inline = false;
+  // The first frame from another URL is the injecting script. Only frames from the document itself means an
+  // inline script in the HTML; a GTM Custom HTML tag runs inline too, but gtm.js is further down its stack.
+  for (let s = initiator.stack; s; s = s.parent) {
+    for (const f of s.callFrames || []) {
+      if (!f.url) continue;
+      if (f.url !== documentUrl) return f.url;
+      inline = true;
+    }
+  }
+  return inline ? 'page' : undefined;
+}
+
 async function observeState(browser, state, context, inPageSource) {
   const ctx = await (browser.createBrowserContext ? browser.createBrowserContext() : browser.createIncognitoBrowserContext());
   const p = await ctx.newPage();
@@ -262,7 +284,15 @@ async function observeState(browser, state, context, inPageSource) {
     let host = '';
     try { host = new URL(url).hostname; } catch (e) { /* not a URL */ }
     if (googleHost.test(host) && (userData.test(url) || userData.test(r.postData() || ''))) out.enhancedConversions = true;
-    out.requests.push({ url, type: r.resourceType() });
+    const type = r.resourceType();
+    const entry = { url, type };
+    if (type === 'script' && typeof r.initiator === 'function') {
+      let doc = '';
+      try { doc = r.frame() ? r.frame().url() : ''; } catch (e) { /* detached frame */ }
+      const initiator = requestOrigin(r.initiator(), doc);
+      if (initiator) entry.initiator = initiator;
+    }
+    out.requests.push(entry);
   });
   try {
     if (context.basicAuth) await p.authenticate(context.basicAuth);
@@ -363,6 +393,7 @@ export function buildProbeSource() {
   const inPage = `window.__tc = { detect: ${inPageDetectCmp}, apply: ${inPageApplyAdapter}, candidates: ${inPageCandidates}, click: ${inPageClickCandidate}, bannerVisible: ${inPageBannerVisible}, adapterBannerVisible: ${inPageAdapterBannerVisible}, pick: ${pickConsentButton}, collect: ${inPageCollect}, cmpSignal: ${cmpSignal}, cmpPresent: ${inPageCmpPresent}, consentSignal: ${consentSignal}, storedConsent: ${inPageConsentSignal} };`;
   return [
     `const IN_PAGE = ${JSON.stringify(inPage)};`,
+    requestOrigin.toString(),
     observeState.toString(),
     probeMain.toString(),
     'export default async function ({ page, context }) { return probeMain({ page, context, inPageSource: IN_PAGE }); }',

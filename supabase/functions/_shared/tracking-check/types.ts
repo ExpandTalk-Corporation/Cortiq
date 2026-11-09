@@ -19,7 +19,12 @@ export interface FetchObservation {
   error: string | null;
 }
 
-export interface ObservedRequest { url: string; type: string }
+export interface ObservedRequest {
+  url: string;
+  type: string;
+  /** Scripts only: 'page' when the script is in the page source, else the URL of the script that injected it. */
+  initiator?: string;
+}
 
 export interface StateObservation {
   state: ConsentState;

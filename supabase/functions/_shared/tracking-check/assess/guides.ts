@@ -2,6 +2,7 @@
 // a console check and the expected data drop. Kept here so every finding explains the same fix the same way.
 import type { PageObservation } from '../types.ts';
 import type { Vendor } from '../../tracking-vendors.ts';
+import type { ScriptOrigin } from './util.ts';
 
 const CMP_NAMES: Record<string, string> = {
   cookiebot: 'Cookiebot', onetrust: 'OneTrust', cookieyes: 'CookieYes', complianz: 'Complianz',
@@ -48,6 +49,58 @@ export function gtmBlockSteps(cmp: string | null, vendor: Vendor): string {
     'Google\'s built-in consent checks on their own are not enough: they let the tag send cookieless pings to Google before consent (Consent Mode advanced), and this check reports those too.',
   ].join('\n\n');
 }
+
+/** How the cookie banner blocks a <script> tag in the page source until consent for a category. */
+export function cmpScriptBlocking(cmp: string | null, category: string): string {
+  const marketing = category === 'marketing';
+  switch (cmp) {
+    case 'cookiebot':
+      return `with Cookiebot, change the script tag to type="text/plain" and add data-cookieconsent="${marketing ? 'marketing' : 'statistics'}"`;
+    case 'onetrust':
+      return `with OneTrust, change the script tag to type="text/plain" and add class="optanon-category-${marketing ? 'C0004' : 'C0002'}" (check the group ID in OneTrust)`;
+    case 'cookieyes':
+      return `with CookieYes, change the script tag to type="text/plain" and add data-cookieyes="cookieyes-${marketing ? 'advertisement' : 'analytics'}"`;
+    case 'complianz':
+      return `with Complianz, add the script under Integrations → Script Center with the "${marketing ? 'Marketing' : 'Statistics'}" category`;
+    default:
+      return 'use the cookie banner\'s script blocking (usually type="text/plain" plus a category attribute on the script tag)';
+  }
+}
+
+/** Fix for a non-Google tool that runs without consent, depending on what loads it. */
+export function vendorBlockSteps(cmp: string | null, vendor: Vendor, origin: ScriptOrigin | null): string {
+  const banner = cmpName(cmp);
+  const consent = vendor.category === 'marketing' ? 'ad_storage' : 'analytics_storage';
+  if (origin === 'page') {
+    return `The ${vendor.name} script is in the page source (the site's HTML or template), not loaded through Google Tag Manager, so consent settings in GTM do not affect it. Either remove it from the template and add it as a GTM tag that requires ${consent}, or let the cookie banner block it: ${cmpScriptBlocking(cmp, vendor.category)}.`;
+  }
+  if (origin === 'gtm') {
+    return `${vendor.name} is loaded by Google Tag Manager. In GTM, open its tag → Advanced settings → Consent settings → "Require additional consent for tag to fire" and add ${consent}, or fire it on the cookie banner's consent event instead of All Pages.`;
+  }
+  return `Load ${vendor.name} only after consent for the "${vendor.category}" category: block it in the cookie banner${banner ? ` (${banner})` : ''}, or give its GTM tag a consent requirement.`;
+}
+
+/** Fix for the GTM container request before consent, depending on what loads the cookie banner. */
+export function gtmContainerFix(cmp: string | null, bannerOrigin: ScriptOrigin | null): string {
+  const exception = 'Record the container request as an accepted exception, with the reasoning.';
+  if (bannerOrigin === 'page') {
+    const banner = cmpName(cmp) ?? 'the cookie banner';
+    return [
+      `Recommended: load GTM only after consent. ${banner} loads directly in the page source, not through GTM, so the banner keeps working without GTM. Block the GTM snippet until the visitor accepts statistics: ${cmpScriptBlocking(cmp, 'analytics')}.`,
+      'Consequences: visitors who never answer the banner are not measured at all, and Consent Mode then has nothing left to do before consent. ' + DATA_DROP,
+      `Alternative: ${exception}`,
+    ].join('\n\n');
+  }
+  if (bannerOrigin === 'gtm') {
+    return `The cookie banner is loaded by GTM, so GTM cannot wait for the banner's answer. Choose one:\n1) ${exception} This is the most common choice.\n2) Move the cookie banner into the page source, then load GTM only after consent. Visitors who never answer the banner are then not measured at all.`;
+  }
+  return `Choose one:\n1) ${exception} This is the most common choice.\n2) Load GTM only after consent. The cookie banner must then load directly in the page, not through GTM, and visitors who never answer the banner are not measured at all.`;
+}
+
+/** Where a tool was loaded from, as an evidence line. */
+export const ORIGIN_LABEL: Record<ScriptOrigin, string> = {
+  page: 'loaded from the page source', gtm: 'loaded by Google Tag Manager', cmp: 'loaded by the cookie banner', other: 'loaded by another script',
+};
 
 export const VERIFY_IN_CONSOLE = [
   'Check it yourself: open the site in an incognito window, do not answer the cookie banner, and run in DevTools → Console:',

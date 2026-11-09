@@ -309,3 +309,45 @@ test('the defaults fix follows the detected CMP, and falls back to the generic s
   assert.match(def.fix, /Put this first in <head>/);
   assert.match(def.explanation, /contacted Google before the visitor answered/);
 });
+
+const HS = 'https://js-eu1.hs-scripts.com/123456.js';
+const HS_HIT = 'https://track-eu1.hubspot.com/__ptq.gif?k=1';
+const CB = 'https://consent.cookiebot.com/uc.js';
+const from = (url, initiator) => ({ ...req(url), initiator });
+
+test('a tool in the page source is told to move out of the template or be blocked by the banner, not to use GTM consent settings', () => {
+  const findings = policyRun([
+    st('none', { consentCommands: [DENIED], requests: [from(HS, 'page'), req(HS_HIT, 'image')], cookies: [{ name: 'hubspotutk', domain: '.new.example' }] }),
+    st('reject'), st('accept'),
+  ]);
+  const [hs] = byKey(findings, 'consent.before_choice.hubspot');
+  assert.match(hs.fix, /in the page source/);
+  assert.match(hs.fix, /consent settings in GTM do not affect it/);
+  assert.match(hs.fix, /data-cookieyes="cookieyes-analytics"/);
+  assert.equal(hs.typicalOwner, 'developer');
+  assert.ok(hs.evidence.details.includes('script loaded from the page source'));
+});
+
+test('a tool loaded by GTM, also through its own loader, gets the GTM consent setting', () => {
+  const findings = policyRun([
+    st('none', { consentCommands: [DENIED], requests: [from(GTM, 'page'), from(HS, GTM), from('https://js-eu1.hs-analytics.net/analytics/1.js', HS)],
+      cookies: [{ name: 'hubspotutk', domain: '.new.example' }] }),
+    st('reject'), st('accept'),
+  ]);
+  const [hs] = byKey(findings, 'consent.before_choice.hubspot');
+  assert.match(hs.fix, /loaded by Google Tag Manager/);
+  assert.match(hs.fix, /Require additional consent/);
+  assert.equal(hs.typicalOwner, 'gtm');
+});
+
+test('the GTM container row recommends loading GTM after consent when the banner is in the page source', () => {
+  const run = (cbInitiator) => byKey(assess({ mode: 'policy', baseline: null, policy: POLICY, target: site('target', [page('/', { cmp: 'cookiebot', states: [
+    st('none', { consentCommands: [DENIED], requests: [from(CB, cbInitiator), from(GTM, 'page')] }), st('reject'), st('accept'),
+  ] })]) }), 'consent.before_choice.gtm')[0];
+  const inPage = run('page');
+  assert.match(inPage.fix, /^Recommended: load GTM only after consent\. Cookiebot loads directly in the page source/);
+  assert.match(inPage.fix, /data-cookieconsent="statistics"/);
+  assert.match(inPage.fix, /Alternative: Record the container request/);
+  assert.match(run(GTM).fix, /The cookie banner is loaded by GTM/);
+  assert.match(run(undefined).fix, /^Choose one:/);
+});

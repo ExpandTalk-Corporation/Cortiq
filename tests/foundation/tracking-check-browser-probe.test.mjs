@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  buildProbeSource, pickConsentButton, inPageCollect, cmpSignal, consentSignal,
+  buildProbeSource, requestOrigin, pickConsentButton, inPageCollect, cmpSignal, consentSignal,
   inPageDetectCmp, inPageApplyAdapter, inPageAdapterBannerVisible,
 } from '../../supabase/functions/_shared/tracking-check/browser-probe.js';
 import { runBrowserProbe } from '../../supabase/functions/_shared/tracking-check/browserless.ts';
@@ -136,7 +136,7 @@ function fakeBrowser(loadsFor) {
               getElementById: (id) => { const v = (spec.elements ?? {})[`#${id}`]; return v ? makeElement(v) : null; },
             };
             cookies = [...cookies, ...(spec.cookies ?? [])];
-            for (const r of spec.requests ?? []) for (const fn of listeners) fn({ url: () => r.url, postData: () => r.postData ?? null, resourceType: () => 'script' });
+            for (const r of spec.requests ?? []) for (const fn of listeners) fn({ url: () => r.url, postData: () => r.postData ?? null, resourceType: () => 'script', ...(r.initiator ? { initiator: () => r.initiator, frame: () => ({ url: () => 'https://new.example/' }) } : {}) });
             return { status: () => spec.status ?? 200 };
           };
           const run = (fn, args) => {
@@ -410,3 +410,23 @@ test('Dynamicweb adapter: returns false when the save button stays hidden and th
   } finally { delete globalThis.document; delete globalThis.window; }
 });
 
+
+test('requestOrigin tells a page-source script from one injected by another script', () => {
+  const doc = 'https://new.example/';
+  const gtm = 'https://www.googletagmanager.com/gtm.js?id=GTM-ABC123';
+  assert.equal(requestOrigin({ type: 'parser', url: doc }, doc), 'page');
+  assert.equal(requestOrigin({ type: 'script', stack: { callFrames: [{ url: doc }] } }, doc), 'page');
+  assert.equal(requestOrigin({ type: 'script', stack: { callFrames: [{ url: '' }], parent: { callFrames: [{ url: doc }, { url: gtm }] } } }, doc), gtm);
+  assert.equal(requestOrigin({ type: 'other' }, doc), undefined);
+  assert.equal(requestOrigin(undefined, doc), undefined);
+});
+
+test('observeState records what loaded each script', async () => {
+  const gtm = 'https://www.googletagmanager.com/gtm.js?id=GTM-ABC123';
+  const out = await probe(['none'], { none: [{ requests: [
+    { url: gtm, initiator: { type: 'parser' } },
+    { url: 'https://js-eu1.hs-scripts.com/1.js', initiator: { type: 'script', stack: { callFrames: [{ url: gtm }] } } },
+    { url: 'https://cdn.example/a.js' },
+  ] }] });
+  assert.deepEqual(out.none.requests.map((r) => r.initiator), ['page', gtm, undefined]);
+});
