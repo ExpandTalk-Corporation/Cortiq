@@ -375,3 +375,36 @@ test('an IP lookup service before choice and after reject is "verify", not an un
   assert.equal(byKey(findings, 'consent.after_reject.verify.ip-lookup')[0].status, 'manual');
   assert.equal(byKey(findings, 'consent.unknown_after_reject')[0].status, 'pass');
 });
+
+test('Paligo case 1: cookies from before the choice after "Reject all" — kept and silent is a warning, kept with requests or written again is a fail', () => {
+  const findings = policyRun([
+    st('none'),
+    st('reject', {
+      requests: [req('https://px.ads.linkedin.com/collect?pid=1')],
+      cookies: [{ name: '_zitok', domain: '.new.example' }],                       // written again after "no"
+      keptCookies: [{ name: 'hubspotutk', domain: '.new.example' }, { name: 'bcookie', domain: '.linkedin.com' }],
+    }),
+    st('accept'),
+  ]);
+  const [hs] = byKey(findings, 'consent.after_reject.kept.hubspot');
+  assert.equal(hs.status, 'warning');
+  assert.match(hs.explanation, /hubspotutk was set before the visitor chose/);
+  assert.match(hs.explanation, /before the choice/);
+  assert.equal(byKey(findings, 'consent.after_reject.hubspot').length, 0);
+
+  const [li] = byKey(findings, 'consent.after_reject.linkedin');
+  assert.equal(li.status, 'fail');
+  assert.match(li.title, /keeps tracking with cookies from before the choice/);
+  assert.match(li.explanation, /bcookie/);
+  assert.ok(li.evidence.details.includes('kept bcookie from before the choice'));
+  assert.match(li.fix, /delete bcookie/);
+
+  const [zi] = byKey(findings, 'consent.after_reject.zoominfo');
+  assert.equal(zi.status, 'fail');
+  assert.match(zi.title, /stores data on the device/);
+});
+
+test('kept cookies only count after "Reject all"', () => {
+  const findings = policyRun([st('none', { keptCookies: [{ name: 'hubspotutk', domain: '.new.example' }] }), st('reject'), st('accept')]);
+  assert.equal(findings.filter((f) => f.checkKey.endsWith('.hubspot')).length, 0);
+});

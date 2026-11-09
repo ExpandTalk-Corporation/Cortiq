@@ -135,7 +135,9 @@ function fakeBrowser(loadsFor) {
               querySelector: () => null,
               getElementById: (id) => { const v = (spec.elements ?? {})[`#${id}`]; return v ? makeElement(v) : null; },
             };
-            cookies = [...cookies, ...(spec.cookies ?? [])];
+            // A cookie in a later load replaces the one with the same name and domain (the page wrote it again).
+            const same = (a, b) => a.name === b.name && (a.domain ?? '') === (b.domain ?? '');
+            cookies = [...cookies.filter((c) => !(spec.cookies ?? []).some((n) => same(c, n))), ...(spec.cookies ?? [])];
             for (const r of spec.requests ?? []) for (const fn of listeners) fn({ url: () => r.url, postData: () => r.postData ?? null, resourceType: () => 'script', ...(r.initiator ? { initiator: () => r.initiator, frame: () => ({ url: () => 'https://new.example/' }) } : {}) });
             return { status: () => spec.status ?? 200 };
           };
@@ -233,7 +235,7 @@ test('observeState does not count a cookie as new verification evidence when onl
     { globals: cookiebot(false), banner: true, cookies: [{ name: 'CookieConsent', value: 'v1' }] },
     { globals: cookiebot(false), banner: true, cookies: [{ name: 'CookieConsent', value: 'v2' }] },
   ] });
-  assert.equal(out.reject.cookies.length, 0, 'same name|domain as before the action, only the value differs');
+  assert.deepEqual(out.reject.cookies.map((c) => c.name), ['CookieConsent'], 'written again on reload, so it is reported as set after the choice');
   assert.equal(out.reject.method, 'not_automated', 'banner still visible (not gone), no stored-consent signal, no new cookie');
 });
 
@@ -432,4 +434,21 @@ test('observeState records what loaded each script', async () => {
     { url: 'https://cdn.example/a.js' },
   ] }] });
   assert.deepEqual(out.none.requests.map((r) => r.initiator), ['page', gtm, undefined]);
+});
+
+test('observeState tells cookies kept from before "Reject all" from cookies written again or new after it', async () => {
+  const out = await probe(['reject'], { reject: [
+    { globals: cookiebot(false), banner: true, cookies: [{ name: 'hubspotutk', value: 'a', expires: 100 }, { name: '_zitok', value: 'z', expires: 100 }] },
+    { globals: cookiebot(false), banner: false, cookies: [{ name: '_zitok', value: 'z', expires: 200 }, { name: 'om_user_token', value: 't' }] },
+  ] });
+  assert.deepEqual(out.reject.cookies.map((c) => c.name).sort(), ['_zitok', 'om_user_token'], 'renewed expiry and new cookie');
+  assert.deepEqual(out.reject.keptCookies.map((c) => c.name), ['hubspotutk']);
+  assert.ok(!('value' in out.reject.cookies[0]), 'values never leave the probe');
+  assert.equal(out.reject.method, 'adapter');
+});
+
+test('observeState reports no kept cookies for the state without a choice', async () => {
+  const out = await probe(['none'], { none: [{ cookies: [{ name: '_ga' }] }] });
+  assert.deepEqual(out.none.cookies.map((c) => c.name), ['_ga']);
+  assert.deepEqual(out.none.keptCookies, []);
 });

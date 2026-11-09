@@ -50,3 +50,18 @@ test('cellText caps the page list', () => {
   const pages = Array.from({ length: 8 }, (_, i) => `/p${i}`);
   assert.equal(cellText({ pages, of: 10, stored: [] }), 'Sends requests (8 of 10 pages: /p0, /p1, /p2, /p3, /p4 +3 more)');
 });
+
+test('after "Reject all" the cell tells kept cookies from cookies written again', () => {
+  const target = site('target', [page('/', { states: [st('none'), st('reject', {
+    requests: [req('https://px.ads.linkedin.com/collect?pid=1')],
+    cookies: [{ name: '_zitok', domain: '.new.example' }],
+    keptCookies: [{ name: 'hubspotutk', domain: '.new.example' }, { name: 'bcookie', domain: '.linkedin.com' }],
+  }), st('accept', { keptCookies: [{ name: 'hubspotutk', domain: '.new.example' }] })] })]);
+  const rows = vendorMatrix(target, assess({ mode: 'policy', baseline: null, policy: POLICY, target }));
+  const cell = (id, s) => cellText(rows.find((r) => r.id === id).states[s]);
+  assert.equal(cell('hubspot', 'reject'), 'Keeps hubspotutk from before the choice');
+  assert.equal(cell('hubspot', 'accept'), 'Nothing', 'kept cookies are expected after "Accept all"');
+  assert.equal(cell('linkedin', 'reject'), 'Keeps bcookie from before the choice; sends requests');
+  assert.equal(cell('zoominfo', 'reject'), 'Stores _zitok');
+  assert.equal(rows.find((r) => r.id === 'hubspot').status, 'warning');
+});

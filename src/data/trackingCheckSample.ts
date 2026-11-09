@@ -59,7 +59,8 @@ export const TRACKING_CHECK_SAMPLE: { targetUrl: string; summary: ReportSummary;
             "stored": [
               "_ga",
               "_ga_SAMPLE123"
-            ]
+            ],
+            "sends": true
           },
           "accept": {
             "pages": [
@@ -68,7 +69,8 @@ export const TRACKING_CHECK_SAMPLE: { targetUrl: string; summary: ReportSummary;
               "/thanks?email"
             ],
             "of": 3,
-            "stored": []
+            "stored": [],
+            "sends": true
           },
           "reject": {
             "pages": [],
@@ -94,7 +96,8 @@ export const TRACKING_CHECK_SAMPLE: { targetUrl: string; summary: ReportSummary;
             "of": 3,
             "stored": [
               "_fbp"
-            ]
+            ],
+            "sends": true
           },
           "accept": {
             "pages": [
@@ -102,7 +105,8 @@ export const TRACKING_CHECK_SAMPLE: { targetUrl: string; summary: ReportSummary;
               "/thanks?email"
             ],
             "of": 3,
-            "stored": []
+            "stored": [],
+            "sends": true
           },
           "none": {
             "pages": [],
@@ -126,21 +130,24 @@ export const TRACKING_CHECK_SAMPLE: { targetUrl: string; summary: ReportSummary;
               "/podcast"
             ],
             "of": 3,
-            "stored": []
+            "stored": [],
+            "sends": true
           },
           "reject": {
             "pages": [
               "/podcast"
             ],
             "of": 3,
-            "stored": []
+            "stored": [],
+            "sends": true
           },
           "accept": {
             "pages": [
               "/podcast"
             ],
             "of": 3,
-            "stored": []
+            "stored": [],
+            "sends": true
           }
         },
         "status": "manual",

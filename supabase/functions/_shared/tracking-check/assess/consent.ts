@@ -130,9 +130,9 @@ function choiceCheck({ mode, policy }: AssessInput, pages: PageObservation[], st
     return !!st && st.method !== 'not_automated' && !(state === 'reject' && st.method === 'not_needed');
   });
 
-  const hits = new Map<string, { vendor: Vendor; pages: Set<string>; stored: Set<string>; hosts: Set<string> }>();
+  const hits = new Map<string, { vendor: Vendor; pages: Set<string>; stored: Set<string>; kept: Set<string>; hosts: Set<string> }>();
   const hit = (v: Vendor) => {
-    if (!hits.has(v.id)) hits.set(v.id, { vendor: v, pages: new Set(), stored: new Set(), hosts: new Set() });
+    if (!hits.has(v.id)) hits.set(v.id, { vendor: v, pages: new Set(), stored: new Set(), kept: new Set(), hosts: new Set() });
     return hits.get(v.id)!;
   };
   for (const p of evaluated) {
@@ -150,6 +150,12 @@ function choiceCheck({ mode, policy }: AssessInput, pages: PageObservation[], st
       const v = vendorForName(name);
       if (!v || !needsConsent(v)) continue;
       const h = hit(v); h.pages.add(p.path); h.stored.add(name);
+    }
+    // Cookies left over from before "Reject all" that the tool did not write again (a returning visitor's cookies).
+    for (const c of state === 'reject' ? st.keptCookies ?? [] : []) {
+      const v = vendorForName(c.name);
+      if (!v || !needsConsent(v)) continue;
+      const h = hit(v); h.pages.add(p.path); h.kept.add(c.name);
     }
   }
 
@@ -195,7 +201,9 @@ function choiceCheck({ mode, policy }: AssessInput, pages: PageObservation[], st
     const hosts = [...h.hosts].join(', ') || v.name;
     const onPages = evaluated.filter((p) => h.pages.has(p.path));
     const origin = id === 'gtm' || id === 'google' ? null : vendorOrigin(onPages, id);
+    const kept = [...h.kept].filter((n) => !h.stored.has(n));
     const evidence = { pages: [...h.pages], details: [...[...h.hosts].map((x) => `requests to ${x}`), ...[...h.stored].map((n) => `stored ${n}`),
+      ...kept.map((n) => `kept ${n} from before the choice`),
       ...(origin ? [`script ${ORIGIN_LABEL[origin]}`] : [])] };
     if (h.stored.size) {
       out.push(finding({
@@ -207,6 +215,26 @@ function choiceCheck({ mode, policy }: AssessInput, pages: PageObservation[], st
           ? [blockSteps(v, origin), `Check it yourself: in an incognito window, before answering the cookie banner, DevTools → Application → Cookies should show no ${[...h.stored].join(', ')}.`, DATA_DROP].join('\n\n')
           : [blockSteps(v, origin), v.note ?? ''].filter(Boolean).join('\n\n'),
         typicalOwner: origin === 'page' ? 'developer' : v.googleTag || origin === 'gtm' ? 'gtm' : 'cmp', evidence,
+      }));
+    } else if (kept.length && h.hosts.size) {
+      out.push(finding({
+        scope: 'Consent', checkKey: `${key}.${id}`, status: 'fail', priority: 'high',
+        title: `${v.name} keeps tracking with cookies from before the choice ${label}`,
+        explanation: [`${v.name} contacted ${hosts} ${label} on ${where} while ${kept.join(', ')} from before the choice remained in the browser.`, serverSide(v, h.hosts),
+          'The cookies were not written again, but the tool can still read them and link the visit to the visitor\'s earlier visits.', consequence,
+          `Reading data stored on the device ${LEGAL}`].filter(Boolean).join(' '),
+        fix: [blockSteps(v, origin),
+          `Also have the cookie banner delete ${kept.join(', ')} when the visitor rejects, so a returning visitor who changes their mind is not recognised.`].join('\n\n'),
+        typicalOwner: origin === 'page' ? 'developer' : v.googleTag || origin === 'gtm' ? 'gtm' : 'cmp', evidence,
+      }));
+    } else if (kept.length) {
+      out.push(finding({
+        scope: 'Consent', checkKey: `${key}.kept.${id}`, status: 'warning', priority: 'medium',
+        title: `${v.name}'s cookies from before the choice remain ${label}`,
+        explanation: `${kept.join(', ')} was set before the visitor chose and remained ${label} on ${where}. ${v.name} sent nothing and wrote nothing new after the choice, so the rejection is respected from then on; the fault lies before the choice (see the finding for ${v.name} before the choice).`,
+        fix: [`Make ${v.name} wait for consent, so the cookies are never set before the choice.`,
+          `Optionally have the cookie banner delete ${kept.join(', ')} when the visitor rejects.`].join('\n\n'),
+        typicalOwner: 'cmp', evidence,
       }));
     } else if (v.googleTag && strictGoogle && id === 'gtm') {
       out.push(finding({

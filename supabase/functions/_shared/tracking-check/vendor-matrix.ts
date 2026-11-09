@@ -20,20 +20,24 @@ export function vendorMatrix(site: SiteObservation, findings: Finding[]): Vendor
       // A state that could not be reached (no banner button found) says nothing about the tool.
       if (st.method === 'not_automated') continue;
       observed.set(st.state, (observed.get(st.state) ?? 0) + 1);
-      const seen = new Map<string, { vendor: Vendor; stored: Set<string> }>();
+      const seen = new Map<string, { vendor: Vendor; stored: Set<string>; kept: Set<string>; sends: boolean }>();
       const add = (v: Vendor | null) => {
         if (!v || v.kind === 'infrastructure') return null;
-        if (!seen.has(v.id)) seen.set(v.id, { vendor: v, stored: new Set() });
+        if (!seen.has(v.id)) seen.set(v.id, { vendor: v, stored: new Set(), kept: new Set(), sends: false });
         return seen.get(v.id)!;
       };
-      for (const r of st.requests) add(vendorForUrl(r.url));
+      for (const r of st.requests) { const s = add(vendorForUrl(r.url)); if (s) s.sends = true; }
       for (const name of [...st.cookies.map((c) => c.name), ...st.storageKeys]) add(vendorForName(name))?.stored.add(name);
-      for (const [id, { vendor, stored }] of seen) {
+      // Left over from before the choice: only telling after "Reject all" (after "Accept all" it is expected).
+      if (st.state === 'reject') for (const c of st.keptCookies ?? []) add(vendorForName(c.name))?.kept.add(c.name);
+      for (const [id, { vendor, stored, kept, sends }] of seen) {
         if (!rows.has(id)) rows.set(id, { id, name: vendor.name, category: vendor.category, origin: null, states: {}, status: null, findings: [] });
         const cell = rows.get(id)!.states[st.state] ??= { pages: [], of: 0, stored: [] };
         const path = displayPath(p.path);
         if (!cell.pages.includes(path)) cell.pages.push(path);
         for (const n of stored) if (!cell.stored.includes(n)) cell.stored.push(n);
+        for (const n of kept) if (!stored.has(n) && !(cell.kept ??= []).includes(n)) cell.kept.push(n);
+        if (sends) cell.sends = true;
       }
     }
   }

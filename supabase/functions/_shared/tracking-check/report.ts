@@ -107,8 +107,12 @@ export interface VendorCell {
   pages: string[];
   /** Pages observed in this state. */
   of: number;
-  /** Cookie and storage names the tool set in this state. */
+  /** Cookie and storage names the tool set (or wrote again) in this state. */
   stored: string[];
+  /** Cookies left over from before the consent action and not touched after it. */
+  kept?: string[];
+  /** Did the tool send requests in this state? Absent in rows from before this field. */
+  sends?: boolean;
 }
 
 export interface VendorRow {
@@ -128,7 +132,7 @@ export const STATE_LABEL: Record<ConsentState, string> = {
   none: 'Before choice', reject: 'After "Reject all"', accept: 'After "Accept all"', analytics_only: 'Statistics only', marketing_only: 'Marketing only',
 };
 export const ORIGIN_SHORT: Record<ScriptOrigin, string> = { page: 'Page source', gtm: 'GTM', cmp: 'Cookie banner', other: 'Another script' };
-export const MATRIX_NOTE = 'Each consent state starts in a fresh browser. Cookies are listed when first set, so after "Accept all" a cookie the tool already set before the click is not listed again. Pages are listed only when the tool did not behave the same on every tested page.';
+export const MATRIX_NOTE = 'Each consent state starts in a fresh browser. Cookies are listed when set or written again, so after "Accept all" a cookie the tool set before the click and did not touch again is not listed. After "Reject all", cookies left over from before the click are listed as kept. Pages are listed only when the tool did not behave the same on every tested page.';
 
 /** States that any row has a cell for, in display order. */
 export const matrixStates = (rows: VendorRow[]): ConsentState[] => MATRIX_STATES.filter((s) => rows.some((r) => r.states[s]?.of));
@@ -137,7 +141,14 @@ export const matrixStates = (rows: VendorRow[]): ConsentState[] => MATRIX_STATES
 export function cellText(cell: VendorCell | undefined, maxPages = 5): string {
   if (!cell || !cell.of) return 'Not tested';
   if (!cell.pages.length) return 'Nothing';
-  const what = cell.stored.length ? `Stores ${cell.stored.join(', ')}` : 'Sends requests';
+  const kept = cell.kept ?? [];
+  const parts = [
+    cell.stored.length ? `stores ${cell.stored.join(', ')}` : '',
+    kept.length ? `keeps ${kept.join(', ')} from before the choice` : '',
+    cell.sends && !cell.stored.length ? 'sends requests' : '',
+  ].filter(Boolean);
+  const text = parts.length ? parts.join('; ') : 'sends requests';
+  const what = text.charAt(0).toUpperCase() + text.slice(1);
   if (cell.pages.length >= cell.of) return what;
   const shown = cell.pages.slice(0, maxPages).join(', ');
   const more = cell.pages.length > maxPages ? ` +${cell.pages.length - maxPages} more` : '';
