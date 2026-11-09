@@ -408,3 +408,29 @@ test('kept cookies only count after "Reject all"', () => {
   const findings = policyRun([st('none', { keptCookies: [{ name: 'hubspotutk', domain: '.new.example' }] }), st('reject'), st('accept')]);
   assert.equal(findings.filter((f) => f.checkKey.endsWith('.hubspot')).length, 0);
 });
+
+test('Paligo case 5: a widget that stores data after "Reject all" is a fail; requests alone and storage before the choice stay "verify"', () => {
+  const findings = compareRun([
+    st('none', { requests: [req('https://launcher.1mind.com/deployment-1')], cookies: [{ name: 'om_user_token', domain: 'www.paligo.net' }] }),
+    st('reject', {
+      requests: [req('https://launcher.1mind.com/deployment-1'), req('https://www.youtube.com/embed/abc123'), req('https://js.chilipiper.com/marketing.js')],
+      cookies: [{ name: 'om_user_token', domain: 'www.paligo.net' }, { name: 'YSC', domain: '.youtube.com' }],
+    }),
+    st('accept'),
+  ]);
+  assert.equal(byKey(findings, 'consent.before_choice.verify.1mind')[0].status, 'manual');
+  const [om] = byKey(findings, 'consent.after_reject.verify.1mind');
+  assert.equal(om.status, 'fail');
+  assert.match(om.title, /stores data on the device after "Reject all"/);
+  assert.match(om.explanation, /om_user_token/);
+  assert.match(om.fix, /placeholder/);
+  const [yt] = byKey(findings, 'consent.after_reject.verify.youtube');
+  assert.equal(yt.status, 'fail');
+  assert.match(yt.fix, /youtube-nocookie\.com/);
+  assert.equal(byKey(findings, 'consent.after_reject.verify.chilipiper')[0].status, 'manual');
+});
+
+test('a widget cookie kept from before "Reject all" is not a fail after it', () => {
+  const findings = compareRun([st('none'), st('reject', { requests: [req('https://launcher.1mind.com/deployment-1')], keptCookies: [{ name: 'om_user_token', domain: 'www.paligo.net' }] }), st('accept')]);
+  assert.equal(byKey(findings, 'consent.after_reject.verify.1mind')[0].status, 'manual');
+});

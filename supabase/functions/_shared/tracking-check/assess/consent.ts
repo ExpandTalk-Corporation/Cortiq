@@ -314,7 +314,7 @@ const stored = (details: Set<string>): string => {
   return names.length ? ` It set ${names.join(', ')} in the browser before anyone used it.` : '';
 };
 
-/** Functional widgets (vendor.verify) that load without consent: neither pass nor fail, the controller decides. */
+/** Functional widgets (vendor.verify) that load without consent: the controller decides, unless one stores data after "Reject all" (fail). */
 function verifyWidgets(evaluated: PageObservation[], state: 'none' | 'reject', key: string, label: string): Finding[] {
   const seen = new Map<string, { vendor: Vendor; pages: Set<string>; details: Set<string> }>();
   const add = (v: Vendor, path: string, detail: string) => {
@@ -333,13 +333,27 @@ function verifyWidgets(evaluated: PageObservation[], state: 'none' | 'reject', k
       if (v?.verify) add(v, p.path, `stored ${name}`);
     }
   }
-  return [...seen].map(([id, s]) => finding({
-    scope: 'Consent', checkKey: `${key}.verify.${id}`, status: 'manual', priority: 'medium',
-    title: `Verify ${s.vendor.name}: it loads ${label}`,
-    explanation: `${s.vendor.name} loaded ${label} on ${[...s.pages].join(', ')}.${stored(s.details)} ${s.vendor.verify} Whether it needs consent depends on its configuration; this is assessed by the controller.`,
-    fix: `Check what ${s.vendor.name} stores and sends before the visitor uses it. If it is not strictly necessary, load it only after consent, or only when the visitor opens it.`,
-    typicalOwner: 'legal', evidence: { pages: [...s.pages], details: [...s.details] },
-  }));
+  return [...seen].map(([id, s]) => {
+    // After "no", a widget nobody has used that still writes to the device is not a configuration question.
+    const names = [...s.details].filter((d) => d.startsWith('stored ')).map((d) => d.slice(7));
+    if (state === 'reject' && names.length) {
+      return finding({
+        scope: 'Consent', checkKey: `${key}.verify.${id}`, status: 'fail', priority: 'high',
+        title: `${s.vendor.name} stores data on the device ${label}`,
+        explanation: `${s.vendor.name} set ${names.join(', ')} in the browser ${label} on ${[...s.pages].join(', ')}, before anyone used it. ${s.vendor.verify} The visitor said no and had not used ${s.vendor.name}, so the storage is hard to justify as strictly necessary. Storing data on the device ${LEGAL}`,
+        fix: [`Load ${s.vendor.name} only when the visitor asks for it: let the cookie banner block the script or iframe until consent and show a placeholder in its place ("Load video", "Open chat") that loads it on click.`,
+          id === 'youtube' ? 'At the least, switch the embed to youtube-nocookie.com (privacy-enhanced mode).' : `If ${s.vendor.name} has a mode that stores nothing until the visitor uses it, turn it on.`].join('\n\n'),
+        typicalOwner: 'cmp', evidence: { pages: [...s.pages], details: [...s.details] },
+      });
+    }
+    return finding({
+      scope: 'Consent', checkKey: `${key}.verify.${id}`, status: 'manual', priority: 'medium',
+      title: `Verify ${s.vendor.name}: it loads ${label}`,
+      explanation: `${s.vendor.name} loaded ${label} on ${[...s.pages].join(', ')}.${stored(s.details)} ${s.vendor.verify} Whether it needs consent depends on its configuration; this is assessed by the controller.`,
+      fix: `Check what ${s.vendor.name} stores and sends before the visitor uses it. If it is not strictly necessary, load it only after consent, or only when the visitor opens it.`,
+      typicalOwner: 'legal', evidence: { pages: [...s.pages], details: [...s.details] },
+    });
+  });
 }
 
 function categoryCheck({ mode, policy }: AssessInput, pages: PageObservation[]): Finding[] {
