@@ -15,6 +15,9 @@ export interface AggregateSummary {
   daysWithData: number;
   topSources: { label: string; visits: number; visitors: number; engagedVisits: number }[];
   topPages: { path: string; pageviews: number; entries: number }[];
+  /** Totals minus the listed top 10, so the table adds up to the totals above it; null when nothing was cut. */
+  otherSources: { visits: number; visitors: number; engagedVisits: number } | null;
+  otherPages: { pageviews: number } | null;
   conversions: { goalId: string; goalName: string; source: string; conversions: number; value: number }[];
   conversionsByGoal: { goalId: string; goalName: string; conversions: number }[];
 }
@@ -36,20 +39,33 @@ export function toAggregateSummary(raw: unknown): AggregateSummary {
   const visitors = n(r.visitors);
   const visits = n(r.visits);
   const engagedVisits = n(r.engaged_visits);
+  const pageviews = n(r.pageviews);
+  const topSources = rows(r.top_sources).map(x => ({
+    label: label(x), visits: n(x.visits), visitors: n(x.visitors), engagedVisits: n(x.engaged_visits),
+  }));
+  const topPages = rows(r.top_pages).map(x => ({ path: s(x.path), pageviews: n(x.pageviews), entries: n(x.entries) }));
+  // Totals and top rows come from the same daily tables, so the remainder is exact.
+  const rest = (total: number, listed: number[]) => Math.max(0, total - listed.reduce((a, b) => a + b, 0));
+  const otherVisits = rest(visits, topSources.map(x => x.visits));
+  const otherPageviews = rest(pageviews, topPages.map(x => x.pageviews));
   return {
     visitors,
     visits,
-    pageviews: n(r.pageviews),
+    pageviews,
     engagedVisits,
     engagementRate: ratio(engagedVisits, visits),
     engagedVisitsPerVisitor: ratio(engagedVisits, visitors),
     avgEngagementSeconds: ratio(n(r.engagement_ms), visitors) / 1000,
     filteredHits: n(r.filtered_hits),
     daysWithData: n(r.days_with_data),
-    topSources: rows(r.top_sources).map(x => ({
-      label: label(x), visits: n(x.visits), visitors: n(x.visitors), engagedVisits: n(x.engaged_visits),
-    })),
-    topPages: rows(r.top_pages).map(x => ({ path: s(x.path), pageviews: n(x.pageviews), entries: n(x.entries) })),
+    topSources,
+    topPages,
+    otherSources: otherVisits > 0 ? {
+      visits: otherVisits,
+      visitors: rest(visitors, topSources.map(x => x.visitors)),
+      engagedVisits: rest(engagedVisits, topSources.map(x => x.engagedVisits)),
+    } : null,
+    otherPages: otherPageviews > 0 ? { pageviews: otherPageviews } : null,
     conversions: rows(r.conversions).map(x => ({
       goalId: s(x.goal_id), goalName: s(x.goal_name), source: label(x), conversions: n(x.conversions), value: n(x.value),
     })),

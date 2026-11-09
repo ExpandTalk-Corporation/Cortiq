@@ -68,6 +68,9 @@ export function AggregateOverview({ siteId, from, to }: { siteId: string; from: 
                     {data.topSources.map((r, i) => (
                       <tr key={`${i}:${r.label}`} className="border-t"><td className="py-1 break-all">{r.label}</td><td className="py-1 text-right">{fmt(r.visits)}</td><td className="py-1 text-right">{fmt(r.visitors)}</td><td className="py-1 text-right">{r.visits > 0 ? pct(r.engagedVisits / r.visits) : '–'}</td></tr>
                     ))}
+                    {data.otherSources && (
+                      <tr className="border-t italic text-muted-foreground"><td className="py-1">Other</td><td className="py-1 text-right">{fmt(data.otherSources.visits)}</td><td className="py-1 text-right">{fmt(data.otherSources.visitors)}</td><td className="py-1 text-right">{pct(data.otherSources.engagedVisits / data.otherSources.visits)}</td></tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -85,6 +88,9 @@ export function AggregateOverview({ siteId, from, to }: { siteId: string; from: 
                     {data.topPages.map((r, i) => (
                       <tr key={`${i}:${r.path}`} className="border-t"><td className="py-1 break-all">{r.path}</td><td className="py-1 text-right">{fmt(r.pageviews)}</td><td className="py-1 text-right">{fmt(r.entries)}</td></tr>
                     ))}
+                    {data.otherPages && (
+                      <tr className="border-t italic text-muted-foreground"><td className="py-1">Other</td><td className="py-1 text-right">{fmt(data.otherPages.pageviews)}</td><td className="py-1 text-right">–</td></tr>
+                    )}
                   </tbody>
                 </table>
               </div>
