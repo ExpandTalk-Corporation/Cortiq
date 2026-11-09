@@ -151,3 +151,55 @@ test('IP lookup services are their own verify vendor', () => {
 test('LinkedIn guest cookie li_gc belongs to the Insight Tag', () => {
   assert.equal(vendorForName('li_gc')?.id, 'linkedin');
 });
+
+// Observed on www.pwc.se 2026-11-09.
+test('requests made by the YouTube player are YouTube, not Google Ads or unknown', () => {
+  for (const url of [
+    'https://googleads.g.doubleclick.net/pagead/id',
+    'https://googleads.g.doubleclick.net/pagead/id?slf_rd=1',
+    'https://static.doubleclick.net/instream/ad_status.js',
+    'https://www.google.com/js/th/vDHXfwLklOGBA29eJTGPChyKGuyg0c4xxy4REdrgFBs.js',
+    'https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT',
+  ]) assert.equal(vendorForUrl(url)?.id, 'youtube', url);
+  assert.equal(vendorForUrl('https://googleads.g.doubleclick.net/pagead/viewthroughconversion/123/?random=1')?.id, 'google-ads');
+  assert.equal(vendorForName('__Secure-YNID')?.id, 'youtube');
+});
+
+test('MUID alone is not Microsoft Advertising: Clarity sets it too', () => {
+  assert.notEqual(vendorForName('MUID')?.id, 'microsoft-ads');
+  assert.equal(vendorForName('_uetsid')?.id, 'microsoft-ads');
+  assert.equal(vendorForName('ANONCHK')?.id, 'clarity');
+});
+
+test('Adobe Experience Cloud is split by product', () => {
+  const urls = {
+    'https://assets.adobedtm.com/a1b2/launch-EN123.min.js': 'adobe-tags',
+    'https://pwcglsc.tt.omtrdc.net/rest/v1/delivery?client=pwcglsc': 'adobe-target',
+    'https://pwc.sc.omtrdc.net/b/ss/pwcglobal/1/JS-2.22.0/s123': 'adobe-analytics',
+    'https://pwcglsc.data.adobedc.net/ee/v1/interact?configId=x': 'adobe-edge',
+    'https://dpm.demdex.net/id?d_visid_ver=5': 'adobe-ecid',
+    'https://dpm.demdex.net/ibs:dpid=411&dpuuid=x': 'adobe-audience-manager',
+  };
+  for (const [url, id] of Object.entries(urls)) assert.equal(vendorForUrl(url)?.id, id, url);
+  const cookies = {
+    s_cc: 'adobe-analytics', gpv: 'adobe-analytics', s_ppv: 'adobe-analytics', s_ppvl: 'adobe-analytics', s_nr: 'adobe-analytics',
+    mbox: 'adobe-target', at_check: 'adobe-target',
+    'AMCV_6E281E28623307580A495F87%40AdobeOrg': 'adobe-ecid', 'AMCVS_6E281E28623307580A495F87%40AdobeOrg': 'adobe-ecid',
+    demdex: 'adobe-audience-manager', dpm: 'adobe-audience-manager',
+  };
+  for (const [name, id] of Object.entries(cookies)) assert.equal(vendorForName(name)?.id, id, name);
+  assert.equal(vendorForUrl('https://assets.adobedtm.com/x.js').category, 'necessary');
+  assert.equal(vendorForName('mbox').category, 'marketing');
+  assert.equal(vendorForName('AMCV_1%40AdobeOrg').category, 'analytics');
+});
+
+test('Contentsquare, Hotjar, Salesforce CloudPages and Google Hosted Libraries are recognised', () => {
+  assert.equal(vendorForName('_cs_id')?.id, 'contentsquare');
+  assert.equal(vendorForUrl('https://t.contentsquare.net/uxa/abc.js')?.id, 'contentsquare');
+  assert.equal(vendorForName('_hjHasCachedUserAttributes')?.id, 'hotjar');
+  assert.equal(vendorForUrl('https://static.hotjar.com/c/hotjar-1.js?sv=6')?.id, 'hotjar');
+  assert.equal(vendorForUrl('https://cloudpages.mc-content.com/CloudPages/lib/x.js')?.id, 'salesforce-cloudpages');
+  assert.equal(vendorForUrl('https://www.fuelcdn.com/x/images/logo.png')?.id, 'salesforce-cloudpages');
+  assert.equal(vendorForUrl('https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js')?.id, 'public-cdn');
+  assert.equal(isGoogleHost('https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js'), false);
+});
