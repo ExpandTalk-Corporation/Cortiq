@@ -1,4 +1,4 @@
-import type { ConsentState, Finding, PageObservation, SiteObservation, StateObservation } from '../types.ts';
+import type { ConsentState, Finding, PageObservation, ScriptOrigin, SiteObservation, StateObservation } from '../types.ts';
 import { vendorForUrl, type Vendor } from '../../tracking-vendors.ts';
 
 /** HTTP error status that makes the page untestable, or null. Legacy URLs that end in an error are assessed as broken redirects instead. */
@@ -54,6 +54,53 @@ export function attemptedVendors(site: SiteObservation, paths?: Set<string>): Ma
     }
   }
   return out;
+}
+
+export type { ScriptOrigin };
+const ORIGIN_ORDER: ScriptOrigin[] = ['page', 'gtm', 'cmp', 'other'];
+
+/** Follows "what loaded this script" up through vendor loaders (HubSpot's loader, gtag.js) until the page, GTM or a CMP. */
+function traceOrigin(start: string, initiatorOf: Map<string, string>): ScriptOrigin {
+  let init = start;
+  for (let i = 0; i < 10; i++) {
+    if (init === 'page') return 'page';
+    const v = vendorForUrl(init);
+    if (v?.id === 'gtm') return 'gtm';
+    if (v?.kind === 'cmp') return 'cmp';
+    const next = initiatorOf.get(init);
+    if (!next) return 'other';
+    init = next;
+  }
+  return 'other';
+}
+
+/**
+ * How a vendor's scripts were loaded on these pages, or null when the probe recorded no initiators.
+ * The page source wins over GTM: a hardcoded copy keeps loading whatever GTM's consent settings say.
+ */
+export function vendorOrigin(pages: PageObservation[], vendorId: string): ScriptOrigin | null {
+  const found = new Set<ScriptOrigin>();
+  for (const p of pages) {
+    for (const st of p.browser?.states ?? []) {
+      const initiatorOf = new Map<string, string>();
+      for (const r of st.requests) if (r.initiator && !initiatorOf.has(r.url)) initiatorOf.set(r.url, r.initiator);
+      for (const r of st.requests) {
+        if (r.initiator && vendorForUrl(r.url)?.id === vendorId) found.add(traceOrigin(r.initiator, initiatorOf));
+      }
+    }
+  }
+  return ORIGIN_ORDER.find((o) => found.has(o)) ?? null;
+}
+
+/** The CMP's own script origin (any CMP in the registry), or null. */
+export function cmpOrigin(pages: PageObservation[]): ScriptOrigin | null {
+  const ids = new Set<string>();
+  for (const p of pages) for (const st of p.browser?.states ?? []) for (const r of st.requests) {
+    const v = vendorForUrl(r.url);
+    if (v?.kind === 'cmp') ids.add(v.id);
+  }
+  const origins = [...ids].map((id) => vendorOrigin(pages, id)).filter((o): o is ScriptOrigin => !!o);
+  return ORIGIN_ORDER.find((o) => origins.includes(o)) ?? null;
 }
 
 export function allRequestUrls(site: SiteObservation, paths?: Set<string>): string[] {

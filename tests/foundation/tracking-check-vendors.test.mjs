@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { TRACKING_VENDORS, vendorForUrl, vendorForName, cookieCategory, extractVendorIds, isGoogleHost } from '../../supabase/functions/_shared/tracking-vendors.ts';
+import { TRACKING_VENDORS, vendorForUrl, vendorForName, cookieCategory, extractVendorIds, isGoogleHost, isGoogleDomain } from '../../supabase/functions/_shared/tracking-vendors.ts';
 
 test('every vendor is complete and ids are unique', () => {
   const ids = new Set();
@@ -125,4 +125,29 @@ test('social and media embeds are verify vendors; Meta Pixel and the LinkedIn In
     assert.equal(v.category, 'preferences', id);
     assert.match(v.verify, /click-to-load preview loads nothing until the visitor asks/, id);
   }
+});
+
+test('GA4 hits through server-side tagging on the site\'s own domain are GA4', () => {
+  assert.equal(vendorForUrl('https://analytics.paligo.net/g/collect?v=2&tid=G-ABC123&gcs=G100')?.id, 'ga4');
+  assert.equal(vendorForUrl('https://sgtm.example.com/g/collect?tid=G-1&en=page_view')?.id, 'ga4');
+  // Only the GA4 collect endpoint with a measurement ID counts, not any /g/collect path.
+  assert.equal(vendorForUrl('https://example.com/g/collect?v=2')?.id ?? null, null);
+  assert.equal(vendorForUrl('https://example.com/blog/g/collect?tid=G-1')?.id ?? null, null);
+  assert.ok(isGoogleHost('https://analytics.paligo.net/g/collect?v=2&tid=G-ABC123'));
+  for (const name of ['FPID', 'FPLC', 'FPGSID']) assert.equal(vendorForName(name)?.id, 'ga4', name);
+  assert.ok(!isGoogleDomain('analytics.paligo.net'));
+  assert.ok(isGoogleDomain('region1.google-analytics.com'));
+});
+
+test('IP lookup services are their own verify vendor', () => {
+  for (const url of ['https://api.ipify.org/?format=json', 'https://api64.ipify.org', 'https://ipapi.co/json/', 'https://ipinfo.io/json', 'http://ip-api.com/json', 'https://ipwho.is/']) {
+    const v = vendorForUrl(url);
+    assert.equal(v?.id, 'ip-lookup', url);
+    assert.ok(v.verify, url);
+  }
+  assert.equal(vendorForUrl('https://notipify.org/x')?.id ?? null, null);
+});
+
+test('LinkedIn guest cookie li_gc belongs to the Insight Tag', () => {
+  assert.equal(vendorForName('li_gc')?.id, 'linkedin');
 });

@@ -245,24 +245,59 @@ export function inPageCollect(withHtml) {
   };
 }
 
+/**
+ * What loaded a script, from Puppeteer's request.initiator() (CDP Network.Initiator):
+ * 'page' when it is in the page source (a <script src> tag, or an inline script in the HTML), else the URL of the
+ * script that injected it (e.g. gtm.js, a CMP or a vendor loader). undefined when unknown.
+ * Serialised into the probe: must not reference anything outside its body.
+ */
+export function requestOrigin(initiator, documentUrl) {
+  if (!initiator) return undefined;
+  if (initiator.type === 'parser') return 'page';
+  let inline = false;
+  // The first frame from another URL is the injecting script. Only frames from the document itself means an
+  // inline script in the HTML; a GTM Custom HTML tag runs inline too, but gtm.js is further down its stack.
+  for (let s = initiator.stack; s; s = s.parent) {
+    for (const f of s.callFrames || []) {
+      if (!f.url) continue;
+      if (f.url !== documentUrl) return f.url;
+      inline = true;
+    }
+  }
+  return inline ? 'page' : undefined;
+}
+
 async function observeState(browser, state, context, inPageSource) {
   const ctx = await (browser.createBrowserContext ? browser.createBrowserContext() : browser.createIncognitoBrowserContext());
   const p = await ctx.newPage();
-  const out = { state, method: state === 'none' ? 'not_needed' : 'not_automated', status: 0, requests: [], cookies: [], storageKeys: [], cspViolations: [], consentCommands: [], enhancedConversions: false, challenge: false, error: null, bannerSeen: false, bannerAfterChoice: null };
+  const out = { state, method: state === 'none' ? 'not_needed' : 'not_automated', status: 0, requests: [], cookies: [], keptCookies: [], storageKeys: [], cspViolations: [], consentCommands: [], enhancedConversions: false, challenge: false, error: null, bannerSeen: false, bannerAfterChoice: null };
   let cmp = null;
   let html = '';
   const userData = /[?&;]em=|"em"\s*:|user_data/;
   // Enhanced Conversions data only counts on requests to Google (inlined: this function is serialised).
   const googleHost = /(^|\.)(google\.([a-z]{2,3}|com?\.[a-z]{2})|doubleclick\.net|googlesyndication\.com|googleadservices\.com|google-analytics\.com|googletagmanager\.com)$/;
-  // Compared by name|domain, not value: a cookie whose value merely changes on reload is not a "new" cookie.
+  // A cookie is identified by name|domain. Its value and expiry are only compared inside the probe (never stored),
+  // to tell a cookie left over from before the choice from one the page wrote again after it.
   const cookieKey = (c) => `${c.name}|${c.domain}`;
+  const cookieSig = (c) => `${c.value}|${c.expires}`;
+  const snapshot = async (cdp) => new Map((await cdp.send('Network.getAllCookies')).cookies.map((c) => [cookieKey(c), cookieSig(c)]));
+  // GA4 hits through server-side tagging on the site's own domain also go to Google.
+  const ga4Hit = (u) => u.pathname === '/g/collect' && /[?&]tid=G-/.test(u.search);
   p.on('request', (r) => {
     const url = r.url();
     if (out.requests.length >= 2000 || !/^https?:/.test(url)) return;
-    let host = '';
-    try { host = new URL(url).hostname; } catch (e) { /* not a URL */ }
-    if (googleHost.test(host) && (userData.test(url) || userData.test(r.postData() || ''))) out.enhancedConversions = true;
-    out.requests.push({ url, type: r.resourceType() });
+    let toGoogle = false;
+    try { const u = new URL(url); toGoogle = googleHost.test(u.hostname) || ga4Hit(u); } catch (e) { /* not a URL */ }
+    if (toGoogle && (userData.test(url) || userData.test(r.postData() || ''))) out.enhancedConversions = true;
+    const type = r.resourceType();
+    const entry = { url, type };
+    if (type === 'script' && typeof r.initiator === 'function') {
+      let doc = '';
+      try { doc = r.frame() ? r.frame().url() : ''; } catch (e) { /* detached frame */ }
+      const initiator = requestOrigin(r.initiator(), doc);
+      if (initiator) entry.initiator = initiator;
+    }
+    out.requests.push(entry);
   });
   try {
     if (context.basicAuth) await p.authenticate(context.basicAuth);
@@ -291,11 +326,12 @@ async function observeState(browser, state, context, inPageSource) {
     const bannerVisible = bannerVisibleBefore || adapterBannerVisibleBefore;
     out.bannerSeen = bannerVisible || cmpPresentBefore;
     const cdp = await p.createCDPSession();
-    let before = new Set();
+    let before = new Map();
+    let afterClick = null;
     let beforeKeys = new Set();
     let done = false;
     if (state !== 'none') {
-      before = new Set((await cdp.send('Network.getAllCookies')).cookies.map(cookieKey));
+      before = await snapshot(cdp);
       beforeKeys = new Set((await p.evaluate(() => window.__tc.collect(false))).storageKeys);
       done = cmp ? await p.evaluate((c, a) => window.__tc.apply(c, a), cmp, state) : false;
       if (done) out.method = out.bannerSeen ? 'adapter' : 'not_automated';
@@ -306,6 +342,7 @@ async function observeState(browser, state, context, inPageSource) {
       if (!done && !out.bannerSeen && !cmp) out.method = 'not_needed';
       if (done) {
         await p.waitForNetworkIdle({ idleTime: 1000, timeout: 8000 }).catch(() => {});
+        afterClick = await snapshot(cdp);
         out.requests.length = 0;   // observe the next page view after the choice
         out.enhancedConversions = false;
         const reloaded = await p.reload({ waitUntil: 'load', timeout: 30000 });
@@ -316,7 +353,12 @@ async function observeState(browser, state, context, inPageSource) {
     }
     const cookies = (await cdp.send('Network.getAllCookies')).cookies;
     const collected = await p.evaluate((h) => window.__tc.collect(h), state === 'accept' || (state === 'none' && !context.states.includes('accept')));
-    out.cookies = cookies.filter((c) => !before.has(cookieKey(c))).map((c) => ({ name: c.name, domain: c.domain }));
+    // New: not there before the choice. Renewed: there before, but deleted at the choice or written again on the next
+    // page view (changed value or expiry). Kept: there before and untouched since the choice took effect.
+    const kept = (c) => before.has(cookieKey(c)) && (!afterClick || afterClick.get(cookieKey(c)) === cookieSig(c));
+    const fresh = cookies.filter((c) => !before.has(cookieKey(c)));
+    out.cookies = cookies.filter((c) => !kept(c)).map((c) => ({ name: c.name, domain: c.domain }));
+    out.keptCookies = cookies.filter(kept).map((c) => ({ name: c.name, domain: c.domain }));
     out.storageKeys = collected.storageKeys.filter((k) => !beforeKeys.has(k));
     out.cspViolations = collected.csp;
     out.consentCommands = collected.consentCommands;
@@ -335,7 +377,7 @@ async function observeState(browser, state, context, inPageSource) {
       if (out.method === 'adapter' && adapterBannerVisibleBefore) out.bannerAfterChoice = adapterBannerVisibleAfter;
       const bannerGone = bannerVisible && !bannerVisibleAfter;
       const stored = bannerGone || await p.evaluate(() => window.__tc.storedConsent());
-      if (!stored && !out.cookies.length && !out.storageKeys.length) out.method = 'not_automated';
+      if (!stored && !fresh.length && !out.storageKeys.length) out.method = 'not_automated';
     }
   } catch (e) {
     out.error = (e && e.message) || String(e);
@@ -363,6 +405,7 @@ export function buildProbeSource() {
   const inPage = `window.__tc = { detect: ${inPageDetectCmp}, apply: ${inPageApplyAdapter}, candidates: ${inPageCandidates}, click: ${inPageClickCandidate}, bannerVisible: ${inPageBannerVisible}, adapterBannerVisible: ${inPageAdapterBannerVisible}, pick: ${pickConsentButton}, collect: ${inPageCollect}, cmpSignal: ${cmpSignal}, cmpPresent: ${inPageCmpPresent}, consentSignal: ${consentSignal}, storedConsent: ${inPageConsentSignal} };`;
   return [
     `const IN_PAGE = ${JSON.stringify(inPage)};`,
+    requestOrigin.toString(),
     observeState.toString(),
     probeMain.toString(),
     'export default async function ({ page, context }) { return probeMain({ page, context, inPageSource: IN_PAGE }); }',

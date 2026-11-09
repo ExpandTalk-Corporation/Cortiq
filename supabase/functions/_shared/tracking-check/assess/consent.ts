@@ -1,9 +1,9 @@
 import type { AssessInput, Finding, PageObservation, StateObservation } from '../types.ts';
-import { GOOGLE_EXEMPT_VENDORS, isGoogleHost, vendorForName, vendorForUrl, type Vendor } from '../../tracking-vendors.ts';
+import { GOOGLE_EXEMPT_VENDORS, isGoogleDomain, isGoogleHost, vendorForName, vendorForUrl, type Vendor } from '../../tracking-vendors.ts';
 import { MANUAL_STEPS } from '../instructions.ts';
-import { finding, plural, requestVendors, siteKey, stateOf, testablePages } from './util.ts';
+import { cmpOrigin, finding, plural, requestVendors, siteKey, stateOf, testablePages, vendorOrigin, type ScriptOrigin } from './util.ts';
 import { CONSENT_DEFAULT_SNIPPET } from './signals.ts';
-import { DATA_DROP, cmpName, cmpOf, consentModeSteps, googleHostLabel, gtmBlockSteps, verifyInConsole } from './guides.ts';
+import { DATA_DROP, ORIGIN_LABEL, cmpName, cmpOf, consentModeSteps, googleHostLabel, gtmBlockSteps, gtmContainerFix, vendorBlockSteps, verifyInConsole } from './guides.ts';
 
 const REQUIRED_DEFAULTS = ['ad_storage', 'analytics_storage', 'ad_user_data', 'ad_personalization'];
 const needsConsent = (v: Vendor) => v.category === 'analytics' || v.category === 'marketing';
@@ -130,9 +130,9 @@ function choiceCheck({ mode, policy }: AssessInput, pages: PageObservation[], st
     return !!st && st.method !== 'not_automated' && !(state === 'reject' && st.method === 'not_needed');
   });
 
-  const hits = new Map<string, { vendor: Vendor; pages: Set<string>; stored: Set<string>; hosts: Set<string> }>();
+  const hits = new Map<string, { vendor: Vendor; pages: Set<string>; stored: Set<string>; kept: Set<string>; hosts: Set<string> }>();
   const hit = (v: Vendor) => {
-    if (!hits.has(v.id)) hits.set(v.id, { vendor: v, pages: new Set(), stored: new Set(), hosts: new Set() });
+    if (!hits.has(v.id)) hits.set(v.id, { vendor: v, pages: new Set(), stored: new Set(), kept: new Set(), hosts: new Set() });
     return hits.get(v.id)!;
   };
   for (const p of evaluated) {
@@ -150,6 +150,12 @@ function choiceCheck({ mode, policy }: AssessInput, pages: PageObservation[], st
       const v = vendorForName(name);
       if (!v || !needsConsent(v)) continue;
       const h = hit(v); h.pages.add(p.path); h.stored.add(name);
+    }
+    // Cookies left over from before "Reject all" that the tool did not write again (a returning visitor's cookies).
+    for (const c of state === 'reject' ? st.keptCookies ?? [] : []) {
+      const v = vendorForName(c.name);
+      if (!v || !needsConsent(v)) continue;
+      const h = hit(v); h.pages.add(p.path); h.kept.add(c.name);
     }
   }
 
@@ -176,29 +182,66 @@ function choiceCheck({ mode, policy }: AssessInput, pages: PageObservation[], st
     return parts.join(' ');
   };
 
+  /** A Google tag reached through the site's own domain: server-side tagging, so the domain alone does not reveal Google. */
+  const serverSide = (v: Vendor, hosts: Set<string>): string => {
+    const own = [...hosts].filter((x) => !isGoogleDomain(x));
+    return v.googleTag && own.length
+      ? `${own.join(', ')} is not a Google domain but received ${v.name} hits: this is server-side tagging, where a tagging server on the site's own domain forwards the data to Google. What Google receives is decided by that server's configuration.`
+      : '';
+  };
+
+  /** GTM settings only help when GTM loads the tag; a script in the page source has to be blocked where it is. */
+  const blockSteps = (v: Vendor, origin: ScriptOrigin | null): string =>
+    v.googleTag && origin !== 'page' ? gtmBlockSteps(cmp, v) : vendorBlockSteps(cmp, v, origin);
+
   const out: Finding[] = [];
   for (const [id, h] of hits) {
     const v = h.vendor;
     const where = [...h.pages].join(', ');
     const hosts = [...h.hosts].join(', ') || v.name;
-    const evidence = { pages: [...h.pages], details: [...[...h.hosts].map((x) => `requests to ${x}`), ...[...h.stored].map((n) => `stored ${n}`)] };
+    const onPages = evaluated.filter((p) => h.pages.has(p.path));
+    const origin = id === 'gtm' || id === 'google' ? null : vendorOrigin(onPages, id);
+    const kept = [...h.kept].filter((n) => !h.stored.has(n));
+    const evidence = { pages: [...h.pages], details: [...[...h.hosts].map((x) => `requests to ${x}`), ...[...h.stored].map((n) => `stored ${n}`),
+      ...kept.map((n) => `kept ${n} from before the choice`),
+      ...(origin ? [`script ${ORIGIN_LABEL[origin]}`] : [])] };
     if (h.stored.size) {
       out.push(finding({
         scope: 'Consent', checkKey: `${key}.${id}`, status: 'fail', priority: 'high',
         title: `${v.name} stores data on the device ${label}`,
-        explanation: [`${v.name} set ${[...h.stored].join(', ')} in the browser ${label} on ${where}.`, diagnosis(v, h.pages), consequence,
+        explanation: [`${v.name} set ${[...h.stored].join(', ')} in the browser ${label} on ${where}.`, serverSide(v, h.hosts), diagnosis(v, h.pages), consequence,
           `Storing or reading data on the device for analytics or marketing ${LEGAL}`].filter(Boolean).join(' '),
         fix: v.googleTag
-          ? [gtmBlockSteps(cmp, v), `Check it yourself: in an incognito window, before answering the cookie banner, DevTools → Application → Cookies should show no ${[...h.stored].join(', ')}.`, DATA_DROP].join('\n\n')
-          : [`Load ${v.name} only after consent for the "${v.category}" category: block it in the cookie banner${banner ? ` (${banner})` : ''}, or give its GTM tag a consent requirement.`, v.note ?? ''].filter(Boolean).join('\n\n'),
-        typicalOwner: v.googleTag ? 'gtm' : 'cmp', evidence,
+          ? [blockSteps(v, origin), `Check it yourself: in an incognito window, before answering the cookie banner, DevTools → Application → Cookies should show no ${[...h.stored].join(', ')}.`, DATA_DROP].join('\n\n')
+          : [blockSteps(v, origin), v.note ?? ''].filter(Boolean).join('\n\n'),
+        typicalOwner: origin === 'page' ? 'developer' : v.googleTag || origin === 'gtm' ? 'gtm' : 'cmp', evidence,
+      }));
+    } else if (kept.length && h.hosts.size) {
+      out.push(finding({
+        scope: 'Consent', checkKey: `${key}.${id}`, status: 'fail', priority: 'high',
+        title: `${v.name} keeps tracking with cookies from before the choice ${label}`,
+        explanation: [`${v.name} contacted ${hosts} ${label} on ${where} while ${kept.join(', ')} from before the choice remained in the browser.`, serverSide(v, h.hosts),
+          'The cookies were not written again, but the tool can still read them and link the visit to the visitor\'s earlier visits.', consequence,
+          `Reading data stored on the device ${LEGAL}`].filter(Boolean).join(' '),
+        fix: [blockSteps(v, origin),
+          `Also have the cookie banner delete ${kept.join(', ')} when the visitor rejects, so a returning visitor who changes their mind is not recognised.`].join('\n\n'),
+        typicalOwner: origin === 'page' ? 'developer' : v.googleTag || origin === 'gtm' ? 'gtm' : 'cmp', evidence,
+      }));
+    } else if (kept.length) {
+      out.push(finding({
+        scope: 'Consent', checkKey: `${key}.kept.${id}`, status: 'warning', priority: 'medium',
+        title: `${v.name}'s cookies from before the choice remain ${label}`,
+        explanation: `${kept.join(', ')} was set before the visitor chose and remained ${label} on ${where}. ${v.name} sent nothing and wrote nothing new after the choice, so the rejection is respected from then on; the fault lies before the choice (see the finding for ${v.name} before the choice).`,
+        fix: [`Make ${v.name} wait for consent, so the cookies are never set before the choice.`,
+          `Optionally have the cookie banner delete ${kept.join(', ')} when the visitor rejects.`].join('\n\n'),
+        typicalOwner: 'cmp', evidence,
       }));
     } else if (v.googleTag && strictGoogle && id === 'gtm') {
       out.push(finding({
         scope: 'Consent', checkKey: `${key}.${id}`, status: 'fail', priority: 'high',
         title: `${v.name} sends requests to Google ${label}`,
         explanation: `The GTM container file (gtm.js) was downloaded from ${hosts} ${label} on ${where}. It sets no cookies, but Google receives the visitor's IP address and the page address. Many sites accept this because GTM often loads the cookie banner itself; under the commitment this check was run with (nothing is sent to Google before consent) it is a deviation. This is a decision for the controller rather than a configuration error. ${GOOGLE_EXEMPTION}`,
-        fix: 'Choose one:\n1) Record the container request as an accepted exception (the most common choice), with the reasoning.\n2) Load GTM only after consent. The cookie banner must then load directly in the page, not through GTM, and visitors who never answer the banner are not measured at all.',
+        fix: gtmContainerFix(cmp, cmpOrigin(onPages)),
         typicalOwner: 'legal', evidence,
       }));
     } else if (v.googleTag && strictGoogle && id === 'google') {
@@ -214,18 +257,20 @@ function choiceCheck({ mode, policy }: AssessInput, pages: PageObservation[], st
       out.push(finding({
         scope: 'Consent', checkKey: `${key}.${id}`, status: 'fail', priority: 'high',
         title: `${v.name} sends requests to Google ${label}`,
-        explanation: [`${v.name} contacted ${hosts} ${label} on ${where}, without setting cookies.`, diagnosis(v, h.pages),
+        explanation: [`${v.name} contacted ${hosts} ${label} on ${where}, without setting cookies.`, serverSide(v, h.hosts), diagnosis(v, h.pages),
           'Cookieless pings still give Google the visitor\'s IP address, browser and page address (Consent Mode advanced).', STRICT_GOOGLE, GOOGLE_EXEMPTION].filter(Boolean).join(' '),
-        fix: [gtmBlockSteps(cmp, v), DATA_DROP].join('\n\n'),
-        typicalOwner: 'gtm', evidence,
+        fix: [blockSteps(v, origin), DATA_DROP].join('\n\n'),
+        typicalOwner: origin === 'page' ? 'developer' : 'gtm', evidence,
       }));
     } else {
       out.push(finding({
         scope: 'Consent', checkKey: `${key}.cookieless.${id}`, status: 'warning', priority: 'medium',
         title: `${v.name} sends requests ${label} without cookies`,
-        explanation: `${v.name} contacted ${hosts} ${label} on ${where}, without setting cookies or local storage. Without cookies, the visitor's IP address, browser and page address still reach ${v.name}. Cookieless measurement ${LEGAL}`,
+        explanation: [`${v.name} contacted ${hosts} ${label} on ${where}, without setting cookies or local storage.`, serverSide(v, h.hosts),
+          `Without cookies, the visitor's IP address, browser and page address still reach ${v.name}. Cookieless measurement ${LEGAL}`].filter(Boolean).join(' '),
         fix: [v.note ?? `Check ${v.name}'s settings (for example a "track visitors always" option).`,
-          `Decide with the controller whether measuring visitors ${state === 'none' ? 'before they choose' : 'who rejected cookies'} is acceptable.`].join('\n\n'),
+          `Decide with the controller whether measuring visitors ${state === 'none' ? 'before they choose' : 'who rejected cookies'} is acceptable.`,
+          origin ? `If it should wait for consent: ${blockSteps(v, origin)}` : ''].filter(Boolean).join('\n\n'),
         typicalOwner: 'legal', evidence,
       }));
     }
@@ -269,7 +314,7 @@ const stored = (details: Set<string>): string => {
   return names.length ? ` It set ${names.join(', ')} in the browser before anyone used it.` : '';
 };
 
-/** Functional widgets (vendor.verify) that load without consent: neither pass nor fail, the controller decides. */
+/** Functional widgets (vendor.verify) that load without consent: the controller decides, unless one stores data after "Reject all" (fail). */
 function verifyWidgets(evaluated: PageObservation[], state: 'none' | 'reject', key: string, label: string): Finding[] {
   const seen = new Map<string, { vendor: Vendor; pages: Set<string>; details: Set<string> }>();
   const add = (v: Vendor, path: string, detail: string) => {
@@ -288,13 +333,27 @@ function verifyWidgets(evaluated: PageObservation[], state: 'none' | 'reject', k
       if (v?.verify) add(v, p.path, `stored ${name}`);
     }
   }
-  return [...seen].map(([id, s]) => finding({
-    scope: 'Consent', checkKey: `${key}.verify.${id}`, status: 'manual', priority: 'medium',
-    title: `Verify ${s.vendor.name}: it loads ${label}`,
-    explanation: `${s.vendor.name} loaded ${label} on ${[...s.pages].join(', ')}.${stored(s.details)} ${s.vendor.verify} Whether it needs consent depends on its configuration; this is assessed by the controller.`,
-    fix: `Check what ${s.vendor.name} stores and sends before the visitor uses it. If it is not strictly necessary, load it only after consent, or only when the visitor opens it.`,
-    typicalOwner: 'legal', evidence: { pages: [...s.pages], details: [...s.details] },
-  }));
+  return [...seen].map(([id, s]) => {
+    // After "no", a widget nobody has used that still writes to the device is not a configuration question.
+    const names = [...s.details].filter((d) => d.startsWith('stored ')).map((d) => d.slice(7));
+    if (state === 'reject' && names.length) {
+      return finding({
+        scope: 'Consent', checkKey: `${key}.verify.${id}`, status: 'fail', priority: 'high',
+        title: `${s.vendor.name} stores data on the device ${label}`,
+        explanation: `${s.vendor.name} set ${names.join(', ')} in the browser ${label} on ${[...s.pages].join(', ')}, before anyone used it. ${s.vendor.verify} The visitor said no and had not used ${s.vendor.name}, so the storage is hard to justify as strictly necessary. Storing data on the device ${LEGAL}`,
+        fix: [`Load ${s.vendor.name} only when the visitor asks for it: let the cookie banner block the script or iframe until consent and show a placeholder in its place ("Load video", "Open chat") that loads it on click.`,
+          id === 'youtube' ? 'At the least, switch the embed to youtube-nocookie.com (privacy-enhanced mode).' : `If ${s.vendor.name} has a mode that stores nothing until the visitor uses it, turn it on.`].join('\n\n'),
+        typicalOwner: 'cmp', evidence: { pages: [...s.pages], details: [...s.details] },
+      });
+    }
+    return finding({
+      scope: 'Consent', checkKey: `${key}.verify.${id}`, status: 'manual', priority: 'medium',
+      title: `Verify ${s.vendor.name}: it loads ${label}`,
+      explanation: `${s.vendor.name} loaded ${label} on ${[...s.pages].join(', ')}.${stored(s.details)} ${s.vendor.verify} Whether it needs consent depends on its configuration; this is assessed by the controller.`,
+      fix: `Check what ${s.vendor.name} stores and sends before the visitor uses it. If it is not strictly necessary, load it only after consent, or only when the visitor opens it.`,
+      typicalOwner: 'legal', evidence: { pages: [...s.pages], details: [...s.details] },
+    });
+  });
 }
 
 function categoryCheck({ mode, policy }: AssessInput, pages: PageObservation[]): Finding[] {

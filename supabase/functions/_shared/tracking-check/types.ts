@@ -19,14 +19,24 @@ export interface FetchObservation {
   error: string | null;
 }
 
-export interface ObservedRequest { url: string; type: string }
+/** Where a script came from: the page source, Google Tag Manager, the cookie banner, or another script. */
+export type ScriptOrigin = 'page' | 'gtm' | 'cmp' | 'other';
+
+export interface ObservedRequest {
+  url: string;
+  type: string;
+  /** Scripts only: 'page' when the script is in the page source, else the URL of the script that injected it. */
+  initiator?: string;
+}
 
 export interface StateObservation {
   state: ConsentState;
   method: ConsentMethod;
   status: number;                                 // HTTP status of the main document (last load); 0 when unknown
   requests: ObservedRequest[];
-  cookies: { name: string; domain: string }[];   // new since the consent action (all cookies for `none`)
+  cookies: { name: string; domain: string }[];   // set or written again since the consent action (all cookies for `none`)
+  /** Cookies from before the consent action that were left untouched after it. Absent in observations from before this field. */
+  keptCookies?: { name: string; domain: string }[];
   storageKeys: string[];                          // new since the consent action, without the local:/session: prefix
   cspViolations: { blockedUrl: string; directive: string }[];
   consentCommands: { kind: 'default' | 'update'; params: Record<string, string> }[];

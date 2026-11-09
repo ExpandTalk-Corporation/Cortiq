@@ -309,3 +309,128 @@ test('the defaults fix follows the detected CMP, and falls back to the generic s
   assert.match(def.fix, /Put this first in <head>/);
   assert.match(def.explanation, /contacted Google before the visitor answered/);
 });
+
+const HS = 'https://js-eu1.hs-scripts.com/123456.js';
+const HS_HIT = 'https://track-eu1.hubspot.com/__ptq.gif?k=1';
+const CB = 'https://consent.cookiebot.com/uc.js';
+const from = (url, initiator) => ({ ...req(url), initiator });
+
+test('a tool in the page source is told to move out of the template or be blocked by the banner, not to use GTM consent settings', () => {
+  const findings = policyRun([
+    st('none', { consentCommands: [DENIED], requests: [from(HS, 'page'), req(HS_HIT, 'image')], cookies: [{ name: 'hubspotutk', domain: '.new.example' }] }),
+    st('reject'), st('accept'),
+  ]);
+  const [hs] = byKey(findings, 'consent.before_choice.hubspot');
+  assert.match(hs.fix, /in the page source/);
+  assert.match(hs.fix, /consent settings in GTM do not affect it/);
+  assert.match(hs.fix, /data-cookieyes="cookieyes-analytics"/);
+  assert.equal(hs.typicalOwner, 'developer');
+  assert.ok(hs.evidence.details.includes('script loaded from the page source'));
+});
+
+test('a tool loaded by GTM, also through its own loader, gets the GTM consent setting', () => {
+  const findings = policyRun([
+    st('none', { consentCommands: [DENIED], requests: [from(GTM, 'page'), from(HS, GTM), from('https://js-eu1.hs-analytics.net/analytics/1.js', HS)],
+      cookies: [{ name: 'hubspotutk', domain: '.new.example' }] }),
+    st('reject'), st('accept'),
+  ]);
+  const [hs] = byKey(findings, 'consent.before_choice.hubspot');
+  assert.match(hs.fix, /loaded by Google Tag Manager/);
+  assert.match(hs.fix, /Require additional consent/);
+  assert.equal(hs.typicalOwner, 'gtm');
+});
+
+test('the GTM container row recommends loading GTM after consent when the banner is in the page source', () => {
+  const run = (cbInitiator) => byKey(assess({ mode: 'policy', baseline: null, policy: POLICY, target: site('target', [page('/', { cmp: 'cookiebot', states: [
+    st('none', { consentCommands: [DENIED], requests: [from(CB, cbInitiator), from(GTM, 'page')] }), st('reject'), st('accept'),
+  ] })]) }), 'consent.before_choice.gtm')[0];
+  const inPage = run('page');
+  assert.match(inPage.fix, /^Recommended: load GTM only after consent\. Cookiebot loads directly in the page source/);
+  assert.match(inPage.fix, /data-cookieconsent="statistics"/);
+  assert.match(inPage.fix, /Alternative: Record the container request/);
+  assert.match(run(GTM).fix, /The cookie banner is loaded by GTM/);
+  assert.match(run(undefined).fix, /^Choose one:/);
+});
+
+test('Paligo case 3: GA4 through server-side tagging on the own domain is GA4, says so, and fails the Google commitment', () => {
+  const SGTM = 'https://analytics.new.example/g/collect?v=2&tid=G-6J9DFZLXNL&gcs=G100';
+  const states = [st('none', { consentCommands: [DENIED], requests: [req(SGTM)] }), st('reject', { requests: [req(SGTM)] }), st('accept'), ...granular];
+  const findings = policyRun(states);
+  for (const key of ['consent.before_choice.ga4', 'consent.after_reject.ga4']) {
+    const [f] = byKey(findings, key);
+    assert.equal(f.status, 'fail', key);
+    assert.match(f.explanation, /analytics\.new\.example/);
+    assert.match(f.explanation, /server-side tagging/);
+  }
+  assert.equal(byKey(findings, 'consent.after_reject.google_commitment').length, 0);
+  assert.equal(byKey(findings, 'consent.unknown_after_reject')[0].status, 'pass', 'the own-domain GA4 endpoint is a known tool');
+  const [cookieless] = byKey(compareRun(states.slice(0, 3)), 'consent.after_reject.cookieless.ga4');
+  assert.match(cookieless.explanation, /server-side tagging/);
+});
+
+test('an IP lookup service before choice and after reject is "verify", not an unknown third party', () => {
+  const IPIFY = 'https://api.ipify.org/?format=json';
+  const findings = policyRun([st('none', { consentCommands: [DENIED], requests: [req(IPIFY, 'fetch')] }), st('reject', { requests: [req(IPIFY, 'fetch')] }), st('accept'), ...granular]);
+  assert.equal(byKey(findings, 'consent.before_choice.verify.ip-lookup')[0].status, 'manual');
+  assert.equal(byKey(findings, 'consent.after_reject.verify.ip-lookup')[0].status, 'manual');
+  assert.equal(byKey(findings, 'consent.unknown_after_reject')[0].status, 'pass');
+});
+
+test('Paligo case 1: cookies from before the choice after "Reject all" — kept and silent is a warning, kept with requests or written again is a fail', () => {
+  const findings = policyRun([
+    st('none'),
+    st('reject', {
+      requests: [req('https://px.ads.linkedin.com/collect?pid=1')],
+      cookies: [{ name: '_zitok', domain: '.new.example' }],                       // written again after "no"
+      keptCookies: [{ name: 'hubspotutk', domain: '.new.example' }, { name: 'bcookie', domain: '.linkedin.com' }],
+    }),
+    st('accept'),
+  ]);
+  const [hs] = byKey(findings, 'consent.after_reject.kept.hubspot');
+  assert.equal(hs.status, 'warning');
+  assert.match(hs.explanation, /hubspotutk was set before the visitor chose/);
+  assert.match(hs.explanation, /before the choice/);
+  assert.equal(byKey(findings, 'consent.after_reject.hubspot').length, 0);
+
+  const [li] = byKey(findings, 'consent.after_reject.linkedin');
+  assert.equal(li.status, 'fail');
+  assert.match(li.title, /keeps tracking with cookies from before the choice/);
+  assert.match(li.explanation, /bcookie/);
+  assert.ok(li.evidence.details.includes('kept bcookie from before the choice'));
+  assert.match(li.fix, /delete bcookie/);
+
+  const [zi] = byKey(findings, 'consent.after_reject.zoominfo');
+  assert.equal(zi.status, 'fail');
+  assert.match(zi.title, /stores data on the device/);
+});
+
+test('kept cookies only count after "Reject all"', () => {
+  const findings = policyRun([st('none', { keptCookies: [{ name: 'hubspotutk', domain: '.new.example' }] }), st('reject'), st('accept')]);
+  assert.equal(findings.filter((f) => f.checkKey.endsWith('.hubspot')).length, 0);
+});
+
+test('Paligo case 5: a widget that stores data after "Reject all" is a fail; requests alone and storage before the choice stay "verify"', () => {
+  const findings = compareRun([
+    st('none', { requests: [req('https://launcher.1mind.com/deployment-1')], cookies: [{ name: 'om_user_token', domain: 'www.paligo.net' }] }),
+    st('reject', {
+      requests: [req('https://launcher.1mind.com/deployment-1'), req('https://www.youtube.com/embed/abc123'), req('https://js.chilipiper.com/marketing.js')],
+      cookies: [{ name: 'om_user_token', domain: 'www.paligo.net' }, { name: 'YSC', domain: '.youtube.com' }],
+    }),
+    st('accept'),
+  ]);
+  assert.equal(byKey(findings, 'consent.before_choice.verify.1mind')[0].status, 'manual');
+  const [om] = byKey(findings, 'consent.after_reject.verify.1mind');
+  assert.equal(om.status, 'fail');
+  assert.match(om.title, /stores data on the device after "Reject all"/);
+  assert.match(om.explanation, /om_user_token/);
+  assert.match(om.fix, /placeholder/);
+  const [yt] = byKey(findings, 'consent.after_reject.verify.youtube');
+  assert.equal(yt.status, 'fail');
+  assert.match(yt.fix, /youtube-nocookie\.com/);
+  assert.equal(byKey(findings, 'consent.after_reject.verify.chilipiper')[0].status, 'manual');
+});
+
+test('a widget cookie kept from before "Reject all" is not a fail after it', () => {
+  const findings = compareRun([st('none'), st('reject', { requests: [req('https://launcher.1mind.com/deployment-1')], keptCookies: [{ name: 'om_user_token', domain: 'www.paligo.net' }] }), st('accept')]);
+  assert.equal(byKey(findings, 'consent.after_reject.verify.1mind')[0].status, 'manual');
+});

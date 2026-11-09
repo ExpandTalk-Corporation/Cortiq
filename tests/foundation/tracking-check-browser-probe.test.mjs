@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  buildProbeSource, pickConsentButton, inPageCollect, cmpSignal, consentSignal,
+  buildProbeSource, requestOrigin, pickConsentButton, inPageCollect, cmpSignal, consentSignal,
   inPageDetectCmp, inPageApplyAdapter, inPageAdapterBannerVisible,
 } from '../../supabase/functions/_shared/tracking-check/browser-probe.js';
 import { runBrowserProbe } from '../../supabase/functions/_shared/tracking-check/browserless.ts';
@@ -135,8 +135,10 @@ function fakeBrowser(loadsFor) {
               querySelector: () => null,
               getElementById: (id) => { const v = (spec.elements ?? {})[`#${id}`]; return v ? makeElement(v) : null; },
             };
-            cookies = [...cookies, ...(spec.cookies ?? [])];
-            for (const r of spec.requests ?? []) for (const fn of listeners) fn({ url: () => r.url, postData: () => r.postData ?? null, resourceType: () => 'script' });
+            // A cookie in a later load replaces the one with the same name and domain (the page wrote it again).
+            const same = (a, b) => a.name === b.name && (a.domain ?? '') === (b.domain ?? '');
+            cookies = [...cookies.filter((c) => !(spec.cookies ?? []).some((n) => same(c, n))), ...(spec.cookies ?? [])];
+            for (const r of spec.requests ?? []) for (const fn of listeners) fn({ url: () => r.url, postData: () => r.postData ?? null, resourceType: () => 'script', ...(r.initiator ? { initiator: () => r.initiator, frame: () => ({ url: () => 'https://new.example/' }) } : {}) });
             return { status: () => spec.status ?? 200 };
           };
           const run = (fn, args) => {
@@ -177,6 +179,9 @@ test('observeState only flags Enhanced Conversions on requests to Google hosts',
   assert.equal(other.none.enhancedConversions, false);
   const google = await probe(['none'], { none: [{ requests: [{ url: 'https://www.google.com/ccm/collect?em=tv.1~em.abc' }] }] });
   assert.equal(google.none.enhancedConversions, true);
+  // Server-side tagging: a GA4 hit to the site's own domain is forwarded to Google.
+  const sgtm = await probe(['none'], { none: [{ requests: [{ url: 'https://analytics.new.example/g/collect?v=2&tid=G-1&em=tv.1~em.abc' }] }] });
+  assert.equal(sgtm.none.enhancedConversions, true);
 });
 
 test('observeState keeps an adapter choice only when it is verified after the reload', async () => {
@@ -230,7 +235,7 @@ test('observeState does not count a cookie as new verification evidence when onl
     { globals: cookiebot(false), banner: true, cookies: [{ name: 'CookieConsent', value: 'v1' }] },
     { globals: cookiebot(false), banner: true, cookies: [{ name: 'CookieConsent', value: 'v2' }] },
   ] });
-  assert.equal(out.reject.cookies.length, 0, 'same name|domain as before the action, only the value differs');
+  assert.deepEqual(out.reject.cookies.map((c) => c.name), ['CookieConsent'], 'written again on reload, so it is reported as set after the choice');
   assert.equal(out.reject.method, 'not_automated', 'banner still visible (not gone), no stored-consent signal, no new cookie');
 });
 
@@ -410,3 +415,40 @@ test('Dynamicweb adapter: returns false when the save button stays hidden and th
   } finally { delete globalThis.document; delete globalThis.window; }
 });
 
+
+test('requestOrigin tells a page-source script from one injected by another script', () => {
+  const doc = 'https://new.example/';
+  const gtm = 'https://www.googletagmanager.com/gtm.js?id=GTM-ABC123';
+  assert.equal(requestOrigin({ type: 'parser', url: doc }, doc), 'page');
+  assert.equal(requestOrigin({ type: 'script', stack: { callFrames: [{ url: doc }] } }, doc), 'page');
+  assert.equal(requestOrigin({ type: 'script', stack: { callFrames: [{ url: '' }], parent: { callFrames: [{ url: doc }, { url: gtm }] } } }, doc), gtm);
+  assert.equal(requestOrigin({ type: 'other' }, doc), undefined);
+  assert.equal(requestOrigin(undefined, doc), undefined);
+});
+
+test('observeState records what loaded each script', async () => {
+  const gtm = 'https://www.googletagmanager.com/gtm.js?id=GTM-ABC123';
+  const out = await probe(['none'], { none: [{ requests: [
+    { url: gtm, initiator: { type: 'parser' } },
+    { url: 'https://js-eu1.hs-scripts.com/1.js', initiator: { type: 'script', stack: { callFrames: [{ url: gtm }] } } },
+    { url: 'https://cdn.example/a.js' },
+  ] }] });
+  assert.deepEqual(out.none.requests.map((r) => r.initiator), ['page', gtm, undefined]);
+});
+
+test('observeState tells cookies kept from before "Reject all" from cookies written again or new after it', async () => {
+  const out = await probe(['reject'], { reject: [
+    { globals: cookiebot(false), banner: true, cookies: [{ name: 'hubspotutk', value: 'a', expires: 100 }, { name: '_zitok', value: 'z', expires: 100 }] },
+    { globals: cookiebot(false), banner: false, cookies: [{ name: '_zitok', value: 'z', expires: 200 }, { name: 'om_user_token', value: 't' }] },
+  ] });
+  assert.deepEqual(out.reject.cookies.map((c) => c.name).sort(), ['_zitok', 'om_user_token'], 'renewed expiry and new cookie');
+  assert.deepEqual(out.reject.keptCookies.map((c) => c.name), ['hubspotutk']);
+  assert.ok(!('value' in out.reject.cookies[0]), 'values never leave the probe');
+  assert.equal(out.reject.method, 'adapter');
+});
+
+test('observeState reports no kept cookies for the state without a choice', async () => {
+  const out = await probe(['none'], { none: [{ cookies: [{ name: '_ga' }] }] });
+  assert.deepEqual(out.none.cookies.map((c) => c.name), ['_ga']);
+  assert.deepEqual(out.none.keptCookies, []);
+});
