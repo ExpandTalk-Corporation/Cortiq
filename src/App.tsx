@@ -22,6 +22,7 @@ import Dashboard from "./pages/Dashboard";
 import Installation from "./pages/Installation";
 import Auth from "./pages/Auth";
 import GSCCallbackPage from "./pages/auth/GSCCallbackPage";
+import GoogleAdsCallbackPage from "./pages/auth/GoogleAdsCallbackPage";
 import Navigation from "./pages/Navigation";
 import TrackingCheck from "./pages/TrackingCheck";
 import TrackingCheckLanding from "./pages/TrackingCheckLanding";
@@ -80,6 +81,7 @@ const App = () => (
               ))}
               <Route path="/auth" element={<Auth />} />
               <Route path="/auth/gsc-callback" element={<GSCCallbackPage />} />
+              <Route path="/auth/google-ads-callback" element={<GoogleAdsCallbackPage />} />
               <Route path="/dashboard" element={
                 <ProtectedRoute>
                   <Dashboard />

@@ -104,6 +104,19 @@ verify_jwt = false
 [functions.google-ads-quality-upload]
 verify_jwt = true
 
+# Google Ads OAuth (connect / pick account / disconnect). Public at the gateway because the
+# browser callback page (/auth/google-ads-callback) posts the code here; every action checks
+# the caller's JWT and site ownership in code, and the callback also verifies a signed state.
+[functions.google-ads-oauth]
+verify_jwt = false
+
+# Dashboard-only: campaign report and click-fraud signals for a site the caller can access.
+[functions.google-ads-import]
+verify_jwt = true
+
+[functions.click-fraud-analysis]
+verify_jwt = true
+
 # Agent-facing APIs authenticate with their own CortIQ API key (SHA-256 -> validate_api_key),
 # so the Supabase JWT gate must be off or the gateway rejects valid API-key callers first.
 [functions.mcp-server]

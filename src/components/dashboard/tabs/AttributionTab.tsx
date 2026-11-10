@@ -8,7 +8,8 @@ import { PixelReadinessCard } from '@/components/dashboard/PixelReadinessCard';
 import type { Site } from '@/types/dashboard';
 import { useAcquisitionReadiness } from '@/hooks/useAcquisitionReadiness';
 import { SetupChecklist } from '../setup/SetupChecklist';
-import { conversionStep, goalsStep, hubspotStep } from '../setup/acquisitionSteps';
+import { conversionStep, goalsStep, googleAdsApiStep, hubspotStep } from '../setup/acquisitionSteps';
+import { GoogleAdsConnectHint } from '@/components/dashboard/GoogleAdsConnectCard';
 
 interface AttributionTabProps {
   selectedSite: Site;
@@ -44,7 +45,7 @@ export function AttributionTab({ selectedSite, onNavigate }: AttributionTabProps
     <SetupChecklist
       title="How to measure the attribution gap"
       description="The gap compares conversions recorded by CortIQ with the leads HubSpot later marks as Priority or Qualified."
-      steps={[goalsStep(readiness), conversionStep(readiness), hubspotStep(readiness)]}
+      steps={[goalsStep(readiness), conversionStep(readiness), hubspotStep(readiness), googleAdsApiStep(readiness)]}
       onNavigate={onNavigate}
     />
   );
@@ -134,7 +135,7 @@ export function AttributionTab({ selectedSite, onNavigate }: AttributionTabProps
         <CardHeader>
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Upload className="h-4 w-4 text-blue-500" />
-            Enhanced Conversions Upload
+            Lead Quality Upload (Google Ads)
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -150,8 +151,23 @@ export function AttributionTab({ selectedSite, onNavigate }: AttributionTabProps
           </div>
           {pendingUpload === 0 && uploaded === 0 && (
             <p className="text-xs text-muted-foreground mt-3">
-              No uploads yet. Set up the HubSpot lead quality loop in Settings → Integrations to enable Enhanced Conversions.
+              No uploads yet. Set up the HubSpot lead quality loop in Settings → Integrations to send lead quality to Google Ads.
             </p>
+          )}
+          {readiness && !readiness.googleAdsApi && (
+            <div className="mt-3">
+              <GoogleAdsConnectHint onNavigate={onNavigate}>
+                Uploads need Google Ads connected for this site. Connect it under Settings → Integrations → Google Ads.
+              </GoogleAdsConnectHint>
+            </div>
+          )}
+          {readiness && readiness.googleAdsApi && !readiness.googleAdsConversionAction && (
+            <div className="mt-3">
+              <GoogleAdsConnectHint onNavigate={onNavigate}>
+                No conversion action is picked, so uploads wait. Pick an "Import from clicks" conversion action under
+                Settings → Integrations → Google Ads.
+              </GoogleAdsConnectHint>
+            </div>
           )}
         </CardContent>
       </Card>

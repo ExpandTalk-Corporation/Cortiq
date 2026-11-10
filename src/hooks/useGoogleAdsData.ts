@@ -33,20 +33,22 @@ export function useGoogleAdsData(siteId: string, dateRange: GoogleAdsDateRange =
   const [isConfigured, setIsConfigured] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** google-ads-import error code: not_configured | not_connected | no_customer | token. */
+  const [errorCode, setErrorCode] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!siteId) return;
 
-    // Check if configured first
-    const { data: integration } = await supabase
-      .from('site_integrations')
-      .select('is_active')
+    // Connected through Settings → Integrations → Google Ads (google_ads_connections, owner RLS)
+    // and an account picked for this site.
+    const { data: connection } = await (supabase as any)
+      .from('google_ads_connections')
+      .select('customer_id')
       .eq('site_id', siteId)
-      .eq('integration_type', 'google_ads_api')
-      .eq('is_active', true)
+      .not('customer_id', 'is', null)
       .maybeSingle();
 
-    if (!integration) {
+    if (!connection) {
       setIsConfigured(false);
       setCampaigns([]);
       setTotals(null);
@@ -56,6 +58,7 @@ export function useGoogleAdsData(siteId: string, dateRange: GoogleAdsDateRange =
     setIsConfigured(true);
     setLoading(true);
     setError(null);
+    setErrorCode(null);
 
     try {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -73,6 +76,7 @@ export function useGoogleAdsData(siteId: string, dateRange: GoogleAdsDateRange =
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: res.statusText }));
+        setErrorCode(typeof err.code === 'string' ? err.code : null);
         throw new Error(err.error ?? `HTTP ${res.status}`);
       }
 
@@ -88,5 +92,5 @@ export function useGoogleAdsData(siteId: string, dateRange: GoogleAdsDateRange =
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  return { campaigns, totals, isConfigured, loading, error, refetch: fetchData };
+  return { campaigns, totals, isConfigured, loading, error, errorCode, refetch: fetchData };
 }

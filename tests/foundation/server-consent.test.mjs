@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadEdge, mockDatabase } from './edge-harness.mjs';
+import { sealToken } from '../../supabase/functions/_shared/google-ads-oauth.ts';
 
 const site = '11111111-1111-4111-8111-111111111111';
 const otherSite = '22222222-2222-4222-8222-222222222222';
@@ -102,16 +103,32 @@ for (const [name, consent] of [['missing', null], ['expired', { ...active, expir
   });
 }
 
+const tokenKey = Buffer.alloc(32, 7).toString('base64');
+const sealedRefresh = await sealToken('refresh-1', tokenKey);
+
 for (const [name, consent] of [['withdrawn', { ...active, consent_given: false }], ['expired', { ...active, expires_at: '2000-01-01' }], ['active', active]]) {
   test(`queued Google Ads export checks ${name} consent again`, async () => {
-    const row = { id: 'conversion-1', gclid: 'click-1', created_at: '2026-09-17T00:00:00Z', form_data: { tracking_session_id: session } };
+    const row = { id: 'conversion-1', gclid: 'click-1', quality_value: 100, created_at: '2026-09-17T00:00:00Z', form_data: { tracking_session_id: session } };
     const db = mockDatabase(op => {
-      if (op.table === 'sites') return { data: [{ id: site, google_ads_conversion_id: '123', google_ads_customer_id: '456', google_ads_developer_token: 'dev', google_ads_access_token: 'access' }] };
+      if (op.table === 'google_ads_connections') {
+        return op.columns?.includes('time_zone')
+          ? { data: { customer_id: '4567890123', login_customer_id: null, currency_code: 'SEK', time_zone: 'Europe/Stockholm', conversion_action_id: '987', status: 'connected' } }
+          : { data: [{ site_id: site, conversion_action_id: '987' }] };
+      }
+      if (op.table === 'google_ads_tokens') return { data: { refresh_token_sealed: sealedRefresh } };
       if (op.table === 'cookie_consents') return { data: consent };
       return { data: [row] };
     });
     let exports = 0;
-    const handler = loadEdge('google-ads-quality-upload', db.client, { env: { GOOGLE_ADS_UPLOAD_SECRET: 'secret' }, fetch: async () => { exports++; return Response.json({}); } });
+    const fetch = async (url) => {
+      if (String(url).includes('oauth2.googleapis.com')) return Response.json({ access_token: 'access' });
+      exports++;
+      return Response.json({});
+    };
+    const handler = loadEdge('google-ads-quality-upload', db.client, {
+      env: { GOOGLE_ADS_UPLOAD_SECRET: 'secret', GOOGLE_ADS_DEVELOPER_TOKEN: 'dev', GOOGLE_ADS_TOKEN_KEY: tokenKey },
+      fetch,
+    });
     const response = await handler(new Request('https://example.test/upload', { headers: { 'x-cron-secret': 'secret' } }));
     assert.equal(response.status, 200);
     assert.equal(exports, name === 'active' ? 1 : 0);
