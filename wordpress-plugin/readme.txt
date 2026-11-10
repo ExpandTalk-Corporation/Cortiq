@@ -3,7 +3,7 @@ Contributors: cortiq
 Tags: analytics, ai-tracking, heatmap, cookie-free, gdpr, chatgpt, ai-bots
 Requires at least: 5.6
 Tested up to: 6.8
-Stable tag: 5.5.10
+Stable tag: 5.5.11
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -86,6 +86,9 @@ All data is stored in the EU (AWS eu-north-1 via Supabase).
 The tracking script is loaded with `defer` so it does not block rendering.
 
 == Changelog ==
+
+= 5.5.11 =
+* Fix: Visitor profiles now record an estimated country from the browser time zone (no IP lookup), the same estimate page views already use.
 
 = 5.5.10 =
 * Fix: AI referral detection no longer counts visits with utm_source "mail" or "email" (or sites such as bayou.com) as AI assistant traffic. Microsoft Copilot, You.com and Phind referrals count the same in the tracker and the dashboard AI segment.
