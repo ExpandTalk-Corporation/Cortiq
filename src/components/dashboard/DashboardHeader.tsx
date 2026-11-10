@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { LogOut, Settings, ChevronDown, Check, Sparkles, BarChart3, ShieldCheck } from 'lucide-react';
@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { AIAssistantPanel } from '@/components/dashboard/AIAssistantPanel';
 import { useTrackingCheckAccess } from '@/hooks/useTrackingCheck';
+import { useAIAssistantPanel } from '@/contexts/AIAssistantContext';
 
 interface Site {
   id: string;
@@ -46,7 +47,7 @@ function maskEmail(email?: string | null): string {
 export function DashboardHeader({ selectedSite, sites, onSiteSelect, dateRange, onDateRangeChange }: DashboardHeaderProps) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const [aiPanelOpen, setAiPanelOpen] = useState(false);
+  const aiPanel = useAIAssistantPanel();
   const trackingCheckAccess = useTrackingCheckAccess();
 
   return (
@@ -110,7 +111,7 @@ export function DashboardHeader({ selectedSite, sites, onSiteSelect, dateRange, 
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setAiPanelOpen(true)}
+            onClick={() => aiPanel.openPanel()}
             className="font-mono text-sm gap-2 border-primary/40 hover:border-primary hover:bg-primary/10"
           >
             <Sparkles className="w-4 h-4 text-primary" />
@@ -152,8 +153,8 @@ export function DashboardHeader({ selectedSite, sites, onSiteSelect, dateRange, 
     {selectedSite && (
       <AIAssistantPanel
         selectedSite={selectedSite}
-        open={aiPanelOpen}
-        onClose={() => setAiPanelOpen(false)}
+        open={aiPanel.open}
+        onClose={aiPanel.closePanel}
       />
     )}
     </>
