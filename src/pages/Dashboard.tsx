@@ -10,11 +10,14 @@ import { useHasConversions } from '@/hooks/useHasConversions';
 import { useSites } from '@/hooks/useSites';
 import { DashboardFiltersProvider, useDashboardFilters } from '@/contexts/DashboardFiltersContext';
 import { UTMSegmentProvider } from '@/contexts/UTMSegmentContext';
+import { AIAssistantProvider } from '@/contexts/AIAssistantContext';
 
 export default function Dashboard() {
   return (
     <DashboardFiltersProvider>
-      <DashboardBody />
+      <AIAssistantProvider>
+        <DashboardBody />
+      </AIAssistantProvider>
     </DashboardFiltersProvider>
   );
 }

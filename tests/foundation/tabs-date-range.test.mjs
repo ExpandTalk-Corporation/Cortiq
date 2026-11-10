@@ -168,7 +168,7 @@ test('hooks put the range in the query key and query, not a hardcoded window', (
     'src/hooks/useHighImpressionLowCTR.ts': /\.lte\('period_start', range\.to\)/,
     'src/hooks/useSegmentAnalytics.tsx': /rpc\('get_segment_stats', \{\s*p_site_id: siteId, p_from: range\.from, p_to: range\.to/,
     'src/hooks/useGASegmentAnalytics.tsx': /rpc\('get_segment_stats', \{\s*p_site_id: siteId, p_from: startDate, p_to: endDate/,
-    'src/hooks/useSocialMedia.tsx': /rpc\('get_social_daily'/,
+    'src/hooks/useSocialMedia.tsx': /rpc\('get_social_overview'/,
     'src/hooks/useKPIDashboard.tsx': /comparisonStartDate: comparison\.from/,
   };
   for (const [file, pattern] of Object.entries(hooks)) {

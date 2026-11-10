@@ -3,8 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, X, Send, RotateCcw, Loader2, AlertCircle } from 'lucide-react';
+import { Sparkles, X, Send, RotateCcw, Loader2, AlertCircle, Lightbulb } from 'lucide-react';
 import { useAIAssistant } from '@/hooks/useAIAssistant';
+import { useDashboardInsights } from '@/hooks/useDashboardInsights';
+import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
+import { useAIAssistantPanel } from '@/contexts/AIAssistantContext';
+import { InsightCard } from '@/components/dashboard/ai/InsightCard';
 import type { Site } from '@/types/dashboard';
 import { cn } from '@/lib/utils';
 
@@ -42,9 +46,23 @@ interface AIAssistantPanelProps {
 }
 
 export function AIAssistantPanel({ selectedSite, open, onClose }: AIAssistantPanelProps) {
-  const { messages, isLoading, sendMessage, clearMessages } = useAIAssistant(selectedSite.id);
+  const { messages, isLoading, sendMessage, generateInsights, clearMessages } = useAIAssistant(selectedSite.id);
+  const saved = useDashboardInsights(open ? selectedSite.id : null);
+  const { filters } = useDashboardFilters();
+  const { pendingAction, consumeAction } = useAIAssistantPanel();
   const [input, setInput] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
+  const period = { from: filters.from, to: filters.to };
+  const runInsights = () => generateInsights(period);
+
+  // "Generate insights for this period" from elsewhere (the Overview prompt) opens the panel with
+  // a pending action; run it once.
+  useEffect(() => {
+    if (open && pendingAction === 'insights') {
+      consumeAction();
+      generateInsights({ from: filters.from, to: filters.to });
+    }
+  }, [open, pendingAction, consumeAction, generateInsights, filters.from, filters.to]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -99,7 +117,7 @@ export function AIAssistantPanel({ selectedSite, open, onClose }: AIAssistantPan
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={clearMessages}
+                onClick={() => { clearMessages(); saved.fetchInsights(); }}
                 className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
                 title="Clear conversation"
               >
@@ -124,6 +142,13 @@ export function AIAssistantPanel({ selectedSite, open, onClose }: AIAssistantPan
               <p className="text-sm text-muted-foreground font-mono text-center pt-4">
                 Ask anything about your analytics data.
               </p>
+              <Button onClick={runInsights} disabled={isLoading} className="w-full gap-2">
+                <Lightbulb className="w-4 h-4" />
+                Generate insights for this period
+              </Button>
+              <p className="text-[11px] text-muted-foreground font-mono text-center">
+                {period.from} to {period.to} · suggestions are kept for 24 hours
+              </p>
               <div className="space-y-2 pt-2">
                 {SUGGESTED_QUESTIONS.map((q) => (
                   <button
@@ -135,6 +160,14 @@ export function AIAssistantPanel({ selectedSite, open, onClose }: AIAssistantPan
                   </button>
                 ))}
               </div>
+              {saved.insights.length > 0 && (
+                <div className="space-y-2 pt-3">
+                  <p className="text-xs font-medium text-foreground font-mono">Saved suggestions</p>
+                  {saved.insights.map((i) => (
+                    <InsightCard key={i.id} insight={i} onDismiss={() => saved.dismissInsight(i.id)} />
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
             <div className="space-y-4">
@@ -155,7 +188,7 @@ export function AIAssistantPanel({ selectedSite, open, onClose }: AIAssistantPan
                       {msg.isLoading ? (
                         <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card-elevated border border-border text-sm font-mono text-muted-foreground">
                           <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
-                          <span>Fetching data...</span>
+                          <span>Analysing data...</span>
                         </div>
                       ) : (
                         <>
@@ -164,6 +197,16 @@ export function AIAssistantPanel({ selectedSite, open, onClose }: AIAssistantPan
                               <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                               <span>{msg.content}</span>
                             </div>
+                          ) : msg.insights ? (
+                            msg.insights.length > 0 ? (
+                              <div className="space-y-2">
+                                {msg.insights.map((i, n) => <InsightCard key={i.id ?? n} insight={i} />)}
+                              </div>
+                            ) : (
+                              <div className="px-3 py-2 rounded-xl bg-card-elevated border border-border text-sm font-mono text-muted-foreground">
+                                {msg.content}
+                              </div>
+                            )
                           ) : (
                             <div className="px-3 py-2 rounded-xl bg-card-elevated border border-border text-sm font-mono text-foreground whitespace-pre-wrap leading-relaxed">
                               {msg.content}
@@ -195,6 +238,16 @@ export function AIAssistantPanel({ selectedSite, open, onClose }: AIAssistantPan
 
         {/* Input */}
         <div className="px-4 py-3 border-t border-border shrink-0">
+          {messages.length > 0 && (
+            <button
+              onClick={runInsights}
+              disabled={isLoading}
+              className="mb-2 flex items-center gap-1.5 text-xs font-mono text-muted-foreground hover:text-foreground disabled:opacity-50"
+            >
+              <Lightbulb className="w-3.5 h-3.5" />
+              Generate insights for this period ({period.from} to {period.to})
+            </button>
+          )}
           <div className="flex gap-2 items-end">
             <Textarea
               value={input}
