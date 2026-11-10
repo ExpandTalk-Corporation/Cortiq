@@ -108,10 +108,13 @@ const sealedRefresh = await sealToken('refresh-1', tokenKey);
 
 for (const [name, consent] of [['withdrawn', { ...active, consent_given: false }], ['expired', { ...active, expires_at: '2000-01-01' }], ['active', active]]) {
   test(`queued Google Ads export checks ${name} consent again`, async () => {
-    const row = { id: 'conversion-1', gclid: 'click-1', created_at: '2026-09-17T00:00:00Z', form_data: { tracking_session_id: session } };
+    const row = { id: 'conversion-1', gclid: 'click-1', quality_value: 100, created_at: '2026-09-17T00:00:00Z', form_data: { tracking_session_id: session } };
     const db = mockDatabase(op => {
-      if (op.table === 'sites') return { data: [{ id: site, google_ads_conversion_id: '123' }] };
-      if (op.table === 'google_ads_connections') return { data: { customer_id: '4567890123', login_customer_id: null, currency_code: 'SEK', status: 'connected' } };
+      if (op.table === 'google_ads_connections') {
+        return op.columns?.includes('time_zone')
+          ? { data: { customer_id: '4567890123', login_customer_id: null, currency_code: 'SEK', time_zone: 'Europe/Stockholm', conversion_action_id: '987', status: 'connected' } }
+          : { data: [{ site_id: site, conversion_action_id: '987' }] };
+      }
       if (op.table === 'google_ads_tokens') return { data: { refresh_token_sealed: sealedRefresh } };
       if (op.table === 'cookie_consents') return { data: consent };
       return { data: [row] };

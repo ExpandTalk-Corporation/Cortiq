@@ -10,7 +10,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
-import { GoogleAdsConnectHint } from '@/components/dashboard/GoogleAdsConnectCard';
+import { FinalUrlSuffixHint, GoogleAdsConnectHint } from '@/components/dashboard/GoogleAdsConnectCard';
 import { useAcquisitionReadiness } from '@/hooks/useAcquisitionReadiness';
 import { SetupChecklist } from '../setup/SetupChecklist';
 import { googleAdsApiStep, paidMediumStep, trackingStep } from '../setup/acquisitionSteps';
@@ -21,6 +21,9 @@ interface ClickFraudTabProps {
   endDate?: string;
   onNavigate?: (tab: string) => void;
 }
+
+// Same text as SUGGESTED_FINAL_URL_SUFFIX in supabase/functions/_shared/google-ads-setup.ts.
+const FINAL_URL_SUFFIX = 'utm_source=google&utm_medium=cpc&utm_campaign={campaignid}';
 
 // Mirrors supabase/functions/click-fraud-analysis (scores from _shared/click-fraud-score.ts).
 type Level = 'low' | 'elevated' | 'high';
@@ -113,7 +116,19 @@ interface FraudResponse {
   days: Day[];
   campaigns: Campaign[];
   placements: Placement[];
+  /** IANA zone of dates and hours: the Google Ads account time zone, or UTC without Ads. */
+  timezone?: string;
   time_distribution: { hour: number; count: number }[];
+  click_matching?: {
+    available: boolean;
+    reason?: string | null;
+    days_queried?: number;
+    gclids?: number;
+    capped?: boolean;
+    days_too_old?: number;
+    days_over_limit?: number;
+    matched_sessions?: number;
+  };
   devices: Record<string, number>;
   ads: {
     connected: boolean;
@@ -239,6 +254,7 @@ export function ClickFraudTab({ selectedSite, startDate, endDate, onNavigate }: 
   if (!data) return null;
 
   const { summary, ads } = data;
+  const tzLabel = data.timezone || 'UTC';
   const adsClicks = ads.totals?.clicks ?? 0;
   const adsHint = !ads.connected && (
     <GoogleAdsConnectHint onNavigate={onNavigate}>
@@ -434,7 +450,15 @@ export function ClickFraudTab({ selectedSite, startDate, endDate, onNavigate }: 
           <CardHeader>
             <CardTitle className="text-base">Score per campaign</CardTitle>
             <CardDescription>
-              Campaigns come from utm_campaign. With Google Ads connected they are matched to Ads campaigns by name or id.
+              With Google Ads connected, sessions match their campaign by gclid (Google Ads click_view, last 90 days) and
+              otherwise by utm_campaign (campaign name or id).
+              {data.click_matching?.available && data.click_matching.matched_sessions !== undefined
+                ? ` ${num(data.click_matching.matched_sessions)} session(s) matched by gclid.`
+                : ''}
+              {data.click_matching?.reason === 'older_than_90_days' ? ' This range is older than 90 days, so only utm_campaign is used.' : ''}
+              {(data.click_matching?.days_over_limit ?? 0) > 0
+                ? ` gclid matching covered the latest ${data.click_matching?.days_queried} days with clicks; earlier days use utm_campaign.`
+                : ''}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -488,13 +512,12 @@ export function ClickFraudTab({ selectedSite, startDate, endDate, onNavigate }: 
           <AlertDescription className="text-sm space-y-1">
             <p>
               {ads.unmatched_campaigns.length} Google Ads {ads.unmatched_campaigns.length === 1 ? 'campaign has' : 'campaigns have'} clicks
-              but no matching utm_campaign in CortIQ: {ads.unmatched_campaigns.slice(0, 5).map((c) => `${c.name} (${num(c.clicks)} clicks)`).join(', ')}
+              but no matching session in CortIQ (by gclid or utm_campaign): {ads.unmatched_campaigns.slice(0, 5).map((c) => `${c.name} (${num(c.clicks)} clicks)`).join(', ')}
               {ads.unmatched_campaigns.length > 5 ? ', ...' : ''}.
             </p>
-            <p>
-              Add <code className="text-xs">utm_campaign={'{campaignid}'}</code> or the campaign name to the account's final URL suffix
-              (Google Ads → Admin → Account settings → Tracking) so clicks and sessions can be compared.
-            </p>
+            <FinalUrlSuffixHint suffix={FINAL_URL_SUFFIX}>
+              <p>Add utm_campaign to the final URL suffix so visits match even when gclid matching is not available:</p>
+            </FinalUrlSuffixHint>
           </AlertDescription>
         </Alert>
       )}
@@ -612,7 +635,7 @@ export function ClickFraudTab({ selectedSite, startDate, endDate, onNavigate }: 
       {data.time_distribution.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Paid sessions per hour (UTC)</CardTitle>
+            <CardTitle className="text-base">Paid sessions per hour ({tzLabel})</CardTitle>
             <CardDescription>Sharp peaks at night local time often come from scheduled bots.</CardDescription>
           </CardHeader>
           <CardContent>
@@ -621,7 +644,7 @@ export function ClickFraudTab({ selectedSite, startDate, endDate, onNavigate }: 
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="hour" tickFormatter={(h) => `${h}:00`} tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip labelFormatter={(h) => `${h}:00 UTC`} formatter={(v) => [v, 'Sessions']} />
+                <Tooltip labelFormatter={(h) => `${h}:00 ${tzLabel}`} formatter={(v) => [v, 'Sessions']} />
                 <Bar dataKey="count" radius={[3, 3, 0, 0]} fill="hsl(var(--primary))" />
               </BarChart>
             </ResponsiveContainer>

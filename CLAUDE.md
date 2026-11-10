@@ -110,14 +110,14 @@ Shown inline in `ConversionGoalsConfig.tsx`. Each goal now has a Primary/Observa
 Full pipeline: HubSpot CRM → CortIQ → Google Ads Enhanced Conversions.
 
 - `supabase/functions/hubspot-lead-webhook/` — receives `contact.propertyChange` webhooks, validates HubSpot HMAC signature, SHA-256 hashes email immediately, updates `conversion_events` with `lead_quality` + `quality_value` (Priority=300, Qualified=100, Challenge=0)
-- `supabase/functions/google-ads-quality-upload/` — daily batch upload to Google Ads Conversion Adjustments API. Only uploads leads where `click_id_consent_given = true`
+- `supabase/functions/google-ads-quality-upload/` — daily batch upload of Priority/Qualified leads as click conversions (`uploadClickConversions`, `orderId` = conversion id) to the "Import from clicks" conversion action picked in Settings → Integrations → Google Ads (`google_ads_connections.conversion_action_id`); sites without a picked action are skipped with `no_conversion_action`. Only uploads leads where `click_id_consent_given = true`
 - `HubSpotIntegrationWizard.tsx` — 5-step setup wizard in Settings → Integrations → HubSpot
 - `src/hooks/useLeadQualityPipeline.ts` — pipeline status (pending / uploaded / skipped counts)
 
 **GDPR:** `hashed_email` column stores SHA-256 only — raw email never touches CortIQ. Upload skipped if no marketing consent on original session.
 
 Webhook endpoint: `https://[project].supabase.co/functions/v1/hubspot-lead-webhook?site_id=[uuid]`
-Upload function: `google-ads-quality-upload` — requires `google_ads_customer_id` on the site row.
+Upload function: `google-ads-quality-upload` — requires a Google Ads connection with an account and a conversion action picked.
 
 ### 5. Attribution Gap Dashboard
 `src/components/dashboard/tabs/AttributionTab.tsx` (Ads → Attribution Gap) — three-column view comparing CortIQ conversions vs HubSpot quality MQLs, gap %, and Enhanced Conversions upload status. `src/hooks/useAttributionGap.ts` aggregates from `conversion_events`.

@@ -29,6 +29,10 @@ export interface AdsAuth {
   loginCustomerId?: string | null;
   /** Account currency (ISO 4217), when known. */
   currencyCode?: string | null;
+  /** Account time zone (IANA), when known. Google Ads report dates are in this zone. */
+  timeZone?: string | null;
+  /** Conversion action (UPLOAD_CLICKS) picked for lead-quality uploads, numeric id. */
+  conversionActionId?: string | null;
 }
 
 export async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
@@ -199,14 +203,17 @@ export async function listAccessibleCustomers(
   return names.map((n) => cleanCustomerId(String(n).split('/').pop())).filter(Boolean);
 }
 
-/** ConversionAdjustmentUploadService.UploadConversionAdjustments. Never retried on 5xx. */
-export async function uploadConversionAdjustments(
+/**
+ * ConversionUploadService.UploadClickConversions with partial failure on. Never retried on 5xx
+ * (each conversion carries an orderId, so Google would also drop a duplicate).
+ */
+export async function uploadClickConversions(
   auth: AdsAuth,
-  conversionAdjustments: object[],
+  conversions: object[],
   timeoutMs = 20_000,
 ): Promise<any> {
-  const url = `${GOOGLE_ADS_BASE}/customers/${cleanCustomerId(auth.customerId)}:uploadConversionAdjustments`;
-  return JSON.parse(await request('POST', url, auth, { conversionAdjustments, partialFailure: true }, timeoutMs, false) || '{}');
+  const url = `${GOOGLE_ADS_BASE}/customers/${cleanCustomerId(auth.customerId)}:uploadClickConversions`;
+  return JSON.parse(await request('POST', url, auth, { conversions, partialFailure: true }, timeoutMs, false) || '{}');
 }
 
 /** GAQL id filter values must be plain numbers; anything else is refused (no query injection). */
@@ -250,7 +257,7 @@ export async function loadSiteAdsAuth(svc: any, siteId: string): Promise<AdsAuth
 
   const { data: conn } = await svc
     .from('google_ads_connections')
-    .select('customer_id, login_customer_id, currency_code, status')
+    .select('customer_id, login_customer_id, currency_code, time_zone, conversion_action_id, status')
     .eq('site_id', siteId)
     .maybeSingle();
   if (!conn) return { error: 'Google Ads is not connected. Connect it in Settings → Integrations.', status: 400, code: 'not_connected' };
@@ -283,6 +290,8 @@ export async function loadSiteAdsAuth(svc: any, siteId: string): Promise<AdsAuth
     customerId,
     loginCustomerId: cleanCustomerId(conn.login_customer_id) || null,
     currencyCode: conn.currency_code ?? null,
+    timeZone: conn.time_zone ?? null,
+    conversionActionId: conn.conversion_action_id ?? null,
   };
 }
 

@@ -5,6 +5,10 @@ import { loadEdge, mockDatabase } from './edge-harness.mjs';
 import {
   buildAuthorizeUrl, GOOGLE_ADS_SCOPE, openToken, sealToken, signState, STATE_TTL_SECONDS, verifyState,
 } from '../../supabase/functions/_shared/google-ads-oauth.ts';
+import {
+  assessTracking, CLICK_VIEW_MAX_DAYS, clickViewDays, dayInZone, hasUtmCampaign, isValidTimeZone, parseConversionActions,
+  SUGGESTED_FINAL_URL_SUFFIX,
+} from '../../supabase/functions/_shared/google-ads-setup.ts';
 
 const key = Buffer.alloc(32, 7).toString('base64');
 const otherKey = Buffer.alloc(32, 9).toString('base64');
@@ -134,6 +138,8 @@ test('responses never select the sealed token for the browser', () => {
   const src = read('supabase/functions/google-ads-oauth/index.ts');
   const publicColumns = src.match(/PUBLIC_COLUMNS =\s*'([^']+)'/)[1];
   assert.doesNotMatch(publicColumns, /token/);
+  assert.match(publicColumns, /conversion_action_id/);
+  assert.match(publicColumns, /tracking_check/);
   assert.match(src, /UUID\.test\(siteId\)/);
 });
 
@@ -175,4 +181,97 @@ test('no edge function still reads pasted Google Ads credentials', () => {
     assert.doesNotMatch(src, /integration_config|google_ads_access_token|developer_token\b/, fn);
     assert.match(src, /loadSiteAdsAuth\(/, fn);
   }
+});
+
+test('migration 06: conversion action columns and a time-zone-aware click-fraud RPC', () => {
+  const sql = read('supabase/migrations/20261117000006_google_ads_conversion_action_and_tz.sql');
+  assert.match(sql, /ADD COLUMN IF NOT EXISTS conversion_action_id\s+text CHECK \(conversion_action_id IS NULL OR conversion_action_id ~ '\^\[0-9\]\{1,20\}\$'\)/);
+  assert.match(sql, /DROP FUNCTION IF EXISTS public\.get_click_fraud_signals\(uuid, date, date\)/);
+  assert.match(sql, /p_tz text DEFAULT 'UTC', p_click_campaigns jsonb DEFAULT NULL/);
+  assert.match(sql, /SECURITY DEFINER/);
+  assert.match(sql, /SET search_path = ''/);
+  assert.match(sql, /WHERE id = p_site_id AND user_id = auth\.uid\(\)/);
+  assert.match(sql, /> 366/);
+  assert.match(sql, /pg_catalog\.pg_timezone_names WHERE name = p_tz/);
+  assert.match(sql, /> 50000/);
+  assert.match(sql, /\(s\.started_at AT TIME ZONE p_tz\)::date AS day/);
+  assert.match(sql, /coalesce\(p_click_campaigns ->> p0\.gclid, p0\.campaign\)/);
+  assert.match(sql, /REVOKE EXECUTE ON FUNCTION public\.get_click_fraud_signals\(uuid, date, date, text, jsonb\) FROM PUBLIC, anon/);
+  assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.get_click_fraud_signals\(uuid, date, date, text, jsonb\) TO authenticated/);
+  // Input map only: no click id, session token or IP in the output.
+  const output = sql.slice(sql.indexOf('SELECT jsonb_build_object('));
+  assert.doesNotMatch(output, /'(click_id|gclid|session_id|ip|ip_address)'/);
+  assert.doesNotMatch(sql, /GRANT [^;]*google_ads_tokens/);
+});
+
+test('conversion actions: only enabled UPLOAD_CLICKS actions with numeric ids', () => {
+  const rows = [
+    { conversionAction: { id: '11', name: 'Lead quality', type: 'UPLOAD_CLICKS', status: 'ENABLED', category: 'QUALIFIED_LEAD' } },
+    { conversionAction: { id: '12', name: 'Website lead', type: 'WEBPAGE', status: 'ENABLED' } },
+    { conversionAction: { id: '13', name: 'Old', type: 'UPLOAD_CLICKS', status: 'REMOVED' } },
+    { conversionAction: { id: 'x', name: 'Bad', type: 'UPLOAD_CLICKS', status: 'ENABLED' } },
+  ];
+  assert.deepEqual(parseConversionActions(rows), [{ id: '11', name: 'Lead quality', type: 'UPLOAD_CLICKS', status: 'ENABLED', category: 'QUALIFIED_LEAD' }]);
+});
+
+test('tracking check: account suffix with utm_campaign covers campaigns without their own suffix', () => {
+  assert.equal(hasUtmCampaign(SUGGESTED_FINAL_URL_SUFFIX), true);
+  assert.equal(hasUtmCampaign('utm_source=google&utm_medium=cpc'), false);
+  assert.equal(hasUtmCampaign(null), false);
+  const ok = assessTracking({ finalUrlSuffix: SUGGESTED_FINAL_URL_SUFFIX, autoTaggingEnabled: true },
+    [{ campaign: { id: '1', name: 'A' } }, { campaign: { id: '2', name: 'B', finalUrlSuffix: 'utm_campaign=b' } }]);
+  assert.equal(ok.ok, true);
+  assert.equal(ok.campaigns_without_utm_count, 0);
+
+  // A campaign's own suffix replaces the account suffix.
+  const partial = assessTracking({ finalUrlSuffix: SUGGESTED_FINAL_URL_SUFFIX },
+    [{ campaign: { id: '1', name: 'A', finalUrlSuffix: 'utm_source=google' } }, { campaign: { id: '2', name: 'B' } }]);
+  assert.equal(partial.ok, false);
+  assert.deepEqual(partial.campaigns_without_utm, [{ id: '1', name: 'A' }]);
+
+  const none = assessTracking({}, [{ campaign: { id: '1', name: 'A' } }]);
+  assert.equal(none.ok, false);
+  assert.equal(none.account_has_utm_campaign, false);
+  assert.equal(none.suggested_suffix, SUGGESTED_FINAL_URL_SUFFIX);
+});
+
+test('time zones: valid IANA names only, dates computed in the account zone', () => {
+  assert.equal(isValidTimeZone('Europe/Stockholm'), true);
+  assert.equal(isValidTimeZone('UTC'), true);
+  assert.equal(isValidTimeZone("UTC'; DROP"), false);
+  assert.equal(isValidTimeZone('Not/AZone'), false);
+  assert.equal(isValidTimeZone(null), false);
+  // 23:30 UTC on 1 Nov is already 2 Nov in Stockholm (CET, UTC+1) and still 1 Nov in Los Angeles.
+  const d = new Date('2026-11-01T23:30:00Z');
+  assert.equal(dayInZone(d, 'UTC'), '2026-11-01');
+  assert.equal(dayInZone(d, 'Europe/Stockholm'), '2026-11-02');
+  assert.equal(dayInZone(d, 'America/Los_Angeles'), '2026-11-01');
+});
+
+test('click_view days: only days with clicks, inside the range and the last 90 days, newest first, capped', () => {
+  const days = {};
+  for (let i = 0; i < 120; i++) {
+    const d = new Date(Date.parse('2026-11-10T00:00:00Z') - i * 86_400_000).toISOString().slice(0, 10);
+    days[d] = { clicks: i % 10 === 5 ? 0 : 3 };
+  }
+  const plan = clickViewDays(days, '2026-07-01', '2026-11-10', '2026-11-10');
+  assert.equal(plan.days.length, CLICK_VIEW_MAX_DAYS);
+  assert.equal(plan.days[0], '2026-11-10');
+  assert.ok(plan.days.every((d, i) => i === 0 || d < plan.days[i - 1]));
+  assert.ok(!plan.days.includes('2026-11-05'), 'days without clicks are skipped');
+  assert.ok(plan.tooOld > 0);
+  assert.ok(plan.overLimit > 0);
+  const old = clickViewDays({ '2026-01-01': { clicks: 5 } }, '2026-01-01', '2026-01-31', '2026-11-10');
+  assert.deepEqual(old.days, []);
+  assert.equal(old.tooOld, 1);
+});
+
+test('google-ads-oauth only accepts a conversion action from the list read from the account', () => {
+  const src = read('supabase/functions/google-ads-oauth/index.ts');
+  assert.match(src, /action === 'select_conversion_action'/);
+  assert.match(src, /conversion_actions \?\? \[\]\) as ConversionActionOption\[\]\)\.find/);
+  assert.match(src, /action === 'refresh_setup'/);
+  // Switching account clears the action (it belongs to one account).
+  const select = src.slice(src.indexOf("action === 'select_customer'"), src.indexOf("action === 'refresh_setup'"));
+  assert.match(select, /conversion_action_id: null/);
 });

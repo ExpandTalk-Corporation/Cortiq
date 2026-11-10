@@ -6,6 +6,11 @@
 //   callback         {code, state}          -> {connection}  exchange code, seal refresh token, list accounts
 //   accounts         {site_id}              -> {connection}  refresh the account list
 //   select_customer  {site_id, customer_id} -> {connection}  pick the account this site reports on
+//                                                            (clears the conversion action, reruns setup)
+//   refresh_setup    {site_id}              -> {connection}  reread time zone, currency, upload-capable
+//                                                            conversion actions and the final URL suffix check
+//   select_conversion_action {site_id, conversion_action_id} -> {connection}  pick the UPLOAD_CLICKS action
+//                                                            google-ads-quality-upload sends lead quality to
 //   disconnect       {site_id}              -> {ok}  revoke at Google (best effort) and delete
 //
 // Only the site owner (sites.user_id = auth.uid()) may connect or change the connection. The
@@ -15,8 +20,9 @@
 import { createClient } from '../_shared/supabase.ts';
 import {
   AdsApiError, cleanCustomerId, developerTokenFromEnv, fetchWithTimeout, listAccessibleCustomers,
-  refreshAccessToken, searchStream,
+  isAdsAuth, loadSiteAdsAuth, refreshAccessToken, searchStream,
 } from '../_shared/google-ads.ts';
+import { type ConversionActionOption, loadAccountSetup } from '../_shared/google-ads-setup.ts';
 import {
   buildAuthorizeUrl, GOOGLE_ADS_SCOPE, openToken, sealToken, signState, tokenKeyFromEnv, verifyState,
 } from '../_shared/google-ads-oauth.ts';
@@ -29,7 +35,7 @@ const corsHeaders = {
 const UUID =/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_ACCOUNTS = 200;
 const PUBLIC_COLUMNS =
-  'site_id, customer_id, login_customer_id, descriptive_name, currency_code, time_zone, accessible_customers, status, last_error, connected_at, updated_at';
+  'site_id, customer_id, login_customer_id, descriptive_name, currency_code, time_zone, accessible_customers, conversion_action_id, conversion_action_name, conversion_actions, tracking_check, setup_checked_at, status, last_error, connected_at, updated_at';
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -156,7 +162,33 @@ Deno.serve(async (req) => {
   };
   const publicConnection = async (siteId: string) => {
     const { data } = await svc.from('google_ads_connections').select(PUBLIC_COLUMNS).eq('site_id', siteId).maybeSingle();
-    return data;
+    return data as any;
+  };
+  /**
+   * Reads the picked account's time zone, currency, upload-capable conversion actions and final
+   * URL suffixes, and caches them on the connection. A picked action that is no longer enabled is
+   * cleared so uploads stop instead of failing. Errors are stored in last_error, not thrown.
+   */
+  const refreshSetup = async (siteId: string): Promise<string[]> => {
+    const auth = await loadSiteAdsAuth(svc, siteId);
+    if (!isAdsAuth(auth)) return [auth.error];
+    const setup = await loadAccountSetup(auth);
+    const update: Record<string, unknown> = {
+      conversion_actions: setup.conversion_actions,
+      setup_checked_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      last_error: setup.errors.length ? setup.errors.join('; ').slice(0, 300) : null,
+    };
+    if (setup.tracking_check) update.tracking_check = setup.tracking_check;
+    if (setup.time_zone) update.time_zone = setup.time_zone;
+    if (setup.currency_code) update.currency_code = setup.currency_code;
+    const actionsRead = !setup.errors.some((e) => e.startsWith('conversion actions'));
+    if (actionsRead && auth.conversionActionId && !setup.conversion_actions.some((a) => a.id === auth.conversionActionId)) {
+      update.conversion_action_id = null;
+      update.conversion_action_name = null;
+    }
+    await svc.from('google_ads_connections').update(update).eq('site_id', siteId);
+    return setup.errors;
   };
 
   try {
@@ -215,6 +247,9 @@ Deno.serve(async (req) => {
       }, { onConflict: 'site_id' });
       if (connErr) throw new Error('Could not store the Google Ads connection');
       await svc.from('sites').update({ google_ads_customer_id: only?.id ?? null }).eq('id', siteId);
+      if (only) {
+        try { await refreshSetup(siteId); } catch (e) { console.warn('[google-ads-oauth] setup', e instanceof Error ? e.message : e); }
+      }
       return json({ site_id: siteId, connection: await publicConnection(siteId) });
     }
 
@@ -250,9 +285,44 @@ Deno.serve(async (req) => {
         descriptive_name: account.name,
         currency_code: account.currency,
         time_zone: account.time_zone,
+        // A conversion action belongs to one account: switching accounts clears it.
+        conversion_action_id: null,
+        conversion_action_name: null,
+        conversion_actions: [],
+        tracking_check: null,
+        setup_checked_at: null,
         updated_at: new Date().toISOString(),
       }).eq('site_id', siteId);
       await svc.from('sites').update({ google_ads_customer_id: account.id }).eq('id', siteId);
+      try { await refreshSetup(siteId); } catch (e) { console.warn('[google-ads-oauth] setup', e instanceof Error ? e.message : e); }
+      return json({ connection: await publicConnection(siteId) });
+    }
+
+    if (action === 'refresh_setup') {
+      const conn = await publicConnection(siteId);
+      if (!conn?.customer_id) return json({ error: 'Pick a Google Ads account first.', code: 'no_customer' }, 400);
+      const errors = await refreshSetup(siteId);
+      return json({ connection: await publicConnection(siteId), errors });
+    }
+
+    if (action === 'select_conversion_action') {
+      const wanted = String(body.conversion_action_id ?? '');
+      const conn = await publicConnection(siteId);
+      if (!conn?.customer_id) return json({ error: 'Pick a Google Ads account first.', code: 'no_customer' }, 400);
+      if (wanted === '') {
+        await svc.from('google_ads_connections')
+          .update({ conversion_action_id: null, conversion_action_name: null, updated_at: new Date().toISOString() })
+          .eq('site_id', siteId);
+        return json({ connection: await publicConnection(siteId) });
+      }
+      // Only an action from the list read from this account (enabled, UPLOAD_CLICKS).
+      const pick = ((conn.conversion_actions ?? []) as ConversionActionOption[]).find((a) => a.id === wanted);
+      if (!/^\d{1,20}$/.test(wanted) || !pick) {
+        return json({ error: 'That conversion action is not an enabled "Import from clicks" action in this account. Recheck and pick again.' }, 400);
+      }
+      await svc.from('google_ads_connections')
+        .update({ conversion_action_id: pick.id, conversion_action_name: pick.name, updated_at: new Date().toISOString() })
+        .eq('site_id', siteId);
       return json({ connection: await publicConnection(siteId) });
     }
 

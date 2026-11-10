@@ -12,6 +12,7 @@ const empty: AcquisitionReadiness = {
   aggregateMeasurement: false,
   ga4Connected: false,
   googleAdsApi: false,
+  googleAdsConversionAction: false,
   googleAdsCustomerId: false,
   hubspotLoop: false,
   goals: 0,

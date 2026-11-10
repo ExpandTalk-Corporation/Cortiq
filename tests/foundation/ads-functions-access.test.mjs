@@ -104,7 +104,7 @@ test('click-fraud-analysis reads signals through the caller-scoped RPC, never tr
   const { handler, calls } = endpoint('click-fraud-analysis');
   const response = await handler(request());
   assert.equal(response.status, 200);
-  assert.deepEqual(JSON.parse(JSON.stringify(calls.rpc)), [{ fn: 'get_click_fraud_signals', args: { p_site_id: siteId, p_from: '2026-10-01', p_to: '2026-10-31' } }]);
+  assert.deepEqual(JSON.parse(JSON.stringify(calls.rpc)), [{ fn: 'get_click_fraud_signals', args: { p_site_id: siteId, p_from: '2026-10-01', p_to: '2026-10-31', p_tz: 'UTC', p_click_campaigns: null } }]);
   assert.ok(!calls.service.includes('tracking_sessions'));
   const body = await response.json();
   assert.equal(body.google_ads_connected, false);

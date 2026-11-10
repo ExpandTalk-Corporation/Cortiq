@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertTriangle, CheckCircle, Loader2, RefreshCw, Unplug } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Copy, Loader2, RefreshCw, Unplug } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCustomerId, googleAdsOAuth, useGoogleAdsConnection } from '@/hooks/useGoogleAdsConnection';
 
@@ -12,15 +12,43 @@ interface GoogleAdsConnectCardProps {
   siteId: string;
 }
 
+/** Copy-paste box for the final URL suffix that makes utm_campaign reach CortIQ. */
+export function FinalUrlSuffixHint({ suffix, children }: { suffix: string; children?: ReactNode }) {
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(suffix);
+      toast.success('Copied');
+    } catch {
+      toast.error('Copy failed. Select the text and copy it.');
+    }
+  };
+  return (
+    <div className="space-y-1.5 text-sm">
+      {children}
+      <div className="flex items-center gap-2">
+        <code className="rounded bg-muted px-2 py-1 text-xs break-all select-all">{suffix}</code>
+        <Button variant="outline" size="sm" onClick={copy} aria-label="Copy final URL suffix">
+          <Copy className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Google Ads → Admin → Account settings → Tracking → Final URL suffix. A campaign's own suffix replaces the account's,
+        so add it there too for campaigns that have one.
+      </p>
+    </div>
+  );
+}
+
 /**
  * Settings → Integrations → Google Ads. Sign in with Google (adwords scope, offline access),
- * pick the account this site reports on, disconnect. Used by Click fraud, Paid ads and the
- * Enhanced Conversions upload. No developer token or client secret is entered here: those are
- * set once on the CortIQ instance.
+ * pick the account this site reports on, pick the "Import from clicks" conversion action that
+ * receives lead-quality uploads, check the final URL suffix, disconnect. Used by Click fraud,
+ * Paid ads and the lead-quality upload. No developer token or client secret is entered here:
+ * those are set once on the CortIQ instance.
  */
 export function GoogleAdsConnectCard({ siteId }: GoogleAdsConnectCardProps) {
   const { connection, isLoading, ready, refresh } = useGoogleAdsConnection(siteId);
-  const [busy, setBusy] = useState<null | 'connect' | 'select' | 'accounts' | 'disconnect'>(null);
+  const [busy, setBusy] = useState<null | 'connect' | 'select' | 'accounts' | 'action' | 'setup' | 'disconnect'>(null);
 
   const run = async (kind: NonNullable<typeof busy>, fn: () => Promise<void>) => {
     setBusy(kind);
@@ -46,6 +74,19 @@ export function GoogleAdsConnectCard({ siteId }: GoogleAdsConnectCardProps) {
     refresh();
   });
 
+  const selectAction = (actionId: string) => run('action', async () => {
+    await googleAdsOAuth('select_conversion_action', { site_id: siteId, conversion_action_id: actionId });
+    toast.success('Conversion action selected');
+    refresh();
+  });
+
+  const recheck = () => run('setup', async () => {
+    const res = await googleAdsOAuth<{ errors?: string[] }>('refresh_setup', { site_id: siteId });
+    if (res?.errors?.length) toast.error(res.errors[0]);
+    else toast.success('Google Ads setup checked');
+    refresh();
+  });
+
   const reloadAccounts = () => run('accounts', async () => {
     await googleAdsOAuth('accounts', { site_id: siteId });
     refresh();
@@ -59,6 +100,9 @@ export function GoogleAdsConnectCard({ siteId }: GoogleAdsConnectCardProps) {
   });
 
   const accounts = connection?.accessible_customers ?? [];
+  const actions = connection?.conversion_actions ?? [];
+  const tracking = connection?.tracking_check ?? null;
+  const withoutUtm = tracking?.campaigns_without_utm ?? [];
 
   return (
     <Card id="google-ads">
@@ -92,7 +136,7 @@ export function GoogleAdsConnectCard({ siteId }: GoogleAdsConnectCardProps) {
             <p className="text-xs text-muted-foreground">
               Use the Google login that has access to the Ads account (directly or through a manager account).
               Google's consent screen asks for full Google Ads access, because that is the only scope the Ads API offers.
-              CortIQ only reads reports and uploads Enhanced Conversions adjustments when you turn that on.
+              CortIQ only reads reports, and uploads lead-quality conversions to the conversion action you pick.
             </p>
           </div>
         ) : (
@@ -142,11 +186,75 @@ export function GoogleAdsConnectCard({ siteId }: GoogleAdsConnectCardProps) {
               </p>
             )}
 
+            {ready && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium" htmlFor="google-ads-conversion-action">Conversion action for lead-quality uploads</label>
+                {actions.length > 0 && (
+                  <Select value={connection.conversion_action_id ?? undefined} onValueChange={selectAction} disabled={busy !== null}>
+                    <SelectTrigger id="google-ads-conversion-action" className="max-w-md">
+                      <SelectValue placeholder="Pick a conversion action" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {actions.map((a) => (
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.name}{a.category ? ` · ${a.category.toLowerCase().replace(/_/g, ' ')}` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {connection.conversion_action_id ? (
+                  <p className="text-xs text-muted-foreground">
+                    HubSpot lead quality (Priority, Qualified) is uploaded as click conversions to
+                    "{connection.conversion_action_name || connection.conversion_action_id}".
+                  </p>
+                ) : (
+                  <Alert>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription className="text-sm">
+                      {actions.length > 0
+                        ? 'No conversion action picked. Lead-quality uploads wait until one is picked.'
+                        : connection.setup_checked_at
+                          ? 'This account has no enabled "Import from clicks" conversion action. Create one in Google Ads → Goals → Conversions → New conversion action → Import → Manual import using API or uploads → Track conversions from clicks, then press Recheck setup.'
+                          : 'The account has not been checked yet. Press Recheck setup to list its conversion actions.'}
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            )}
+
+            {ready && tracking && !tracking.ok && (
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  <FinalUrlSuffixHint suffix={tracking.suggested_suffix}>
+                    <p>
+                      {tracking.account_has_utm_campaign
+                        ? `${tracking.campaigns_without_utm_count} enabled campaign(s) have their own final URL suffix without utm_campaign`
+                          + (withoutUtm.length > 0 ? ` (${withoutUtm.slice(0, 5).map((c) => c.name).join(', ')}${tracking.campaigns_without_utm_count > 5 ? ', …' : ''})` : '')
+                        : 'The account final URL suffix does not set utm_campaign'}
+                      . Visits with a gclid from the last 90 days still match their campaign through Google Ads; older visits and
+                      gbraid/wbraid clicks need utm_campaign. Add this final URL suffix:
+                    </p>
+                  </FinalUrlSuffixHint>
+                  {tracking.auto_tagging === false && (
+                    <p className="text-xs mt-2">Auto-tagging is off, so landing URLs carry no gclid. Turn it on under Admin → Account settings → Auto-tagging.</p>
+                  )}
+                </AlertDescription>
+              </Alert>
+            )}
+
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" size="sm" onClick={reloadAccounts} disabled={busy !== null}>
                 {busy === 'accounts' ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
                 Reload accounts
               </Button>
+              {ready && (
+                <Button variant="outline" size="sm" onClick={recheck} disabled={busy !== null}>
+                  {busy === 'setup' ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
+                  Recheck setup
+                </Button>
+              )}
               <Button variant="outline" size="sm" onClick={disconnect} disabled={busy !== null}>
                 {busy === 'disconnect' ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Unplug className="h-3.5 w-3.5 mr-1.5" />}
                 Disconnect

@@ -1,11 +1,18 @@
 // Click-fraud analysis for paid traffic.
 //
-// 1. CortIQ's own signals come from get_click_fraud_signals (migration 20261117000005), called
+// 1. CortIQ's own signals come from get_click_fraud_signals (migrations 20261117000005/06), called
 //    with the caller's JWT so the RPC's ownership check applies. Works without Google Ads.
 // 2. If the site has Google Ads connected (Settings → Integrations), billed clicks, Google's
 //    invalid clicks, placements and location targets are added via GAQL. Each Ads query is
 //    independent; a failure leaves that part out and is reported in `ads.errors`.
-// 3. Days and campaigns are scored by _shared/click-fraud-score.ts; every signal has a reason.
+// 3. Time zone: with Ads connected, dates and hours are in the account time zone
+//    (customer.time_zone, cached on google_ads_connections). The RPC converts session timestamps
+//    to that zone, so a CortIQ day and an Ads day cover the same hours. Without Ads: UTC.
+// 4. Campaign matching: gclid -> campaign id from click_view (one query per day with Ads clicks,
+//    only the last 90 days, at most 31 days per run, at most 20,000 gclids). The map is passed to
+//    the RPC and never returned. Sessions without a mapped gclid fall back to utm_campaign
+//    (name or {campaignid}). gbraid/wbraid clicks are not in click_view.
+// 5. Days and campaigns are scored by _shared/click-fraud-score.ts; every signal has a reason.
 //
 // No click ids, session tokens or IPs are returned. Datacenter detection is not available
 // (CortIQ does not store IP addresses).
@@ -13,6 +20,7 @@
 import { createClient } from '../_shared/supabase.ts';
 import { requireSiteAccess } from '../_shared/site-access.ts';
 import { type AdsAuth, fromMicros, gaqlDate, isAdsAuth, loadSiteAdsAuth, searchStream } from '../_shared/google-ads.ts';
+import { clickViewDays, dayInZone, isValidTimeZone, loadClickCampaigns } from '../_shared/google-ads-setup.ts';
 import {
   type AdsCounts, exclusionCandidates, geoCheck, type PlacementRow, refundGuidance, scoreSignals, type SignalCounts,
 } from '../_shared/click-fraud-score.ts';
@@ -29,12 +37,11 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const isoDay = (d: Date) => d.toISOString().slice(0, 10);
 const validDay = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v));
 
-const CAVEATS = [
+const BASE_CAVEATS = [
   'Scores rank days and campaigns worth a closer look; they are not proof of fraud. Google decides refunds.',
   'CortIQ only sees visitors who allowed tracking, so session counts are lower than Ads clicks.',
   'Datacenter/VPN detection is not available: CortIQ does not store IP addresses.',
   'Country comes from the browser time zone and is approximate.',
-  'CortIQ dates are UTC; Google Ads dates are in the account time zone.',
 ];
 
 interface AdsCampaign extends AdsCounts {
@@ -169,6 +176,33 @@ const countsOf = (x: any): SignalCounts => ({
 
 const norm = (s: string) => s.trim().toLowerCase();
 
+const COUNT_KEYS = ['paid_sessions', 'google_sessions', 'bot_sessions', 'reused_click_sessions', 'burst_sessions', 'zero_engagement_sessions', 'conversions'] as const;
+
+/**
+ * RPC campaign rows keyed by the Ads campaign they resolve to (a gclid-matched id and a utm name
+ * can be the same campaign). Rows that resolve to the same Ads campaign are summed; unmatched
+ * rows stay as they are.
+ */
+function mergeCampaignRows(rows: any[], resolve: (key: string) => AdsCampaign | null): { row: any; ads: AdsCampaign | null }[] {
+  const out: { row: any; ads: AdsCampaign | null }[] = [];
+  const byAds = new Map<string, { row: any; ads: AdsCampaign | null }>();
+  for (const r of rows ?? []) {
+    const a = resolve(String(r?.campaign ?? ''));
+    if (!a) { out.push({ row: r, ads: null }); continue; }
+    const prev = byAds.get(a.id);
+    if (!prev) {
+      const entry = { row: { ...r, campaign: a.name, sources: [...(r.sources ?? [])], countries: { ...(r.countries ?? {}) } }, ads: a };
+      byAds.set(a.id, entry);
+      out.push(entry);
+      continue;
+    }
+    for (const k of COUNT_KEYS) prev.row[k] = Number(prev.row[k] ?? 0) + Number(r?.[k] ?? 0);
+    prev.row.sources = [...new Set([...prev.row.sources, ...(r.sources ?? [])])];
+    for (const [cc, n] of Object.entries(r.countries ?? {})) prev.row.countries[cc] = Number(prev.row.countries[cc] ?? 0) + Number(n);
+  }
+  return out;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
@@ -186,28 +220,55 @@ Deno.serve(async (req) => {
     const access = await requireSiteAccess(userClient, authorization, siteId);
     if (!access.ok) return json({ error: access.error }, access.status);
 
-    const to = validDay(body.endDate) ? body.endDate : isoDay(new Date());
+    // Google Ads, optional. Service role only to read the sealed token; nothing secret is returned.
+    // Loaded first: the account time zone decides what a day is for the whole analysis.
+    const svc = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
+    let ads: AdsData = { connected: false, campaigns: [], days: {}, placements: [], errors: [] };
+    let auth: AdsAuth | null = null;
+    try {
+      const result = await loadSiteAdsAuth(svc, siteId);
+      if (isAdsAuth(result)) auth = result;
+      else ads = { ...ads, code: result.code, message: result.error };
+    } catch (e) {
+      ads = { ...ads, code: 'error', message: e instanceof Error ? e.message : String(e) };
+    }
+    const tz = auth && isValidTimeZone(auth.timeZone) ? auth.timeZone : 'UTC';
+    const today = dayInZone(new Date(), tz);
+
+    const to = validDay(body.endDate) ? body.endDate : today;
     const from = validDay(body.startDate) ? body.startDate : isoDay(new Date(Date.parse(to) - 29 * DAY_MS));
     if (from > to || (Date.parse(to) - Date.parse(from)) / DAY_MS + 1 > 366) {
       return json({ error: 'Date range must be 1 to 366 days' }, 400);
     }
 
+    let clickMatching: Record<string, unknown> = { available: false, reason: auth ? null : 'not_connected' };
+    let clickMap: Record<string, string> | null = null;
+    if (auth) {
+      try {
+        ads = await loadAds(auth, from, to);
+      } catch (e) {
+        ads = { ...ads, code: 'error', message: e instanceof Error ? e.message : String(e) };
+      }
+      const plan = clickViewDays(ads.days, from, to, today);
+      if (plan.days.length > 0) {
+        const clicks = await loadClickCampaigns(auth, plan.days);
+        if (clicks.gclids > 0) clickMap = clicks.map;
+        ads.errors.push(...clicks.errors);
+        clickMatching = {
+          available: true, days_queried: clicks.days_queried, gclids: clicks.gclids, capped: clicks.capped,
+          days_too_old: plan.tooOld, days_over_limit: plan.overLimit,
+        };
+      } else {
+        clickMatching = { available: false, reason: plan.tooOld > 0 ? 'older_than_90_days' : 'no_ads_clicks', days_too_old: plan.tooOld };
+      }
+    }
+
     // CortIQ signals: user-scoped client so auth.uid() and the RPC's ownership check apply.
     const { data: sig, error: sigError } = await userClient.rpc('get_click_fraud_signals', {
-      p_site_id: siteId, p_from: from, p_to: to,
+      p_site_id: siteId, p_from: from, p_to: to, p_tz: tz, p_click_campaigns: clickMap,
     });
     if (sigError) throw new Error(sigError.message);
-
-    // Google Ads, optional. Service role only to read the sealed token; nothing secret is returned.
-    const svc = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
-    let ads: AdsData = { connected: false, campaigns: [], days: {}, placements: [], errors: [] };
-    try {
-      const auth = await loadSiteAdsAuth(svc, siteId);
-      if (isAdsAuth(auth)) ads = await loadAds(auth, from, to);
-      else ads = { ...ads, code: auth.code, message: auth.error };
-    } catch (e) {
-      ads = { ...ads, code: 'error', message: e instanceof Error ? e.message : String(e) };
-    }
+    clickMatching.matched_sessions = Number(sig?.totals?.matched_by_click ?? 0);
 
     const totals = countsOf(sig?.totals);
     const adsTotals: AdsCounts | null = ads.connected
@@ -227,13 +288,14 @@ Deno.serve(async (req) => {
       return { date: d.date, ...counts, ads: adsDay, ...scoreSignals(counts, adsDay) };
     });
 
-    // Per campaign: match utm_campaign to an Ads campaign by name or id ({campaignid} ValueTrack).
+    // Per campaign: the RPC key is the click_view campaign id (gclid match) or utm_campaign; match
+    // it to an Ads campaign by id ({campaignid} ValueTrack) or name, then merge rows per campaign.
     const adsByKey = new Map<string, AdsCampaign>();
     for (const c of ads.campaigns) { adsByKey.set(norm(c.name), c); adsByKey.set(c.id, c); }
     const matched = new Set<string>();
-    const campaigns = (sig?.campaigns ?? []).map((c: any) => {
+    const merged = mergeCampaignRows(sig?.campaigns ?? [], (key) => adsByKey.get(key) ?? adsByKey.get(norm(key)) ?? null);
+    const campaigns = merged.map(({ row: c, ads: a }) => {
       const counts = countsOf(c);
-      const a = adsByKey.get(norm(String(c.campaign ?? ''))) ?? null;
       if (a) matched.add(a.id);
       const geo = a ? geoCheck(c.countries, a.targeted_countries) : null;
       const scored = scoreSignals(counts, a, geo);
@@ -247,7 +309,7 @@ Deno.serve(async (req) => {
       };
     }).sort((x: any, y: any) => y.score - x.score || y.paid_sessions - x.paid_sessions);
 
-    // Ads campaigns with clicks but no matching utm_campaign in CortIQ.
+    // Ads campaigns with clicks but no matching session (neither gclid nor utm_campaign) in CortIQ.
     const unmatched = ads.campaigns
       .filter((c) => !matched.has(c.id) && c.clicks > 0)
       .map((c) => ({ id: c.id, name: c.name, clicks: c.clicks, invalid_clicks: c.invalid_clicks, cost: c.cost, conversions: c.conversions }));
@@ -286,7 +348,9 @@ Deno.serve(async (req) => {
       days,
       campaigns,
       placements,
-      time_distribution: (sig?.hours_utc ?? []).map((h: any) => ({ hour: h.hour, count: h.sessions })),
+      timezone: tz,
+      time_distribution: (sig?.hours ?? sig?.hours_utc ?? []).map((h: any) => ({ hour: h.hour, count: h.sessions })),
+      click_matching: clickMatching,
       devices: sig?.devices ?? {},
       google_ads_connected: ads.connected,
       ads: {
@@ -300,7 +364,13 @@ Deno.serve(async (req) => {
         errors: ads.errors,
       },
       refund_guidance: refund,
-      caveats: CAVEATS,
+      caveats: [
+        ...BASE_CAVEATS,
+        tz === 'UTC' && !auth
+          ? 'Dates and hours are UTC. With Google Ads connected they follow the account time zone.'
+          : `Dates and hours are in the Google Ads account time zone (${tz}), for CortIQ and Ads alike.`,
+        'Campaigns match by gclid through Google Ads click_view where available (last 90 days); otherwise by utm_campaign.',
+      ],
     });
   } catch (error) {
     console.error('Error in click-fraud-analysis:', error);

@@ -15,6 +15,28 @@ export interface GoogleAdsAccount {
   login_customer_id: string | null;
 }
 
+/** An enabled "Import from clicks" (UPLOAD_CLICKS) conversion action of the picked account. */
+export interface GoogleAdsConversionAction {
+  id: string;
+  name: string;
+  type: string;
+  status: string;
+  category: string | null;
+}
+
+/** Does utm_campaign reach CortIQ? Account and campaign final URL suffixes (ad group/ad level not read). */
+export interface GoogleAdsTrackingCheck {
+  checked_at: string;
+  auto_tagging: boolean | null;
+  account_suffix: string | null;
+  account_has_utm_campaign: boolean;
+  campaigns_checked: number;
+  campaigns_without_utm_count: number;
+  campaigns_without_utm: { id: string; name: string }[];
+  ok: boolean;
+  suggested_suffix: string;
+}
+
 export interface GoogleAdsConnection {
   site_id: string;
   customer_id: string | null;
@@ -23,13 +45,18 @@ export interface GoogleAdsConnection {
   currency_code: string | null;
   time_zone: string | null;
   accessible_customers: GoogleAdsAccount[];
+  conversion_action_id: string | null;
+  conversion_action_name: string | null;
+  conversion_actions: GoogleAdsConversionAction[];
+  tracking_check: GoogleAdsTrackingCheck | null;
+  setup_checked_at: string | null;
   status: 'connected' | 'error';
   last_error: string | null;
   connected_at: string;
   updated_at: string;
 }
 
-type Action = 'authorize' | 'callback' | 'accounts' | 'select_customer' | 'disconnect';
+type Action = 'authorize' | 'callback' | 'accounts' | 'select_customer' | 'refresh_setup' | 'select_conversion_action' | 'disconnect';
 
 export async function googleAdsOAuth<T = any>(action: Action, body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke('google-ads-oauth', { body: { action, ...body } });
@@ -62,7 +89,7 @@ export function useGoogleAdsConnection(siteId: string | undefined) {
     queryFn: async (): Promise<GoogleAdsConnection | null> => {
       const { data, error } = await (supabase as any)
         .from('google_ads_connections')
-        .select('site_id, customer_id, login_customer_id, descriptive_name, currency_code, time_zone, accessible_customers, status, last_error, connected_at, updated_at')
+        .select('site_id, customer_id, login_customer_id, descriptive_name, currency_code, time_zone, accessible_customers, conversion_action_id, conversion_action_name, conversion_actions, tracking_check, setup_checked_at, status, last_error, connected_at, updated_at')
         .eq('site_id', siteId)
         .maybeSingle();
       if (error) throw error;
@@ -81,6 +108,8 @@ export function useGoogleAdsConnection(siteId: string | undefined) {
     error: query.error as Error | null,
     /** Connected and an account is picked: reports can run. */
     ready: !!query.data?.customer_id,
+    /** Lead-quality uploads have a target conversion action. */
+    uploadReady: !!query.data?.customer_id && !!query.data?.conversion_action_id,
     refresh,
   };
 }
