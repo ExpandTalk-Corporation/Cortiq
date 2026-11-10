@@ -29,6 +29,7 @@ export function AdsTab({ selectedSite, startDate, endDate, onNavigate }: AdsTabP
       : searchParams.get('tab') === 'paid-ads-server' ? 'cortiq'
       : isLoading ? null : readiness?.ga4Connected ? 'ga4' : 'cortiq';
 
+  // Clicking the active item deselects it in a single ToggleGroup ('' arrives); keep the source.
   const setSource = (value: string) => {
     if (value !== 'cortiq' && value !== 'ga4') return;
     setSearchParams((prev) => {
@@ -51,14 +52,16 @@ export function AdsTab({ selectedSite, startDate, endDate, onNavigate }: AdsTabP
         </div>
         <ToggleGroup type="single" variant="outline" size="sm" value={source ?? ''} onValueChange={setSource} aria-label="Data source">
           <ToggleGroupItem value="cortiq">CortIQ</ToggleGroupItem>
-          <ToggleGroupItem value="ga4">Google Analytics 4</ToggleGroupItem>
+          <ToggleGroupItem value="ga4" title={readiness && !readiness.ga4Connected ? 'No GA4 property connected yet' : undefined}>
+            Google Analytics 4{readiness && !readiness.ga4Connected && <span className="ml-1 text-muted-foreground">(not connected)</span>}
+          </ToggleGroupItem>
         </ToggleGroup>
       </div>
 
       {source === null ? (
         <div className="py-12 text-center text-sm text-muted-foreground">Loading...</div>
       ) : source === 'ga4' ? (
-        <PaidAdsTab selectedSite={selectedSite} kpiData={null} onNavigate={onNavigate} />
+        <PaidAdsTab selectedSite={selectedSite} onNavigate={onNavigate} />
       ) : (
         <ServerSidePaidAdsTab selectedSite={selectedSite} startDate={startDate} endDate={endDate} onNavigate={onNavigate} />
       )}

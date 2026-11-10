@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  defaultFilters, parseFilters, writeFilters, previousPeriod, percentChange, normalizePath,
+  defaultFilters, parseFilters, writeFilters, previousPeriod, percentChange, comparePeriods, normalizePath,
 } from '../../src/lib/dashboard/filters.ts';
 
 const TODAY = new Date('2026-10-14T12:00:00Z');
@@ -45,6 +45,16 @@ test('percent change: zero previous is "new", not Infinity', () => {
   assert.equal(percentChange(0, 0), null);
   assert.equal(percentChange(150, 100), 50);
   assert.equal(percentChange(50, 100), -50);
+});
+
+test('period comparison is withheld when the previous period has too little data', () => {
+  assert.deepEqual(comparePeriods(739, 3, 3), { kind: 'insufficient' });
+  assert.deepEqual(comparePeriods(0, 0, 0), { kind: 'none' });
+  assert.deepEqual(comparePeriods(5, 0, 0), { kind: 'insufficient' });
+  assert.deepEqual(comparePeriods(150, 100, 100), { kind: 'change', pct: 50 });
+  // Ratios: the sample size is the previous visit count, not the ratio itself.
+  assert.deepEqual(comparePeriods(8.4, 60, 12), { kind: 'insufficient' });
+  assert.deepEqual(comparePeriods(5000, 100, 100), { kind: 'change', pct: 4900 });
 });
 
 test('paths are normalised from full URLs and bare input', () => {

@@ -8,6 +8,7 @@ import { AggregateOverview } from '@/components/dashboard/overview/AggregateOver
 import { PipelineAlerts } from '@/components/dashboard/overview/PipelineAlerts';
 import { useOverviewMetrics } from '@/hooks/useOverviewMetrics';
 import { useConversionGoalHealth } from '@/hooks/useConversionGoalHealth';
+import { useKeyPageVisits } from '@/hooks/useKeyPageVisits';
 import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
 import type { Site } from '@/types/dashboard';
 
@@ -15,6 +16,7 @@ export function OverviewTab({ selectedSite, onNavigate }: { selectedSite: Site; 
   const { filters } = useDashboardFilters();
   const metrics = useOverviewMetrics(selectedSite.id);
   const health = useConversionGoalHealth(selectedSite.id);
+  const keyPages = useKeyPageVisits(selectedSite.id, filters.from, filters.to);
   const goals = health.data ?? [];
   const goalIssues = goals.filter((g) => g.status !== 'healthy').map((g) => ({ goalName: g.goalName, issue: g.status }));
   const trackingMode = ((selectedSite as Site & { tracking_mode?: string }).tracking_mode === 'cookieless') ? 'cookieless' : 'full';
@@ -36,7 +38,7 @@ export function OverviewTab({ selectedSite, onNavigate }: { selectedSite: Site; 
       {aggregateOnly && <AggregateOverview siteId={selectedSite.id} from={filters.from} to={filters.to} />}
       <KpiRow m={m} from={filters.from} to={filters.to} segmented={!!filters.segmentId} aggregateOnly={aggregateOnly} />
       {aggregateOn && !aggregateOnly && <AggregateOverview siteId={selectedSite.id} from={filters.from} to={filters.to} />}
-      <ModuleCards m={m} goalCount={goals.length} goalIssues={goalIssues} onNavigate={onNavigate} />
+      <ModuleCards m={m} goalCount={goals.length} goalIssues={goalIssues} keyPages={keyPages.data ?? []} onNavigate={onNavigate} />
       <div className="grid gap-6 lg:grid-cols-2">
         {!aggregateOnly && <TopPagesData siteId={selectedSite.id} startDate={`${filters.from}T00:00:00Z`} endDate={`${filters.to}T23:59:59Z`} />}
         <AIInsightsWidget siteId={selectedSite.id} />

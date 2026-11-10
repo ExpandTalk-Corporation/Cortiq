@@ -4,14 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2 } from 'lucide-react';
+import { Bookmark, Trash2 } from 'lucide-react';
 import { DateRangePicker } from '@/components/dashboard/DateRangePicker';
 import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
 import { useSavedFilters } from '@/hooks/useSavedFilters';
 import { useUTMSegments } from '@/contexts/UTMSegmentContext';
 import { useTopPaths } from '@/hooks/useTopPaths';
 import { BUILTIN_SEGMENTS, SEGMENT_PRESETS, builtinSegment, builtinSegmentId } from '@/lib/dashboard/builtinSegments';
-import { DATE_PRESETS, normalizePath, presetRange, type DatePresetId } from '@/lib/dashboard/filters';
+import { normalizePath, presetRange } from '@/lib/dashboard/filters';
 
 const toIso = (d: Date) => new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())).toISOString().slice(0, 10);
 const ALL = '__all__';
@@ -23,19 +23,16 @@ export function FilterPanel({ siteId }: { siteId: string }) {
   const { data: topPaths = [] } = useTopPaths(siteId, filters.from, filters.to);
   const [pathDraft, setPathDraft] = useState(filters.path ?? '');
   const [name, setName] = useState('');
+  const [saving, setSaving] = useState(false);
 
   // A segment id from the URL that no longer exists is treated as "All".
   const activeBuiltin = builtinSegment(filters.segmentId);
   const segmentValue = activeBuiltin || segments.some((s) => s.id === filters.segmentId) ? filters.segmentId! : ALL;
 
-  // Values are "preset:<id>" (date range, keeps URL and segment), "segment:<id>" (date range
-  // plus built-in segment, keeps URL) or "saved:<id>".
+  // Values are "segment:<id>" (date range plus built-in segment, keeps URL) or "saved:<id>".
+  // Plain date presets live in the date picker.
   const applyQuick = (value: string) => {
     const [kind, id] = [value.slice(0, value.indexOf(':')), value.slice(value.indexOf(':') + 1)];
-    if (kind === 'preset') {
-      setFilters(presetRange(id as DatePresetId, new Date()));
-      return;
-    }
     if (kind === 'segment') {
       const p = SEGMENT_PRESETS.find((x) => x.id === id);
       if (p) setFilters({ ...presetRange(p.range, new Date()), segmentId: builtinSegmentId(p.segment) });
@@ -50,24 +47,15 @@ export function FilterPanel({ siteId }: { siteId: string }) {
   };
 
   return (
-    <aside aria-label="Filters" className="space-y-6 rounded-lg border bg-card p-4">
-      <h2 className="text-lg font-semibold">Filter</h2>
+    <aside aria-label="Filters" className="space-y-4 rounded-lg border bg-card p-3">
+      <DateRangePicker compact dateRange={dateRange}
+        onDateRangeChange={(r) => { if (r?.from && r?.to) setFilters({ from: toIso(r.from), to: toIso(r.to) }); }} />
 
-      <div className="space-y-2">
-        <Label>Date range</Label>
-        <DateRangePicker dateRange={dateRange}
-          onDateRangeChange={(r) => { if (r?.from && r?.to) setFilters({ from: toIso(r.from), to: toIso(r.to) }); }} />
-      </div>
-
-      <div className="space-y-2">
-        <Label>Quick filter</Label>
+      <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground">Quick filter</Label>
         <Select value="" onValueChange={applyQuick}>
-          <SelectTrigger><SelectValue placeholder="Choose a filter" /></SelectTrigger>
+          <SelectTrigger className="h-8"><SelectValue placeholder="Choose a filter" /></SelectTrigger>
           <SelectContent>
-            <SelectGroup>
-              <SelectLabel>Date range</SelectLabel>
-              {DATE_PRESETS.map((p) => <SelectItem key={p.id} value={`preset:${p.id}`}>{p.label}</SelectItem>)}
-            </SelectGroup>
             <SelectGroup>
               <SelectLabel>Segment</SelectLabel>
               {SEGMENT_PRESETS.map((p) => <SelectItem key={p.id} value={`segment:${p.id}`}>{p.label}</SelectItem>)}
@@ -81,18 +69,19 @@ export function FilterPanel({ siteId }: { siteId: string }) {
           </SelectContent>
         </Select>
         {saved.map((s) => (
-          <div key={s.id} className="flex items-center justify-between text-sm text-muted-foreground">
+          <div key={s.id} className="flex items-center justify-between text-xs text-muted-foreground">
             <span className="truncate">{s.name}</span>
-            <Button variant="ghost" size="icon" aria-label={`Delete ${s.name}`} onClick={() => remove(s.id)}>
-              <Trash2 className="h-4 w-4" />
+            <Button variant="ghost" size="icon" className="h-6 w-6" aria-label={`Delete ${s.name}`} onClick={() => remove(s.id)}>
+              <Trash2 className="h-3.5 w-3.5" />
             </Button>
           </div>
         ))}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="filter-path">Website URL</Label>
-        <Input id="filter-path" placeholder="All URLs — e.g. /pricing" value={pathDraft}
+      <div className="space-y-1.5">
+        <Label htmlFor="filter-path" className="text-xs text-muted-foreground">Website URL</Label>
+        <Input id="filter-path" className="h-8" placeholder="All URLs — e.g. /pricing" value={pathDraft}
+          title="Matches pages that start with this path. Suggestions are the most viewed pages in the date range."
           onChange={(e) => {
             setPathDraft(e.target.value);
             // Picking a suggestion from the list applies it straight away.
@@ -104,15 +93,12 @@ export function FilterPanel({ siteId }: { siteId: string }) {
         <datalist id="filter-path-suggestions">
           {topPaths.map((p) => <option key={p.path} value={p.path}>{`${p.views} page views`}</option>)}
         </datalist>
-        <p className="text-xs text-muted-foreground">
-          Matches pages that start with this path.{topPaths.length > 0 && ' Suggestions are the most viewed pages in the date range.'}
-        </p>
       </div>
 
-      <div className="space-y-2">
-        <Label>Segment</Label>
+      <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground">Segment</Label>
         <Select value={segmentValue} onValueChange={(v) => setFilters({ segmentId: v === ALL ? null : v })}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL}>All visits</SelectItem>
             <SelectGroup>
@@ -130,14 +116,19 @@ export function FilterPanel({ siteId }: { siteId: string }) {
         {activeBuiltin && <p className="text-xs text-muted-foreground">{activeBuiltin.description}</p>}
       </div>
 
-      <form className="space-y-2 border-t pt-4"
-        onSubmit={async (e) => { e.preventDefault(); if (name.trim()) { await save(name, filters); setName(''); } }}>
-        <Label htmlFor="filter-name">Save current filter</Label>
-        <div className="flex gap-2">
-          <Input id="filter-name" maxLength={80} placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
-          <Button type="submit" disabled={!name.trim()}>Save</Button>
-        </div>
-      </form>
+      {saving ? (
+        <form className="flex gap-2"
+          onSubmit={async (e) => { e.preventDefault(); if (name.trim()) { await save(name, filters); setName(''); setSaving(false); } }}>
+          <Input aria-label="Filter name" className="h-8" maxLength={80} placeholder="Name" autoFocus
+            value={name} onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Escape') setSaving(false); }} />
+          <Button type="submit" size="sm" disabled={!name.trim()}>Save</Button>
+        </form>
+      ) : (
+        <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground" onClick={() => setSaving(true)}>
+          <Bookmark className="mr-1.5 h-3.5 w-3.5" /> Save current filter
+        </Button>
+      )}
     </aside>
   );
 }

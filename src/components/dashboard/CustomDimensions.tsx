@@ -30,6 +30,30 @@ interface CustomDimensionsProps {
 
 const EXAMPLE = `CortIQ.track('conversion', 'signup', { plan: 'pro', seats: 5 });`;
 
+/** Properties the tracking script adds to every event by itself, explained in plain words. */
+const BUILT_IN_PROPERTIES: Record<string, { label: string; splits: string }> = {
+  traffic_segment: {
+    label: 'Traffic segment',
+    splits: 'Splits events into "public" (marketing pages) and "authenticated" (pages under the logged-in path, /admin by default; set data-auth-path on the script tag to change it). Use it to separate product usage from marketing traffic.',
+  },
+  visitor_type: {
+    label: 'Visitor type',
+    splits: 'Splits events into "human", "ai_agent", "bot" and "unknown", as classified when the visitor was identified.',
+  },
+  device_type: {
+    label: 'Device type',
+    splits: 'Splits events into desktop, mobile and tablet.',
+  },
+  timezone: {
+    label: 'Time zone',
+    splits: 'Splits events by the browser time zone, e.g. Europe/Stockholm. A rough stand-in for region without IP lookup.',
+  },
+  referrer: {
+    label: 'Referrer',
+    splits: 'Splits events by the full referring URL. Usually many values; Traffic sources is easier to read.',
+  },
+};
+
 export function CustomDimensions({ siteId }: CustomDimensionsProps) {
   const { filters } = useDashboardFilters();
   const { data: dimensions = [] } = useCustomDimensionList(siteId);
@@ -71,9 +95,10 @@ export function CustomDimensions({ siteId }: CustomDimensionsProps) {
       <CardHeader>
         <CardTitle>Custom dimensions</CardTitle>
         <CardDescription>
-          Properties you send with <code>CortIQ.track()</code> are stored but not reported until you register
-          them here. Up to {MAX_CUSTOM_DIMENSIONS} per site. Identifiers such as visitor ID, URL and user agent
-          cannot be registered. Never send names, email addresses or other personal data as properties.
+          Split your events by a property. 1) Pick a property below: some are added by the tracking script
+          automatically, others are ones you send with <code>CortIQ.track()</code>. 2) Register it. 3) The table shows
+          events and sessions per value. Up to {MAX_CUSTOM_DIMENSIONS} per site. Identifiers such as visitor ID, URL and
+          user agent cannot be registered. Never send names, email addresses or other personal data as properties.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -107,14 +132,15 @@ export function CustomDimensions({ siteId }: CustomDimensionsProps) {
 
         {unregistered.length > 0 && !atLimit ? (
           <div className="flex flex-col gap-2 sm:flex-row">
-            <Select value={newKey} onValueChange={setNewKey}>
+            <Select value={newKey} onValueChange={(k) => { setNewKey(k); if (!newLabel || Object.values(BUILT_IN_PROPERTIES).some((b) => b.label === newLabel)) setNewLabel(BUILT_IN_PROPERTIES[k]?.label ?? ''); }}>
               <SelectTrigger className="sm:w-64">
                 <SelectValue placeholder="Property seen in events..." />
               </SelectTrigger>
               <SelectContent>
                 {unregistered.map((k) => (
                   <SelectItem key={k.key} value={k.key}>
-                    <span className="font-mono">{k.key}</span>
+                    {BUILT_IN_PROPERTIES[k.key] && <span className="mr-2">{BUILT_IN_PROPERTIES[k.key].label}</span>}
+                    <span className="font-mono text-xs">{k.key}</span>
                     <span className="ml-2 text-xs text-muted-foreground">{Number(k.events).toLocaleString()} events</span>
                   </SelectItem>
                 ))}
@@ -131,7 +157,11 @@ export function CustomDimensions({ siteId }: CustomDimensionsProps) {
               Register
             </Button>
           </div>
-        ) : !keysLoading && keys.length === 0 ? (
+        ) : null}
+        {newKey && BUILT_IN_PROPERTIES[newKey] && (
+          <p className="text-sm text-muted-foreground">{BUILT_IN_PROPERTIES[newKey].splits}</p>
+        )}
+        {unregistered.length > 0 && !atLimit ? null : !keysLoading && keys.length === 0 ? (
           <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground space-y-2">
             <p>No custom properties in events for this period. Send them as the third argument:</p>
             <pre className="overflow-x-auto rounded bg-muted p-2 text-xs"><code>{EXAMPLE}</code></pre>
@@ -143,7 +173,12 @@ export function CustomDimensions({ siteId }: CustomDimensionsProps) {
         {selected && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="font-medium">{selected.label}</h3>
+              <div>
+                <h3 className="font-medium">{selected.label}</h3>
+                <p className="text-sm text-muted-foreground">
+                  {BUILT_IN_PROPERTIES[selected.key]?.splits ?? <>Events split by the value of <code>{selected.key}</code>.</>}
+                </p>
+              </div>
               <ExportButton
                 config={{
                   reportType: 'custom-dimension',

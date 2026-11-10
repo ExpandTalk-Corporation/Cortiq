@@ -10,6 +10,8 @@ interface PageSelectorProps {
   selectedPage: string | null;
   onPageChange: (pageUrl: string) => void;
   placeholder?: string;
+  /** Pages supplied by the caller (e.g. pages with heatmap data). Skips the page-view lookup. */
+  pages?: { url: string; detail: string }[];
 }
 
 interface PageData {
@@ -18,17 +20,18 @@ interface PageData {
   unique_visitors: number;
 }
 
-export function PageSelector({ siteId, selectedPage, onPageChange, placeholder = "Select page to analyze" }: PageSelectorProps) {
+export function PageSelector({ siteId, selectedPage, onPageChange, placeholder = "Select page to analyze", pages: suppliedPages }: PageSelectorProps) {
   const [pages, setPages] = useState<PageData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customUrl, setCustomUrl] = useState('');
 
   useEffect(() => {
+    if (suppliedPages) return;
     if (siteId) {
       loadPages();
     }
-  }, [siteId]);
+  }, [siteId, suppliedPages]);
 
   const loadPages = async () => {
     setIsLoading(true);
@@ -117,13 +120,17 @@ export function PageSelector({ siteId, selectedPage, onPageChange, placeholder =
     );
   }
 
+  const options = suppliedPages
+    ? [{ page_url: 'custom-url', detail: '' }, ...suppliedPages.map((p) => ({ page_url: p.url, detail: p.detail }))]
+    : pages.map((p) => ({ page_url: p.page_url, detail: `${p.page_views} views` }));
+
   return (
     <Select value={selectedPage || ''} onValueChange={handleSelectChange} disabled={isLoading}>
       <SelectTrigger className="w-[300px]">
         <SelectValue placeholder={isLoading ? "Loading pages..." : placeholder} />
       </SelectTrigger>
       <SelectContent>
-        {pages.some(p => p.page_url === 'custom-url') && (
+        {options.some(p => p.page_url === 'custom-url') && (
           <SelectItem value="custom-url">
             <div className="flex items-center gap-2 min-w-0">
               <Plus className="h-4 w-4 flex-shrink-0" />
@@ -136,14 +143,14 @@ export function PageSelector({ siteId, selectedPage, onPageChange, placeholder =
             </div>
           </SelectItem>
         )}
-        {pages.filter(p => p.page_url !== 'custom-url').map((page) => (
+        {options.filter(p => p.page_url !== 'custom-url').map((page) => (
           <SelectItem key={page.page_url} value={page.page_url}>
             <div className="flex items-center gap-2 min-w-0">
               <Globe className="h-4 w-4 flex-shrink-0" />
               <div className="min-w-0">
                 <p className="font-medium truncate">{formatPageUrl(page.page_url)}</p>
                 <p className="text-xs text-muted-foreground">
-                  {page.page_views} views
+                  {page.detail}
                 </p>
               </div>
             </div>
