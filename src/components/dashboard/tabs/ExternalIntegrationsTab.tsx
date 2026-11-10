@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Globe, BarChart3, Info, TrendingUp, Target, Tag, Settings, CheckCircle } from 'lucide-react';
 import { GoogleAnalyticsIntegration } from '@/components/dashboard/GoogleAnalyticsIntegration';
 import { GoogleSearchConsoleSetup } from '@/components/dashboard/GoogleSearchConsoleSetup';
+import { GoogleAdsConnectCard } from '@/components/dashboard/GoogleAdsConnectCard';
 import { BrandKeywordsSettings } from '@/components/dashboard/BrandKeywordsSettings';
 import { BingWebmasterSetup } from '@/components/dashboard/BingWebmasterSetup';
 import { GoogleSiteKitIntegration } from '@/components/dashboard/GoogleSiteKitIntegration';
@@ -49,7 +50,7 @@ const integrationItems: IntegrationItem[] = [
   { key: 'mixpanel', name: 'Mixpanel', category: 'analytics', enabledField: 'mixpanel_enabled', configField: 'mixpanel_token', placeholder: 'Token', riskLevel: 'medium' },
 
   // Marketing
-  { key: 'google-ads', name: 'Google Ads Remarketing', category: 'marketing', enabledField: 'google_ads_enabled', configField: 'google_ads_conversion_id', placeholder: 'Conversion ID', secondaryConfigField: 'google_ads_developer_token', secondaryPlaceholder: 'Developer Token (for Enhanced Conversions)', riskLevel: 'high' },
+  { key: 'google-ads', name: 'Google Ads Remarketing', category: 'marketing', enabledField: 'google_ads_enabled', configField: 'google_ads_conversion_id', placeholder: 'Conversion ID', description: 'Remarketing tag only. Reports, click fraud and Enhanced Conversions use the Google Ads connection above.', riskLevel: 'high' },
   { key: 'facebook', name: 'Facebook/Instagram Pixel', category: 'marketing', enabledField: 'facebook_pixel_enabled', configField: 'facebook_pixel_id', placeholder: 'Pixel ID', secondaryConfigField: 'facebook_conversion_api_token', secondaryPlaceholder: 'Conversions API Access Token', riskLevel: 'high' },
   { key: 'tiktok', name: 'TikTok Pixel', category: 'marketing', enabledField: 'tiktok_pixel_enabled', configField: 'tiktok_pixel_id', placeholder: 'C9XXXXXXXXXXXXX', secondaryConfigField: 'tiktok_events_api_token', secondaryPlaceholder: 'Events API Access Token', highRisk: true, riskLevel: 'high' },
   { key: 'linkedin', name: 'LinkedIn Insight', category: 'marketing', enabledField: 'linkedin_insight_enabled', configField: 'linkedin_partner_id', placeholder: 'Partner ID', secondaryConfigField: 'linkedin_conversion_api_token', secondaryPlaceholder: 'Conversions API Access Token', riskLevel: 'medium' },
@@ -285,10 +286,11 @@ export function ExternalIntegrationsTab({ selectedSite }: ExternalIntegrationsTa
         </p>
       </div>
 
-      {/* Search Console first: it feeds Acquisition → Google Search, Zero-click risk and GEO. */}
+      {/* Search Console first: it feeds Acquisition → Google Search, Zero-click risk and GEO. Google Ads feeds Click fraud and Paid ads. */}
       <div className="space-y-4">
         <GoogleSearchConsoleSetup selectedSite={selectedSite} />
         <BrandKeywordsSettings selectedSite={selectedSite} />
+        <GoogleAdsConnectCard siteId={selectedSite.id} />
       </div>
 
       {/* Important Notice */}

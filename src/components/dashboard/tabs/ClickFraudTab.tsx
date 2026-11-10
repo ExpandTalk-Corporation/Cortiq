@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ShieldAlert, ShieldCheck, Bot, Zap, Clock, AlertTriangle, DollarSign } from 'lucide-react';
+import { ShieldAlert, ShieldCheck, AlertTriangle, DollarSign, ExternalLink, Info, FileText } from 'lucide-react';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
-import { GoogleAdsApiSetup } from '@/components/dashboard/GoogleAdsApiSetup';
+import { GoogleAdsConnectHint } from '@/components/dashboard/GoogleAdsConnectCard';
 import { useAcquisitionReadiness } from '@/hooks/useAcquisitionReadiness';
 import { SetupChecklist } from '../setup/SetupChecklist';
 import { googleAdsApiStep, paidMediumStep, trackingStep } from '../setup/acquisitionSteps';
@@ -21,72 +22,156 @@ interface ClickFraudTabProps {
   onNavigate?: (tab: string) => void;
 }
 
-interface Summary {
-  total_paid_sessions: number;
-  estimated_fraud_sessions: number;
-  estimated_fraud_rate: number;
-  total_campaigns_analyzed: number;
-  bot_confirmed_sessions: number;
-  zombie_sessions: number;
-}
+// Mirrors supabase/functions/click-fraud-analysis (scores from _shared/click-fraud-score.ts).
+type Level = 'low' | 'elevated' | 'high';
+type Confidence = 'low' | 'medium' | 'high';
 
-interface Campaign {
-  campaign: string;
-  source: string;
-  medium: string;
-  total_sessions: number;
-  bot_sessions: number;
-  zombie_sessions: number;
-  suspicious_hour_sessions: number;
-  fraud_rate: number;
-  avg_fraud_score: number;
-  risk_level: 'high' | 'medium' | 'low';
-  ga_clicks: number | null;
-  ga_invalid_clicks: number | null;
-  ga_invalid_click_rate: number | null;
-  ga_cost_micros: number | null;
-}
-
-interface HourBucket {
-  hour: number;
+interface Signal {
+  key: string;
+  label: string;
   count: number;
-  suspicious: boolean;
+  rate: number;
+  points: number;
+  max_points: number;
+  reason: string;
+  action?: string;
 }
 
-interface SuspiciousSession {
-  session_id: string;
+interface Scored {
+  score: number;
+  level: Level;
+  confidence: Confidence;
+  signals: Signal[];
+}
+
+interface Counts {
+  paid_sessions: number;
+  bot_sessions: number;
+  reused_click_sessions: number;
+  burst_sessions: number;
+  zero_engagement_sessions: number;
+  conversions: number;
+}
+
+interface AdsCounts {
+  clicks: number;
+  invalid_clicks: number;
+  cost: number;
+}
+
+interface Day extends Counts, Scored {
+  date: string;
+  ads: AdsCounts | null;
+}
+
+interface Campaign extends Counts, Scored {
   campaign: string;
-  duration_seconds: number;
-  page_views: number;
-  device_type: string;
-  is_bot_confirmed: boolean;
-  is_zombie: boolean;
-  bot_type?: string;
-  fraud_score: number;
+  sources: string[];
+  ads: (AdsCounts & { id: string; name: string; conversions: number; targeted_countries: string[] }) | null;
 }
 
-const riskColor = {
-  high: 'destructive' as const,
-  medium: 'secondary' as const,
-  low: 'outline' as const,
+interface Placement extends Counts, Scored {
+  campaign: string;
+  placement: string;
+}
+
+interface ExclusionCandidate {
+  campaign: string;
+  placement: string;
+  display_name?: string | null;
+  type?: string | null;
+  clicks: number;
+  cost: number;
+  conversions: number;
+  reason: string;
+}
+
+interface UnmatchedCampaign extends AdsCounts {
+  id: string;
+  name: string;
+  conversions: number;
+}
+
+interface FraudResponse {
+  success: true;
+  from: string;
+  to: string;
+  summary: {
+    total_paid_sessions: number;
+    total_campaigns_analyzed: number;
+    bot_confirmed_sessions: number;
+    zombie_sessions: number;
+    reused_click_sessions: number;
+    burst_sessions: number;
+    conversions: number;
+    with_click_id: number;
+    score: number;
+    level: Level;
+    confidence: Confidence;
+  };
+  signals: Signal[];
+  days: Day[];
+  campaigns: Campaign[];
+  placements: Placement[];
+  time_distribution: { hour: number; count: number }[];
+  devices: Record<string, number>;
+  ads: {
+    connected: boolean;
+    code: string | null;
+    message: string | null;
+    currency: string | null;
+    totals: AdsCounts | null;
+    unmatched_campaigns: UnmatchedCampaign[];
+    exclusion_candidates: ExclusionCandidate[];
+    errors: string[];
+  };
+  refund_guidance: {
+    recommended: boolean;
+    form_url: string;
+    help_url: string;
+    steps: string[];
+    evidence: string[];
+  };
+  caveats: string[];
+}
+
+const LEVEL_BADGE: Record<Level, { label: string; variant: 'destructive' | 'secondary' | 'outline' }> = {
+  high: { label: 'High', variant: 'destructive' },
+  elevated: { label: 'Elevated', variant: 'secondary' },
+  low: { label: 'Low', variant: 'outline' },
 };
 
-const riskLabel = {
-  high: 'High risk',
-  medium: 'Medium risk',
-  low: 'Low risk',
-};
+const levelColor = (l: Level) => (l === 'high' ? 'text-destructive' : l === 'elevated' ? 'text-yellow-600' : 'text-green-600');
+const barColor = (score: number) => (score >= 60 ? 'hsl(var(--destructive))' : score >= 30 ? '#eab308' : 'hsl(var(--primary))');
+const pct = (r: number) => `${Math.round(r * 1000) / 10}%`;
+const num = (n: number | null | undefined) => (n ?? 0).toLocaleString('en-US');
+const money = (n: number | null | undefined, currency: string | null) =>
+  `${(n ?? 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}${currency ? ` ${currency}` : ''}`;
+
+function LevelBadge({ level, score }: { level: Level; score?: number }) {
+  const b = LEVEL_BADGE[level];
+  return <Badge variant={b.variant}>{score !== undefined ? `${score} · ` : ''}{b.label}</Badge>;
+}
+
+/** Signals with points, short form for table cells. */
+function SignalChips({ signals }: { signals: Signal[] }) {
+  const active = signals.filter((s) => s.points > 0);
+  if (active.length === 0) return <span className="text-muted-foreground">—</span>;
+  return (
+    <div className="flex flex-wrap gap-1">
+      {active.map((s) => (
+        <Badge key={s.key} variant="outline" className="text-xs" title={s.reason}>
+          {s.label} +{s.points}
+        </Badge>
+      ))}
+    </div>
+  );
+}
 
 export function ClickFraudTab({ selectedSite, startDate, endDate, onNavigate }: ClickFraudTabProps) {
   const [loading, setLoading] = useState(false);
-  const [summary, setSummary] = useState<Summary | null>(null);
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [timeDistribution, setTimeDistribution] = useState<HourBucket[]>([]);
-  const [suspiciousSessions, setSuspiciousSessions] = useState<SuspiciousSession[]>([]);
+  const [data, setData] = useState<FraudResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
-  const [googleAdsConnected, setGoogleAdsConnected] = useState(false);
-  const [runCount, setRunCount] = useState(0);
   // ROI calculator state. Hooks stay above the early returns below (rules of hooks).
   const [monthlySpend, setMonthlySpend] = useState('');
   const [cpc, setCpc] = useState('');
@@ -94,39 +179,36 @@ export function ClickFraudTab({ selectedSite, startDate, endDate, onNavigate }: 
 
   useEffect(() => {
     if (!selectedSite) return;
+    let cancelled = false;
 
     const run = async () => {
       setLoading(true);
       setError(null);
-      setMessage(null);
-
-      const { data, error: fnError } = await supabase.functions.invoke('click-fraud-analysis', {
+      const { data: res, error: fnError } = await supabase.functions.invoke('click-fraud-analysis', {
         body: { siteId: selectedSite, startDate, endDate },
       });
-
-
+      if (cancelled) return;
       setLoading(false);
 
       if (fnError) {
-        setError('Could not fetch fraud analysis: ' + fnError.message);
+        let message = fnError.message;
+        try {
+          const payload = await (fnError as any).context?.json?.();
+          if (payload?.error) message = payload.error;
+        } catch { /* keep the generic message */ }
+        setError(message);
         return;
       }
-
-      if (!data?.success) {
-        setError(data?.error ?? 'Unknown error');
+      if (!res?.success) {
+        setError(res?.error ?? 'Unknown error');
         return;
       }
-
-      setSummary(data.summary);
-      setCampaigns(data.campaigns ?? []);
-      setTimeDistribution(data.time_distribution ?? []);
-      setSuspiciousSessions(data.suspicious_sessions ?? []);
-      setGoogleAdsConnected(!!data.google_ads_connected);
-      if (data.message) setMessage(data.message);
+      setData(res as FraudResponse);
     };
 
     run();
-  }, [selectedSite, startDate, endDate, runCount]);
+    return () => { cancelled = true; };
+  }, [selectedSite, startDate, endDate]);
 
   if (!selectedSite) {
     return (
@@ -154,14 +236,30 @@ export function ClickFraudTab({ selectedSite, startDate, endDate, onNavigate }: 
     );
   }
 
-  if (message || !summary) {
+  if (!data) return null;
+
+  const { summary, ads } = data;
+  const adsClicks = ads.totals?.clicks ?? 0;
+  const adsHint = !ads.connected && (
+    <GoogleAdsConnectHint onNavigate={onNavigate}>
+      {ads.code === 'not_configured'
+        ? 'Google Ads is not set up on this CortIQ instance yet (developer token missing). Scores below use CortIQ sessions only.'
+        : ads.code === 'no_customer'
+          ? 'Google Ads is connected but no account is picked for this site. Pick one under Settings → Integrations → Google Ads.'
+          : ads.code === 'token'
+            ? 'Google Ads credentials need attention. Reconnect under Settings → Integrations → Google Ads.'
+            : 'Connect Google Ads under Settings → Integrations → Google Ads to compare billed clicks with tracked sessions, see Google\'s invalid clicks, placements and location targets.'}
+    </GoogleAdsConnectHint>
+  );
+
+  if (summary.total_paid_sessions === 0 && adsClicks === 0) {
     return (
       <div className="space-y-6">
         <Alert>
           <ShieldCheck className="h-4 w-4" />
           <AlertDescription>
             No ad visits in the selected period, so there is nothing to analyse. Click fraud is estimated from the behaviour of
-            visits whose landing link has a paid utm_medium.
+            visits whose landing link has a paid utm_medium or a click id (gclid, msclkid, ...).
           </AlertDescription>
         </Alert>
         {readiness && (
@@ -171,150 +269,172 @@ export function ClickFraudTab({ selectedSite, startDate, endDate, onNavigate }: 
             onNavigate={onNavigate}
           />
         )}
-        <GoogleAdsApiSetup
-          siteId={selectedSite}
-          onConfigured={() => setRunCount(n => n + 1)}
-        />
+        {adsHint}
       </div>
     );
   }
 
-  const fraudPercent = summary.estimated_fraud_rate;
-  const fraudRisk = fraudPercent > 15 ? 'high' : fraudPercent > 7 ? 'medium' : 'low';
-  const hasGaColumns = campaigns.some(c => c.ga_invalid_clicks !== null);
-
+  // Waste estimate: share of paid sessions with a hard signal (automation or a reused click id).
+  // Zero-engagement visits are left out on purpose: many are real people who bounced.
+  const hardShare = summary.total_paid_sessions > 0
+    ? Math.min(1, (summary.bot_confirmed_sessions + summary.reused_click_sessions) / summary.total_paid_sessions)
+    : 0;
+  const googleInvalidShare = ads.totals && ads.totals.clicks > 0 ? ads.totals.invalid_clicks / ads.totals.clicks : 0;
   const roiSpend = parseFloat(monthlySpend) || 0;
   const roiCpc = parseFloat(cpc) || 0;
   const estimatedClicks = roiCpc > 0 ? Math.round(roiSpend / roiCpc) : 0;
-  const wastedClicks = Math.round(estimatedClicks * (fraudPercent / 100));
+  const wastedClicks = Math.round(estimatedClicks * hardShare);
   const wastedBudget = Math.round(wastedClicks * roiCpc);
-  const annualWaste = wastedBudget * 12;
+
+  const activeSignals = data.signals.filter((s) => s.points > 0 || s.key === 'google_invalid');
+  const hasAdsColumns = data.campaigns.some((c) => c.ads);
 
   return (
     <div className="space-y-6">
+      {adsHint}
+      {ads.connected && ads.errors.length > 0 && (
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription className="text-sm">
+            Some Google Ads reports could not be loaded: {ads.errors.join('; ')}
+          </AlertDescription>
+        </Alert>
+      )}
 
-      {/* ROI Calculator */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <DollarSign className="h-4 w-4 text-primary" />
-            Wasted budget calculator
-          </CardTitle>
-          <CardDescription>
-            Enter your monthly ad spend and average CPC to estimate what click fraud is costing you.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="monthly-spend">Monthly ad spend</Label>
-              <Input
-                id="monthly-spend"
-                type="number"
-                placeholder="e.g. 50000"
-                value={monthlySpend}
-                onChange={e => setMonthlySpend(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="cpc">Avg. cost per click (CPC)</Label>
-              <Input
-                id="cpc"
-                type="number"
-                placeholder="e.g. 12"
-                value={cpc}
-                onChange={e => setCpc(e.target.value)}
-              />
-            </div>
-          </div>
-          {roiSpend > 0 && roiCpc > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="border rounded-lg p-3 text-center bg-muted/30">
-                <p className="text-lg font-bold">{estimatedClicks.toLocaleString('sv-SE')}</p>
-                <p className="text-xs text-muted-foreground">Estimated clicks/mo</p>
-              </div>
-              <div className="border rounded-lg p-3 text-center bg-destructive/5 border-destructive/20">
-                <p className="text-lg font-bold text-destructive">{wastedClicks.toLocaleString('sv-SE')}</p>
-                <p className="text-xs text-muted-foreground">Fraudulent clicks/mo</p>
-              </div>
-              <div className="border rounded-lg p-3 text-center bg-destructive/5 border-destructive/20">
-                <p className="text-lg font-bold text-destructive">{wastedBudget.toLocaleString('sv-SE')}</p>
-                <p className="text-xs text-muted-foreground">Wasted budget/mo</p>
-              </div>
-              <div className="border rounded-lg p-3 text-center bg-destructive/10 border-destructive/30">
-                <p className="text-lg font-bold text-destructive">{annualWaste.toLocaleString('sv-SE')}</p>
-                <p className="text-xs text-muted-foreground">Annual waste</p>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Google Ads API setup */}
-      <GoogleAdsApiSetup
-        siteId={selectedSite}
-        onConfigured={() => setRunCount(n => n + 1)}
-      />
-
-      {/* Summary cards */}
+      {/* Summary */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
-          <CardContent className="p-6 flex flex-col items-center text-center gap-3">
-            <ShieldAlert className={`h-10 w-10 ${fraudRisk === 'high' ? 'text-destructive' : fraudRisk === 'medium' ? 'text-yellow-500' : 'text-green-500'}`} />
-            <div>
-              <p className="text-2xl font-bold">{summary.estimated_fraud_rate}%</p>
-              <p className="text-sm text-muted-foreground">Estimated fraud rate</p>
-              <Badge variant={riskColor[fraudRisk]} className="mt-1 text-xs">
-                {riskLabel[fraudRisk]}
-              </Badge>
+          <CardContent className="p-6 flex flex-col items-center text-center gap-2">
+            <ShieldAlert className={`h-10 w-10 ${levelColor(summary.level)}`} />
+            <p className="text-3xl font-bold">{summary.score}<span className="text-base text-muted-foreground">/100</span></p>
+            <p className="text-sm text-muted-foreground">Invalid traffic score</p>
+            <div className="flex gap-1">
+              <LevelBadge level={summary.level} />
+              <Badge variant="outline" className="text-xs">{summary.confidence} confidence</Badge>
             </div>
           </CardContent>
         </Card>
-
         <Card>
-          <CardContent className="p-6 flex flex-col items-center text-center gap-3">
-            <Bot className="h-10 w-10 text-primary" />
-            <div>
-              <p className="text-2xl font-bold">{summary.bot_confirmed_sessions}</p>
-              <p className="text-sm text-muted-foreground">Bot-confirmed clicks</p>
-              <p className="text-xs text-muted-foreground mt-1">Webdriver / Headless</p>
-            </div>
+          <CardContent className="p-6 text-center space-y-1">
+            <p className="text-2xl font-bold">{num(summary.total_paid_sessions)}</p>
+            <p className="text-sm text-muted-foreground">Paid sessions</p>
+            <p className="text-xs text-muted-foreground">
+              {summary.total_campaigns_analyzed} campaigns · {num(summary.with_click_id)} with click id · {num(summary.conversions)} conversions
+            </p>
           </CardContent>
         </Card>
-
         <Card>
-          <CardContent className="p-6 flex flex-col items-center text-center gap-3">
-            <Zap className="h-10 w-10 text-yellow-500" />
-            <div>
-              <p className="text-2xl font-bold">{summary.zombie_sessions}</p>
-              <p className="text-sm text-muted-foreground">Zombie-sessions</p>
-              <p className="text-xs text-muted-foreground mt-1">&lt;5s + 1 page view</p>
-            </div>
+          <CardContent className="p-6 text-center space-y-1">
+            <p className="text-2xl font-bold text-destructive">{num(summary.bot_confirmed_sessions + summary.reused_click_sessions)}</p>
+            <p className="text-sm text-muted-foreground">Hard signals</p>
+            <p className="text-xs text-muted-foreground">
+              {num(summary.bot_confirmed_sessions)} automated · {num(summary.reused_click_sessions)} reused click ids · {num(summary.burst_sessions)} in bursts
+            </p>
           </CardContent>
         </Card>
-
         <Card>
-          <CardContent className="p-6 flex flex-col items-center text-center gap-3">
-            <ShieldCheck className="h-10 w-10 text-muted-foreground" />
-            <div>
-              <p className="text-2xl font-bold">{summary.total_paid_sessions}</p>
-              <p className="text-sm text-muted-foreground">Total paid sessions</p>
-              <p className="text-xs text-muted-foreground mt-1">{summary.total_campaigns_analyzed} campaigns</p>
-              {googleAdsConnected && (
-                <Badge variant="outline" className="mt-1 text-xs border-blue-500 text-blue-500">+ Google Ads API</Badge>
-              )}
-            </div>
+          <CardContent className="p-6 text-center space-y-1">
+            {ads.connected && ads.totals ? (
+              <>
+                <p className="text-2xl font-bold">{num(ads.totals.clicks)}</p>
+                <p className="text-sm text-muted-foreground">Google Ads clicks</p>
+                <p className="text-xs text-muted-foreground">
+                  {num(ads.totals.invalid_clicks)} invalid per Google ({pct(googleInvalidShare)}) · {money(ads.totals.cost, ads.currency)}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-2xl font-bold">{num(summary.zombie_sessions)}</p>
+                <p className="text-sm text-muted-foreground">Zero-engagement sessions</p>
+                <p className="text-xs text-muted-foreground">One page view, no click, scroll or form</p>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Campaign risk table */}
-      {campaigns.length > 0 && (
+      {/* Signals */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Why this score</CardTitle>
+          <CardDescription>Each signal adds up to its weight. Hover a chip in the tables below for the same reasons per day or campaign.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {activeSignals.length === 0 ? (
+            <p className="text-sm text-muted-foreground flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-green-600" /> No signal crossed its threshold in this period.
+            </p>
+          ) : activeSignals.map((s) => (
+            <div key={s.key} className="border rounded-lg p-3 space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-medium text-sm">{s.label}</span>
+                <Badge variant={s.points > 0 ? 'secondary' : 'outline'} className="text-xs shrink-0">
+                  {s.key === 'google_invalid' ? 'info' : `+${s.points} / ${s.max_points}`}
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">{s.reason}</p>
+              {s.action && <p className="text-sm"><span className="font-medium">Do: </span>{s.action}</p>}
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* Per day */}
+      {data.days.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Fraud risk per campaign</CardTitle>
+            <CardTitle className="text-base">Score per day</CardTitle>
+            <CardDescription>Yellow ≥ 30 (elevated), red ≥ 60 (high). Days with Ads clicks but no tracked session are included.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={data.days} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="date" tickFormatter={(d: string) => d.slice(5)} tick={{ fontSize: 11 }} />
+                <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
+                <Tooltip formatter={(v) => [v, 'Score']} />
+                <Bar dataKey="score" radius={[3, 3, 0, 0]}>
+                  {data.days.map((d) => <Cell key={d.date} fill={barColor(d.score)} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+            {data.days.some((d) => d.score >= 30) && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-muted-foreground">
+                      <th className="text-left p-2">Date</th>
+                      <th className="text-right p-2">Sessions</th>
+                      {ads.connected && <th className="text-right p-2">Ads clicks</th>}
+                      <th className="text-left p-2">Signals</th>
+                      <th className="text-right p-2">Score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.days.filter((d) => d.score >= 30).sort((a, b) => b.score - a.score).slice(0, 14).map((d) => (
+                      <tr key={d.date} className="border-b">
+                        <td className="p-2 font-mono text-xs">{d.date}</td>
+                        <td className="text-right p-2">{num(d.paid_sessions)}</td>
+                        {ads.connected && <td className="text-right p-2">{d.ads ? num(d.ads.clicks) : '—'}</td>}
+                        <td className="p-2"><SignalChips signals={d.signals} /></td>
+                        <td className="text-right p-2"><LevelBadge level={d.level} score={d.score} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Per campaign */}
+      {data.campaigns.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Score per campaign</CardTitle>
             <CardDescription>
-              Ranked by average fraud score. Bot-confirmed clicks count fully, zombie sessions count half.
+              Campaigns come from utm_campaign. With Google Ads connected they are matched to Ads campaigns by name or id.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -322,44 +442,36 @@ export function ClickFraudTab({ selectedSite, startDate, endDate, onNavigate }: 
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-muted-foreground">
-                    <th className="text-left p-3">Campaign</th>
-                    <th className="text-right p-3">Sessions</th>
-                    <th className="text-right p-3">Bots</th>
-                    <th className="text-right p-3">Zombies</th>
-                    <th className="text-right p-3">Our fraud rate</th>
-                    {hasGaColumns && <>
-                      <th className="text-right p-3 text-blue-500">GA Invalid Clicks</th>
-                      <th className="text-right p-3 text-blue-500">GA Invalid Rate</th>
+                    <th className="text-left p-2">Campaign</th>
+                    <th className="text-right p-2">Sessions</th>
+                    <th className="text-right p-2">Conv.</th>
+                    {hasAdsColumns && <>
+                      <th className="text-right p-2">Ads clicks</th>
+                      <th className="text-right p-2">Invalid (Google)</th>
                     </>}
-                    <th className="text-right p-3">Risk</th>
+                    <th className="text-left p-2">Signals</th>
+                    <th className="text-right p-2">Score</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {campaigns.map((c, i) => (
-                    <tr key={i} className="border-b hover:bg-muted/40">
-                      <td className="p-3">
+                  {data.campaigns.map((c) => (
+                    <tr key={c.campaign} className="border-b hover:bg-muted/40 align-top">
+                      <td className="p-2">
                         <div className="font-medium">{c.campaign}</div>
-                        <div className="text-xs text-muted-foreground">{c.source} / {c.medium}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {c.sources.join(', ')}{c.ads ? ` · Ads id ${c.ads.id}` : ''}
+                        </div>
                       </td>
-                      <td className="text-right p-3">{c.total_sessions}</td>
-                      <td className="text-right p-3 text-destructive font-medium">{c.bot_sessions}</td>
-                      <td className="text-right p-3 text-yellow-600 font-medium">{c.zombie_sessions}</td>
-                      <td className="text-right p-3">{c.fraud_rate}%</td>
-                      {hasGaColumns && <>
-                        <td className="text-right p-3 font-medium">
-                          {c.ga_invalid_clicks !== null ? c.ga_invalid_clicks.toLocaleString('sv-SE') : '—'}
-                        </td>
-                        <td className="text-right p-3">
-                          {c.ga_invalid_click_rate !== null ? (
-                            <Badge variant={c.ga_invalid_click_rate > 10 ? 'destructive' : c.ga_invalid_click_rate > 5 ? 'secondary' : 'outline'}>
-                              {c.ga_invalid_click_rate}%
-                            </Badge>
-                          ) : '—'}
+                      <td className="text-right p-2">{num(c.paid_sessions)}</td>
+                      <td className="text-right p-2">{num(c.conversions)}</td>
+                      {hasAdsColumns && <>
+                        <td className="text-right p-2">{c.ads ? num(c.ads.clicks) : '—'}</td>
+                        <td className="text-right p-2">
+                          {c.ads ? `${num(c.ads.invalid_clicks)}${c.ads.clicks > 0 ? ` (${pct(c.ads.invalid_clicks / c.ads.clicks)})` : ''}` : '—'}
                         </td>
                       </>}
-                      <td className="text-right p-3">
-                        <Badge variant={riskColor[c.risk_level]}>{riskLabel[c.risk_level]}</Badge>
-                      </td>
+                      <td className="p-2"><SignalChips signals={c.signals} /></td>
+                      <td className="text-right p-2"><LevelBadge level={c.level} score={c.score} /></td>
                     </tr>
                   ))}
                 </tbody>
@@ -369,103 +481,209 @@ export function ClickFraudTab({ selectedSite, startDate, endDate, onNavigate }: 
         </Card>
       )}
 
-      {/* Time of day chart */}
-      {timeDistribution.length > 0 && (
+      {/* Ads campaigns without utm_campaign */}
+      {ads.unmatched_campaigns.length > 0 && (
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertDescription className="text-sm space-y-1">
+            <p>
+              {ads.unmatched_campaigns.length} Google Ads {ads.unmatched_campaigns.length === 1 ? 'campaign has' : 'campaigns have'} clicks
+              but no matching utm_campaign in CortIQ: {ads.unmatched_campaigns.slice(0, 5).map((c) => `${c.name} (${num(c.clicks)} clicks)`).join(', ')}
+              {ads.unmatched_campaigns.length > 5 ? ', ...' : ''}.
+            </p>
+            <p>
+              Add <code className="text-xs">utm_campaign={'{campaignid}'}</code> or the campaign name to the account's final URL suffix
+              (Google Ads → Admin → Account settings → Tracking) so clicks and sessions can be compared.
+            </p>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Placements */}
+      {(ads.exclusion_candidates.length > 0 || data.placements.length > 0) && (
         <Card>
           <CardHeader>
-            <CardTitle>Clicks per hour (UTC)</CardTitle>
+            <CardTitle className="text-base">Suspicious placements</CardTitle>
             <CardDescription>
-              Red bars = suspicious activity (hours 01–05 with unusually high traffic)
+              Candidates to exclude in Google Ads → Content → Exclusions (Display, Video and Performance Max placements).
             </CardDescription>
           </CardHeader>
+          <CardContent className="space-y-6">
+            {ads.exclusion_candidates.length > 0 && (
+              <div className="overflow-x-auto">
+                <p className="text-sm font-medium mb-2">From Google Ads</p>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-muted-foreground">
+                      <th className="text-left p-2">Placement</th>
+                      <th className="text-left p-2">Campaign</th>
+                      <th className="text-right p-2">Clicks</th>
+                      <th className="text-right p-2">Cost</th>
+                      <th className="text-left p-2">Why</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ads.exclusion_candidates.map((p) => (
+                      <tr key={`${p.campaign}|${p.placement}`} className="border-b align-top">
+                        <td className="p-2">
+                          <div className="font-mono text-xs break-all">{p.placement}</div>
+                          {p.display_name && p.display_name !== p.placement && <div className="text-xs text-muted-foreground">{p.display_name}</div>}
+                        </td>
+                        <td className="p-2">{p.campaign}</td>
+                        <td className="text-right p-2">{num(p.clicks)}</td>
+                        <td className="text-right p-2">{money(p.cost, ads.currency)}</td>
+                        <td className="p-2 text-muted-foreground">{p.reason}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {data.placements.length > 0 && (
+              <div className="overflow-x-auto">
+                <p className="text-sm font-medium mb-2">From CortIQ sessions (utm_content / utm_term)</p>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-muted-foreground">
+                      <th className="text-left p-2">Placement</th>
+                      <th className="text-left p-2">Campaign</th>
+                      <th className="text-right p-2">Sessions</th>
+                      <th className="text-left p-2">Signals</th>
+                      <th className="text-right p-2">Score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.placements.map((p) => (
+                      <tr key={`${p.campaign}|${p.placement}`} className="border-b align-top">
+                        <td className="p-2 font-mono text-xs break-all">{p.placement}</td>
+                        <td className="p-2">{p.campaign}</td>
+                        <td className="text-right p-2">{num(p.paid_sessions)}</td>
+                        <td className="p-2"><SignalChips signals={p.signals} /></td>
+                        <td className="text-right p-2"><LevelBadge level={p.level} score={p.score} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Refund guidance */}
+      <Card className={data.refund_guidance.recommended ? 'border-destructive/40' : undefined}>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Ask Google for a refund
+          </CardTitle>
+          <CardDescription>
+            {data.refund_guidance.recommended
+              ? 'Some campaigns score elevated or high. Google reviews invalid-click reports and credits clicks it confirms as invalid.'
+              : 'No campaign scores elevated in this period. Google already credits most invalid clicks automatically.'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 text-sm">
+          <ol className="list-decimal pl-5 space-y-1">
+            {data.refund_guidance.steps.map((s, i) => <li key={i}>{s}</li>)}
+          </ol>
+          {data.refund_guidance.evidence.length > 0 && (
+            <div>
+              <p className="font-medium mb-1">Evidence to paste into the form</p>
+              <pre className="whitespace-pre-wrap text-xs bg-muted/50 rounded p-3">{data.refund_guidance.evidence.join('\n')}</pre>
+            </div>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="sm" variant={data.refund_guidance.recommended ? 'default' : 'outline'}>
+              <a href={data.refund_guidance.form_url} target="_blank" rel="noopener noreferrer">
+                Invalid click form <ExternalLink className="h-3.5 w-3.5 ml-1.5" />
+              </a>
+            </Button>
+            <Button asChild size="sm" variant="ghost">
+              <a href={data.refund_guidance.help_url} target="_blank" rel="noopener noreferrer">
+                How Google handles invalid clicks <ExternalLink className="h-3.5 w-3.5 ml-1.5" />
+              </a>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Hours */}
+      {data.time_distribution.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Paid sessions per hour (UTC)</CardTitle>
+            <CardDescription>Sharp peaks at night local time often come from scheduled bots.</CardDescription>
+          </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={timeDistribution} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={data.time_distribution} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="hour" tickFormatter={h => `${h}:00`} tick={{ fontSize: 11 }} />
+                <XAxis dataKey="hour" tickFormatter={(h) => `${h}:00`} tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip
-                  labelFormatter={h => `${h}:00 UTC`}
-                  formatter={(v) => [v, 'Sessions']}
-                />
-                <Bar dataKey="count" radius={[3, 3, 0, 0]}>
-                  {timeDistribution.map((entry, i) => (
-                    <Cell key={i} fill={entry.suspicious ? 'hsl(var(--destructive))' : 'hsl(var(--primary))'} />
-                  ))}
-                </Bar>
+                <Tooltip labelFormatter={(h) => `${h}:00 UTC`} formatter={(v) => [v, 'Sessions']} />
+                <Bar dataKey="count" radius={[3, 3, 0, 0]} fill="hsl(var(--primary))" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
       )}
 
-      {/* Suspicious sessions */}
-      {suspiciousSessions.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Suspicious sessions</CardTitle>
-            <CardDescription>Sessions with fraud score ≥ 40 (bot-detected or zombie sessions)</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-muted-foreground">
-                    <th className="text-left p-3">Session</th>
-                    <th className="text-left p-3">Campaign</th>
-                    <th className="text-right p-3">Duration</th>
-                    <th className="text-right p-3">Pages</th>
-                    <th className="text-right p-3">Device</th>
-                    <th className="text-right p-3">Signal</th>
-                    <th className="text-right p-3">Score</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {suspiciousSessions.map((s, i) => (
-                    <tr key={i} className="border-b hover:bg-muted/40">
-                      <td className="p-3 font-mono text-xs text-muted-foreground">{s.session_id}</td>
-                      <td className="p-3">{s.campaign}</td>
-                      <td className="text-right p-3">{s.duration_seconds}s</td>
-                      <td className="text-right p-3">{s.page_views}</td>
-                      <td className="text-right p-3">{s.device_type}</td>
-                      <td className="text-right p-3">
-                        {s.is_bot_confirmed && (
-                          <Badge variant="destructive" className="text-xs mr-1">
-                            {s.bot_type ?? 'Bot'}
-                          </Badge>
-                        )}
-                        {s.is_zombie && (
-                          <Badge variant="secondary" className="text-xs">Zombie</Badge>
-                        )}
-                      </td>
-                      <td className="text-right p-3">
-                        <span className={s.fraud_score >= 70 ? 'text-destructive font-bold' : s.fraud_score >= 40 ? 'text-yellow-600 font-medium' : ''}>
-                          {s.fraud_score}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Info card */}
-      <Card className="border-dashed">
+      {/* ROI calculator */}
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Clock className="h-4 w-4" />
-            How the fraud score is calculated
+            <DollarSign className="h-4 w-4 text-primary" />
+            Wasted budget estimate
           </CardTitle>
+          <CardDescription>
+            Uses the share of paid sessions with a hard signal (automation or a reused click id): {pct(hardShare)}.
+            Zero-engagement visits are not counted as waste.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="text-sm text-muted-foreground space-y-2">
-          <p><span className="font-medium text-foreground">Bot confirmed (+60p):</span> Session matches your own bot signals (same session_id appears in AI bot tracker with webdriver/headless)</p>
-          <p><span className="font-medium text-foreground">Webdriver (+20p):</span> Probe signal detected automation tools</p>
-          <p><span className="font-medium text-foreground">Headless browser (+10p):</span> No visible browser window</p>
-          <p><span className="font-medium text-foreground">Zombie session (+30p):</span> Duration under 5 seconds and only 1 page view</p>
-          <p className="pt-2 border-t">Sessions with score ≥ 40 are counted as suspicious. Fraud rate is based on (bot sessions + zombie sessions × 0.5) / total paid sessions. Google Ads invalid click data (via Google Ads API) can be added in the next iteration.</p>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="monthly-spend">Monthly ad spend</Label>
+              <Input id="monthly-spend" type="number" placeholder="e.g. 50000" value={monthlySpend} onChange={(e) => setMonthlySpend(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="cpc">Avg. cost per click (CPC)</Label>
+              <Input id="cpc" type="number" placeholder="e.g. 12" value={cpc} onChange={(e) => setCpc(e.target.value)} />
+            </div>
+          </div>
+          {roiSpend > 0 && roiCpc > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="border rounded-lg p-3 text-center bg-muted/30">
+                <p className="text-lg font-bold">{num(estimatedClicks)}</p>
+                <p className="text-xs text-muted-foreground">Clicks/mo</p>
+              </div>
+              <div className="border rounded-lg p-3 text-center bg-destructive/5 border-destructive/20">
+                <p className="text-lg font-bold text-destructive">{num(wastedClicks)}</p>
+                <p className="text-xs text-muted-foreground">Likely invalid clicks/mo</p>
+              </div>
+              <div className="border rounded-lg p-3 text-center bg-destructive/5 border-destructive/20">
+                <p className="text-lg font-bold text-destructive">{num(wastedBudget)}</p>
+                <p className="text-xs text-muted-foreground">Budget/mo</p>
+              </div>
+              <div className="border rounded-lg p-3 text-center bg-destructive/10 border-destructive/30">
+                <p className="text-lg font-bold text-destructive">{num(wastedBudget * 12)}</p>
+                <p className="text-xs text-muted-foreground">Per year</p>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Caveats */}
+      <Card className="border-dashed">
+        <CardHeader>
+          <CardTitle className="text-base">How to read this</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground">
+          <ul className="list-disc pl-5 space-y-1">
+            {data.caveats.map((c, i) => <li key={i}>{c}</li>)}
+          </ul>
         </CardContent>
       </Card>
     </div>

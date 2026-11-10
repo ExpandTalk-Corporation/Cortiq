@@ -8,9 +8,9 @@ import ts from 'typescript';
 // The user-scoped client stands in for RLS on `sites`; the service client records every read.
 const siteId = '11111111-1111-4111-8111-111111111111';
 
-function endpoint(name, { validUser = true, allowedSite = true, tables = {} } = {}) {
+function endpoint(name, { validUser = true, allowedSite = true, tables = {}, rpc = {} } = {}) {
   let handler;
-  const calls = { service: [], filters: [] };
+  const calls = { service: [], filters: [], rpc: [] };
   const service = {
     from(table) {
       calls.service.push(table);
@@ -28,6 +28,10 @@ function endpoint(name, { validUser = true, allowedSite = true, tables = {} } = 
   };
   const userClient = {
     auth: { getUser: async () => ({ data: { user: validUser ? { id: 'owner' } : null }, error: null }) },
+    async rpc(fn, args) {
+      calls.rpc.push({ fn, args });
+      return { data: rpc[fn] ?? null, error: null };
+    },
     from(table) {
       assert.equal(table, 'sites');
       const query = {
@@ -83,16 +87,51 @@ for (const name of ['paid-ads-analytics', 'click-fraud-analysis']) {
       const response = await handler(request(undefined, scenario.authorization ?? 'Bearer session'));
       assert.equal(response.status, scenario.status);
       assert.deepEqual(calls.service, []);
+      assert.deepEqual(calls.rpc, []);
     });
   }
 
-  test(`${name} lets a site member through to tracking_sessions`, async () => {
-    const { handler, calls } = endpoint(name);
-    const response = await handler(request());
-    assert.equal(response.status, 200);
-    assert.ok(calls.service.includes('tracking_sessions'));
-  });
 }
+
+test('paid-ads-analytics lets a site member through to tracking_sessions', async () => {
+  const { handler, calls } = endpoint('paid-ads-analytics');
+  const response = await handler(request());
+  assert.equal(response.status, 200);
+  assert.ok(calls.service.includes('tracking_sessions'));
+});
+
+test('click-fraud-analysis reads signals through the caller-scoped RPC, never tracking_sessions with the service role', async () => {
+  const { handler, calls } = endpoint('click-fraud-analysis');
+  const response = await handler(request());
+  assert.equal(response.status, 200);
+  assert.deepEqual(JSON.parse(JSON.stringify(calls.rpc)), [{ fn: 'get_click_fraud_signals', args: { p_site_id: siteId, p_from: '2026-10-01', p_to: '2026-10-31' } }]);
+  assert.ok(!calls.service.includes('tracking_sessions'));
+  const body = await response.json();
+  assert.equal(body.google_ads_connected, false);
+  assert.equal(body.ads.code, 'not_configured');
+});
+
+test('click-fraud-analysis scores campaigns and days without Google Ads', async () => {
+  const totals = { paid_sessions: 40, google_sessions: 40, bot_sessions: 8, reused_click_sessions: 0, burst_sessions: 10, zero_engagement_sessions: 30, conversions: 0 };
+  const { handler } = endpoint('click-fraud-analysis', {
+    rpc: { get_click_fraud_signals: { totals, days: [{ date: '2026-10-03', ...totals }], campaigns: [{ campaign: 'burst', sources: ['google'], countries: { VN: 40 }, ...totals }], placements: [], hours_utc: [{ hour: 2, sessions: 40 }], devices: {} } },
+  });
+  const body = await (await handler(request())).json();
+  assert.equal(body.campaigns[0].campaign, 'burst');
+  assert.ok(body.campaigns[0].score >= 30, `score ${body.campaigns[0].score}`);
+  assert.ok(body.campaigns[0].signals.every(s => typeof s.reason === 'string' && s.reason.length > 20));
+  assert.equal(body.days[0].date, '2026-10-03');
+  assert.equal(body.refund_guidance.recommended, true);
+  assert.match(body.refund_guidance.form_url, /^https:\/\/support\.google\.com\//);
+  assert.ok(body.caveats.some(c => /IP/.test(c)));
+});
+
+test('click-fraud-analysis rejects ranges over 366 days before reading anything', async () => {
+  const { handler, calls } = endpoint('click-fraud-analysis');
+  const response = await handler(request({ siteId, startDate: '2024-01-01', endDate: '2026-10-31' }));
+  assert.equal(response.status, 400);
+  assert.deepEqual(calls.rpc, []);
+});
 
 test('paid-ads-analytics joins conversions on tracking_sessions.id (uuid), not the text session token', async () => {
   const sessionUuid = '22222222-2222-4222-8222-222222222222';

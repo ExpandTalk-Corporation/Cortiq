@@ -8,7 +8,7 @@ const source = readFileSync(new URL('../../supabase/functions/google-ads-quality
 
 test('candidate query filters on click_id_consent_given = true', async () => {
   const db = mockDatabase(op => {
-    if (op.table === 'sites') return { data: [{ id: site, google_ads_conversion_id: '1', google_ads_customer_id: '2', google_ads_developer_token: 'd', google_ads_access_token: 'a' }] };
+    if (op.table === 'sites') return { data: [{ id: site, google_ads_conversion_id: '1' }] };
     return { data: [] };
   });
   const handler = loadEdge('google-ads-quality-upload', db.client, { env: { GOOGLE_ADS_UPLOAD_SECRET: 's' } });
@@ -21,4 +21,25 @@ test('candidate query filters on click_id_consent_given = true', async () => {
 test('export requires current analytics AND marketing (ad_user_data-gated) session consent', () => {
   assert.match(source, /getSessionConsent\(/);
   assert.match(source, /current\.analytics && current\.marketing/);
+});
+
+
+test('credentials come from the OAuth connection, never from pasted site columns', () => {
+  assert.match(source, /loadSiteAdsAuth\(/);
+  assert.doesNotMatch(source, /google_ads_access_token|google_ads_developer_token/);
+  assert.doesNotMatch(source, /googleads\.googleapis\.com\/v1\d/);
+});
+
+test('a site without a Google Ads connection keeps its rows pending', async () => {
+  const db = mockDatabase(op => {
+    if (op.table === 'sites') return { data: [{ id: site, google_ads_conversion_id: '123' }] };
+    if (op.table === 'conversion_events' && op.type === 'select') return { data: [{ id: 'c1', gclid: 'g', created_at: '2026-11-01T00:00:00Z', quality_classified_at: '2026-11-02T00:00:00Z' }] };
+    return { data: null };
+  });
+  const handler = loadEdge('google-ads-quality-upload', db.client, { env: { GOOGLE_ADS_UPLOAD_SECRET: 's' } });
+  const res = await handler(new Request('https://example.test/upload', { headers: { 'x-cron-secret': 's' } }));
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.results[0].error, 'not_connected');
+  assert.ok(!db.calls.some(c => c.table === 'conversion_events' && c.type === 'update' && c.payload?.upload_status === 'uploading'));
 });

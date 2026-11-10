@@ -36,7 +36,6 @@ export type IntegrationConfig = {
   // Marketing
   google_ads_enabled?: boolean;
   google_ads_conversion_id?: string;
-  google_ads_developer_token?: string;
   facebook_pixel_enabled?: boolean;
   facebook_pixel_id?: string;
   facebook_conversion_api_token?: string;

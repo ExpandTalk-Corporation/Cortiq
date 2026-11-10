@@ -2,9 +2,12 @@
 // Uploads classified leads to Google Ads Conversion Adjustments API (Enhanced Conversions).
 // GDPR: only uploads leads where click_id_consent_given = true on the originating session.
 // Called as a scheduled daily batch (cron or manual trigger from dashboard).
+// Credentials: the site's Google Ads OAuth connection (google_ads_connections + sealed refresh
+// token, see _shared/google-ads.ts). The old pasted access token column is not used.
 
 import { createClient } from '../_shared/supabase.ts';
 import { getSessionConsent } from '../_shared/session-consent.ts';
+import { type AdsAuth, isAdsAuth, loadSiteAdsAuth, toAdsDateTime, uploadConversionAdjustments } from '../_shared/google-ads.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -29,35 +32,16 @@ interface ConversionAdjustment {
 }
 
 async function uploadToGoogleAds(
-  customerId: string,
-  developerToken: string,
-  accessToken: string,
-  conversionActionId: string,
+  auth: AdsAuth,
   adjustments: ConversionAdjustment[]
 ): Promise<{ success: boolean; errors: string[] }> {
-  const url = `https://googleads.googleapis.com/v17/customers/${customerId}/conversionAdjustments:upload`;
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'developer-token': developerToken,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      conversionAdjustments: adjustments,
-      partialFailure: true,
-    }),
-  });
-
-  if (!response.ok) {
-    const err = await response.text();
-    return { success: false, errors: [err] };
+  try {
+    const result = await uploadConversionAdjustments(auth, adjustments);
+    const errors: string[] = (result?.partialFailureError?.details || []).map((d: any) => JSON.stringify(d));
+    return { success: errors.length === 0, errors };
+  } catch (e) {
+    return { success: false, errors: [e instanceof Error ? e.message : String(e)] };
   }
-
-  const result = await response.json();
-  const errors: string[] = (result.partialFailureError?.details || []).map((d: any) => JSON.stringify(d));
-  return { success: errors.length === 0, errors };
 }
 
 Deno.serve(async (req) => {
@@ -98,7 +82,7 @@ Deno.serve(async (req) => {
     // Fetch sites with Google Ads config and pending leads
     let sitesQuery = supabase
       .from('sites')
-      .select('id, google_ads_conversion_id, google_ads_developer_token, google_ads_customer_id, google_ads_access_token')
+      .select('id, google_ads_conversion_id')
       .eq('google_ads_enabled', true);
 
     if (targetSiteId) {
@@ -111,11 +95,9 @@ Deno.serve(async (req) => {
     const results: any[] = [];
 
     for (const site of (sites || [])) {
-      const { google_ads_conversion_id, google_ads_developer_token, google_ads_customer_id, google_ads_access_token } = site as any;
-
-      if (!google_ads_conversion_id || !google_ads_developer_token || !google_ads_customer_id || !google_ads_access_token) {
-        continue;
-      }
+      // Conversion action id: digits only, it goes into a resource name.
+      const conversionActionId = String((site as any).google_ads_conversion_id ?? '').replace(/[^0-9]/g, '');
+      if (!conversionActionId) continue;
 
       // Fetch pending conversions for this site.
       // GDPR: only rows where the visitor consented to click-ID/marketing at capture.
@@ -130,6 +112,14 @@ Deno.serve(async (req) => {
         .limit(100);
 
       if (!candidates || candidates.length === 0) continue;
+
+      // Credentials only once there is something to send (no token refresh for idle sites).
+      // Loaded before the claim so a missing connection leaves the rows pending.
+      const auth = await loadSiteAdsAuth(supabase, site.id);
+      if (!isAdsAuth(auth)) {
+        results.push({ site_id: site.id, uploaded: 0, success: false, error: auth.code });
+        continue;
+      }
 
       // Atomically claim the rows (pending -> uploading) so a concurrent run (cron
       // + manual) can't upload the same conversions twice. Only rows we actually
@@ -167,19 +157,19 @@ Deno.serve(async (req) => {
       if (pending.length === 0) continue;
 
       // Build adjustments payload
-      const conversionActionResource = `customers/${google_ads_customer_id}/conversionActions/${google_ads_conversion_id}`;
+      const conversionActionResource = `customers/${auth.customerId}/conversionActions/${conversionActionId}`;
       const adjustments: ConversionAdjustment[] = pending.map(ce => {
         const adjustment: ConversionAdjustment = {
           conversionAction: conversionActionResource,
           adjustmentType: 'RESTATEMENT',
-          adjustmentDateTime: new Date().toISOString().replace('T', ' ').split('.')[0] + '+00:00',
+          adjustmentDateTime: toAdsDateTime(new Date().toISOString()),
           gclidDateTimePair: {
             gclid: ce.gclid,
-            conversionDateTime: new Date(ce.created_at).toISOString().replace('T', ' ').split('.')[0] + '+00:00',
+            conversionDateTime: toAdsDateTime(ce.created_at),
           },
           restatementValue: {
             adjustedValue: ce.quality_value ?? 0,
-            currencyCode: 'USD',
+            currencyCode: auth.currencyCode || 'USD',
           },
         };
         if (ce.hashed_email) {
@@ -188,13 +178,7 @@ Deno.serve(async (req) => {
         return adjustment;
       });
 
-      const uploadResult = await uploadToGoogleAds(
-        google_ads_customer_id,
-        google_ads_developer_token,
-        google_ads_access_token,
-        google_ads_conversion_id,
-        adjustments
-      );
+      const uploadResult = await uploadToGoogleAds(auth, adjustments);
 
       const now = new Date().toISOString();
       const ids = pending.map(p => p.id);

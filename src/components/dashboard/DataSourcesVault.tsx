@@ -35,14 +35,7 @@ const FIELDS: Record<string, FieldDef[]> = {
   openai: [
     { key: 'api_key', label: 'API Key', placeholder: 'sk-...', secret: true, required: true },
   ],
-  google_ads_api: [
-    { key: 'developer_token', label: 'Developer Token', placeholder: 'AbCd_EfGh...', secret: true, required: true },
-    { key: 'customer_id',     label: 'Customer ID',     placeholder: '123-456-7890', required: true },
-    { key: 'client_id',       label: 'OAuth Client ID', placeholder: '123456.apps.googleusercontent.com', required: true },
-    { key: 'client_secret',   label: 'OAuth Client Secret', placeholder: 'GOCSPX-...', secret: true, required: true },
-    { key: 'refresh_token',   label: 'Refresh Token',   placeholder: '1//0g...', secret: true, required: true },
-    { key: 'login_customer_id', label: 'Login Customer ID (MCC)', placeholder: 'Optional manager account ID' },
-  ],
+  // google_ads_api: per-site OAuth in Settings → Integrations → Google Ads (GoogleAdsConnectCard).
   meta_ads_api: [
     { key: 'access_token',  label: 'Access Token',  placeholder: 'EAAxxxxx...', secret: true, required: true },
     { key: 'ad_account_id', label: 'Ad Account ID', placeholder: 'act_123456789', required: true },

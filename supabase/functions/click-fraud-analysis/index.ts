@@ -1,30 +1,182 @@
+// Click-fraud analysis for paid traffic.
+//
+// 1. CortIQ's own signals come from get_click_fraud_signals (migration 20261117000005), called
+//    with the caller's JWT so the RPC's ownership check applies. Works without Google Ads.
+// 2. If the site has Google Ads connected (Settings → Integrations), billed clicks, Google's
+//    invalid clicks, placements and location targets are added via GAQL. Each Ads query is
+//    independent; a failure leaves that part out and is reported in `ads.errors`.
+// 3. Days and campaigns are scored by _shared/click-fraud-score.ts; every signal has a reason.
+//
+// No click ids, session tokens or IPs are returned. Datacenter detection is not available
+// (CortIQ does not store IP addresses).
+
 import { createClient } from '../_shared/supabase.ts';
 import { requireSiteAccess } from '../_shared/site-access.ts';
+import { type AdsAuth, fromMicros, gaqlDate, isAdsAuth, loadSiteAdsAuth, searchStream } from '../_shared/google-ads.ts';
+import {
+  type AdsCounts, exclusionCandidates, geoCheck, type PlacementRow, refundGuidance, scoreSignals, type SignalCounts,
+} from '../_shared/click-fraud-score.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const PAID_MEDIUMS = ['cpc', 'ppc', 'paid', 'paid-social', 'display', 'paid_search', 'paidsearch'];
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+const DAY_MS = 24 * 60 * 60 * 1000;
+const isoDay = (d: Date) => d.toISOString().slice(0, 10);
+const validDay = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v));
+
+const CAVEATS = [
+  'Scores rank days and campaigns worth a closer look; they are not proof of fraud. Google decides refunds.',
+  'CortIQ only sees visitors who allowed tracking, so session counts are lower than Ads clicks.',
+  'Datacenter/VPN detection is not available: CortIQ does not store IP addresses.',
+  'Country comes from the browser time zone and is approximate.',
+  'CortIQ dates are UTC; Google Ads dates are in the account time zone.',
+];
+
+interface AdsCampaign extends AdsCounts {
+  id: string;
+  name: string;
+  conversions: number;
+  targeted_countries: string[];
+}
+
+interface AdsData {
+  connected: boolean;
+  code?: string;
+  message?: string;
+  currency?: string | null;
+  customerId?: string | null;
+  campaigns: AdsCampaign[];
+  days: Record<string, AdsCounts>;
+  placements: PlacementRow[];
+  errors: string[];
+}
+
+async function loadAds(auth: AdsAuth, from: string, to: string): Promise<AdsData> {
+  const out: AdsData = { connected: true, currency: auth.currencyCode ?? null, customerId: auth.customerId, campaigns: [], days: {}, placements: [], errors: [] };
+  const range = `segments.date BETWEEN '${gaqlDate(from)}' AND '${gaqlDate(to)}'`;
+  const byId = new Map<string, AdsCampaign>();
+
+  const [daily, placements, criteria] = await Promise.allSettled([
+    searchStream(auth, `
+      SELECT campaign.id, campaign.name, segments.date,
+             metrics.clicks, metrics.invalid_clicks, metrics.cost_micros, metrics.conversions
+      FROM campaign
+      WHERE ${range} AND campaign.status != 'REMOVED'`),
+    searchStream(auth, `
+      SELECT campaign.name, group_placement_view.placement, group_placement_view.display_name,
+             group_placement_view.placement_type,
+             metrics.clicks, metrics.impressions, metrics.cost_micros, metrics.conversions
+      FROM group_placement_view
+      WHERE ${range} AND metrics.clicks >= 10
+      ORDER BY metrics.cost_micros DESC
+      LIMIT 500`),
+    searchStream(auth, `
+      SELECT campaign.id, campaign_criterion.location.geo_target_constant
+      FROM campaign_criterion
+      WHERE campaign_criterion.type = 'LOCATION' AND campaign_criterion.negative = FALSE
+        AND campaign.status != 'REMOVED'`),
+  ]);
+
+  if (daily.status === 'fulfilled') {
+    for (const r of daily.value) {
+      const id = String(r.campaign?.id ?? '');
+      const date = String(r.segments?.date ?? '');
+      const clicks = Number(r.metrics?.clicks ?? 0);
+      const invalid = Number(r.metrics?.invalidClicks ?? 0);
+      const cost = fromMicros(r.metrics?.costMicros);
+      const conv = Number(r.metrics?.conversions ?? 0);
+      let c = byId.get(id);
+      if (!c) {
+        c = { id, name: String(r.campaign?.name ?? id), clicks: 0, invalid_clicks: 0, cost: 0, conversions: 0, targeted_countries: [] };
+        byId.set(id, c);
+      }
+      c.clicks += clicks; c.invalid_clicks += invalid; c.cost += cost; c.conversions += conv;
+      const d = out.days[date] ?? (out.days[date] = { clicks: 0, invalid_clicks: 0, cost: 0 });
+      d.clicks += clicks; d.invalid_clicks += invalid; d.cost += cost;
+    }
+  } else {
+    out.errors.push(`campaigns: ${daily.reason instanceof Error ? daily.reason.message : String(daily.reason)}`);
   }
 
-  try {
-    const { siteId, startDate, endDate } = await req.json();
+  if (placements.status === 'fulfilled') {
+    out.placements = placements.value.map((r) => ({
+      campaign: String(r.campaign?.name ?? ''),
+      placement: String(r.groupPlacementView?.placement ?? ''),
+      display_name: r.groupPlacementView?.displayName ?? null,
+      type: r.groupPlacementView?.placementType ?? null,
+      clicks: Number(r.metrics?.clicks ?? 0),
+      impressions: Number(r.metrics?.impressions ?? 0),
+      cost: fromMicros(r.metrics?.costMicros),
+      conversions: Number(r.metrics?.conversions ?? 0),
+    }));
+  } else {
+    out.errors.push(`placements: ${placements.reason instanceof Error ? placements.reason.message : String(placements.reason)}`);
+  }
 
-    if (!siteId) {
-      return new Response(
-        JSON.stringify({ error: 'siteId is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+  if (criteria.status === 'fulfilled') {
+    // campaign id -> geo target constant ids, then one lookup for their country codes.
+    const geoByCampaign = new Map<string, string[]>();
+    const geoIds = new Set<string>();
+    for (const r of criteria.value) {
+      const id = String(r.campaign?.id ?? '');
+      const geo = String(r.campaignCriterion?.location?.geoTargetConstant ?? '').split('/').pop() ?? '';
+      if (!/^\d+$/.test(geo)) continue;
+      geoIds.add(geo);
+      geoByCampaign.set(id, [...(geoByCampaign.get(id) ?? []), geo]);
     }
+    if (geoIds.size > 0) {
+      try {
+        const list = [...geoIds].slice(0, 1000).map((g) => `'geoTargetConstants/${g}'`).join(', ');
+        const rows = await searchStream(auth, `
+          SELECT geo_target_constant.id, geo_target_constant.country_code
+          FROM geo_target_constant
+          WHERE geo_target_constant.resource_name IN (${list})`);
+        const country = new Map<string, string>();
+        for (const r of rows) {
+          const code = String(r.geoTargetConstant?.countryCode ?? '').toUpperCase();
+          if (code) country.set(String(r.geoTargetConstant?.id ?? ''), code);
+        }
+        for (const [id, geos] of geoByCampaign) {
+          const c = byId.get(id);
+          if (c) c.targeted_countries = [...new Set(geos.map((g) => country.get(g)).filter((x): x is string => !!x))];
+        }
+      } catch (e) {
+        out.errors.push(`locations: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+  } else {
+    out.errors.push(`locations: ${criteria.reason instanceof Error ? criteria.reason.message : String(criteria.reason)}`);
+  }
 
-    // The service-role client below bypasses RLS (and reads Google Ads credentials):
-    // check the caller may read this site first.
+  out.campaigns = [...byId.values()].sort((a, b) => b.clicks - a.clicks);
+  return out;
+}
+
+const countsOf = (x: any): SignalCounts => ({
+  paid_sessions: Number(x?.paid_sessions ?? 0),
+  google_sessions: Number(x?.google_sessions ?? 0),
+  bot_sessions: Number(x?.bot_sessions ?? 0),
+  reused_click_sessions: Number(x?.reused_click_sessions ?? 0),
+  burst_sessions: Number(x?.burst_sessions ?? 0),
+  zero_engagement_sessions: Number(x?.zero_engagement_sessions ?? 0),
+  conversions: Number(x?.conversions ?? 0),
+});
+
+const norm = (s: string) => s.trim().toLowerCase();
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+
+  try {
+    const body = await req.json().catch(() => ({}));
+    const { siteId } = body ?? {};
+    if (!siteId || typeof siteId !== 'string') return json({ error: 'siteId is required' }, 400);
+
     const authorization = req.headers.get('Authorization');
     const userClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -32,366 +184,126 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authorization ?? '' } } },
     );
     const access = await requireSiteAccess(userClient, authorization, siteId);
-    if (!access.ok) {
-      return new Response(
-        JSON.stringify({ error: access.error }),
-        { status: access.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (!access.ok) return json({ error: access.error }, access.status);
+
+    const to = validDay(body.endDate) ? body.endDate : isoDay(new Date());
+    const from = validDay(body.startDate) ? body.startDate : isoDay(new Date(Date.parse(to) - 29 * DAY_MS));
+    if (from > to || (Date.parse(to) - Date.parse(from)) / DAY_MS + 1 > 366) {
+      return json({ error: 'Date range must be 1 to 366 days' }, 400);
     }
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    // CortIQ signals: user-scoped client so auth.uid() and the RPC's ownership check apply.
+    const { data: sig, error: sigError } = await userClient.rpc('get_click_fraud_signals', {
+      p_site_id: siteId, p_from: from, p_to: to,
+    });
+    if (sigError) throw new Error(sigError.message);
 
-    const start = startDate ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const end = endDate ?? new Date().toISOString().split('T')[0];
-
-    console.log('Click fraud analysis for site:', siteId, 'range:', start, '-', end);
-
-    // 0. Optionally fetch Google Ads invalid clicks if API is configured
-    const googleAdsData = await fetchGoogleAdsInvalidClicks(supabase, siteId, start, end);
-    if (googleAdsData) {
-      console.log('Google Ads API data fetched:', googleAdsData.length, 'campaigns');
+    // Google Ads, optional. Service role only to read the sealed token; nothing secret is returned.
+    const svc = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
+    let ads: AdsData = { connected: false, campaigns: [], days: {}, placements: [], errors: [] };
+    try {
+      const auth = await loadSiteAdsAuth(svc, siteId);
+      if (isAdsAuth(auth)) ads = await loadAds(auth, from, to);
+      else ads = { ...ads, code: auth.code, message: auth.error };
+    } catch (e) {
+      ads = { ...ads, code: 'error', message: e instanceof Error ? e.message : String(e) };
     }
 
-    // 1. Fetch paid sessions
-    const { data: paidSessions, error: sessionsError } = await supabase
-      .from('tracking_sessions')
-      .select('session_id, utm_campaign, utm_source, utm_medium, duration_seconds, page_views, device_type, started_at')
-      .eq('site_id', siteId)
-      .in('utm_medium', PAID_MEDIUMS)
-      .gte('started_at', `${start}T00:00:00.000Z`)
-      .lte('started_at', `${end}T23:59:59.999Z`);
+    const totals = countsOf(sig?.totals);
+    const adsTotals: AdsCounts | null = ads.connected
+      ? ads.campaigns.reduce((t, c) => ({ clicks: t.clicks + c.clicks, invalid_clicks: t.invalid_clicks + c.invalid_clicks, cost: t.cost + c.cost }),
+        { clicks: 0, invalid_clicks: 0, cost: 0 })
+      : null;
 
-    if (sessionsError) throw sessionsError;
-    if (!paidSessions || paidSessions.length === 0) {
-      return new Response(
-        JSON.stringify({
-          success: true,
-          summary: { total_paid_sessions: 0, estimated_fraud_sessions: 0, estimated_fraud_rate: 0, total_campaigns_analyzed: 0 },
-          campaigns: [],
-          time_distribution: [],
-          suspicious_sessions: [],
-          message: 'No paid sessions found in selected period'
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const paidSessionIds = paidSessions.map(s => s.session_id).filter(Boolean);
-
-    // 2. Cross-reference: which paid sessions appear in bot traffic with fraud signals?
-    const { data: botTraffic } = await supabase
-      .from('ai_bot_traffic')
-      .select('id, session_id, bot_type, bot_category, js_executed')
-      .eq('site_id', siteId)
-      .in('session_id', paidSessionIds.slice(0, 500)); // Supabase IN limit safeguard
-
-    const botTrafficIds = botTraffic?.map(bt => bt.id).filter(Boolean) ?? [];
-
-    const { data: probeSignals } = botTrafficIds.length > 0
-      ? await supabase
-          .from('ai_bot_probe_signals')
-          .select('traffic_id, webdriver_detected, headless_detected')
-          .in('traffic_id', botTrafficIds)
-      : { data: [] };
-
-    // Build lookup: session_id → bot signals
-    const botSignalMap = new Map<string, { isBot: boolean; botType: string; webdriver: boolean; headless: boolean }>();
-
-    if (botTraffic) {
-      for (const bt of botTraffic) {
-        if (!bt.session_id) continue;
-        const probe = probeSignals?.find(p => p.traffic_id === bt.id) ?? null;
-        botSignalMap.set(bt.session_id, {
-          isBot: bt.bot_category === 'known_bot' || !!probe?.webdriver_detected || !!probe?.headless_detected,
-          botType: bt.bot_type,
-          webdriver: !!probe?.webdriver_detected,
-          headless: !!probe?.headless_detected,
-        });
-      }
-    }
-
-    // 3. Score each session
-    interface ScoredSession {
-      session_id: string;
-      campaign: string;
-      source: string;
-      medium: string;
-      duration: number;
-      page_views: number;
-      device_type: string;
-      hour: number;
-      is_bot_confirmed: boolean;
-      is_zombie: boolean; // < 5s + 1 page view
-      is_suspicious_hour: boolean;
-      fraud_score: number;
-      bot_type?: string;
-    }
-
-    const scored: ScoredSession[] = paidSessions.map(session => {
-      const bot = botSignalMap.get(session.session_id) ?? null;
-      const duration = session.duration_seconds ?? 0;
-      const pageViews = session.page_views ?? 1;
-      const hour = session.started_at ? new Date(session.started_at).getUTCHours() : 12;
-
-      const isBotConfirmed = !!bot?.isBot;
-      const isZombie = duration < 5 && pageViews <= 1;
-      const isSuspiciousHour = hour >= 1 && hour <= 5;
-
-      // Fraud score 0–100
-      let fraudScore = 0;
-      if (isBotConfirmed) fraudScore += 60;
-      if (bot?.webdriver) fraudScore += 20;
-      if (bot?.headless) fraudScore += 10;
-      if (isZombie) fraudScore += 30;
-      if (isSuspiciousHour && isZombie) fraudScore += 10;
-      fraudScore = Math.min(fraudScore, 100);
-
-      return {
-        session_id: session.session_id,
-        campaign: session.utm_campaign ?? 'Unknown Campaign',
-        source: session.utm_source ?? 'Unknown',
-        medium: session.utm_medium ?? 'Unknown',
-        duration,
-        page_views: pageViews,
-        device_type: session.device_type ?? 'unknown',
-        hour,
-        is_bot_confirmed: isBotConfirmed,
-        is_zombie: isZombie,
-        is_suspicious_hour: isSuspiciousHour,
-        fraud_score: fraudScore,
-        bot_type: bot?.botType,
-      };
+    // Per day.
+    // Days with Ads clicks but no tracked paid session are included too (the gap is the signal).
+    const sigDays: any[] = sig?.days ?? [];
+    const seen = new Set(sigDays.map((d) => String(d.date)));
+    const allDays = [...sigDays, ...Object.keys(ads.days).filter((d) => !seen.has(d) && d >= from && d <= to).map((date) => ({ date }))]
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    const days = allDays.map((d: any) => {
+      const counts = countsOf(d);
+      const adsDay = ads.days[d.date] ?? null;
+      return { date: d.date, ...counts, ads: adsDay, ...scoreSignals(counts, adsDay) };
     });
 
-    // 4. Aggregate by campaign
-    const campaignMap = new Map<string, {
-      campaign: string; source: string; medium: string;
-      total: number; bot: number; zombie: number; suspicious_hour: number; fraud_score_sum: number;
-    }>();
-
-    for (const s of scored) {
-      const key = `${s.campaign}||${s.source}||${s.medium}`;
-      if (!campaignMap.has(key)) {
-        campaignMap.set(key, { campaign: s.campaign, source: s.source, medium: s.medium, total: 0, bot: 0, zombie: 0, suspicious_hour: 0, fraud_score_sum: 0 });
-      }
-      const c = campaignMap.get(key)!;
-      c.total++;
-      if (s.is_bot_confirmed) c.bot++;
-      if (s.is_zombie) c.zombie++;
-      if (s.is_suspicious_hour) c.suspicious_hour++;
-      c.fraud_score_sum += s.fraud_score;
-    }
-
-    const campaigns = Array.from(campaignMap.values()).map(c => {
-      const fraudRate = c.total > 0 ? (c.bot + c.zombie * 0.5) / c.total : 0;
-      const avgScore = c.total > 0 ? c.fraud_score_sum / c.total : 0;
-      // Merge Google Ads invalid click data if available
-      const gaRow = googleAdsData?.find(g => g.campaign_name === c.campaign);
-      let riskLevel: 'high' | 'medium' | 'low' = 'low';
-      const gaInvalidRate = gaRow?.invalid_click_rate ?? 0;
-      if (fraudRate > 0.15 || avgScore > 40 || gaInvalidRate > 0.10) riskLevel = 'high';
-      else if (fraudRate > 0.07 || avgScore > 20 || gaInvalidRate > 0.05) riskLevel = 'medium';
+    // Per campaign: match utm_campaign to an Ads campaign by name or id ({campaignid} ValueTrack).
+    const adsByKey = new Map<string, AdsCampaign>();
+    for (const c of ads.campaigns) { adsByKey.set(norm(c.name), c); adsByKey.set(c.id, c); }
+    const matched = new Set<string>();
+    const campaigns = (sig?.campaigns ?? []).map((c: any) => {
+      const counts = countsOf(c);
+      const a = adsByKey.get(norm(String(c.campaign ?? ''))) ?? null;
+      if (a) matched.add(a.id);
+      const geo = a ? geoCheck(c.countries, a.targeted_countries) : null;
+      const scored = scoreSignals(counts, a, geo);
       return {
         campaign: c.campaign,
-        source: c.source,
-        medium: c.medium,
-        total_sessions: c.total,
-        bot_sessions: c.bot,
-        zombie_sessions: c.zombie,
-        suspicious_hour_sessions: c.suspicious_hour,
-        fraud_rate: Math.round(fraudRate * 1000) / 10,
-        avg_fraud_score: Math.round(avgScore),
-        risk_level: riskLevel,
-        // Google Ads API data (present only when API is configured)
-        ga_clicks: gaRow?.clicks ?? null,
-        ga_invalid_clicks: gaRow?.invalid_clicks ?? null,
-        ga_invalid_click_rate: gaRow ? Math.round(gaRow.invalid_click_rate * 1000) / 10 : null,
-        ga_cost_micros: gaRow?.cost_micros ?? null,
+        sources: c.sources ?? [],
+        ...counts,
+        countries: c.countries ?? {},
+        ads: a ? { id: a.id, name: a.name, clicks: a.clicks, invalid_clicks: a.invalid_clicks, cost: a.cost, conversions: a.conversions, targeted_countries: a.targeted_countries } : null,
+        ...scored,
       };
-    }).sort((a, b) => b.avg_fraud_score - a.avg_fraud_score);
+    }).sort((x: any, y: any) => y.score - x.score || y.paid_sessions - x.paid_sessions);
 
-    // 5. Time distribution (UTC hours)
-    const hourCounts = new Array(24).fill(0);
-    for (const s of scored) hourCounts[s.hour]++;
-    const avgHourCount = scored.length / 24;
-    const timeDistribution = hourCounts.map((count, hour) => ({
-      hour,
-      count,
-      suspicious: (hour >= 1 && hour <= 5) && count > avgHourCount * 1.5,
-    }));
+    // Ads campaigns with clicks but no matching utm_campaign in CortIQ.
+    const unmatched = ads.campaigns
+      .filter((c) => !matched.has(c.id) && c.clicks > 0)
+      .map((c) => ({ id: c.id, name: c.name, clicks: c.clicks, invalid_clicks: c.invalid_clicks, cost: c.cost, conversions: c.conversions }));
 
-    // 6. Summary
-    const estimatedFraud = scored.filter(s => s.fraud_score >= 40).length;
-    const summary = {
-      total_paid_sessions: scored.length,
-      estimated_fraud_sessions: estimatedFraud,
-      estimated_fraud_rate: scored.length > 0 ? Math.round(estimatedFraud / scored.length * 1000) / 10 : 0,
-      total_campaigns_analyzed: campaignMap.size,
-      bot_confirmed_sessions: scored.filter(s => s.is_bot_confirmed).length,
-      zombie_sessions: scored.filter(s => s.is_zombie).length,
-    };
+    const overall = scoreSignals(totals, adsTotals);
 
-    // 7. Top suspicious sessions
-    const suspiciousSessions = scored
-      .filter(s => s.fraud_score >= 40)
-      .sort((a, b) => b.fraud_score - a.fraud_score)
-      .slice(0, 25)
-      .map(s => ({
-        session_id: s.session_id.slice(0, 8) + '...',
-        campaign: s.campaign,
-        duration_seconds: s.duration,
-        page_views: s.page_views,
-        device_type: s.device_type,
-        hour: s.hour,
-        is_bot_confirmed: s.is_bot_confirmed,
-        is_zombie: s.is_zombie,
-        bot_type: s.bot_type,
-        fraud_score: s.fraud_score,
-      }));
+    // CortIQ placements (utm_content/utm_term) with their own score.
+    const placements = (sig?.placements ?? []).map((p: any) => {
+      const counts = countsOf(p);
+      return { campaign: p.campaign, placement: p.placement, ...counts, ...scoreSignals(counts) };
+    }).filter((p: any) => p.score >= 30).sort((x: any, y: any) => y.score - x.score).slice(0, 25);
 
-    console.log('Analysis complete:', summary);
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        summary,
-        campaigns,
-        time_distribution: timeDistribution,
-        suspicious_sessions: suspiciousSessions,
-        google_ads_connected: !!googleAdsData,
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-
-  } catch (error: any) {
-    console.error('Error in click-fraud-analysis:', error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-});
-
-// ── Google Ads API helpers ────────────────────────────────────────────────────
-
-interface GaRow {
-  campaign_name: string;
-  clicks: number;
-  invalid_clicks: number;
-  invalid_click_rate: number;
-  cost_micros: number;
-}
-
-async function fetchGoogleAdsInvalidClicks(
-  supabase: any,
-  siteId: string,
-  startDate: string,
-  endDate: string
-): Promise<GaRow[] | null> {
-  try {
-    // Read stored credentials from site_integrations
-    const { data: integration } = await supabase
-      .from('site_integrations')
-      .select('integration_config')
-      .eq('site_id', siteId)
-      .eq('integration_type', 'google_ads_api')
-      .eq('is_active', true)
-      .maybeSingle();
-
-    if (!integration?.integration_config) return null;
-
-    const cfg = integration.integration_config as any;
-    const { developer_token, customer_id, client_id, client_secret, refresh_token, login_customer_id } = cfg;
-
-    if (!developer_token || !customer_id || !client_id || !client_secret || !refresh_token) {
-      return null;
-    }
-
-    // Exchange refresh token for access token
-    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id,
-        client_secret,
-        refresh_token,
-        grant_type: 'refresh_token',
-      }),
+    const refund = refundGuidance({
+      customerId: ads.customerId ?? null,
+      from, to,
+      campaigns: campaigns.map((c: any) => ({ campaign: c.campaign, campaign_id: c.ads?.id ?? null, score: c.score, clicks: c.ads?.clicks, signals: c.signals })),
     });
 
-    if (!tokenRes.ok) {
-      console.error('Google OAuth token error:', await tokenRes.text());
-      return null;
-    }
-
-    const { access_token } = await tokenRes.json();
-
-    // Build GAQL query for invalid clicks per campaign
-    const query = `
-      SELECT
-        campaign.name,
-        metrics.clicks,
-        metrics.invalid_clicks,
-        metrics.invalid_click_rate,
-        metrics.cost_micros
-      FROM campaign
-      WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
-        AND campaign.status = 'ENABLED'
-      ORDER BY metrics.clicks DESC
-    `;
-
-    const headers: Record<string, string> = {
-      'Authorization': `Bearer ${access_token}`,
-      'developer-token': developer_token,
-      'Content-Type': 'application/json',
-    };
-    if (login_customer_id) {
-      headers['login-customer-id'] = login_customer_id;
-    }
-
-    const adsRes = await fetch(
-      `https://googleads.googleapis.com/v18/customers/${customer_id}/googleAds:searchStream`,
-      {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ query }),
-      }
-    );
-
-    if (!adsRes.ok) {
-      console.error('Google Ads API error:', adsRes.status, await adsRes.text());
-      return null;
-    }
-
-    const adsText = await adsRes.text();
-    // searchStream returns newline-delimited JSON objects
-    const rows: GaRow[] = [];
-    for (const line of adsText.split('\n')) {
-      if (!line.trim() || line.trim() === '[' || line.trim() === ']') continue;
-      try {
-        const obj = JSON.parse(line.replace(/^,/, ''));
-        for (const result of obj?.results ?? []) {
-          rows.push({
-            campaign_name: result.campaign?.name ?? '',
-            clicks: Number(result.metrics?.clicks ?? 0),
-            invalid_clicks: Number(result.metrics?.invalidClicks ?? 0),
-            invalid_click_rate: Number(result.metrics?.invalidClickRate ?? 0),
-            cost_micros: Number(result.metrics?.costMicros ?? 0),
-          });
-        }
-      } catch {
-        // skip malformed lines
-      }
-    }
-
-    console.log('Google Ads API returned', rows.length, 'campaign rows');
-    return rows.length > 0 ? rows : null;
-
-  } catch (err) {
-    console.error('fetchGoogleAdsInvalidClicks error:', err);
-    return null;
+    return json({
+      success: true,
+      from, to,
+      summary: {
+        total_paid_sessions: totals.paid_sessions,
+        total_campaigns_analyzed: campaigns.length,
+        bot_confirmed_sessions: totals.bot_sessions,
+        zombie_sessions: totals.zero_engagement_sessions,
+        reused_click_sessions: totals.reused_click_sessions,
+        burst_sessions: totals.burst_sessions,
+        conversions: totals.conversions,
+        with_click_id: Number(sig?.totals?.with_click_id ?? 0),
+        score: overall.score,
+        level: overall.level,
+        confidence: overall.confidence,
+      },
+      signals: overall.signals,
+      days,
+      campaigns,
+      placements,
+      time_distribution: (sig?.hours_utc ?? []).map((h: any) => ({ hour: h.hour, count: h.sessions })),
+      devices: sig?.devices ?? {},
+      google_ads_connected: ads.connected,
+      ads: {
+        connected: ads.connected,
+        code: ads.code ?? null,
+        message: ads.message ?? null,
+        currency: ads.currency ?? null,
+        totals: adsTotals,
+        unmatched_campaigns: unmatched,
+        exclusion_candidates: exclusionCandidates(ads.placements),
+        errors: ads.errors,
+      },
+      refund_guidance: refund,
+      caveats: CAVEATS,
+    });
+  } catch (error) {
+    console.error('Error in click-fraud-analysis:', error);
+    return json({ error: error instanceof Error ? error.message : String(error) }, 500);
   }
-}
+});

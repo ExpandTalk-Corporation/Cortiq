@@ -8,13 +8,15 @@ import {
   TrendingUp, TrendingDown, DollarSign, MousePointerClick, Eye, Target, RefreshCw
 } from 'lucide-react';
 import { useGoogleAdsData, type GoogleAdsDateRange } from '@/hooks/useGoogleAdsData';
-import { GoogleAdsApiSetup } from './GoogleAdsApiSetup';
+import { GoogleAdsConnectHint } from './GoogleAdsConnectCard';
 
 interface GoogleAdsWidgetProps {
   siteId: string;
+  /** Dashboard tab navigation; lets the empty state open Settings → Integrations. */
+  onNavigate?: (tab: string) => void;
 }
 
-export function GoogleAdsWidget({ siteId }: GoogleAdsWidgetProps) {
+export function GoogleAdsWidget({ siteId, onNavigate }: GoogleAdsWidgetProps) {
   const [dateRange, setDateRange] = useState<GoogleAdsDateRange>('last_30_days');
   const { campaigns, totals, isConfigured, loading, error, refetch } = useGoogleAdsData(siteId, dateRange);
 
@@ -32,7 +34,9 @@ export function GoogleAdsWidget({ siteId }: GoogleAdsWidgetProps) {
             </CardDescription>
           </CardHeader>
         </Card>
-        <GoogleAdsApiSetup siteId={siteId} onConfigured={refetch} />
+        <GoogleAdsConnectHint onNavigate={onNavigate}>
+          Connect Google Ads under Settings → Integrations → Google Ads and pick the account for this site.
+        </GoogleAdsConnectHint>
       </div>
     );
   }

@@ -8,7 +8,8 @@ import { PixelReadinessCard } from '@/components/dashboard/PixelReadinessCard';
 import type { Site } from '@/types/dashboard';
 import { useAcquisitionReadiness } from '@/hooks/useAcquisitionReadiness';
 import { SetupChecklist } from '../setup/SetupChecklist';
-import { conversionStep, goalsStep, hubspotStep } from '../setup/acquisitionSteps';
+import { conversionStep, goalsStep, googleAdsApiStep, hubspotStep } from '../setup/acquisitionSteps';
+import { GoogleAdsConnectHint } from '@/components/dashboard/GoogleAdsConnectCard';
 
 interface AttributionTabProps {
   selectedSite: Site;
@@ -44,7 +45,7 @@ export function AttributionTab({ selectedSite, onNavigate }: AttributionTabProps
     <SetupChecklist
       title="How to measure the attribution gap"
       description="The gap compares conversions recorded by CortIQ with the leads HubSpot later marks as Priority or Qualified."
-      steps={[goalsStep(readiness), conversionStep(readiness), hubspotStep(readiness)]}
+      steps={[goalsStep(readiness), conversionStep(readiness), hubspotStep(readiness), googleAdsApiStep(readiness)]}
       onNavigate={onNavigate}
     />
   );
@@ -152,6 +153,13 @@ export function AttributionTab({ selectedSite, onNavigate }: AttributionTabProps
             <p className="text-xs text-muted-foreground mt-3">
               No uploads yet. Set up the HubSpot lead quality loop in Settings → Integrations to enable Enhanced Conversions.
             </p>
+          )}
+          {readiness && !readiness.googleAdsApi && (
+            <div className="mt-3">
+              <GoogleAdsConnectHint onNavigate={onNavigate}>
+                Uploads need Google Ads connected for this site. Connect it under Settings → Integrations → Google Ads.
+              </GoogleAdsConnectHint>
+            </div>
           )}
         </CardContent>
       </Card>

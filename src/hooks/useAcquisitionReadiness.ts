@@ -41,8 +41,9 @@ export function useAcquisitionReadiness(siteId: string | undefined) {
           .select('tracking_mode, aggregate_measurement, ga_integration_enabled, ga_property_id, google_ads_customer_id, hubspot_lead_webhook_enabled, conversion_goals')
           .eq('id', siteId)
           .maybeSingle(),
-        exists(db.from('site_integrations').select('id').eq('site_id', siteId)
-          .eq('integration_type', 'google_ads_api').eq('is_active', true).limit(1)),
+        // OAuth connection with a picked account (google_ads_connections, owner-readable via RLS).
+        exists(db.from('google_ads_connections').select('site_id').eq('site_id', siteId)
+          .not('customer_id', 'is', null).limit(1)),
         exists(sessions()),
         exists(sessions().not('utm_source', 'is', null)),
         exists(sessions().in('utm_medium', PAID_MEDIUMS)),

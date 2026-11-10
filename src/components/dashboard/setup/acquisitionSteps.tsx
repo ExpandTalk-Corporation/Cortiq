@@ -156,10 +156,11 @@ export function ga4Steps(r: AcquisitionReadiness): ChecklistStep[] {
 export function googleAdsApiStep(r: AcquisitionReadiness): ChecklistStep {
   return {
     id: 'google-ads-api',
-    title: 'Google Ads API is connected',
+    title: 'Google Ads is connected',
     status: r.googleAdsApi ? 'done' : 'todo',
     optional: true,
-    detail: <p>Adds Google's own invalid-click counts per campaign next to CortIQ's estimate. Set it up in the card below.</p>,
+    detail: <p>Adds billed clicks, Google's own invalid-click counts, placements and location targets next to CortIQ's signals. Sign in with Google under Settings → Integrations → Google Ads.</p>,
+    action: { label: 'Open integrations', tab: 'integrations' },
   };
 }
 
