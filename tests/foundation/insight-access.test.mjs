@@ -84,6 +84,11 @@ for (const scenario of [
   { name: 'null body', body: null, status: 400 },
   { name: 'invalid site ID', body: { siteId: 'not-a-uuid' }, status: 400 },
   { name: 'wrong method', method: 'GET', status: 405 },
+  { name: 'only one period bound', body: { siteId, from: '2026-09-01' }, status: 400 },
+  { name: 'malformed period', body: { siteId, from: '2026-9-1', to: '2026-09-30' }, status: 400 },
+  { name: 'impossible date', body: { siteId, from: '2026-02-30', to: '2026-03-02' }, status: 400 },
+  { name: 'reversed period', body: { siteId, from: '2026-09-30', to: '2026-09-01' }, status: 400 },
+  { name: 'period over 366 days', body: { siteId, from: '2025-01-01', to: '2026-09-01' }, status: 400 },
 ]) {
   test(`insights reject ${scenario.name} before privileged reads or AI`, async () => {
     const { handler, calls } = endpoint(scenario.options);
@@ -115,7 +120,8 @@ test('AI receives aggregate totals above former limits and explicit form scope',
   assert.match(calls.prompt, /12345/);
   assert.match(calls.prompt, /4567/);
   assert.match(calls.prompt, /LIFETIME/);
-  assert.match(calls.prompt, /not a seven-day total/);
+  assert.match(calls.prompt, /not a total for this period/);
+  assert.match(calls.prompt, /the last 7 days/);
   assert.equal(calls.prompt.includes('private@example.test'), false);
 });
 
@@ -156,4 +162,19 @@ test('CORS preflight performs no privileged work', async () => {
   const { handler, calls } = endpoint();
   assert.equal((await handler(request(undefined, '', 'OPTIONS'))).status, 200);
   assert.equal(calls.service.length, 0);
+});
+
+test('the dashboard period reaches the summary RPC, the prompt and the audit record', async () => {
+  const { handler, calls } = endpoint({ aiInsights: [suggestion] });
+  const response = await handler(request({ siteId, from: '2026-09-01', to: '2026-09-30' }));
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(calls.summaryArgs.p_from, '2026-09-01T00:00:00.000Z');
+  assert.equal(calls.summaryArgs.p_to, '2026-09-30T23:59:59.999Z');
+  assert.match(calls.prompt, /2026-09-01 to 2026-09-30 \(30 days/);
+  assert.deepEqual(body.period, { from: '2026-09-01', to: '2026-09-30', days: 30 });
+  assert.equal(body.runId, 'run-1', 'the panel links the result to its agent_runs record');
+  const runUpdate = calls.inserts.find(c => c.table === 'agent_runs');
+  assert.ok(runUpdate, 'agent_runs is still written');
+  assert.equal(calls.inserts.find(c => c.table === 'dashboard_insights').payload[0].run_id, 'run-1');
 });

@@ -22,7 +22,7 @@ import {
   Printer
 } from 'lucide-react';
 import type { Site } from '@/types/dashboard';
-import { useKPIDashboard } from '@/hooks/useKPIDashboard';
+import { useKPIDashboard, type MonthlyKPI } from '@/hooks/useKPIDashboard';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
@@ -30,9 +30,20 @@ import { useToast } from '@/components/ui/use-toast';
 interface KPITabProps {
   selectedSite: Site;
   onNavigateToIntegrations?: () => void;
+  onNavigate?: (tab: string) => void;
 }
 
-export function KPITab({ selectedSite }: KPITabProps) {
+type KpiRow = {
+  label: string;
+  value: (m: MonthlyKPI) => number;
+  format: (n: number) => string;
+  /** How to start measuring it; shown when the row is zero in every month. */
+  setup?: { text: string; tab?: string; action?: string };
+};
+
+type KpiGroup = { title: string; rows: KpiRow[] };
+
+export function KPITab({ selectedSite, onNavigate }: KPITabProps) {
   // The report follows the global date range and compares with the same period last year.
   const { filters } = useDashboardFilters();
   const periodLabel = `${filters.from} – ${filters.to}`;
@@ -361,6 +372,62 @@ export function KPITab({ selectedSite }: KPITabProps) {
   const avgConversionRate = periodSessions > 0
     ? monthlyOverview.reduce((s, m) => s + m.conversions, 0) / periodSessions * 100 : 0;
 
+  const periodPageViews = monthlyOverview.reduce((s, m) => s + m.pageViews, 0);
+  const hasConversions = monthlyOverview.some((m) => m.conversions > 0);
+
+  const num = (n: number) => formatNumber(Math.round(n));
+  const kr = (n: number) => `${formatNumber(Math.round(n))} kr`;
+  const pct = (n: number) => `${n.toFixed(1)}%`;
+  const dec = (n: number) => n.toFixed(1);
+  const connectGa4 = { text: 'Comes from GA4. Connect a GA4 property under Integrations to include it.', tab: 'integrations', action: 'Connect GA4' };
+  const goals = {
+    text: usingFallback
+      ? 'Connect GA4 with key events, or set up conversion goals in CortIQ (form submissions, phone and email clicks, thank-you pages).'
+      : 'GA4 reports no key events. Mark the events that matter (e.g. generate_lead, form_submit) as key events in GA4, or set up conversion goals in CortIQ.',
+    tab: 'conversion-goals', action: 'Set up goals',
+  };
+  const ecommerce = usingFallback
+    ? { text: 'Comes from GA4 e-commerce tracking (the purchase event with value and transaction_id). Connect GA4 and enable it in the shop or tag manager.', tab: 'integrations', action: 'Connect GA4' }
+    : { text: 'GA4 receives no purchase events. Enable e-commerce tracking in the shop or tag manager so purchase is sent with value and transaction_id.', tab: 'ecommerce', action: 'Open e-commerce' };
+
+  // Bounce rate is left out: GA4 replaced it with engagement rate and the column was always 0 here.
+  const groups: KpiGroup[] = [
+    { title: 'Traffic', rows: [
+      { label: 'Active users', value: (m) => m.uniqueUsers, format: num },
+      { label: 'New users', value: (m) => m.newUsers, format: num,
+        setup: usingFallback ? { ...connectGa4, text: 'New vs returning users comes from GA4; CortIQ keeps no persistent visitor ID. Connect GA4 to include it.' } : undefined },
+      { label: 'Sessions', value: (m) => m.sessions, format: num },
+    ] },
+    { title: 'Engagement', rows: [
+      { label: 'Page views', value: (m) => m.pageViews, format: num },
+      { label: 'Pages per session', value: (m) => m.pageViewsPerSession, format: dec },
+      { label: 'Average time', value: (m) => m.avgDuration, format: formatDuration },
+      { label: 'Events', value: (m) => m.eventCount, format: num, setup: connectGa4 },
+      { label: 'Events per user', value: (m) => m.eventCountPerUser, format: dec, setup: connectGa4 },
+    ] },
+    { title: 'Conversions', rows: [
+      { label: 'Conversions', value: (m) => m.conversions, format: num, setup: goals },
+      { label: 'Conversion rate', value: (m) => m.conversionRate, format: pct, setup: goals },
+    ] },
+    { title: 'Revenue', rows: [
+      { label: 'Transactions', value: (m) => m.transactions, format: num, setup: ecommerce },
+      { label: 'Total revenue', value: (m) => m.revenue, format: kr, setup: ecommerce },
+      { label: 'Purchase revenue', value: (m) => m.purchaseRevenue, format: kr, setup: ecommerce },
+    ] },
+  ];
+  const isEmpty = (r: KpiRow) => monthlyOverview.every((m) => !r.value(m));
+  const visibleGroups = groups
+    .map((g) => ({ ...g, rows: g.rows.filter((r) => !isEmpty(r)) }))
+    .filter((g) => g.rows.length > 0);
+  // One line per setup step, listing every KPI it unlocks.
+  const missingSetups = Object.values(
+    groups.flatMap((g) => g.rows).filter(isEmpty).reduce<Record<string, { labels: string[]; text: string; tab?: string; action?: string }>>((acc, r) => {
+      const setup = r.setup ?? { text: 'No data in this period.' };
+      (acc[setup.text] ??= { ...setup, labels: [] }).labels.push(r.label);
+      return acc;
+    }, {}),
+  );
+
   // Change against the same period one year earlier.
   const yoyLabel = (current: number, previous: number) => {
     const pct = percentChange(current, previous);
@@ -369,251 +436,112 @@ export function KPITab({ selectedSite }: KPITabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Executive Header */}
-      <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-8 rounded-lg border">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">
-              KPI Executive Dashboard
-            </h1>
-            <div className="flex items-center gap-4">
-              <p className="text-lg text-muted-foreground">{selectedSite.site_name}</p>
-              <Badge variant="secondary" className="text-sm">
-                Report for {periodLabel}
-              </Badge>
-              {usingFallback && (
-                <Badge variant="outline" className="text-sm border-amber-300 text-amber-700">
-                  Source: CortIQ first-party data (GA4 not configured — conversions/revenue unavailable)
-                </Badge>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3 text-right">
-              <Calendar className="h-5 w-5 text-primary" />
-              <div>
-                <p className="text-sm text-muted-foreground">Report period</p>
-                <p className="font-semibold">{periodLabel}</p>
-                <p className="text-xs text-muted-foreground">
-                  Compared with {comparisonRange.from} – {comparisonRange.to}
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button onClick={handleGA4Check} variant="outline" className="h-11" disabled={checkingGA}>
+      {/* Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight">KPI report</h1>
+          <p className="text-sm text-muted-foreground">
+            {selectedSite.site_name} · {periodLabel} · compared with {comparisonRange.from} – {comparisonRange.to}
+          </p>
+          {usingFallback && (
+            <p className="text-xs text-muted-foreground">
+              Source: CortIQ tracking. GA4 is not connected, so new users, events and revenue are not available.
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-2 print:hidden">
+          <Button onClick={handlePrintReport} variant="outline" size="sm" className="gap-2">
+            <Printer className="h-4 w-4" /> Export PDF
+          </Button>
+          <details className="relative">
+            <summary className="cursor-pointer list-none rounded-md border px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted">
+              GA4 diagnostics
+            </summary>
+            <div className="absolute right-0 z-20 mt-1 flex w-48 flex-col gap-1 rounded-md border bg-popover p-1 shadow-md">
+              <Button onClick={handleGA4Check} variant="ghost" size="sm" className="justify-start" disabled={checkingGA}>
                 {checkingGA ? 'Testing...' : 'Test GA4 access'}
               </Button>
-              <Button onClick={runDebugTest} variant="destructive" className="h-11" disabled={checkingGA}>
+              <Button onClick={runDebugTest} variant="ghost" size="sm" className="justify-start" disabled={checkingGA}>
                 Debug GA4 errors
               </Button>
-              <Button onClick={runKPIDebug} variant="secondary" className="h-11" disabled={checkingGA}>
+              <Button onClick={runKPIDebug} variant="ghost" size="sm" className="justify-start" disabled={checkingGA}>
                 Debug KPI sections
               </Button>
             </div>
-          </div>
+          </details>
         </div>
       </div>
 
-      {/* Executive Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="border-l-4 border-l-blue-500 bg-gradient-to-br from-blue-50/50 to-transparent">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center text-blue-700">
-              <Users className="h-5 w-5 mr-2" />
-              Active Users
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-blue-900">{formatNumber(totals.current.users)}</div>
-            <p className="text-sm text-blue-600/70 mt-1">{yoyLabel(totals.current.users, totals.previous.users)}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-green-500 bg-gradient-to-br from-green-50/50 to-transparent">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center text-green-700">
-              <MousePointer className="h-5 w-5 mr-2" />
-              Sessions
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-green-900">{formatNumber(totals.current.sessions)}</div>
-            <p className="text-sm text-green-600/70 mt-1">{yoyLabel(totals.current.sessions, totals.previous.sessions)}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-purple-500 bg-gradient-to-br from-purple-50/50 to-transparent">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center text-purple-700">
-              <Clock className="h-5 w-5 mr-2" />
-              Average Time
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-purple-900">{formatDuration(avgDuration)}</div>
-            <p className="text-sm text-purple-600/70 mt-1">Per session</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-orange-500 bg-gradient-to-br from-orange-50/50 to-transparent">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center text-orange-700">
-              <Target className="h-5 w-5 mr-2" />
-              Conversion
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-orange-900">{(avgConversionRate || 0).toFixed(1)}%</div>
-            <p className="text-sm text-orange-600/70 mt-1">Conversions per session</p>
-          </CardContent>
-        </Card>
+      {/* Summary */}
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        {[
+          { icon: <Users className="h-4 w-4" />, label: 'Active users', value: formatNumber(totals.current.users), note: yoyLabel(totals.current.users, totals.previous.users) },
+          { icon: <MousePointer className="h-4 w-4" />, label: 'Sessions', value: formatNumber(totals.current.sessions), note: yoyLabel(totals.current.sessions, totals.previous.sessions) },
+          { icon: <Clock className="h-4 w-4" />, label: 'Average time', value: formatDuration(avgDuration), note: 'Per session' },
+          hasConversions
+            ? { icon: <Target className="h-4 w-4" />, label: 'Conversion rate', value: `${avgConversionRate.toFixed(1)}%`, note: 'Conversions per session' }
+            : { icon: <BarChart3 className="h-4 w-4" />, label: 'Pages per session', value: (periodSessions > 0 ? periodPageViews / periodSessions : 0).toFixed(1), note: 'No conversions measured yet' },
+        ].map((c) => (
+          <Card key={c.label}>
+            <CardContent className="flex flex-col gap-1 p-4">
+              <span className="flex items-center gap-2 text-xs font-medium text-muted-foreground">{c.icon}{c.label}</span>
+              <span className="text-2xl font-semibold tabular-nums">{c.value}</span>
+              <span className="text-xs text-muted-foreground">{c.note}</span>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {/* Executive KPI Table */}
-      <Card className="shadow-lg border-0 bg-gradient-to-br from-background to-muted/10">
-        <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10 border-b">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-xl font-bold text-foreground">
-                Detailed Monthly Analysis {periodLabel}
-              </CardTitle>
-              <CardDescription className="text-base mt-1">
-                Complete KPI overview for board reports and stakeholder presentations.
-                Growth compares each month with the same month one year earlier.
-                {foldedMonths && ' The range touches the same calendar month in two years; that column combines both.'}
-              </CardDescription>
-            </div>
-            <Button 
-              onClick={handlePrintReport}
-              variant="outline" 
-              className="bg-white/50 hover:bg-white/70 flex items-center gap-2"
-            >
-              <Printer className="h-4 w-4" />
-              Export PDF
-            </Button>
-          </div>
+      {/* Monthly table: only KPIs with data; the rest are listed with how to start measuring them. */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Month by month</CardTitle>
+          <CardDescription>
+            Growth compares each month with the same month one year earlier.
+            {foldedMonths && ' The range touches the same calendar month in two years; that column combines both.'}
+          </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">{/* Increased from text-xs */}
+            <table className="w-full text-sm">
               <thead>
-                <tr className="bg-slate-900 text-white">
-                  <th className="text-left p-3 sticky left-0 bg-slate-900 font-bold border-r border-slate-700">KPI</th>
+                <tr className="border-y bg-muted/40 text-xs text-muted-foreground">
+                  <th className="sticky left-0 bg-muted px-4 py-2 text-left font-medium">KPI</th>
                   {monthlyData.map((month) => (
-                    <th key={month.month} className="text-center p-3 font-bold min-w-24 border-r border-slate-700">
-                      {month.monthName.slice(0, 3)}
-                    </th>
+                    <th key={month.month} className="min-w-20 px-4 py-2 text-right font-medium">{month.monthName.slice(0, 3)}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {/* Traffic Metrics */}
-                <tr className="border-b hover:bg-muted/30 bg-blue-50/30">
-                  <td className="p-2 font-medium sticky left-0 bg-blue-50/30 border-r">New Users</td>
+                {visibleGroups.map((group) => (
+                  <React.Fragment key={group.title}>
+                    <tr>
+                      <td colSpan={monthlyData.length + 1} className="px-4 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        {group.title}
+                      </td>
+                    </tr>
+                    {group.rows.map((row) => (
+                      <tr key={row.label} className="border-b hover:bg-muted/30">
+                        <td className="sticky left-0 bg-card px-4 py-2">{row.label}</td>
+                        {monthlyData.map((month) => (
+                          <td key={month.month} className="px-4 py-2 text-right tabular-nums">{row.format(row.value(month))}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </React.Fragment>
+                ))}
+                <tr>
+                  <td className="sticky left-0 bg-card px-4 py-2">Users vs last year</td>
                   {monthlyData.map((month) => (
-                    <td key={month.month} className="text-center p-2">{formatNumber(month.newUsers || 0)}</td>
-                  ))}
-                </tr>
-                <tr className="border-b hover:bg-muted/30">
-                  <td className="p-2 font-medium sticky left-0 bg-background border-r">Active Users</td>
-                  {monthlyData.map((month) => (
-                    <td key={month.month} className="text-center p-2">{formatNumber(month.uniqueUsers)}</td>
-                  ))}
-                </tr>
-                <tr className="border-b hover:bg-muted/30">
-                  <td className="p-2 font-medium sticky left-0 bg-background border-r">Sessions</td>
-                  {monthlyData.map((month) => (
-                    <td key={month.month} className="text-center p-2">{formatNumber(month.sessions)}</td>
-                  ))}
-                </tr>
-                <tr className="border-b hover:bg-muted/30">
-                  <td className="p-2 font-medium sticky left-0 bg-background border-r">Pages/Session</td>
-                  {monthlyData.map((month) => (
-                    <td key={month.month} className="text-center p-2">{(month.pageViewsPerSession || 0).toFixed(1)}</td>
-                  ))}
-                </tr>
-                
-                {/* Engagement Metrics */}
-                <tr className="border-b hover:bg-muted/30 bg-green-50/30">
-                  <td className="p-2 font-medium sticky left-0 bg-green-50/30 border-r">Avg. Time</td>
-                  {monthlyData.map((month) => (
-                    <td key={month.month} className="text-center p-2">{formatDuration(month.avgDuration)}</td>
-                  ))}
-                </tr>
-                <tr className="border-b hover:bg-muted/30">
-                  <td className="p-2 font-medium sticky left-0 bg-background border-r">Bounce rate</td>
-                  {monthlyData.map((month) => (
-                    <td key={month.month} className="text-center p-2">{(month.bounceRate || 0).toFixed(1)}%</td>
-                  ))}
-                </tr>
-                <tr className="border-b hover:bg-muted/30">
-                  <td className="p-2 font-medium sticky left-0 bg-background border-r">Page views</td>
-                  {monthlyData.map((month) => (
-                    <td key={month.month} className="text-center p-2">{formatNumber(month.pageViews || 0)}</td>
-                  ))}
-                </tr>
-                
-                {/* Conversion Metrics */}
-                <tr className="border-b hover:bg-muted/30 bg-purple-50/30">
-                  <td className="p-2 font-medium sticky left-0 bg-purple-50/30 border-r">Conversions</td>
-                  {monthlyData.map((month) => (
-                    <td key={month.month} className="text-center p-2">{formatNumber(month.conversions || 0)}</td>
-                  ))}
-                </tr>
-                <tr className="border-b hover:bg-muted/30">
-                  <td className="p-2 font-medium sticky left-0 bg-background border-r">Conv. Rate</td>
-                  {monthlyData.map((month) => (
-                    <td key={month.month} className="text-center p-2">{(month.conversionRate || 0).toFixed(1)}%</td>
-                  ))}
-                </tr>
-                <tr className="border-b hover:bg-muted/30">
-                  <td className="p-2 font-medium sticky left-0 bg-background border-r">Transactions</td>
-                  {monthlyData.map((month) => (
-                    <td key={month.month} className="text-center p-2">{formatNumber(month.transactions || 0)}</td>
-                  ))}
-                </tr>
-                <tr className="border-b hover:bg-muted/30">
-                  <td className="p-2 font-medium sticky left-0 bg-background border-r">Total Revenue</td>
-                  {monthlyData.map((month) => (
-                    <td key={month.month} className="text-center p-2">{formatNumber(month.revenue)} kr</td>
-                  ))}
-                </tr>
-                <tr className="border-b hover:bg-muted/30">
-                  <td className="p-2 font-medium sticky left-0 bg-background border-r">Purchase Revenue</td>
-                  {monthlyData.map((month) => (
-                    <td key={month.month} className="text-center p-2">{formatNumber(month.purchaseRevenue || 0)} kr</td>
-                  ))}
-                </tr>
-                
-                {/* Event Metrics */}
-                <tr className="border-b hover:bg-muted/30 bg-orange-50/30">
-                  <td className="p-2 font-medium sticky left-0 bg-orange-50/30 border-r">Total Events</td>
-                  {monthlyData.map((month) => (
-                    <td key={month.month} className="text-center p-2">{formatNumber(month.eventCount || 0)}</td>
-                  ))}
-                </tr>
-                <tr className="border-b hover:bg-muted/30">
-                  <td className="p-2 font-medium sticky left-0 bg-background border-r">Events/User</td>
-                  {monthlyData.map((month) => (
-                    <td key={month.month} className="text-center p-2">{(month.eventCountPerUser || 0).toFixed(1)}</td>
-                  ))}
-                </tr>
-                
-                {/* Growth Metrics */}
-                <tr className="border-b hover:bg-muted/30 bg-yellow-50/30">
-                  <td className="p-2 font-medium sticky left-0 bg-yellow-50/30 border-r">Growth %</td>
-                  {monthlyData.map((month) => (
-                    <td key={month.month} className="text-center p-2">
-                      <div className="flex items-center justify-center gap-1">
-                        {month.growth.users != null && (
-                          <>
-                            {getTrendIcon(month.growth.users)}
-                            <span className={month.growth.users >= 0 ? 'text-green-600' : 'text-red-600'}>
-                              {month.growth.users > 0 ? '+' : ''}{(month.growth.users || 0).toFixed(1)}%
-                            </span>
-                          </>
-                        )}
-                      </div>
+                    <td key={month.month} className="px-4 py-2 text-right tabular-nums">
+                      {month.growth.users == null ? (
+                        <span className="text-muted-foreground">–</span>
+                      ) : (
+                        <span className={`inline-flex items-center gap-1 ${month.growth.users >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {getTrendIcon(month.growth.users)}
+                          {month.growth.users > 0 ? '+' : ''}{month.growth.users.toFixed(1)}%
+                        </span>
+                      )}
                     </td>
                   ))}
                 </tr>
@@ -622,6 +550,30 @@ export function KPITab({ selectedSite }: KPITabProps) {
           </div>
         </CardContent>
       </Card>
+
+      {missingSetups.length > 0 && (
+        <Card className="print:hidden">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Not measured yet</CardTitle>
+            <CardDescription>These KPIs are zero for the whole period. This is what the site needs to report them.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="divide-y text-sm">
+              {missingSetups.map((m) => (
+                <li key={m.text} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-medium">{m.labels.join(', ')}</p>
+                    <p className="text-muted-foreground">{m.text}</p>
+                  </div>
+                  {m.tab && onNavigate && (
+                    <Button variant="outline" size="sm" className="shrink-0" onClick={() => onNavigate(m.tab!)}>{m.action}</Button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Monthly Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

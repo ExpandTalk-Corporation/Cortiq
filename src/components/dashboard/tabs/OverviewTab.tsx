@@ -1,5 +1,4 @@
 // src/components/dashboard/tabs/OverviewTab.tsx
-import { AIInsightsWidget } from '@/components/dashboard/AIInsightsWidget';
 import { TopPagesData } from '@/components/dashboard/TopPagesData';
 import { StatusStrip } from '@/components/dashboard/overview/StatusStrip';
 import { KpiRow } from '@/components/dashboard/overview/KpiRow';
@@ -8,13 +7,19 @@ import { AggregateOverview } from '@/components/dashboard/overview/AggregateOver
 import { PipelineAlerts } from '@/components/dashboard/overview/PipelineAlerts';
 import { useOverviewMetrics } from '@/hooks/useOverviewMetrics';
 import { useConversionGoalHealth } from '@/hooks/useConversionGoalHealth';
+import { useKeyPageVisits } from '@/hooks/useKeyPageVisits';
 import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
+import { useAIAssistantPanel } from '@/contexts/AIAssistantContext';
+import { Button } from '@/components/ui/button';
+import { Lightbulb } from 'lucide-react';
 import type { Site } from '@/types/dashboard';
 
 export function OverviewTab({ selectedSite, onNavigate }: { selectedSite: Site; onNavigate: (tab: string) => void }) {
   const { filters } = useDashboardFilters();
+  const aiPanel = useAIAssistantPanel();
   const metrics = useOverviewMetrics(selectedSite.id);
   const health = useConversionGoalHealth(selectedSite.id);
+  const keyPages = useKeyPageVisits(selectedSite.id, filters.from, filters.to);
   const goals = health.data ?? [];
   const goalIssues = goals.filter((g) => g.status !== 'healthy').map((g) => ({ goalName: g.goalName, issue: g.status }));
   const trackingMode = ((selectedSite as Site & { tracking_mode?: string }).tracking_mode === 'cookieless') ? 'cookieless' : 'full';
@@ -36,11 +41,16 @@ export function OverviewTab({ selectedSite, onNavigate }: { selectedSite: Site; 
       {aggregateOnly && <AggregateOverview siteId={selectedSite.id} from={filters.from} to={filters.to} />}
       <KpiRow m={m} from={filters.from} to={filters.to} segmented={!!filters.segmentId} aggregateOnly={aggregateOnly} />
       {aggregateOn && !aggregateOnly && <AggregateOverview siteId={selectedSite.id} from={filters.from} to={filters.to} />}
-      <ModuleCards m={m} goalCount={goals.length} goalIssues={goalIssues} onNavigate={onNavigate} />
-      <div className="grid gap-6 lg:grid-cols-2">
-        {!aggregateOnly && <TopPagesData siteId={selectedSite.id} startDate={`${filters.from}T00:00:00Z`} endDate={`${filters.to}T23:59:59Z`} />}
-        <AIInsightsWidget siteId={selectedSite.id} />
+      <ModuleCards m={m} goalCount={goals.length} goalIssues={goalIssues} keyPages={keyPages.data ?? []} onNavigate={onNavigate} />
+      {/* AI suggestions live in the header AI panel; this line opens it and runs them for the period. */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3">
+        <p className="text-sm text-muted-foreground">AI suggestions for {filters.from} to {filters.to}, with the data behind each one.</p>
+        <Button size="sm" variant="outline" className="gap-2" onClick={() => aiPanel.openPanel('insights')}>
+          <Lightbulb className="h-4 w-4" />
+          Generate insights for this period
+        </Button>
       </div>
+      {!aggregateOnly && <TopPagesData siteId={selectedSite.id} startDate={`${filters.from}T00:00:00Z`} endDate={`${filters.to}T23:59:59Z`} />}
     </div>
   );
 }

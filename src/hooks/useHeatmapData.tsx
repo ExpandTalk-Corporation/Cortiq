@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { HeatmapPoint } from '@/types/dashboard';
+import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
 
 export interface PageHeatmapData {
   url: string;
-  pageViews: number;
+  clicks: number;
+  scrolls: number;
   heatmapPoints: HeatmapPoint[];
 }
 
@@ -17,6 +19,7 @@ export interface HeatmapFilters {
 const SCROLL_MILESTONES = [25, 50, 75, 100];
 
 export function useHeatmapData(siteId: string | null) {
+  const { filters } = useDashboardFilters();
   const [heatmapData, setHeatmapData] = useState<HeatmapPoint[]>([]);
   const [topPages, setTopPages] = useState<PageHeatmapData[]>([]);
   const [selectedUrl, setSelectedUrl] = useState<string>('');
@@ -27,27 +30,25 @@ export function useHeatmapData(siteId: string | null) {
     try {
       setLoading(true);
 
-      // Top pages over the full history, aggregated server-side (GROUP BY + LIMIT).
-      // The previous client-side count only saw the newest 1000 rows PostgREST returns,
-      // so "top pages" was silently wrong on busy sites. Ownership enforced in the RPC.
-      const { data, error: pageError } = await supabase.rpc('get_top_pages', {
-        p_site_id: siteId,
-        p_limit: 20,
+      // Only pages that have heatmap data in the selected range, member-only paths excluded
+      // (the screenshot behind the heatmap is taken logged out). Ownership enforced in the RPC.
+      const { data, error: pageError } = await (supabase as any).rpc('get_heatmap_pages', {
+        p_site_id: siteId, p_from: filters.from, p_to: filters.to, p_limit: 50,
       });
 
       if (pageError) throw pageError;
 
-      const sortedPages: PageHeatmapData[] = ((data as { url: string; pageViews: number }[]) ?? [])
-        .map((p) => ({ url: p.url, pageViews: p.pageViews, heatmapPoints: [] }));
+      const sortedPages: PageHeatmapData[] = ((data as { url: string; clicks: number | string; scrolls: number | string }[]) ?? [])
+        .map((p) => ({ url: p.url, clicks: Number(p.clicks), scrolls: Number(p.scrolls), heatmapPoints: [] }));
 
       setTopPages(sortedPages);
 
-      // Auto-select the most visited page
-      if (sortedPages.length > 0 && !selectedUrl) {
+      // Select the page with most clicks unless the user picked one that is still listed.
+      if (sortedPages.length > 0 && !sortedPages.some((p) => p.url === selectedUrl)) {
         setSelectedUrl(sortedPages[0].url);
       }
     } catch (error) {
-      console.error('Error loading top pages:', error);
+      console.error('Error loading heatmap pages:', error);
     } finally {
       setLoading(false);
     }
@@ -132,7 +133,7 @@ export function useHeatmapData(siteId: string | null) {
     if (siteId) {
       loadTopPages(siteId);
     }
-  }, [siteId]);
+  }, [siteId, filters.from, filters.to]);
 
   useEffect(() => {
     if (siteId && selectedUrl) {

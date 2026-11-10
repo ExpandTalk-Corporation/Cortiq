@@ -5,6 +5,7 @@ import { OverviewTab } from './tabs/OverviewTab';
 import { FilterScopeNotice } from './FilterScopeNotice';
 import { HIDDEN_TABS } from './nav/navSections';
 import { PixelReadinessCard } from './PixelReadinessCard';
+import { PipelineAlerts } from './overview/PipelineAlerts';
 import type { Site } from '@/types/dashboard';
 import type { SitePatch } from '@/hooks/useSites';
 import { useAnalytics } from '@/hooks/useAnalytics';
@@ -163,7 +164,7 @@ function DashboardTabsInner({ selectedSite, dateRange, onSiteDeleted, onSiteUpda
 
       <TabsContent value="kpi" className="space-y-6">
         <TabErrorBoundary tabName="KPI Dashboard">
-          <KPITab selectedSite={selectedSite} onNavigateToIntegrations={() => setActiveTab('integrations')} />
+          <KPITab selectedSite={selectedSite} onNavigate={setActiveTab} onNavigateToIntegrations={() => setActiveTab('integrations')} />
         </TabErrorBoundary>
       </TabsContent>
 
@@ -187,6 +188,7 @@ function DashboardTabsInner({ selectedSite, dateRange, onSiteDeleted, onSiteUpda
 
       <TabsContent value="alerts" className="space-y-6">
         <TabErrorBoundary tabName="Alerts">
+          <PipelineAlerts siteId={selectedSite.id} showAllClear />
           <BehavioralAlertsTab selectedSite={selectedSite} />
         </TabErrorBoundary>
       </TabsContent>
@@ -216,7 +218,7 @@ function DashboardTabsInner({ selectedSite, dateRange, onSiteDeleted, onSiteUpda
 
       <TabsContent value="cookiefree" className="space-y-6">
         <TabErrorBoundary tabName="Cookie-Free">
-          <CookiefreeAnalyticsTab selectedSite={selectedSite} dateRange={dateRange} />
+          <CookiefreeAnalyticsTab selectedSite={selectedSite} />
         </TabErrorBoundary>
       </TabsContent>
 

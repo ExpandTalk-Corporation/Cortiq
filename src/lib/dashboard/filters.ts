@@ -78,6 +78,22 @@ export function percentChange(current: number, previous: number): number | null 
   return Math.round(((current - previous) / previous) * 1000) / 10;
 }
 
+/** Below this many events in the previous period a percentage change is noise. */
+export const MIN_COMPARISON_SAMPLE = 20;
+
+export type PeriodComparison = { kind: 'none' } | { kind: 'insufficient' } | { kind: 'change'; pct: number };
+
+/**
+ * Change against the previous period. `sample` is the event count behind `previous`
+ * (the value itself for counts, the visit count for ratios). A site that started
+ * tracking mid-period would otherwise show +24 000 %.
+ */
+export function comparePeriods(current: number, previous: number, sample: number): PeriodComparison {
+  if (!current && !previous) return { kind: 'none' };
+  if (sample < MIN_COMPARISON_SAMPLE || !previous) return { kind: 'insufficient' };
+  return { kind: 'change', pct: percentChange(current, previous)! };
+}
+
 /** Number of days in an inclusive YYYY-MM-DD range. */
 export function rangeDays(from: string, to: string): number {
   const f = parseIso(from)!;

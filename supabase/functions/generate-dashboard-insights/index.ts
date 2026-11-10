@@ -39,13 +39,17 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await userClient.auth.getUser();
     if (authError || !user) return json({ error: 'Unauthorized' }, 401);
 
-    let requestData: { siteId?: unknown } | null;
+    let requestData: { siteId?: unknown; from?: unknown; to?: unknown } | null;
     try { requestData = await req.json(); }
     catch { return json({ error: 'Invalid JSON' }, 400); }
     const siteId = requestData?.siteId;
     if (typeof siteId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(siteId)) {
       return json({ error: 'A valid siteId is required' }, 400);
     }
+    // Optional period (inclusive YYYY-MM-DD, the dashboard date filter). Default: the last 7 days.
+    const period = resolvePeriod(requestData?.from, requestData?.to, new Date());
+    if (!period) return json({ error: 'from/to must both be YYYY-MM-DD, from <= to, at most 366 days' }, 400);
+    const { since, until, days, label } = period;
     const { data: site, error: siteError } = await userClient
       .from('sites').select('id').eq('id', siteId).maybeSingle();
     if (siteError) return json({ error: 'Unable to verify site access' }, 503);
@@ -76,8 +80,6 @@ serve(async (req) => {
 
     console.log('Generating insights for site:', siteId);
 
-    const until = new Date().toISOString();
-    const since = new Date(Date.parse(until) - 7 * 24 * 60 * 60 * 1000).toISOString();
     const [analyticsData, heatmapData, formData] = await Promise.all([
       // Same ownership-scoped metric definitions as the dashboard, no row cap.
       userClient.rpc('get_analytics_summary', { p_site_id: siteId, p_from: since, p_to: until }),
@@ -86,7 +88,7 @@ serve(async (req) => {
         .select('*', { count: 'exact', head: true })
         .eq('site_id', siteId)
         .gte('created_at', since).lte('created_at', until),
-      // These are lifetime counters, not events in the selected seven days.
+      // These are lifetime counters, not events in the selected period.
       supabase
         .from('form_analytics')
         .select('form_name, total_starts, total_completions, conversion_rate', { count: 'exact' })
@@ -119,7 +121,7 @@ serve(async (req) => {
           forms_in_sample: formData.data?.length ?? 0,
           sessions: summary.total_sessions,
           since, until,
-          date_range_days: 7,
+          date_range_days: days,
         },
       }).eq('id', runId);
     }
@@ -147,12 +149,12 @@ serve(async (req) => {
     const prompt = `Analyze this website analytics data and provide actionable insights:
 
 Data Summary:
-- Period: ${since} to ${until}
-- Total page views (last 7 days, dashboard filters applied): ${dataSummary.totalPageViews}
-- Total sessions (last 7 days): ${summary.total_sessions}
+- Period: ${label} (${days} days, ${since} to ${until})
+- Total page views (this period): ${dataSummary.totalPageViews}
+- Total sessions (this period): ${summary.total_sessions}
 - Top pages: ${JSON.stringify(dataSummary.topPages)}
 - Device breakdown: ${JSON.stringify(dataSummary.deviceBreakdown)}
-- Form performance (LIFETIME counters; sample of ${formData.data?.length ?? 0} of ${formData.count} forms, not a seven-day total): ${JSON.stringify(dataSummary.formPerformance)}
+- Form performance (LIFETIME counters; sample of ${formData.data?.length ?? 0} of ${formData.count} forms, not a total for this period): ${JSON.stringify(dataSummary.formPerformance)}
 - Heatmap interactions: ${dataSummary.heatmapInteractions}
 
 Generate up to 5 supported, actionable suggestions in English; return an empty list if evidence is insufficient.
@@ -225,8 +227,9 @@ Return JSON format:
     // Store insights in database
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
+    let stored: unknown[] = [];
     if (insights.insights.length > 0) {
-      const { error: insertError } = await supabase
+      const { data: insertedRows, error: insertError } = await supabase
         .from('dashboard_insights')
         .insert(insights.insights.map(insight => ({
           site_id: siteId,
@@ -238,8 +241,10 @@ Return JSON format:
           confidence_score: null,
           expires_at: expiresAt.toISOString(),
           run_id: runId,
-        })));
+        })))
+        .select('id, insight_type, title, description, action_items, priority, confidence_score, created_at, expires_at, run_id');
       if (insertError) throw new Error('Unable to store insights');
+      stored = insertedRows ?? [];
     }
 
     if (runId) {
@@ -258,6 +263,9 @@ Return JSON format:
     return new Response(JSON.stringify({ 
       success: true, 
       insights: insights.insights,
+      stored,
+      runId,
+      period: { from: period.from, to: period.to, days },
       dataPoints: {
         pageViews: dataSummary.totalPageViews,
         heatmapInteractions: dataSummary.heatmapInteractions,
@@ -286,3 +294,23 @@ Return JSON format:
     });
   }
 });
+
+/** Inclusive YYYY-MM-DD period -> timestamps for get_analytics_summary (BETWEEN, inclusive). */
+function resolvePeriod(from: unknown, to: unknown, now: Date) {
+  const day = 24 * 60 * 60 * 1000;
+  if (from === undefined && to === undefined) {
+    const until = now.toISOString();
+    const since = new Date(now.getTime() - 7 * day).toISOString();
+    return { since, until, days: 7, label: 'the last 7 days', from: since.slice(0, 10), to: until.slice(0, 10) };
+  }
+  const iso = /^\d{4}-\d{2}-\d{2}$/;
+  if (typeof from !== 'string' || typeof to !== 'string' || !iso.test(from) || !iso.test(to)) return null;
+  const lo = Date.parse(`${from}T00:00:00Z`);
+  const hi = Date.parse(`${to}T00:00:00Z`);
+  if (Number.isNaN(lo) || Number.isNaN(hi) || new Date(lo).toISOString().slice(0, 10) !== from ||
+      new Date(hi).toISOString().slice(0, 10) !== to || hi < lo) return null;
+  const days = Math.round((hi - lo) / day) + 1;
+  if (days > 366) return null;
+  const end = Math.min(hi + day - 1, now.getTime());
+  return { since: new Date(lo).toISOString(), until: new Date(Math.max(end, lo)).toISOString(), days, label: `${from} to ${to}`, from, to };
+}

@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
   TrendingUp, 
@@ -75,6 +76,9 @@ export function PaidAdsTab({ selectedSite, onNavigate }: PaidAdsTabProps) {
               : 'No GA4 property is connected. This view reads paid traffic and ad cost from Google Analytics 4.'}
           </AlertDescription>
         </Alert>
+        {!connected && onNavigate && (
+          <Button onClick={() => onNavigate('integrations')}>Connect Google Analytics 4</Button>
+        )}
         {readiness && (
           <SetupChecklist
             title="How to get GA4 ad data"

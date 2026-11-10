@@ -55,7 +55,8 @@ export function HeatmapTab({ siteId, selectedSite, dateRange }: HeatmapTabProps)
         siteId={siteId || ''}
         selectedPage={selectedUrl}
         onPageChange={setSelectedUrl}
-        placeholder="Select page for heatmap analysis"
+        placeholder={loading && topPages.length === 0 ? 'Loading pages...' : topPages.length ? 'Select page for heatmap analysis' : 'No heatmap data in this period'}
+        pages={topPages.map((p) => ({ url: p.url, detail: `${p.clicks} clicks · ${p.scrolls} scroll events` }))}
       />
       
       {/* Visualization first; filters refine it below. */}

@@ -289,7 +289,6 @@ Key functions:
 track-event              -- Main event tracking
 visitor-identification   -- Identify visitors
 ai-bot-tracker          -- AI agent detection
-cookiefree-analytics    -- Cookie-free tracking
 pixel-tracking          -- Pixel tracking
 ...
 ```

@@ -9,28 +9,34 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowRight, LogIn, LogOut, Route } from 'lucide-react';
 import { useNavigationFlow } from '@/hooks/useNavigationFlow';
 
-function PathList({ title, icon, rows, empty }: {
-  title: string; icon: ReactNode; rows: { path: string; sessions: number }[]; empty: string;
+function PathList({ title, description, icon, rows, total, barClass, empty }: {
+  title: string; description: string; icon: ReactNode; rows: { path: string; sessions: number }[];
+  total: number; barClass: string; empty: string;
 }) {
   const max = Math.max(...rows.map((r) => r.sessions), 1);
   return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">{icon}{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
         {rows.length === 0 ? (
           <p className="text-sm text-muted-foreground">{empty}</p>
         ) : (
-          <ul className="space-y-2">
+          <ul className="space-y-1.5">
             {rows.slice(0, 10).map((r) => (
-              <li key={r.path} className="text-sm">
-                <div className="flex justify-between gap-3">
-                  <span className="font-mono truncate" title={r.path}>{r.path}</span>
-                  <span className="tabular-nums text-muted-foreground">{r.sessions.toLocaleString()}</span>
-                </div>
-                <div className="mt-1 h-1.5 rounded bg-muted">
-                  <div className="h-1.5 rounded bg-primary" style={{ width: `${(r.sessions / max) * 100}%` }} />
+              <li key={r.path} className="relative overflow-hidden rounded-md bg-muted/40 text-sm">
+                {/* Bar behind the row: length relative to the top page. */}
+                <div className={`absolute inset-y-0 left-0 rounded-md ${barClass}`} style={{ width: `${(r.sessions / max) * 100}%` }} />
+                <div className="relative flex items-center justify-between gap-3 px-2.5 py-1.5">
+                  <span className="font-mono text-xs truncate" title={r.path}>{r.path}</span>
+                  <span className="flex shrink-0 items-baseline gap-2 tabular-nums">
+                    <span className="font-medium">{r.sessions.toLocaleString()}</span>
+                    <span className="w-10 text-right text-xs text-muted-foreground">
+                      {total > 0 ? `${Math.round((r.sessions / total) * 100)}%` : ''}
+                    </span>
+                  </span>
                 </div>
               </li>
             ))}
@@ -57,6 +63,15 @@ export function NavigationFlow({ siteId }: { siteId: string }) {
 
   return (
     <div className="space-y-6">
+      <div className="grid gap-6 md:grid-cols-2">
+        <PathList title="Entry pages" icon={<LogIn className="h-4 w-4 text-primary" />} rows={data.entries}
+          description={`Where ${data.sessions.toLocaleString()} sessions started. % of all sessions.`}
+          total={data.sessions} barClass="bg-primary/15" empty="No sessions in this period." />
+        <PathList title="Exit pages" icon={<LogOut className="h-4 w-4 text-orange-500" />} rows={data.exits}
+          description={`Last page of the ${data.multi_page_sessions.toLocaleString()} sessions with more than one page view.`}
+          total={data.multi_page_sessions} barClass="bg-orange-500/15" empty="No multi-page sessions in this period." />
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><Route className="h-5 w-5" /> Navigation flow</CardTitle>
@@ -100,12 +115,6 @@ export function NavigationFlow({ siteId }: { siteId: string }) {
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <PathList title="Entry pages" icon={<LogIn className="h-4 w-4" />} rows={data.entries}
-          empty="No sessions in this period." />
-        <PathList title="Exit pages (multi-page sessions)" icon={<LogOut className="h-4 w-4" />} rows={data.exits}
-          empty="No multi-page sessions in this period." />
-      </div>
     </div>
   );
 }

@@ -249,9 +249,11 @@ export function TrafficSourcesAnalysis({ siteId, startDate, endDate, selectedSit
         .eq('id', siteId)
         .single();
 
+      // Without GA4 the first-party tracking data is the source, not an empty card.
       if (!site?.ga_property_id) {
         setHasGAIntegration(false);
-        setIsLoading(false);
+        setUsingFallback(true);
+        await loadTrackingData();
         return;
       }
 
@@ -379,28 +381,6 @@ export function TrafficSourcesAnalysis({ siteId, startDate, endDate, selectedSit
     }
   }, [siteId, startDate, endDate]);
 
-  if (!hasGAIntegration) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            Traffic sources
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8 text-muted-foreground">
-            <TrendingUp className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p className="mb-4">Google Analytics is required for traffic sources</p>
-            <Button variant="outline" className="mx-auto">
-              Configure GA Integration
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   const totalSessions = trafficSources.reduce((sum, source) => sum + source.sessions, 0);
   const totalUsers = trafficSources.reduce((sum, source) => sum + source.users, 0);
   const totalConversions = trafficSources.reduce((sum, source) => sum + source.conversions, 0);
@@ -447,7 +427,9 @@ export function TrafficSourcesAnalysis({ siteId, startDate, endDate, selectedSit
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              Showing internal tracking data because GA4 data could not be fetched. Check that the service account has access to the GA4 property.
+              {hasGAIntegration
+                ? 'Showing CortIQ tracking data because GA4 data could not be fetched. Check that the service account has access to the GA4 property.'
+                : 'Sources from CortIQ tracking (visitors who accepted analytics). Connect GA4 under Settings → Integrations to compare with Google Analytics.'}
             </AlertDescription>
           </Alert>
         )}
