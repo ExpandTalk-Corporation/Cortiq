@@ -23,7 +23,6 @@ const ALLOWED_PATH_PREFIXES = [
   '/functions/v1/visitor-identification',
   '/functions/v1/pixel-tracking',
   '/functions/v1/ai-bot-tracker',
-  '/functions/v1/cookiefree-analytics',
   '/functions/v1/gdpr-compliant-tracking',
   '/functions/v1/behavioral-analysis',
   '/rest/v1/tracking_events',

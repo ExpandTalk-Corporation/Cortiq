@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { DateRangePicker } from '@/components/dashboard/DateRangePicker';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -23,32 +22,19 @@ import {
   FileText
 } from 'lucide-react';
 import { useCookiefreeAnalytics } from '@/hooks/useCookiefreeAnalytics';
+import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
 import { ServerLogImporter } from '@/components/dashboard/ServerLogImporter';
 import { ServerLogAnalytics } from '@/components/dashboard/ServerLogAnalytics';
 import type { Site } from '@/types/dashboard';
-import { subDays } from 'date-fns';
-import type { DateRange } from 'react-day-picker';
 
 interface CookiefreeAnalyticsTabProps {
   selectedSite: Site;
-  dateRange?: DateRange;
 }
 
-export function CookiefreeAnalyticsTab({ selectedSite, dateRange }: CookiefreeAnalyticsTabProps) {
-  const [localRange, setLocalRange] = useState({
-    from: subDays(new Date(), 30),
-    to: new Date()
-  });
-
-  // Use global dateRange if provided, else local
-  const activeRange = dateRange && dateRange.from && dateRange.to ? { from: dateRange.from, to: dateRange.to } : localRange;
-  const today = new Date();
-  const clampedRange = {
-    from: new Date(Math.min(activeRange.from.getTime(), today.getTime())),
-    to: new Date(Math.min(activeRange.to.getTime(), today.getTime()))
-  };
-
-  const { data: analytics, isLoading, error } = useCookiefreeAnalytics(selectedSite?.id, clampedRange);
+export function CookiefreeAnalyticsTab({ selectedSite }: CookiefreeAnalyticsTabProps) {
+  // Date range: the dashboard filters (URL from/to), read inside the hook.
+  const { dateRange: filterRange } = useDashboardFilters();
+  const { data: analytics, isLoading, error } = useCookiefreeAnalytics(selectedSite?.id);
 
   if (isLoading) {
     return (
@@ -106,16 +92,6 @@ export function CookiefreeAnalyticsTab({ selectedSite, dateRange }: CookiefreeAn
               Privacy-minimised statistics without cookies — collected after analytics consent
             </p>
           </div>
-          {(!dateRange) && (
-            <DateRangePicker
-              dateRange={localRange}
-              onDateRangeChange={(range) => {
-                if (range?.from && range?.to) {
-                  setLocalRange({ from: range.from, to: range.to });
-                }
-              }}
-            />
-          )}
         </div>
 
         {/* Period Info */}
@@ -448,7 +424,7 @@ export function CookiefreeAnalyticsTab({ selectedSite, dateRange }: CookiefreeAn
           {/* Server Log Analytics */}
           <ServerLogAnalytics 
             siteId={selectedSite.id} 
-            dateRange={clampedRange}
+            dateRange={filterRange}
           />
         </TabsContent>
 
