@@ -1,212 +1,153 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { sameRangeLastYear, trendBuckets } from '@/lib/dashboard/filters';
 import { useFilterParams, type FilterParams } from '@/hooks/useFilterParams';
+import { socialNetworkMeta } from '@/lib/socialNetworks';
 
-// ── Platform definitions ───────────────────────────────────────────────────
-export interface SocialPlatformDef {
-  key: string;
-  label: string;
-  color: string;
-  domains: string[];
-  utmSources: string[];
+// ── RPC shape (get_social_overview, 20261117000002_social_overview.sql) ────
+interface RpcNetwork {
+  network: string; sessions: number; page_views: number; engaged: number; conversions: number;
+  key_page_visits: number; bounces: number; duration_sum: number; paid_sessions: number;
+  click_id_sessions: number; tagged_sessions: number;
 }
-
-export const SOCIAL_PLATFORMS: SocialPlatformDef[] = [
-  { key: 'facebook',  label: 'Facebook',   color: '#1877F2', domains: ['facebook.com','fb.com','l.facebook.com','m.facebook.com'], utmSources: ['facebook','fb'] },
-  { key: 'instagram', label: 'Instagram',  color: '#E4405F', domains: ['instagram.com','l.instagram.com'],                         utmSources: ['instagram','ig'] },
-  { key: 'linkedin',  label: 'LinkedIn',   color: '#0A66C2', domains: ['linkedin.com','lnkd.in'],                                   utmSources: ['linkedin','li'] },
-  { key: 'twitter',   label: 'X / Twitter',color: '#14171A', domains: ['twitter.com','x.com','t.co'],                              utmSources: ['twitter','x','tweet','x.com'] },
-  { key: 'tiktok',    label: 'TikTok',     color: '#FE2C55', domains: ['tiktok.com'],                                               utmSources: ['tiktok','tt'] },
-  { key: 'youtube',   label: 'YouTube',    color: '#FF0000', domains: ['youtube.com','youtu.be'],                                   utmSources: ['youtube','yt'] },
-  { key: 'pinterest', label: 'Pinterest',  color: '#E60023', domains: ['pinterest.com','pin.it'],                                   utmSources: ['pinterest','pin'] },
-  { key: 'reddit',    label: 'Reddit',     color: '#FF4500', domains: ['reddit.com','redd.it'],                                     utmSources: ['reddit'] },
-];
-
-function detectPlatform(referrer: string | null, utmSource: string | null): string | null {
-  const src = (utmSource ?? '').toLowerCase().trim();
-  const ref = (referrer  ?? '').toLowerCase().trim();
-
-  for (const p of SOCIAL_PLATFORMS) {
-    if (p.utmSources.some(u => src === u || src.startsWith(u + '.'))) return p.key;
-    if (p.domains.some(d => ref.includes(d))) return p.key;
-    // Loose utm_source match (e.g. utm_source=Facebook matches facebook)
-    if (src && p.key.startsWith(src.slice(0, 4))) return p.key;
-  }
-  return null;
+interface RpcOverview {
+  total_sessions: number;
+  social_sessions: number;
+  networks: RpcNetwork[];
+  daily: Array<{ day: string; network: string; sessions: number }>;
+  landing_pages: Array<{ network: string; path: string; sessions: number; engaged: number; conversions: number }>;
+  campaigns: Array<{ network: string; utm_source: string | null; utm_medium: string | null; utm_campaign: string | null;
+    sessions: number; engaged: number; conversions: number; paid: boolean }>;
+  aggregate: { enabled: boolean; networks: Array<{ network: string; visits: number; visitors: number; engaged_visits: number; conversions: number }> };
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────
-export interface PlatformStats {
-  platformKey: string;
+export interface NetworkStats {
+  key: string;
   label: string;
   color: string;
   sessions: number;
-  uniqueUsers: number;
   pageViews: number;
-  avgDuration: number;   // seconds
-  bounceRate: number;    // percent
-  // UTM campaigns from this platform
-  campaigns: Array<{ name: string; sessions: number }>;
-  // Sessions per trend bucket (see SocialMediaResult.trendKeys)
+  pagesPerVisit: number;
+  engaged: number;
+  engagementRate: number; // percent
+  conversions: number;
+  keyPageVisits: number;
+  bounceRate: number;     // percent
+  avgDuration: number;    // seconds
+  paidSessions: number;
+  clickIdSessions: number;
+  taggedSessions: number;
+  previousSessions: number;
   trend: number[];
-  // Sessions in the same period one year earlier
-  previousSessions: number;
 }
 
-export interface SocialSummary {
-  totalSessions: number;
-  totalUniqueUsers: number;
-  topPlatform: string | null;
-  hasDarkSocial: boolean; // if many sessions have no referrer at all
-  // Same period one year earlier
-  previousSessions: number;
-  previousUniqueUsers: number;
+export interface SocialOverview {
+  networks: NetworkStats[];
+  totals: {
+    sessions: number; previousSessions: number; allSessions: number; pageViews: number;
+    engaged: number; conversions: number; keyPageVisits: number;
+    paid: number; organic: number; clickIds: number; tagged: number;
+  };
+  trendKeys: string[];
+  granularity: 'day' | 'month';
+  landingPages: RpcOverview['landing_pages'];
+  campaigns: RpcOverview['campaigns'];
+  aggregate: RpcOverview['aggregate'];
 }
 
-type SocialRow = {
-  day: string; referrer: string; utm_source: string; utm_campaign: string;
-  sessions: number; unique_users: number; page_views: number; avg_duration: number; bounces: number;
-};
-
-async function fetchSocialRows(siteId: string, from: string, to: string, fp: FilterParams): Promise<SocialRow[]> {
+async function fetchOverview(siteId: string, from: string, to: string, fp: FilterParams): Promise<RpcOverview> {
   const { data, error } = await (supabase as any)
-    .rpc('get_social_daily', { p_site_id: siteId, p_from: from, p_to: to, ...fp });
+    .rpc('get_social_overview', { p_site_id: siteId, p_from: from, p_to: to, ...fp });
   if (error) throw error;
-  return (data ?? []) as SocialRow[];
+  return data as RpcOverview;
+}
+
+const n = (v: unknown) => Number(v) || 0;
+
+export function buildSocialOverview(cur: RpcOverview, prev: RpcOverview | null, from: string, to: string): SocialOverview {
+  const buckets = trendBuckets(from, to);
+  const bucketIdx = new Map(buckets.keys.map((k, i) => [k, i]));
+  const prevByNet = new Map((prev?.networks ?? []).map((r) => [r.network, n(r.sessions)]));
+  const trendByNet = new Map<string, number[]>();
+  for (const d of cur.daily ?? []) {
+    const t = trendByNet.get(d.network) ?? Array(buckets.keys.length).fill(0);
+    const i = bucketIdx.get(buckets.keyOf(String(d.day).slice(0, 10)));
+    if (i !== undefined) t[i] += n(d.sessions);
+    trendByNet.set(d.network, t);
+  }
+
+  const networks: NetworkStats[] = (cur.networks ?? []).map((r) => {
+    const meta = socialNetworkMeta(r.network);
+    const sessions = n(r.sessions);
+    return {
+      key: r.network, label: meta.label, color: meta.color, sessions,
+      pageViews: n(r.page_views),
+      pagesPerVisit: sessions ? n(r.page_views) / sessions : 0,
+      engaged: n(r.engaged),
+      engagementRate: sessions ? (n(r.engaged) / sessions) * 100 : 0,
+      conversions: n(r.conversions),
+      keyPageVisits: n(r.key_page_visits),
+      bounceRate: sessions ? (n(r.bounces) / sessions) * 100 : 0,
+      avgDuration: sessions ? n(r.duration_sum) / sessions : 0,
+      paidSessions: n(r.paid_sessions),
+      clickIdSessions: n(r.click_id_sessions),
+      taggedSessions: n(r.tagged_sessions),
+      previousSessions: prevByNet.get(r.network) ?? 0,
+      trend: trendByNet.get(r.network) ?? Array(buckets.keys.length).fill(0),
+    };
+  }).sort((a, b) => b.sessions - a.sessions);
+
+  const sum = (f: (x: NetworkStats) => number) => networks.reduce((s, x) => s + f(x), 0);
+  const paid = sum((x) => x.paidSessions);
+  return {
+    networks,
+    totals: {
+      sessions: sum((x) => x.sessions),
+      previousSessions: (prev?.networks ?? []).reduce((s, r) => s + n(r.sessions), 0),
+      allSessions: n(cur.total_sessions),
+      pageViews: sum((x) => x.pageViews),
+      engaged: sum((x) => x.engaged),
+      conversions: sum((x) => x.conversions),
+      keyPageVisits: sum((x) => x.keyPageVisits),
+      paid,
+      organic: sum((x) => x.sessions) - paid,
+      clickIds: sum((x) => x.clickIdSessions),
+      tagged: sum((x) => x.taggedSessions),
+    },
+    trendKeys: buckets.keys,
+    granularity: buckets.granularity,
+    landingPages: cur.landing_pages ?? [],
+    campaigns: cur.campaigns ?? [],
+    aggregate: cur.aggregate ?? { enabled: false, networks: [] },
+  };
 }
 
 // ── Hook ───────────────────────────────────────────────────────────────────
 /**
- * Social traffic for the global dashboard date range (inclusive YYYY-MM-DD), compared with
- * the same period one year earlier. The trend is per day for short ranges and per month
- * for long ones (see trendBuckets).
+ * Social traffic for the global dashboard date range (inclusive YYYY-MM-DD) and the active
+ * URL/segment filters, compared with the same period one year earlier. The trend is per day
+ * for short ranges and per month for long ones (see trendBuckets).
  */
 export function useSocialMedia(siteId: string, range: { from: string; to: string }) {
-  const [platforms, setPlatforms] = useState<PlatformStats[]>([]);
-  const [summary, setSummary] = useState<SocialSummary>({
-    totalSessions: 0, totalUniqueUsers: 0, topPlatform: null, hasDarkSocial: false,
-    previousSessions: 0, previousUniqueUsers: 0,
-  });
-  const [trendKeys, setTrendKeys] = useState<string[]>([]);
-  const [granularity, setGranularity] = useState<'day' | 'month'>('day');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const fp = useFilterParams();
-  const fpKey = JSON.stringify(fp);
-
-  const fetch = useCallback(async () => {
-    if (!siteId) return;
-    setLoading(true);
-    setError(null);
-
-    try {
+  const query = useQuery({
+    queryKey: ['social-overview', siteId, range.from, range.to, fp],
+    enabled: !!siteId,
+    queryFn: async () => {
       const previous = sameRangeLastYear(range.from, range.to);
-      const [rows, previousRows] = await Promise.all([
-        fetchSocialRows(siteId, range.from, range.to, fp),
-        fetchSocialRows(siteId, previous.from, previous.to, fp),
+      const [cur, prev] = await Promise.all([
+        fetchOverview(siteId, range.from, range.to, fp),
+        fetchOverview(siteId, previous.from, previous.to, fp).catch(() => null),
       ]);
-      const buckets = trendBuckets(range.from, range.to);
-      const bucketIdx = new Map(buckets.keys.map((k, i) => [k, i]));
-
-      // Per-platform accumulators
-      type Acc = {
-        sessions: number;
-        users: number;
-        pageViews: number;
-        totalDuration: number;
-        bounces: number;
-        campaigns: Record<string, number>;
-        trend: number[];
-        previousSessions: number;
-        previousUsers: number;
-      };
-      const acc: Record<string, Acc> = {};
-      for (const p of SOCIAL_PLATFORMS) {
-        acc[p.key] = {
-          sessions: 0, users: 0, pageViews: 0, totalDuration: 0, bounces: 0, campaigns: {},
-          trend: Array(buckets.keys.length).fill(0), previousSessions: 0, previousUsers: 0,
-        };
-      }
-
-      let directCount = 0;
-
-      rows.forEach((row) => {
-        const key = detectPlatform(row.referrer || null, row.utm_source || null);
-        if (!key) {
-          if (!row.referrer && !row.utm_source) directCount += Number(row.sessions);
-          return;
-        }
-        const a = acc[key];
-        if (!a) return;
-
-        const s = Number(row.sessions);
-        a.sessions    += s;
-        a.users       += Number(row.unique_users);
-        a.pageViews   += Number(row.page_views);
-        a.totalDuration += Number(row.avg_duration) * s;
-        a.bounces     += Number(row.bounces);
-        const idx = bucketIdx.get(buckets.keyOf(row.day));
-        if (idx !== undefined) a.trend[idx] += s;
-
-        const campaign = (row.utm_campaign as string) || '(no campaign)';
-        a.campaigns[campaign] = (a.campaigns[campaign] ?? 0) + s;
-      });
-
-      previousRows.forEach((row) => {
-        const key = detectPlatform(row.referrer || null, row.utm_source || null);
-        const a = key ? acc[key] : undefined;
-        if (!a) return;
-        a.previousSessions += Number(row.sessions);
-        a.previousUsers    += Number(row.unique_users);
-      });
-
-      const result: PlatformStats[] = SOCIAL_PLATFORMS
-        .map(p => {
-          const a = acc[p.key];
-          return {
-            platformKey: p.key,
-            label: p.label,
-            color: p.color,
-            sessions: a.sessions,
-            uniqueUsers: a.users,
-            pageViews: a.pageViews,
-            avgDuration: a.sessions > 0 ? a.totalDuration / a.sessions : 0,
-            bounceRate: a.sessions > 0 ? (a.bounces / a.sessions) * 100 : 0,
-            campaigns: Object.entries(a.campaigns)
-              .sort((x, y) => y[1] - x[1])
-              .slice(0, 5)
-              .map(([name, sessions]) => ({ name, sessions })),
-            trend: a.trend,
-            previousSessions: a.previousSessions,
-          };
-        })
-        .filter(p => p.sessions > 0)
-        .sort((a, b) => b.sessions - a.sessions);
-
-      const totalSessions = result.reduce((s, p) => s + p.sessions, 0);
-      const totalUsers    = result.reduce((s, p) => s + p.uniqueUsers, 0);
-
-      setPlatforms(result);
-      setTrendKeys(buckets.keys);
-      setGranularity(buckets.granularity);
-      setSummary({
-        totalSessions,
-        totalUniqueUsers: totalUsers,
-        topPlatform: result[0]?.platformKey ?? null,
-        hasDarkSocial: directCount > totalSessions * 0.3,
-        previousSessions: Object.values(acc).reduce((s, a) => s + a.previousSessions, 0),
-        previousUniqueUsers: Object.values(acc).reduce((s, a) => s + a.previousUsers, 0),
-      });
-    } catch (err: any) {
-      setError(err?.message ?? err?.error_description ?? 'Could not fetch social media data');
-    } finally {
-      setLoading(false);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- fp is compared by value (fpKey)
-  }, [siteId, range.from, range.to, fpKey]);
-
-  useEffect(() => { fetch(); }, [fetch]);
-
-  return { platforms, summary, trendKeys, granularity, loading, error, refetch: fetch };
+      return buildSocialOverview(cur, prev, range.from, range.to);
+    },
+  });
+  const err = query.error as { message?: string } | null;
+  return {
+    data: query.data,
+    loading: query.isLoading,
+    error: err ? err.message ?? 'Could not fetch social media data' : null,
+    refetch: query.refetch,
+  };
 }

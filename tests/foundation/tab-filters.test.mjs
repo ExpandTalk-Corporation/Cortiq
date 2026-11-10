@@ -12,7 +12,7 @@ const RPCS = ['get_geo_breakdown', 'get_campaign_breakdown', 'get_social_daily',
 const HOOKS = {
   get_geo_breakdown: 'src/hooks/useGeoBreakdown.ts',
   get_campaign_breakdown: 'src/hooks/useCampaignBreakdown.ts',
-  get_social_daily: 'src/hooks/useSocialMedia.tsx',
+  get_social_overview: 'src/hooks/useSocialMedia.tsx', // 20261117000002_social_overview.sql
   get_navigation_flow: 'src/hooks/useNavigationFlow.ts',
   get_analytics_summary: 'src/hooks/useAnalytics.tsx',
 };
