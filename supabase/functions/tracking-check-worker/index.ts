@@ -1,4 +1,5 @@
-// Drains the Tracking Check queue. Called by tracking-check-start, by itself and by the status nudge.
+// Drains the Tracking Check queue. Called by tracking-check-start, by itself, by the status nudge
+// (x-worker-secret) and by the hourly tracking-check-schedules cron job (x-cron-secret, from Vault).
 import { createClient } from '../_shared/supabase.ts';
 import { processBatch, type Probes } from '../_shared/tracking-check/worker-core.ts';
 import { fetchProbe } from '../_shared/tracking-check/fetch-probe.ts';
@@ -12,9 +13,12 @@ const BATCH_WINDOW_MS = 30_000;   // start new batches for 30 s; one browser tas
 
 Deno.serve(async (req) => {
   const secret = Deno.env.get('TRACKING_CHECK_WORKER_SECRET');
-  if (!secret || req.headers.get('x-worker-secret') !== secret) return new Response('Unauthorized', { status: 401 });
+  const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+  if (!(secret && req.headers.get('x-worker-secret') === secret) && !(await cronAuthorized(db, req.headers.get('x-cron-secret')))) {
+    return new Response('Unauthorized', { status: 401 });
+  }
 
-  const store = createStore(createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!));
+  const store = createStore(db);
   const probes: Probes = {
     fetchProbe: (url, auth) => fetchProbe(url, { basicAuth: auth }),
     browserProbe: async (url, states, auth) => {
@@ -54,3 +58,11 @@ Deno.serve(async (req) => {
   }
   return Response.json(await work);
 });
+
+// The cron job's secret lives only in Vault; the database compares it (service role only).
+// deno-lint-ignore no-explicit-any
+async function cronAuthorized(db: any, provided: string | null): Promise<boolean> {
+  if (!provided) return false;
+  const { data, error } = await db.rpc('tracking_check_cron_secret_matches', { p_secret: provided });
+  return !error && data === true;
+}

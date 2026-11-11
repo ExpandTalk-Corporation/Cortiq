@@ -11,9 +11,12 @@ export function createStore(db: Db): TrackingCheckStore {
     async recoverStale(seconds) { check(await db.rpc('tracking_check_recover_stale', { p_seconds: seconds })); },
     async claimTasks(kind, limit) { return (check(await db.rpc('tracking_check_claim_tasks', { p_kind: kind, p_limit: limit })) ?? []) as TaskRow[]; },
     async getRun(runId) {
-      const run = check(await db.from('tracking_check_runs').select('id, mode, baseline_url, target_url, policy, auth_ciphertext, auth_expires_at').eq('id', runId).single());
+      const run = check(await db.from('tracking_check_runs').select('id, mode, baseline_url, target_url, policy, auth_ciphertext, auth_expires_at, schedule_id, trigger').eq('id', runId).single());
       const expired = run.auth_expires_at && Date.parse(run.auth_expires_at) < Date.now();
-      return { id: run.id, mode: run.mode, baseline_url: run.baseline_url, target_url: run.target_url, policy: run.policy, auth_ciphertext: expired ? null : run.auth_ciphertext };
+      return {
+        id: run.id, mode: run.mode, baseline_url: run.baseline_url, target_url: run.target_url, policy: run.policy, auth_ciphertext: expired ? null : run.auth_ciphertext,
+        schedule_id: run.schedule_id ?? null, trigger: run.trigger === 'scheduled' ? 'scheduled' : 'manual',
+      };
     },
     async saveObservation(task, data) {
       check(await db.from('tracking_check_observations').upsert({ run_id: task.run_id, task_id: task.id, data }, { onConflict: 'task_id' }));
@@ -50,6 +53,26 @@ export function createStore(db: Db): TrackingCheckStore {
     },
     async failRun(runId, error) {
       check(await db.from('tracking_check_runs').update({ status: 'failed', error: error.slice(0, 500), finished_at: new Date().toISOString(), auth_ciphertext: null, auth_expires_at: null }).eq('id', runId));
+    },
+    async previousRun(run) {
+      if (!run.schedule_id) return null;
+      const rows = check<{ id: string; finished_at: string | null; summary: { vendors?: unknown } | null }[] | null>(await db.from('tracking_check_runs').select('id, finished_at, summary')
+        .eq('schedule_id', run.schedule_id).eq('status', 'done').neq('id', run.id)
+        .order('finished_at', { ascending: false }).limit(1)) ?? [];
+      const prev = rows[0];
+      if (!prev) return null;
+      const findings: { check_key: string; title: string; status: string; priority: string | null; scope: string }[] =
+        check(await db.from('tracking_check_findings').select('check_key, title, status, priority, scope').eq('run_id', prev.id)) ?? [];
+      return {
+        id: prev.id, finishedAt: prev.finished_at ?? null,
+        // deno-lint-ignore no-explicit-any
+        findings: findings.map((f) => ({ checkKey: f.check_key, title: f.title, status: f.status as any, priority: f.priority as any, scope: f.scope })),
+        // deno-lint-ignore no-explicit-any
+        vendors: Array.isArray(prev.summary?.vendors) ? prev.summary.vendors as any : null,
+      };
+    },
+    async recordScheduleAlert(scheduleId, runId) {
+      check(await db.from('tracking_check_schedules').update({ alert_run_id: runId, updated_at: new Date().toISOString() }).eq('id', scheduleId));
     },
     async hasPendingWork() {
       const { count, error } = await db.from('tracking_check_tasks').select('id', { count: 'exact', head: true }).in('status', ['pending', 'running']);

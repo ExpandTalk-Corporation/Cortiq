@@ -1,4 +1,5 @@
 // Turns findings into the report headline, summary lines and tracker-compatible CSV.
+import type { RunDiff } from './diff.ts';
 import type { ConsentCategory, ConsentState, Finding, FindingStatus, Mode, Owner, PolicyTemplate, ScriptOrigin } from './types.ts';
 
 export interface SummaryLine { status: FindingStatus; text: string; checkKey: string }
@@ -8,6 +9,8 @@ export interface ReportSummary {
   commitments?: string[];
   /** One row per tool with what it did in each consent state (runs since the vendor matrix was added). */
   vendors?: VendorRow[];
+  /** Runs of a schedule: changes since the previous finished run of the same schedule. */
+  diff?: RunDiff;
 }
 
 export type CommitmentFlag = Exclude<keyof PolicyTemplate, 'expectedIds' | 'manualItems'>;

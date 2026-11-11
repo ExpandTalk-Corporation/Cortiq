@@ -1,4 +1,4 @@
-// Tracking Check API: access check, page suggestions, run creation, status and sharing.
+// Tracking Check API: access check, page suggestions, run creation, status, sharing and schedules.
 import { createClient } from '../_shared/supabase.ts';
 import { assertSafeUrl } from '../_shared/safe-url.ts';
 import { discoverPages, suggestPages } from '../_shared/tracking-check/pages.ts';
@@ -19,6 +19,11 @@ export const LIMITS = { comparisonPages: 25, policyPages: 15, legacyPaths: 25, r
 // Allowlisted accounts get LIMITS; once TRACKING_CHECK_PUBLIC=true, any other confirmed account gets STANDARD.
 // Each page is a headless-browser load per consent state, so the standard quota stays small.
 export const STANDARD = { comparisonPages: 5, policyPages: 5, legacyPaths: 10, runsPerDay: 3, authHours: 2 };
+// Active weekly/monthly schedules per account. Scheduled runs do not count against runsPerDay (that quota
+// is for runs started by hand); this cap and the frequency bound how many runs schedules can create.
+export const SCHEDULES = { full: 20, standard: 5 };
+const FREQUENCIES = ['weekly', 'monthly'] as const;
+type Frequency = typeof FREQUENCIES[number];
 type Tier = 'full' | 'standard';
 type Limits = typeof LIMITS;
 class InputError extends Error {}
@@ -56,12 +61,15 @@ Deno.serve(async (req) => {
         allowed, tier, preview, confirmed,
         limits: { runsPerDay: limits.runsPerDay, policyPages: limits.policyPages, comparisonPages: limits.comparisonPages },
         runsToday: allowed ? await runsToday(user.id, service) : 0,
+        schedules: { max: SCHEDULES[tier], active: allowed ? await activeSchedules(user.id, service) : 0 },
       });
       case 'suggest': return json(await suggest(body));
       case 'create': return await create(body, user.id, service, limits);
       case 'status': return await status(body, user.id, service);
       case 'share': return await share(body, user.id, service);
       case 'revoke': return await revoke(body, user.id, service);
+      case 'schedule': return await schedule(body, user.id, service, SCHEDULES[tier]);
+      case 'dismiss': return await dismiss(body, user.id, service);
       default: return json({ error: 'Unknown action' }, 400);
     }
   } catch (e) {
@@ -119,7 +127,9 @@ async function suggest(body: Body) {
 
 async function runsToday(userId: string, service: Db): Promise<number> {
   const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-  const { count, error } = await service.from('tracking_check_runs').select('id', { count: 'exact', head: true }).eq('user_id', userId).gte('created_at', since);
+  // Scheduled reruns are left out: the daily quota is for runs started by hand.
+  const { count, error } = await service.from('tracking_check_runs').select('id', { count: 'exact', head: true })
+    .eq('user_id', userId).eq('trigger', 'manual').gte('created_at', since);
   if (error) throw error;
   return count ?? 0;
 }
@@ -149,7 +159,7 @@ async function create(body: Body, userId: string, service: Db, limits: Limits) {
   }
 
   const { data: run, error } = await service.from('tracking_check_runs')
-    .insert({ user_id: userId, mode, baseline_url: baseline, target_url: target, policy, pages: { pages, legacy }, auth_ciphertext, auth_expires_at })
+    .insert({ user_id: userId, mode, baseline_url: baseline, target_url: target, policy, pages: { pages, legacy }, auth_ciphertext, auth_expires_at, requires_auth: !!auth_ciphertext })
     .select('id').single();
   if (error) throw error;
 
@@ -207,6 +217,77 @@ async function revoke(body: Body, userId: string, service: Db) {
   const run = await ownRun(body.runId, userId, service);
   if (!run) return json({ error: 'Not found' }, 404);
   const { error } = await service.from('tracking_check_runs').update({ share_token: null, share_expires_at: null }).eq('id', run.id);
+  if (error) throw error;
+  return json({ ok: true });
+}
+
+async function activeSchedules(userId: string, service: Db): Promise<number> {
+  const { count, error } = await service.from('tracking_check_schedules').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('enabled', true);
+  if (error) throw error;
+  return count ?? 0;
+}
+
+export function nextRunAt(frequency: Frequency, from = new Date()): string {
+  const next = new Date(from.getTime());
+  if (frequency === 'weekly') next.setUTCDate(next.getUTCDate() + 7);
+  else next.setUTCMonth(next.getUTCMonth() + 1);
+  return next.toISOString();
+}
+
+// Turns weekly/monthly reruns of a finished run on or off. A run that already belongs to a schedule
+// updates that schedule, so a whole lineage of runs shares one schedule and one diff chain.
+async function schedule(body: Body, userId: string, service: Db, max: number) {
+  const frequency = body.frequency;
+  if (frequency !== 'off' && !FREQUENCIES.includes(frequency)) throw new InputError('frequency must be off, weekly or monthly');
+  if (typeof body.runId !== 'string') return json({ error: 'Not found' }, 404);
+  const { data: run } = await service.from('tracking_check_runs')
+    .select('id, user_id, status, mode, baseline_url, target_url, policy, pages, schedule_id, requires_auth').eq('id', body.runId).maybeSingle();
+  if (!run || run.user_id !== userId) return json({ error: 'Not found' }, 404);
+
+  let current: { id: string; enabled: boolean } | null = null;
+  if (run.schedule_id) {
+    const { data } = await service.from('tracking_check_schedules').select('id, user_id, enabled').eq('id', run.schedule_id).maybeSingle();
+    if (data && data.user_id === userId) current = data;
+  }
+  const now = new Date();
+
+  if (frequency === 'off') {
+    if (current) {
+      const { error } = await service.from('tracking_check_schedules').update({ enabled: false, updated_at: now.toISOString() }).eq('id', current.id);
+      if (error) throw error;
+    }
+    return json({ scheduleId: current?.id ?? null, frequency: 'off' });
+  }
+
+  if (run.status !== 'done') throw new InputError('Only finished runs can be scheduled');
+  if (run.requires_auth) throw new InputError('Runs that used login credentials cannot be scheduled');
+  if (!current?.enabled && await activeSchedules(userId, service) >= max) {
+    return json({ error: `You can have at most ${max} scheduled checks. Turn one off first.` }, 429);
+  }
+
+  const fields = { frequency, enabled: true, next_run_at: nextRunAt(frequency, now), updated_at: now.toISOString() };
+  if (current) {
+    const { error } = await service.from('tracking_check_schedules').update(fields).eq('id', current.id);
+    if (error) throw error;
+    return json({ scheduleId: current.id, frequency, nextRunAt: fields.next_run_at });
+  }
+
+  const { data: created, error } = await service.from('tracking_check_schedules').insert({
+    ...fields, user_id: userId, source_run_id: run.id, mode: run.mode, baseline_url: run.baseline_url,
+    target_url: run.target_url, policy: run.policy, pages: run.pages, last_run_id: run.id,
+  }).select('id').single();
+  if (error) throw error;
+  const { error: linkError } = await service.from('tracking_check_runs').update({ schedule_id: created.id }).eq('id', run.id);
+  if (linkError) throw linkError;
+  return json({ scheduleId: created.id, frequency, nextRunAt: fields.next_run_at });
+}
+
+// Hides the "new problems" notice of a schedule.
+async function dismiss(body: Body, userId: string, service: Db) {
+  if (typeof body.scheduleId !== 'string') return json({ error: 'Not found' }, 404);
+  const { data } = await service.from('tracking_check_schedules').select('id, user_id').eq('id', body.scheduleId).maybeSingle();
+  if (!data || data.user_id !== userId) return json({ error: 'Not found' }, 404);
+  const { error } = await service.from('tracking_check_schedules').update({ alert_run_id: null, updated_at: new Date().toISOString() }).eq('id', data.id);
   if (error) throw error;
   return json({ ok: true });
 }

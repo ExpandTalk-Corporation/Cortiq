@@ -2,6 +2,8 @@
 import { assess } from './assess/index.ts';
 import { summarize, type ReportSummary } from './report.ts';
 import { vendorMatrix } from './vendor-matrix.ts';
+import { diffRuns, hasNewProblems, type DiffFinding } from './diff.ts';
+import type { VendorRow } from './report.ts';
 import type {
   BasicAuth, BrowserObservation, ConsentState, FetchObservation, Finding, Mode, PageObservation, PolicyTemplate, SiteObservation, SiteRole,
 } from './types.ts';
@@ -10,7 +12,14 @@ export interface TaskRow {
   id: string; run_id: string; site_role: SiteRole; path: string; kind: 'fetch' | 'browser'; legacy: boolean;
   attempts: number; status: 'pending' | 'running' | 'done' | 'failed'; error: string | null;
 }
-export interface RunRow { id: string; mode: Mode; baseline_url: string | null; target_url: string; policy: PolicyTemplate | null; auth_ciphertext: string | null }
+export interface RunRow {
+  id: string; mode: Mode; baseline_url: string | null; target_url: string; policy: PolicyTemplate | null; auth_ciphertext: string | null;
+  /** Set on runs that belong to a schedule (the source run and every scheduled rerun). */
+  schedule_id?: string | null;
+  trigger?: 'manual' | 'scheduled';
+}
+/** The previous finished run of the same schedule, for summary.diff. */
+export interface PreviousRun { id: string; finishedAt: string | null; findings: DiffFinding[]; vendors: VendorRow[] | null }
 export interface TaskResult { task: TaskRow; data: FetchObservation | BrowserObservation | null }
 
 export interface TrackingCheckStore {
@@ -26,6 +35,9 @@ export interface TrackingCheckStore {
   saveResults(runId: string, findings: Finding[], summary: ReportSummary): Promise<void>;
   failRun(runId: string, error: string): Promise<void>;
   hasPendingWork(): Promise<boolean>;
+  /** Scheduled runs only. Optional so stores without schedules keep working. */
+  previousRun?(run: RunRow): Promise<PreviousRun | null>;
+  recordScheduleAlert?(scheduleId: string, runId: string): Promise<void>;
 }
 
 export interface Probes {
@@ -74,13 +86,33 @@ export async function processBatch(store: TrackingCheckStore, probes: Probes, li
       const run = await store.getRun(runId);
       const { target, baseline } = buildSites(run, await store.loadResults(runId));
       const findings = assess({ mode: run.mode, target, baseline, policy: run.policy });
-      await store.saveResults(runId, findings, { ...summarize(findings, run.mode, run.policy), vendors: vendorMatrix(target, findings) });
+      const summary: ReportSummary = { ...summarize(findings, run.mode, run.policy), vendors: vendorMatrix(target, findings) };
+      const diff = await scheduleDiff(store, run, findings, summary.vendors ?? null);
+      if (diff) summary.diff = diff;
+      await store.saveResults(runId, findings, summary);
+      if (diff && run.schedule_id && run.trigger === 'scheduled' && hasNewProblems(diff) && store.recordScheduleAlert) {
+        // The report is saved; a failed notice must not fail the run.
+        try { await store.recordScheduleAlert(run.schedule_id, runId); } catch (e) { console.error('tracking-check alert', message(e)); }
+      }
       finalized.push(runId);
     } catch (e) {
       await store.failRun(runId, message(e));
     }
   }
   return { processed: tasks.length, finalized, more: await store.hasPendingWork() };
+}
+
+// Compares a run that belongs to a schedule with the previous finished run of that schedule. A failed
+// lookup leaves the diff out instead of failing the run.
+async function scheduleDiff(store: TrackingCheckStore, run: RunRow, findings: Finding[], vendors: VendorRow[] | null) {
+  if (!run.schedule_id || !store.previousRun) return null;
+  try {
+    const previous = await store.previousRun(run);
+    return previous ? diffRuns({ findings, vendors }, previous) : null;
+  } catch (e) {
+    console.error('tracking-check diff', message(e));
+    return null;
+  }
 }
 
 export function buildSites(run: RunRow, results: TaskResult[]): { target: SiteObservation; baseline: SiteObservation | null } {

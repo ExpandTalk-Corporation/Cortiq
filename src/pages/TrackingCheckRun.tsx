@@ -4,6 +4,7 @@ import { Download, FileSpreadsheet, Link2, Loader2, RotateCcw, Unlink } from 'lu
 import { Button } from '@/components/ui/button';
 import { ReportView } from '@/components/tracking-check/ReportView';
 import { RunProgress } from '@/components/tracking-check/RunProgress';
+import { ScheduleControl } from '@/components/tracking-check/ScheduleControl';
 import { useAuth } from '@/hooks/useAuth';
 import { shareUrl, useFindings, useRun, useRunStatus, useShareRun, useVerifyFinding } from '@/hooks/useTrackingCheck';
 import { toCsv } from '../../supabase/functions/_shared/tracking-check/report.ts';
@@ -92,6 +93,7 @@ function TrackingCheckRunBody() {
           </>}
         />
       )}
+      {r.status === 'done' && <ScheduleControl run={r} />}
     </main>
   );
 }
