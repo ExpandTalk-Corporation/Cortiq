@@ -10,15 +10,18 @@ const ENV = {
 };
 
 function mockClient({ user = { id: A, email: 'daniel@expandtalk.se', email_confirmed_at: '2026-01-01T00:00:00Z' }, runsToday = 0, run = null, tasks = [], findings = [], pendingCount = 0,
-  taskInsertError = null, runError = null, findingsError = null } = {}) {
-  const calls = { inserts: [], updates: [], deletes: [], rpc: [] };
+  taskInsertError = null, runError = null, findingsError = null, schedule = null, activeSchedules = 0, rpcResult = () => [] } = {}) {
+  const calls = { inserts: [], updates: [], deletes: [], rpc: [], counts: [] };
   const client = {
     auth: { getUser: async () => ({ data: { user }, error: null }) },
-    rpc: async (name, args) => { calls.rpc.push([name, args]); return { data: [], error: null }; },
+    rpc: async (name, args) => { calls.rpc.push([name, args]); return { data: rpcResult(name, args), error: null }; },
     from(table) {
       const op = { table, type: 'select', head: false, filters: [] };
       const result = () => {
-        if (op.head) return { count: table === 'tracking_check_runs' ? runsToday : table === 'tracking_check_tasks' ? pendingCount : 0, error: null };
+        if (op.head) {
+          calls.counts.push({ table, filters: op.filters });
+          return { count: table === 'tracking_check_runs' ? runsToday : table === 'tracking_check_tasks' ? pendingCount : table === 'tracking_check_schedules' ? activeSchedules : 0, error: null };
+        }
         if (op.type === 'insert' && table === 'tracking_check_tasks' && taskInsertError) return { data: null, error: taskInsertError };
         if (op.type !== 'select') return { data: op.returning ? [{ id: 'x' }] : null, error: null };
         if (table === 'tracking_check_tasks') return { data: tasks, error: null };
@@ -33,8 +36,9 @@ function mockClient({ user = { id: A, email: 'daniel@expandtalk.se', email_confi
         delete() { op.type = 'delete'; calls.deletes.push({ table, filters: op.filters }); return q; },
         eq(k, v) { op.filters.push([k, v]); return q; },
         gte() { return q; }, in() { return q; }, order() { return q; }, limit() { return q; },
-        single: async () => ({ data: op.type === 'insert' ? { id: 'run-1' } : run, error: null }),
-        maybeSingle: async () => (runError ? { data: null, error: runError } : { data: run, error: null }),
+        single: async () => ({ data: op.type === 'insert' ? { id: table === 'tracking_check_schedules' ? 'sched-1' : 'run-1' } : run, error: null }),
+        maybeSingle: async () => (table === 'tracking_check_schedules' ? { data: schedule, error: null }
+          : runError ? { data: null, error: runError } : { data: run, error: null }),
         then(resolve, reject) { return Promise.resolve(result()).then(resolve, reject); },
       };
       return q;
@@ -56,8 +60,8 @@ const confirmedOutsider = () => mockClient({ user: { id: A, email: 'someone@else
 
 test('start: any confirmed user may run; the allowlist gets the full quota', async () => {
   assert.equal((await post(edge('tracking-check-start', mockClient({ user: null })).handler, { action: 'access' })).status, 401);
-  assert.deepEqual(await access(mockClient({ runsToday: 4 })), { allowed: true, tier: 'full', preview: false, confirmed: true, limits: { runsPerDay: 10, policyPages: 15, comparisonPages: 25 }, runsToday: 4 });
-  assert.deepEqual(await access(confirmedOutsider()), { allowed: true, tier: 'standard', preview: false, confirmed: true, limits: { runsPerDay: 3, policyPages: 5, comparisonPages: 5 }, runsToday: 0 });
+  assert.deepEqual(await access(mockClient({ runsToday: 4 })), { allowed: true, tier: 'full', preview: false, confirmed: true, limits: { runsPerDay: 10, policyPages: 15, comparisonPages: 25 }, runsToday: 4, schedules: { max: 20, active: 0 } });
+  assert.deepEqual(await access(confirmedOutsider()), { allowed: true, tier: 'standard', preview: false, confirmed: true, limits: { runsPerDay: 3, policyPages: 5, comparisonPages: 5 }, runsToday: 0, schedules: { max: 5, active: 0 } });
   assert.equal((await post(edge('tracking-check-start', confirmedOutsider()).handler, createBody())).status, 200);
 });
 
@@ -225,4 +229,85 @@ test('start: in private preview only allowlisted accounts may run', async () => 
   assert.match((await res.json()).error, /private preview/);
   assert.equal(db.calls.inserts.length, 0);
   assert.equal((await post(edge('tracking-check-start', mockClient(), { env }).handler, createBody())).status, 200);
+});
+
+// ── Schedules ──────────────────────────────────────────────────────────────────
+const doneRun = (extra = {}) => ({
+  id: 'r', user_id: A, status: 'done', mode: 'comparison', baseline_url: 'https://old.example', target_url: 'https://new.example',
+  policy: null, pages: { pages: ['/'], legacy: [] }, schedule_id: null, requires_auth: false, ...extra,
+});
+const outsiderUser = { id: A, email: 'someone@else.com', email_confirmed_at: '2026-01-01T00:00:00Z' };
+
+test('start: the daily quota counts only runs started by hand', async () => {
+  const db = mockClient();
+  await post(edge('tracking-check-start', db).handler, createBody());
+  const count = db.calls.counts.find((c) => c.table === 'tracking_check_runs');
+  assert.deepEqual(count.filters, [['user_id', A], ['trigger', 'manual']]);
+});
+
+test('start: schedule creates a schedule from a finished run and links the run to it', async () => {
+  const db = mockClient({ run: doneRun() });
+  const res = await post(edge('tracking-check-start', db).handler, { action: 'schedule', runId: 'r', frequency: 'weekly' });
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.scheduleId, 'sched-1');
+  const days = (Date.parse(body.nextRunAt) - Date.now()) / 86400000;
+  assert.ok(days > 6.9 && days < 7.1);
+  const insert = db.calls.inserts.find((i) => i.table === 'tracking_check_schedules').payload;
+  assert.equal(insert.user_id, A);
+  assert.equal(insert.frequency, 'weekly');
+  assert.equal(insert.target_url, 'https://new.example');
+  assert.deepEqual(insert.pages, { pages: ['/'], legacy: [] });
+  const link = db.calls.updates.find((u) => u.table === 'tracking_check_runs');
+  assert.deepEqual(link.payload, { schedule_id: 'sched-1' });
+  assert.deepEqual(link.filters, [['id', 'r']]);
+});
+
+test('start: schedule refuses other users runs, unfinished runs, credentialed runs and bad frequencies', async () => {
+  const schedule = (run, frequency = 'monthly') => post(edge('tracking-check-start', mockClient({ run })).handler, { action: 'schedule', runId: 'r', frequency });
+  assert.equal((await schedule(doneRun({ user_id: 'someone-else' }))).status, 404);
+  assert.equal((await schedule(doneRun({ status: 'running' }))).status, 400);
+  const auth = await schedule(doneRun({ requires_auth: true }));
+  assert.equal(auth.status, 400);
+  assert.match((await auth.json()).error, /login credentials/);
+  assert.equal((await schedule(doneRun(), 'daily')).status, 400);
+});
+
+test('start: active schedules are capped per tier; updating an active schedule is not capped', async () => {
+  const capped = mockClient({ user: outsiderUser, run: doneRun(), activeSchedules: 5 });
+  const res = await post(edge('tracking-check-start', capped).handler, { action: 'schedule', runId: 'r', frequency: 'weekly' });
+  assert.equal(res.status, 429);
+  assert.equal(capped.calls.inserts.length, 0);
+  // The allowlisted tier has room for more.
+  assert.equal((await post(edge('tracking-check-start', mockClient({ run: doneRun(), activeSchedules: 5 })).handler, { action: 'schedule', runId: 'r', frequency: 'weekly' })).status, 200);
+  // Switching an active schedule from weekly to monthly does not need a free slot.
+  const lineage = mockClient({ user: outsiderUser, run: doneRun({ schedule_id: 's1' }), schedule: { id: 's1', user_id: A, enabled: true }, activeSchedules: 5 });
+  const ok = await post(edge('tracking-check-start', lineage).handler, { action: 'schedule', runId: 'r', frequency: 'monthly' });
+  assert.equal(ok.status, 200);
+  const update = lineage.calls.updates.find((u) => u.table === 'tracking_check_schedules');
+  assert.equal(update.payload.frequency, 'monthly');
+  assert.deepEqual(update.filters, [['id', 's1']]);
+  assert.equal(lineage.calls.inserts.length, 0);
+});
+
+test('start: schedule off disables the lineage; dismiss clears the notice of own schedules only', async () => {
+  const db = mockClient({ run: doneRun({ schedule_id: 's1' }), schedule: { id: 's1', user_id: A, enabled: true } });
+  const { handler } = edge('tracking-check-start', db);
+  assert.equal((await post(handler, { action: 'schedule', runId: 'r', frequency: 'off' })).status, 200);
+  assert.equal(db.calls.updates.find((u) => u.table === 'tracking_check_schedules').payload.enabled, false);
+  assert.equal((await post(handler, { action: 'dismiss', scheduleId: 's1' })).status, 200);
+  assert.equal(db.calls.updates.at(-1).payload.alert_run_id, null);
+  const foreign = mockClient({ schedule: { id: 's1', user_id: 'someone-else' } });
+  assert.equal((await post(edge('tracking-check-start', foreign).handler, { action: 'dismiss', scheduleId: 's1' })).status, 404);
+  assert.equal(foreign.calls.updates.length, 0);
+});
+
+test('worker: accepts the cron secret only when the database confirms it', async () => {
+  const cron = (db, secret) => edge('tracking-check-worker', db).handler(new Request('https://x.example/', { method: 'POST', headers: { 'x-cron-secret': secret } }));
+  const denied = mockClient();
+  assert.equal((await cron(denied, 'c'.repeat(64))).status, 401);
+  assert.deepEqual(denied.calls.rpc[0], ['tracking_check_cron_secret_matches', { p_secret: 'c'.repeat(64) }]);
+  const allowed = mockClient({ rpcResult: (name) => (name === 'tracking_check_cron_secret_matches' ? true : []) });
+  assert.equal((await cron(allowed, 'c'.repeat(64))).status, 200);
+  assert.ok(allowed.calls.rpc.some(([name]) => name === 'tracking_check_claim_tasks'));
 });

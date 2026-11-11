@@ -7,6 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import type { FindingStatus, Mode } from '../../../supabase/functions/_shared/tracking-check/types.ts';
 import { MATRIX_NOTE, ORIGIN_SHORT, OWNER_LABEL, STATE_LABEL, cellText, matrixStates, type ReportSummary, type VendorRow } from '../../../supabase/functions/_shared/tracking-check/report.ts';
+import type { DiffItem, RunDiff } from '../../../supabase/functions/_shared/tracking-check/diff.ts';
 import type { FindingRow } from '@/hooks/useTrackingCheck';
 
 const STATUS: Record<FindingStatus, { label: string; icon: typeof XCircle; className: string }> = {
@@ -79,6 +80,8 @@ export function ReportView({ summary, findings, mode, baselineUrl, targetUrl, fi
         </CardContent>
       </Card>
 
+      {summary.diff && <ChangesCard diff={summary.diff} onShow={showFix} />}
+
       {summary.vendors && summary.vendors.length > 0 && <VendorTable rows={summary.vendors} onShow={showFix} />}
 
       <Collapsible open={listOpen} onOpenChange={setListOpen}>
@@ -93,6 +96,69 @@ export function ReportView({ summary, findings, mode, baselineUrl, targetUrl, fi
         </CollapsibleContent>
       </Collapsible>
     </div>
+  );
+}
+
+// Scheduled runs: what changed since the previous run of the same schedule. Older runs have no diff.
+function ChangesCard({ diff, onShow }: { diff: RunDiff; onShow: (checkKey: string) => void }) {
+  const c = diff.counts;
+  const since = diff.previousFinishedAt ? new Date(diff.previousFinishedAt).toLocaleDateString() : 'the previous run';
+  const none = c.newProblems + c.resolved + c.notTested + c.newVendors + c.removedVendors + c.newCookies === 0;
+  const more = (shown: number, total: number) => total > shown && <p className="text-sm text-muted-foreground">+{total - shown} more</p>;
+  const items = (list: DiffItem[], total: number, showFix: boolean) => (
+    <>
+      <ul className="space-y-2">
+        {list.map((i) => {
+          const s = STATUS[i.status];
+          const Icon = s.icon;
+          return (
+            <li key={i.checkKey} className="flex items-start gap-3">
+              <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${s.className}`} role="img" aria-label={s.label} />
+              <span className="flex-1">
+                {i.title}
+                {i.previous && i.previous !== i.status && <span className="text-sm text-muted-foreground"> (was {STATUS[i.previous].label})</span>}
+              </span>
+              {showFix && <Button variant="link" className="h-auto p-0" onClick={() => onShow(i.checkKey)}>Show fix</Button>}
+            </li>
+          );
+        })}
+      </ul>
+      {more(list.length, total)}
+    </>
+  );
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">Changes since {since}</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          {none
+            ? 'Nothing changed since the previous scheduled check.'
+            : [
+              `${c.newProblems} new ${c.newProblems === 1 ? 'problem' : 'problems'}`,
+              `${c.resolved} resolved`,
+              `${c.unchanged} unchanged`,
+              c.notTested ? `${c.notTested} not tested this time` : '',
+              c.newVendors ? `${c.newVendors} new ${c.newVendors === 1 ? 'tool' : 'tools'}` : '',
+              c.newCookies ? `${c.newCookies} new ${c.newCookies === 1 ? 'cookie' : 'cookies'}` : '',
+            ].filter(Boolean).join(' · ')}
+        </p>
+      </CardHeader>
+      {!none && (
+        <CardContent className="space-y-4">
+          {diff.newProblems.length > 0 && <section className="space-y-2"><h3 className="font-medium">New problems</h3>{items(diff.newProblems, c.newProblems, true)}</section>}
+          {(diff.newVendors.length > 0 || diff.newCookies.length > 0) && (
+            <section className="space-y-1">
+              <h3 className="font-medium">New tools and cookies</h3>
+              {diff.newVendors.length > 0 && <p className="text-sm">New tools: {diff.newVendors.map((v) => v.name).join(', ')}{c.newVendors > diff.newVendors.length && ` +${c.newVendors - diff.newVendors.length} more`}</p>}
+              {diff.newCookies.length > 0 && <p className="text-sm">New cookies or storage: {diff.newCookies.map((k) => `${k.name} (${k.vendor})`).join(', ')}{c.newCookies > diff.newCookies.length && ` +${c.newCookies - diff.newCookies.length} more`}</p>}
+            </section>
+          )}
+          {diff.resolved.length > 0 && <section className="space-y-2"><h3 className="font-medium">Resolved</h3>{items(diff.resolved, c.resolved, false)}</section>}
+          {diff.notTested.length > 0 && <section className="space-y-2"><h3 className="font-medium">Not tested this time</h3>{items(diff.notTested, c.notTested, true)}</section>}
+          {diff.removedVendors.length > 0 && <p className="text-sm text-muted-foreground">No longer seen: {diff.removedVendors.map((v) => v.name).join(', ')}</p>}
+        </CardContent>
+      )}
+    </Card>
   );
 }
 

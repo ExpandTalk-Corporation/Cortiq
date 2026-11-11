@@ -5,13 +5,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { StartForm } from '@/components/tracking-check/StartForm';
-import { useRuns, useTrackingCheckAccess, type RunRow } from '@/hooks/useTrackingCheck';
+import { TrackingCheckAlerts } from '@/components/tracking-check/TrackingCheckAlerts';
+import { useRuns, useSchedules, useTrackingCheckAccess, type RunRow } from '@/hooks/useTrackingCheck';
 import PublicLayout from "@/components/PublicLayout";
 import { siteFromQuery } from "@/lib/trackingCheckUrl";
 
 function TrackingCheckBody() {
   const access = useTrackingCheckAccess();
   const runs = useRuns();
+  const schedules = useSchedules();
+  const activeSchedules = (schedules.data ?? []).filter((s) => s.enabled);
   const location = useLocation();
   const navigate = useNavigate();
   // "Run again" passes the old run in router state. Read it once, then clear it: browser history keeps
@@ -56,6 +59,7 @@ function TrackingCheckBody() {
           <Link to="/tracking-check/" className="text-primary underline">How the check works</Link>
         </p>
       </div>
+      <TrackingCheckAlerts />
       {prefill && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/50 px-4 py-2 text-sm">
           <span>Pre-filled from the run on {prefill.target_url}</span>
@@ -63,10 +67,24 @@ function TrackingCheckBody() {
         </div>
       )}
       <p className="text-sm text-muted-foreground">
-        {left} of {limits.runsPerDay} checks left in the last 24 hours.
+        {left} of {limits.runsPerDay} checks left in the last 24 hours. Scheduled checks don't count.
         {tier === 'standard' && <> Need more? Contact <a className="text-primary underline" href="mailto:info@expandtalk.se">info@expandtalk.se</a>.</>}
       </p>
       <StartForm key={prefill?.id ?? 'new'} prefill={prefill} initialUrl={initialUrl} initialMode={initialMode} limits={limits} />
+      {activeSchedules.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle>Scheduled checks</CardTitle></CardHeader>
+          <CardContent className="divide-y">
+            {activeSchedules.map((s) => (
+              <Link key={s.id} to={`/tracking-check/${s.last_run_id ?? s.source_run_id ?? ''}`} className="flex flex-wrap items-center gap-3 py-3 hover:underline">
+                <Badge variant="outline">{s.frequency === 'weekly' ? 'Weekly' : 'Monthly'}</Badge>
+                <span className="flex-1 truncate">{s.mode === 'comparison' ? `${s.baseline_url} → ${s.target_url}` : s.target_url}</span>
+                <span className="text-sm text-muted-foreground">Next check {new Date(s.next_run_at).toLocaleDateString()}</span>
+              </Link>
+            ))}
+          </CardContent>
+        </Card>
+      )}
       <Card>
         <CardHeader><CardTitle>Your runs</CardTitle></CardHeader>
         <CardContent className="divide-y">
@@ -82,6 +100,7 @@ function TrackingCheckBody() {
             <Link key={r.id} to={`/tracking-check/${r.id}`} className="flex flex-wrap items-center gap-3 py-3 hover:underline">
               <span className="text-sm text-muted-foreground">{new Date(r.created_at).toLocaleString()}</span>
               <Badge variant="outline">{r.mode === 'comparison' ? 'Comparison' : 'Policy'}</Badge>
+              {r.trigger === 'scheduled' && <Badge variant="secondary">Scheduled</Badge>}
               <span className="flex-1 truncate">{r.mode === 'comparison' ? `${r.baseline_url} → ${r.target_url}` : r.target_url}</span>
               <span className="text-sm">{r.status === 'done' ? r.summary?.headline : r.status === 'failed' ? 'Failed' : 'Running…'}</span>
             </Link>

@@ -119,3 +119,63 @@ test('store: saveResults replaces earlier findings (idempotent retry) and beginA
   assert.equal(ops[0].payload.status, 'assessing');
   assert.ok(Date.parse(ops[0].payload.assessing_at) > Date.now() - 5000);
 });
+
+const scheduleProbes = { fetchProbe: async () => fetchOk('/'), browserProbe: async (url) => browserObs(url), openAuth: async () => null };
+const policyRun = (extra) => ({ mode: 'policy', baseline_url: null, target_url: 'https://new.example', policy: null, auth_ciphertext: null, ...extra });
+
+test('a scheduled run is compared with the previous run of its schedule and raises a notice for new problems', async () => {
+  const store = fakeStore(policyRun({ id: 'r5', schedule_id: 's1', trigger: 'scheduled' }), [{ site_role: 'target', path: '/', kind: 'fetch' }, { site_role: 'target', path: '/', kind: 'browser' }]);
+  const asked = [];
+  const alerts = [];
+  store.previousRun = async (r) => {
+    asked.push(r.schedule_id);
+    return { id: 'r4', finishedAt: '2026-11-04T10:00:00Z', vendors: [], findings: [{ checkKey: 'old.problem', title: 'Old problem', status: 'fail', priority: 'high', scope: 'Tags' }] };
+  };
+  store.recordScheduleAlert = async (scheduleId, runId) => { alerts.push([scheduleId, runId]); };
+  await drain(store, scheduleProbes);
+  assert.equal(store.run.status, 'done');
+  assert.deepEqual(asked, ['s1']);
+  const diff = store.results.summary.diff;
+  assert.equal(diff.previousRunId, 'r4');
+  assert.deepEqual(diff.resolved.map((i) => i.checkKey), ['old.problem']);
+  // The previous run had an empty vendor matrix; HubSpot now loads after "Accept all".
+  assert.ok(store.results.summary.vendors.length > 0);
+  assert.deepEqual(diff.newVendors.map((v) => v.id), store.results.summary.vendors.map((v) => v.id));
+  assert.deepEqual(alerts, [['s1', 'r5']]);
+});
+
+test('runs without a schedule, the first run of a schedule and manual reruns raise no notice', async () => {
+  const previous = { id: 'p', finishedAt: null, vendors: [], findings: [] };
+  for (const [run, prevRun] of [
+    [policyRun({ id: 'u1' }), previous],                                        // no schedule: not even asked
+    [policyRun({ id: 'u2', schedule_id: 's1', trigger: 'manual' }), null],       // source run: nothing to compare
+    [policyRun({ id: 'u3', schedule_id: 's1', trigger: 'manual' }), previous],   // a manual rerun gets the diff but no notice
+  ]) {
+    const store = fakeStore(run, [{ site_role: 'target', path: '/', kind: 'browser' }]);
+    let asked = 0;
+    const alerts = [];
+    store.previousRun = async () => { asked++; return prevRun; };
+    store.recordScheduleAlert = async (...a) => { alerts.push(a); };
+    await drain(store, scheduleProbes);
+    assert.equal(store.run.status, 'done');
+    assert.equal(asked, run.schedule_id ? 1 : 0);
+    assert.equal(!!store.results.summary.diff, !!(run.schedule_id && prevRun));
+    assert.deepEqual(alerts, []);
+  }
+});
+
+test('a failing previous-run lookup or notice does not fail the run', async () => {
+  const run = policyRun({ id: 'r6', schedule_id: 's1', trigger: 'scheduled' });
+  const lookup = fakeStore(run, [{ site_role: 'target', path: '/', kind: 'browser' }]);
+  lookup.previousRun = async () => { throw new Error('db down'); };
+  await drain(lookup, scheduleProbes);
+  assert.equal(lookup.run.status, 'done');
+  assert.equal(lookup.results.summary.diff, undefined);
+
+  const notice = fakeStore(run, [{ site_role: 'target', path: '/', kind: 'browser' }]);
+  notice.previousRun = async () => ({ id: 'p', finishedAt: null, vendors: [], findings: [] });
+  notice.recordScheduleAlert = async () => { throw new Error('db down'); };
+  await drain(notice, scheduleProbes);
+  assert.equal(notice.run.status, 'done');
+  assert.ok(notice.results.summary.diff);
+});

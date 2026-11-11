@@ -13,6 +13,13 @@ export interface RunRow {
   id: string; mode: Mode; baseline_url: string | null; target_url: string; status: RunStatus; error: string | null;
   summary: ReportSummary | null; pages: { pages: string[]; legacy: string[] }; policy: PolicyTemplate | null;
   share_token: string | null; share_expires_at: string | null; created_at: string; finished_at: string | null;
+  /** Absent until the schedules migration is applied. */
+  schedule_id?: string | null; trigger?: 'manual' | 'scheduled'; requires_auth?: boolean;
+}
+export type Frequency = 'weekly' | 'monthly';
+export interface ScheduleRow {
+  id: string; mode: Mode; baseline_url: string | null; target_url: string; frequency: Frequency; enabled: boolean;
+  next_run_at: string; last_run_id: string | null; last_run_at: string | null; alert_run_id: string | null; source_run_id: string | null;
 }
 export interface FindingRow extends Finding { id?: string; verifiedAt: string | null }
 export interface Progress { total: number; done: number; failed: number; running: number; pending: number }
@@ -26,7 +33,8 @@ export interface SharedReport {
 }
 
 // Explicit columns: auth_ciphertext is not readable by clients, so select('*') fails.
-const RUN_COLUMNS = 'id, mode, baseline_url, target_url, status, error, summary, pages, policy, share_token, share_expires_at, created_at, finished_at';
+const RUN_COLUMNS = 'id, mode, baseline_url, target_url, status, error, summary, pages, policy, share_token, share_expires_at, created_at, finished_at, schedule_id, trigger, requires_auth';
+const SCHEDULE_COLUMNS = 'id, mode, baseline_url, target_url, frequency, enabled, next_run_at, last_run_id, last_run_at, alert_run_id, source_run_id';
 const FINDING_COLUMNS = 'id, scope, check_key, title, status, priority, explanation, fix, typical_owner, evidence, verified_at, sort_order';
 
 async function call<T>(body: Record<string, unknown>): Promise<T> {
@@ -52,6 +60,8 @@ export interface TrackingCheckAccess {
   confirmed: boolean;
   limits: { runsPerDay: number; policyPages: number; comparisonPages: number };
   runsToday: number;
+  /** Active weekly/monthly schedules and the cap. Absent from older function versions. */
+  schedules?: { max: number; active: number };
 }
 
 export const useTrackingCheckAccess = () =>
@@ -126,6 +136,56 @@ export function useShareRun(runId: string) {
     share: useMutation({ mutationFn: (expiresInDays: number | null) => call<{ token: string }>({ action: 'share', runId, expiresInDays }), onSuccess: refresh }),
     revoke: useMutation({ mutationFn: () => call<{ ok: true }>({ action: 'revoke', runId }), onSuccess: refresh }),
   };
+}
+
+export const useSchedules = () => useQuery({
+  queryKey: ['tracking-check', 'schedules'],
+  queryFn: async (): Promise<ScheduleRow[]> => {
+    const { data, error } = await db.from('tracking_check_schedules').select(SCHEDULE_COLUMNS).order('created_at', { ascending: false });
+    if (error) throw error;
+    return data ?? [];
+  },
+});
+
+/** Turns weekly/monthly reruns of a finished run on or off (the whole lineage of that run). */
+export function useScheduleRun(runId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (frequency: Frequency | 'off') => call<{ scheduleId: string | null; frequency: Frequency | 'off'; nextRunAt?: string }>({ action: 'schedule', runId, frequency }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tracking-check'] }),
+  });
+}
+
+/** Scheduled runs whose diff found new problems and that the owner has not dismissed yet. */
+export interface ScheduleAlert { scheduleId: string; runId: string; targetUrl: string; newProblems: number; newVendors: number; newCookies: number; finishedAt: string | null }
+
+export const useScheduleAlerts = () => useQuery({
+  queryKey: ['tracking-check', 'alerts'],
+  queryFn: async (): Promise<ScheduleAlert[]> => {
+    const { data: schedules, error } = await db.from('tracking_check_schedules').select('id, target_url, alert_run_id').not('alert_run_id', 'is', null);
+    if (error) throw error;
+    const list: { id: string; target_url: string; alert_run_id: string }[] = schedules ?? [];
+    if (!list.length) return [];
+    const { data: runs, error: runError } = await db.from('tracking_check_runs').select('id, summary, finished_at').in('id', list.map((s) => s.alert_run_id));
+    if (runError) throw runError;
+    const byId = new Map<string, { summary: ReportSummary | null; finished_at: string | null }>((runs ?? []).map((r: { id: string; summary: ReportSummary | null; finished_at: string | null }) => [r.id, r]));
+    return list.map((s) => {
+      const run = byId.get(s.alert_run_id);
+      const c = run?.summary?.diff?.counts;
+      return { scheduleId: s.id, runId: s.alert_run_id, targetUrl: s.target_url, newProblems: c?.newProblems ?? 0, newVendors: c?.newVendors ?? 0, newCookies: c?.newCookies ?? 0, finishedAt: run?.finished_at ?? null };
+    });
+  },
+  staleTime: 5 * 60_000,
+  // The table is missing until the migration is applied; show nothing rather than an error.
+  retry: false,
+});
+
+export function useDismissScheduleAlert() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (scheduleId: string) => call<{ ok: true }>({ action: 'dismiss', scheduleId }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tracking-check', 'alerts'] }),
+  });
 }
 
 export function useVerifyFinding(runId: string) {

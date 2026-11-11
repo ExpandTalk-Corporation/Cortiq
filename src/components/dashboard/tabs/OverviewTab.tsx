@@ -5,6 +5,7 @@ import { KpiRow } from '@/components/dashboard/overview/KpiRow';
 import { ModuleCards } from '@/components/dashboard/overview/ModuleCards';
 import { AggregateOverview } from '@/components/dashboard/overview/AggregateOverview';
 import { PipelineAlerts } from '@/components/dashboard/overview/PipelineAlerts';
+import { TrackingCheckAlerts } from '@/components/tracking-check/TrackingCheckAlerts';
 import { useOverviewMetrics } from '@/hooks/useOverviewMetrics';
 import { useConversionGoalHealth } from '@/hooks/useConversionGoalHealth';
 import { useKeyPageVisits } from '@/hooks/useKeyPageVisits';
@@ -38,6 +39,7 @@ export function OverviewTab({ selectedSite, onNavigate }: { selectedSite: Site; 
       <StatusStrip domain={selectedSite.domain} trackingMode={trackingMode}
         lastPageViewAt={m.lastPageViewAt} lastServerHitAt={m.lastServerHitAt} aggregateOnly={aggregateOnly} onNavigate={onNavigate} />
       <PipelineAlerts siteId={selectedSite.id} />
+      <TrackingCheckAlerts />
       {aggregateOnly && <AggregateOverview siteId={selectedSite.id} from={filters.from} to={filters.to} />}
       <KpiRow m={m} from={filters.from} to={filters.to} segmented={!!filters.segmentId} aggregateOnly={aggregateOnly} />
       {aggregateOn && !aggregateOnly && <AggregateOverview siteId={selectedSite.id} from={filters.from} to={filters.to} />}
