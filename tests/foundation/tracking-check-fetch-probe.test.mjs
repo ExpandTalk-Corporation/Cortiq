@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fetchProbe, safeGet, parseCsp, cspAllows } from '../../supabase/functions/_shared/tracking-check/fetch-probe.ts';
+import { fetchProbe, safeGet, parseCsp, cspAllows, metaCsp } from '../../supabase/functions/_shared/tracking-check/fetch-probe.ts';
 
 const resolve = async () => ['93.184.215.14'];
 // Fake fetch: routes maps "pathname" -> (url, init) => Response
@@ -79,4 +79,26 @@ test('parses CSP headers and evaluates sources', () => {
   assert.equal(cspAllows(csp, 'connect-src', 'track.hubspot.com'), true);   // https: allows any https host
   assert.equal(cspAllows(csp, 'img-src', 'track.hubspot.com'), false);      // falls back to default-src 'self'
   assert.equal(parseCsp(null), null);
+});
+
+test('report-only header is kept apart from the enforced policy', async () => {
+  const obs = await fetchProbe('https://new.example/', { resolve, fetchImpl: fakeFetch({
+    '/': ok('<html></html>', { 'content-security-policy-report-only': "script-src 'self'" }),
+  }) });
+  assert.equal(obs.csp, null);
+  assert.deepEqual(obs.cspReportOnly['script-src'], ["'self'"]);
+});
+
+test('a <meta http-equiv> policy is used when there is no header; the header wins', async () => {
+  const meta = `<html><head><meta content="script-src 'self' cdn.example" http-equiv="Content-Security-Policy"></head></html>`;
+  const fromMeta = await fetchProbe('https://new.example/', { resolve, fetchImpl: fakeFetch({ '/': ok(meta) }) });
+  assert.deepEqual(fromMeta.csp['script-src'], ["'self'", 'cdn.example']);
+  const fromHeader = await fetchProbe('https://new.example/', { resolve, fetchImpl: fakeFetch({ '/': ok(meta, { 'content-security-policy': "script-src 'none'" }) }) });
+  assert.deepEqual(fromHeader.csp['script-src'], ["'none'"]);
+});
+
+test('metaCsp ignores other meta tags and decodes entities', () => {
+  assert.equal(metaCsp('<meta name="description" content="script-src *">'), null);
+  assert.equal(metaCsp("<meta http-equiv='content-security-policy' content='script-src &#39;self&#39;'>"), "script-src 'self'");
+  assert.equal(metaCsp('<meta http-equiv="Content-Security-Policy-Report-Only" content="x">'), null);
 });
