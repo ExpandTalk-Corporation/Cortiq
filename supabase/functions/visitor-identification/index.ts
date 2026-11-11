@@ -9,6 +9,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "../_shared/supabase.ts";
 import { resolveSite } from "../_shared/resolve-site.ts";
+import { countryFromTimeZone } from "../_shared/tz-country.js";
 
 // DB-backed rate limiter — works across all function instances (no cold-start reset)
 async function checkRateLimit(supabase: ReturnType<typeof createClient>, siteId: string): Promise<boolean> {
@@ -37,6 +38,7 @@ interface VisitorIdentificationRequest {
   screenResolution: string;
   viewport: string;
   timezone: number;
+  timeZone?: string; // IANA zone (Intl), used only for the country estimate
   language: string;
   platform: string;
 
@@ -259,6 +261,13 @@ function extractDeviceInfo(userAgent: string): {
 // MAIN HANDLER
 // =====================================================
 
+// ISO 3166-1 alpha-2 only; Cloudflare's XX (unknown) and T1 (Tor) are not countries.
+function visitorCountry(header: string | null, timeZone: unknown): string | null {
+  const fromHeader = header?.toUpperCase();
+  if (fromHeader && /^[A-Z]{2}$/.test(fromHeader) && fromHeader !== 'XX') return fromHeader;
+  return countryFromTimeZone(timeZone);
+}
+
 serve(async (req) => {
   // CORS headers
   if (req.method === 'OPTIONS') {
@@ -391,7 +400,9 @@ serve(async (req) => {
       p_utm_source: sanitizeString(requestData.utmSource, 255),
       p_utm_medium: sanitizeString(requestData.utmMedium, 255),
       p_utm_campaign: sanitizeString(requestData.utmCampaign, 255),
-      p_country_code: null // TODO: Add IP geolocation
+      // Supabase does not forward cf-ipcountry (checked 2026-10-15); the browser time zone
+      // is the same no-IP estimate track-event uses for page views.
+      p_country_code: visitorCountry(req.headers.get('cf-ipcountry'), requestData.timeZone)
     });
 
     if (upsertError) {
