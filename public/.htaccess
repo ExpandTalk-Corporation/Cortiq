@@ -10,13 +10,18 @@
 #   mod_dir would do that redirect itself but build it as http:// (it only sees
 #   the proxy's plain http), producing a two-hop http -> https chain.
 
-# Security headers. No Content-Security-Policy yet: the site loads its own tracker,
-# Supabase and fonts, and a wrong CSP silently breaks them, so it needs its own pass.
+# Security headers. The Content-Security-Policy is report-only until violations on the live
+# site (marketing pages, dashboard, session replay, Excel export) have been checked; then switch
+# the header name to Content-Security-Policy. scripts/csp-hashes.mjs fills in script-src
+# at build time with the hashes of the inline scripts (theme, self-measurement). Styles, images
+# and fonts stay open to https: because session replay renders customers' pages in an iframe
+# that inherits this policy.
 <IfModule mod_headers.c>
   Header always set Strict-Transport-Security "max-age=31536000"
   Header always set X-Content-Type-Options "nosniff"
   Header always set X-Frame-Options "SAMEORIGIN"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' __CSP_SCRIPT_HASHES__; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self' https://cxmkdtgfocgbfizawlwa.supabase.co wss://cxmkdtgfocgbfizawlwa.supabase.co https://ssl.bing.com; frame-src 'self' https:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
 </IfModule>
 
 <IfModule mod_rewrite.c>

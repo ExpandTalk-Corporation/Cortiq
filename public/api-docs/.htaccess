@@ -1,0 +1,5 @@
+# API docs load Swagger UI from unpkg (pinned version with SRI), so they get their own policy.
+# Report-only, like the site policy in /.htaccess. __CSP_SCRIPT_HASHES__ is filled by scripts/csp-hashes.mjs.
+<IfModule mod_headers.c>
+  Header always set Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' https://unpkg.com/swagger-ui-dist@5.10.0/ __CSP_SCRIPT_HASHES__; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https:; font-src 'self' data: https:; connect-src 'self' https://cxmkdtgfocgbfizawlwa.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
+</IfModule>
