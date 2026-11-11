@@ -313,3 +313,88 @@ export function assessHubSpotFormFrames({ target }: AssessInput): Finding[] {
     },
   })];
 }
+
+type CspIssue = 'missing' | 'report_only' | 'script_src.missing' | 'script_src.wildcard' | 'script_src.unsafe_inline' | 'script_src.unsafe_eval';
+
+/** Script sources the policy enforces: script-src-elem, else script-src, else default-src; null when scripts are not restricted. */
+export function effectiveScriptSrc(csp: Record<string, string[]>): string[] | null {
+  return csp['script-src-elem'] ?? csp['script-src'] ?? csp['default-src'] ?? null;
+}
+
+/** Weaknesses in how a page's Content-Security-Policy restricts scripts. */
+export function cspIssues(csp: Record<string, string[]> | null, reportOnly: Record<string, string[]> | null | undefined): CspIssue[] {
+  if (!csp) return [reportOnly ? 'report_only' : 'missing'];
+  const src = effectiveScriptSrc(csp);
+  if (!src) return ['script_src.missing'];
+  const s = src.map((x) => x.toLowerCase());
+  const nonceOrHash = s.some((x) => /^'(nonce-|sha(256|384|512)-)/.test(x));
+  // With a nonce or hash, browsers ignore 'unsafe-inline'; with 'strict-dynamic' as well, they also ignore host and scheme sources.
+  const strict = nonceOrHash && s.includes("'strict-dynamic'");
+  const out: CspIssue[] = [];
+  if (!strict && s.some((x) => ['*', 'http:', 'https:', 'data:'].includes(x))) out.push('script_src.wildcard');
+  if (!nonceOrHash && s.includes("'unsafe-inline'")) out.push('script_src.unsafe_inline');
+  if (s.includes("'unsafe-eval'")) out.push('script_src.unsafe_eval');
+  return out;
+}
+
+const NONCE_FIX = "Use a nonce or hash with 'strict-dynamic' in script-src: inline scripts and the scripts they load then need the server-generated nonce, and other scripts are refused. Google Tag Manager documents a nonce-aware snippet for this.";
+
+const CSP_ISSUE_TEXT: Record<CspIssue, { title: string; explanation: string; fix: string }> = {
+  missing: {
+    title: 'The site sends no Content-Security-Policy',
+    explanation: 'Without a Content-Security-Policy the browser runs scripts from any domain and lets them send data anywhere. If a third-party script is replaced or a script is injected, nothing in the browser limits it.',
+    fix: `Add a Content-Security-Policy header that lists the domains scripts may load from (script-src) and send data to (connect-src). Start with Content-Security-Policy-Report-Only to see what would be blocked. ${NONCE_FIX}`,
+  },
+  report_only: {
+    title: 'The Content-Security-Policy only reports, it does not block',
+    explanation: 'The site sends Content-Security-Policy-Report-Only. Violations are reported, but the browser still runs every script.',
+    fix: 'When the reports show no unexpected violations, send the same policy as Content-Security-Policy.',
+  },
+  'script_src.missing': {
+    title: 'The Content-Security-Policy does not restrict scripts',
+    explanation: 'The policy has no script-src or default-src, so scripts from any domain may run. Policies that only set frame-ancestors or upgrade-insecure-requests often look like this.',
+    fix: `Add script-src with the domains your scripts load from, and connect-src for where they send data. ${NONCE_FIX}`,
+  },
+  'script_src.wildcard': {
+    title: 'The Content-Security-Policy allows scripts from any domain',
+    explanation: "script-src contains *, http:, https: or data:, so a script from any domain is allowed. This also covers a script an attacker injects.",
+    fix: `Replace the wildcard with the domains your scripts load from. ${NONCE_FIX}`,
+  },
+  'script_src.unsafe_inline': {
+    title: "The Content-Security-Policy allows inline scripts ('unsafe-inline')",
+    explanation: "With 'unsafe-inline' and no nonce or hash, any inline script runs, including one injected into the page. The policy still limits which domains scripts load from.",
+    fix: NONCE_FIX,
+  },
+  'script_src.unsafe_eval': {
+    title: "The Content-Security-Policy allows eval ('unsafe-eval')",
+    explanation: "Scripts may turn text into code with eval() and similar functions. Some tag manager setups need it, such as Custom JavaScript variables in Google Tag Manager.",
+    fix: "Remove 'unsafe-eval' if no tag needs it. In Google Tag Manager, custom templates work without it; Custom JavaScript variables do not.",
+  },
+};
+
+/** How well the Content-Security-Policy of the tested site restricts scripts. Findings that something is blocked are in assessCsp. */
+export function assessCspPolicy({ target }: AssessInput): Finding[] {
+  const pages = testablePages(target).filter((p) => p.fetch && !p.fetch.error);
+  if (!pages.length) return [];
+  const byIssue = new Map<CspIssue, { pages: string[]; details: Set<string> }>();
+  for (const p of pages) {
+    const f = p.fetch!;
+    for (const issue of cspIssues(f.csp, f.cspReportOnly)) {
+      const e = byIssue.get(issue) ?? { pages: [], details: new Set<string>() };
+      e.pages.push(p.path);
+      const src = f.csp && effectiveScriptSrc(f.csp);
+      if (src) e.details.add(`script-src: ${src.join(' ')}`.slice(0, 300));
+      byIssue.set(issue, e);
+    }
+  }
+  if (!byIssue.size) return [finding({
+    scope: 'CSP', checkKey: 'csp.policy.ok', status: 'pass', priority: null,
+    title: 'The Content-Security-Policy restricts which scripts can run',
+    explanation: 'Every tested page has a policy that limits script sources, without wildcards or inline scripts allowed without a nonce or hash.',
+    fix: '', typicalOwner: null, evidence: { pages: pages.map((p) => p.path) },
+  })];
+  return [...byIssue].map(([issue, e]) => finding({
+    scope: 'CSP', checkKey: `csp.${issue}`, status: 'warning', priority: 'low',
+    ...CSP_ISSUE_TEXT[issue], typicalOwner: 'developer', evidence: { pages: e.pages, details: [...e.details].slice(0, 5) },
+  }));
+}

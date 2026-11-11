@@ -1,6 +1,6 @@
 import type { AssessInput, Finding, FindingStatus, Priority } from '../types.ts';
 import { assessConsentAutomation, assessCoverage, assessParameters } from './parameters.ts';
-import { assessCsp, assessForms, assessHubSpotFormFrames, assessTags } from './tags.ts';
+import { assessCsp, assessCspPolicy, assessForms, assessHubSpotFormFrames, assessTags } from './tags.ts';
 import { assessConsent } from './consent.ts';
 import { assessSignals } from './signals.ts';
 
@@ -14,6 +14,7 @@ export function assess(input: AssessInput): Finding[] {
     ...assessParameters(input),
     ...assessTags(input),
     ...assessCsp(input),
+    ...assessCspPolicy(input),
     ...assessForms(input),
     ...assessHubSpotFormFrames(input),
     ...assessConsent(input),

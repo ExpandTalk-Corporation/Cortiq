@@ -55,12 +55,13 @@ export async function fetchProbe(pageUrl: string, opts: ProbeOptions = {}): Prom
       finalUrl: res.finalUrl,
       finalStatus: res.status,
       paramsLost: TRACKING_PARAMS.filter((p) => !finalUrl.searchParams.has(p)),
-      csp: parseCsp(res.headers.get('content-security-policy')),
+      csp: parseCsp(res.headers.get('content-security-policy')) ?? parseCsp(metaCsp(res.body)),
+      cspReportOnly: parseCsp(res.headers.get('content-security-policy-report-only')),
       challenge: res.headers.get('cf-mitigated') === 'challenge' || ([403, 429, 503].includes(res.status) && CHALLENGE.test(res.body)),
       error: null,
     };
   } catch (e) {
-    return { requestedUrl, hops: [], finalUrl: requestedUrl, finalStatus: 0, paramsLost: [], csp: null, challenge: false, error: e instanceof Error ? e.message : String(e) };
+    return { requestedUrl, hops: [], finalUrl: requestedUrl, finalStatus: 0, paramsLost: [], csp: null, cspReportOnly: null, challenge: false, error: e instanceof Error ? e.message : String(e) };
   }
 }
 
@@ -72,6 +73,16 @@ export function parseCsp(header: string | null): Record<string, string[]> | null
     if (name && !(name.toLowerCase() in out)) out[name.toLowerCase()] = sources;
   }
   return out;
+}
+
+/** The content of a <meta http-equiv="Content-Security-Policy"> tag, or null. */
+export function metaCsp(html: string): string | null {
+  for (const tag of html.match(/<meta\s[^>]*>/gi) ?? []) {
+    if (!/http-equiv\s*=\s*["']?content-security-policy["'\s>\/]/i.test(tag)) continue;
+    const m = tag.match(/content\s*=\s*(?:"([^"]*)"|'([^']*)')/i);
+    if (m) return (m[1] ?? m[2]).replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+  }
+  return null;
 }
 
 /** Does the policy allow `host` for `directive`? `host` may itself be a wildcard like "*.example.com". */

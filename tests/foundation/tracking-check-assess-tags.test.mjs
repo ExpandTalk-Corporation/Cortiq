@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { assess } from '../../supabase/functions/_shared/tracking-check/assess/index.ts';
-import { hubSpotListenerTag } from '../../supabase/functions/_shared/tracking-check/assess/tags.ts';
+import { cspIssues, hubSpotListenerTag } from '../../supabase/functions/_shared/tracking-check/assess/tags.ts';
+import { parseCsp } from '../../supabase/functions/_shared/tracking-check/fetch-probe.ts';
 import { detectForms, detectHubSpotFormEmbed } from '../../supabase/functions/_shared/form-detection.ts';
 import { fetchOk, page, site, st, req, POLICY } from './tracking-check-fixtures.mjs';
 
@@ -260,4 +261,51 @@ test('the v4 listener reads the email field from HubSpotFormsV4', async () => {
   listeners['hs-form-event:on-submission:success']({ detail: { formId: 'f2' } });
   await new Promise((r) => setTimeout(r, 0));
   assert.deepEqual(window.dataLayer[0], { event: 'hubspot_form_submit', hs_form_id: 'f2', hs_email: 'a@b.se' });
+});
+
+const policyRun = (pages) => assess({ mode: 'policy', baseline: null, policy: POLICY, target: site('target', pages) });
+const withCsp = (path, csp, cspReportOnly = null) => page(path, { fetch: fetchOk(path, { csp: parseCsp(csp), cspReportOnly: parseCsp(cspReportOnly) }) });
+
+test('CSP quality: no policy, report-only and no script restriction are separate warnings', () => {
+  assert.deepEqual(cspIssues(null, null), ['missing']);
+  assert.deepEqual(cspIssues(null, parseCsp("script-src 'self'")), ['report_only']);
+  assert.deepEqual(cspIssues(parseCsp("frame-ancestors 'self'; upgrade-insecure-requests"), null), ['script_src.missing']);
+  const [missing] = byKey(policyRun([page('/'), page('/about/')]), 'csp.missing');
+  assert.equal(missing.status, 'warning');
+  assert.equal(missing.priority, 'low');
+  assert.deepEqual(missing.evidence.pages, ['/', '/about/']);
+});
+
+test('CSP quality: wildcards, unsafe-inline and unsafe-eval in the effective script-src', () => {
+  assert.deepEqual(cspIssues(parseCsp("default-src 'self' https: 'unsafe-inline' 'unsafe-eval'"), null),
+    ['script_src.wildcard', 'script_src.unsafe_inline', 'script_src.unsafe_eval']);
+  assert.deepEqual(cspIssues(parseCsp("script-src 'self' data:"), null), ['script_src.wildcard']);
+  // script-src-elem overrides script-src for script elements.
+  assert.deepEqual(cspIssues(parseCsp("script-src *; script-src-elem 'self'"), null), []);
+});
+
+test('CSP quality: a nonce disables unsafe-inline; strict-dynamic with a nonce also disables host wildcards', () => {
+  assert.deepEqual(cspIssues(parseCsp("script-src 'nonce-abc' 'unsafe-inline' https:"), null), ['script_src.wildcard']);
+  assert.deepEqual(cspIssues(parseCsp("script-src 'nonce-abc' 'strict-dynamic' 'unsafe-inline' https:"), null), []);
+  assert.deepEqual(cspIssues(parseCsp("script-src 'sha384-xyz' 'strict-dynamic' *"), null), []);
+  // strict-dynamic without a nonce or hash does not neutralise anything.
+  assert.deepEqual(cspIssues(parseCsp("script-src 'strict-dynamic' 'unsafe-inline' *"), null), ['script_src.wildcard', 'script_src.unsafe_inline']);
+});
+
+test('CSP quality: a strict policy passes; evidence shows the script-src of affected pages', () => {
+  const strict = "script-src 'self' https://www.googletagmanager.com; connect-src 'self'";
+  assert.equal(byKey(policyRun([withCsp('/', strict)]), 'csp.policy.ok')[0].status, 'pass');
+  const findings = policyRun([withCsp('/', strict), withCsp('/blog/', "script-src 'self' 'unsafe-inline'")]);
+  assert.equal(byKey(findings, 'csp.policy.ok').length, 0);
+  const [inline] = byKey(findings, 'csp.script_src.unsafe_inline');
+  assert.deepEqual(inline.evidence.pages, ['/blog/']);
+  assert.deepEqual(inline.evidence.details, ["script-src: 'self' 'unsafe-inline'"]);
+});
+
+test('CSP quality: pages that could not be fetched, legacy URLs and the baseline are not assessed', () => {
+  const broken = page('/', { fetch: fetchOk('/', { error: 'timeout' }) });
+  assert.equal(policyRun([broken]).filter((f) => f.checkKey.startsWith('csp.') && f.checkKey !== 'csp.ok').length, 0);
+  const findings = compare([page('/')], [withCsp('/', "script-src 'self'")]);
+  assert.equal(byKey(findings, 'csp.missing').length, 0);
+  assert.equal(byKey(findings, 'csp.policy.ok')[0].status, 'pass');
 });
