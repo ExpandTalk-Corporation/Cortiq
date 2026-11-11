@@ -53,6 +53,7 @@ export const GETTING_STARTED: ContentPageData = {
 <script src="https://cortiq.se/cortiq.js" defer></script>`,
         },
         { type: 'p', text: 'The script reads its settings from `window.cortiqConfig` or from `data-*` attributes on its own script tag (`data-site-id`, `data-api-key`, `data-cookieless`, `data-exclude-paths`). A `window.cortiqConfig` block must come before the script tag. Without a `siteId` it logs an error to the console and does nothing.' },
+        { type: 'p', text: 'This tag always loads the latest version. To load one fixed version that the browser checks against a hash, use a [pinned install with Subresource Integrity](/security/sri/).' },
         { type: 'p', text: 'On WordPress, use the [WordPress plugin](/integrations/wordpress/) instead. It adds the script, a consent banner and Google Consent Mode v2.' },
       ],
     },
