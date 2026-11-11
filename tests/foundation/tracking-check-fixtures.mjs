@@ -15,10 +15,10 @@ export const st = (state, extra = {}) => ({
 });
 
 /** opts.states: array of st(...) (default none/reject/accept with no activity); null = no browser observation. */
-export const page = (path, { fetch, states, forms = [], legacy = false, failed = null, cmp = 'cookieyes' } = {}) => ({
+export const page = (path, { fetch, states, forms = [], hubspotForms = null, legacy = false, failed = null, cmp = 'cookieyes' } = {}) => ({
   path, legacy, failed,
   fetch: fetch === undefined ? fetchOk(path) : fetch,
-  browser: states === null || legacy ? null : { url: `https://new.example${path}`, cmp, states: states ?? [st('none'), st('reject'), st('accept')], forms },
+  browser: states === null || legacy ? null : { url: `https://new.example${path}`, cmp, states: states ?? [st('none'), st('reject'), st('accept')], forms, hubspotForms },
 });
 
 export const site = (role, pages) => ({ role, origin: role === 'baseline' ? 'https://old.example' : 'https://new.example', pages });

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { assess } from '../../supabase/functions/_shared/tracking-check/assess/index.ts';
-import { detectForms } from '../../supabase/functions/_shared/form-detection.ts';
+import { detectForms, detectHubSpotFormEmbed } from '../../supabase/functions/_shared/form-detection.ts';
 import { fetchOk, page, site, st, req, POLICY } from './tracking-check-fixtures.mjs';
 
 const HS = 'https://js.hs-scripts.com/7117856.js';
@@ -179,4 +179,46 @@ test('detectForms lowercases HubSpot GUIDs from hs_context like the other method
   const guid = 'AAAAAAAA-1111-2222-3333-444444444444';
   const html = `<input name="hs_context" value="${encodeURIComponent(JSON.stringify({ formGuid: guid }))}"><form data-form-id="${guid}"></form>`;
   assert.deepEqual(detectForms(html).map((f) => `${f.formId}:${f.method}`), [`${guid.toLowerCase()}:hs_context`]);
+});
+
+test('detectHubSpotFormEmbed tells the legacy iframe embed from the v4 frame', () => {
+  const legacy = `<script src="//js.hsforms.net/forms/embed/v2.js"></script><script>hbspt.forms.create({ portalId: "1", formId: "x" });</script>
+    <div class="hbspt-form"><iframe id="hs-form-iframe-0" class="hs-form-iframe" src="about:blank"></iframe></div>`;
+  assert.deepEqual(detectHubSpotFormEmbed(legacy), { legacy: true, v4: false, framed: true });
+  assert.deepEqual(detectHubSpotFormEmbed('<div class="hs-form-frame" data-region="eu1" data-form-id="x" data-portal-id="1"></div>'),
+    { legacy: false, v4: true, framed: true });
+  // Legacy script that rendered a raw <form> (e.g. css: "" / raw HTML option): not framed.
+  assert.deepEqual(detectHubSpotFormEmbed('<script>hbspt.forms.create({})</script><form class="hs-form"></form>'),
+    { legacy: true, v4: false, framed: false });
+  assert.equal(detectHubSpotFormEmbed('<form action="/contact"></form><style>.hs-form-frame{width:100%}</style>'), null);
+});
+
+const HS_FRAMED = { legacy: true, v4: false, framed: true };
+const ADS = 'https://www.googleadservices.com/pagead/conversion/123456789/?label=abc';
+
+test('HubSpot forms in an iframe give a manual finding with the listener fix', () => {
+  const findings = assess({ mode: 'policy', baseline: null, policy: POLICY, target: site('target', [page('/free-trial/', { hubspotForms: HS_FRAMED })]) });
+  const [f] = byKey(findings, 'forms.hubspot_iframe');
+  assert.equal(f.status, 'manual');
+  assert.equal(f.typicalOwner, 'gtm');
+  assert.deepEqual(f.evidence.pages, ['/free-trial/']);
+  assert.match(f.fix, /hsFormCallback/);
+  assert.doesNotMatch(f.fix, /hs-form-event/);
+  assert.doesNotMatch(f.explanation, /Enhanced conversions \(Google Ads\)/);
+});
+
+test('with Google Ads on the site the finding separates Enhanced measurement from Enhanced conversions', () => {
+  const states = [st('none'), st('reject'), st('accept', { requests: [req(ADS, 'image')] })];
+  const findings = assess({ mode: 'comparison', baseline: site('baseline', [page('/')]), policy: null,
+    target: site('target', [page('/', { states, hubspotForms: { legacy: false, v4: true, framed: true } })]) });
+  const [f] = byKey(findings, 'forms.hubspot_iframe');
+  assert.match(f.explanation, /Enhanced conversions \(Google Ads\) are separate/);
+  assert.match(f.fix, /hs-form-event:on-submission:success/);
+  assert.match(f.fix, /user-provided data/);
+});
+
+test('HubSpot forms rendered without an iframe give no iframe finding', () => {
+  const findings = assess({ mode: 'policy', baseline: null, policy: POLICY,
+    target: site('target', [page('/', { hubspotForms: { legacy: true, v4: false, framed: false } }), page('/a/')]) });
+  assert.equal(byKey(findings, 'forms.hubspot_iframe').length, 0);
 });
