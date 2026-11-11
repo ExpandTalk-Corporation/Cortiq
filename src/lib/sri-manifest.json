@@ -1,0 +1,12 @@
+{
+  "latest": "5.5.13",
+  "versions": {
+    "5.5.13": {
+      "securityFix": false,
+      "files": {
+        "cortiq.js": "sha384-KecY4f1sFO3chEtpc1CUaEYFayHJJNlPMAKVlaxdv5EOhwx0BUHJIZkfRHaweaM0",
+        "consent-banner.js": "sha384-mOuIhCRdKpu/do6St0RuyD+x83EbOaI2pgWgWQtCf892w+mPzK2Wru+WVseNAPqU"
+      }
+    }
+  }
+}

@@ -159,6 +159,20 @@ Spec: `docs/superpowers/specs/2026-10-29-aggregate-measurement-and-pixel-readine
 
 ---
 
+## Pinned installs with SRI (added 2026-11-11)
+
+- Opt-in in the install snippet: loads `/v/<version>/cortiq.js` and `consent-banner.js` with `integrity` +
+  `crossorigin="anonymous"`. `public/v/.htaccess` sends the CORS header the browser requires.
+- `scripts/pin-tracker.mjs` (in `npm run build`) copies the files into `public/v/<version>/` the first time a
+  version builds and writes `src/lib/sri-manifest.json`. Both are committed and never change afterwards.
+  **Any change to `cortiq.js` or `consent-banner.js` needs a shared version bump**, or the build fails.
+- A release that fixes a security issue in the tracker or banner: set `securityFix: true` on that version in the
+  manifest. Sites whose last copied snippet was pinned to an older version (`sites.sri_pinned_version`) get a
+  warning in the snippet setup.
+- Every `public/v/` directory must stay on the server: deleting one blocks tracking on sites pinned to it.
+
+---
+
 ## Deployment
 
 ```bash

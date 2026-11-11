@@ -3,7 +3,7 @@
  * Plugin Name: CortIQ Analytics
  * Plugin URI: https://cortiq.se
  * Description: Analytics for the agentic web. Classifies AI crawlers and agent fetches (GPTBot, ClaudeBot, ChatGPT-User, PerplexityBot…) and measures human visitors after consent — cookieless mode, heatmaps, conversions and a built-in consent banner.
- * Version: 5.5.12
+ * Version: 5.5.13
  * Author: CortIQ
  * Author URI: https://cortiq.se
  * Requires at least: 5.6
@@ -21,9 +21,8 @@ if ( defined( 'CORTIQ_LOADED' ) ) return;
 define( 'CORTIQ_LOADED', true );
 
 // Shared with public/spa-tracking.js (CORTIQ_VERSION) — also the ?ver= cache-bust for it.
-define( 'CORTIQ_VERSION',    '5.5.12' );
+define( 'CORTIQ_VERSION',    '5.5.13' );
 define( 'CORTIQ_OPTION_KEY', 'cortiq_options' );
-define( 'CORTIQ_CDN',        'https://cortiq.se' );
 // Supabase Edge Functions base — used for the GDPR consent ledger (store-consent).
 define( 'CORTIQ_API',        'https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1' );
 // Server-side agent measurement: honeypot path and AI-bot pre-filter (CortIQ's registry).
@@ -245,11 +244,13 @@ function cortiq_enqueue() {
     // Heatmaps · Sessions · AI Agent Detection · Bot Tracking · Citations · UTM/Paid Ads
     // Served from this site (assets/cortiq.js, bundled at build time), so loading the page makes no
     // request to cortiq.se. The script itself still waits for analytics consent before collecting.
+    // No fallback to cortiq.se: the bundled copy is the only code this plugin runs on the site, so a
+    // compromised CDN cannot reach WordPress installs. A missing file means a broken install.
     $local = plugin_dir_path( __FILE__ ) . 'assets/cortiq.js';
-    $src   = file_exists( $local ) ? plugins_url( 'assets/cortiq.js', __FILE__ ) : CORTIQ_CDN . '/spa-tracking.js';
+    if ( ! file_exists( $local ) ) return;
     wp_enqueue_script(
         'cortiq-tracking',
-        $src,
+        plugins_url( 'assets/cortiq.js', __FILE__ ),
         array(),
         CORTIQ_VERSION,
         false // load in <head>, defer added via filter below

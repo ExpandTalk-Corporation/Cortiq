@@ -1,0 +1,7 @@
+# Pinned tracker files (scripts/pin-tracker.mjs). Install snippets load them with an integrity hash and
+# crossorigin="anonymous", which needs a CORS header: without it the browser refuses the script.
+# A version directory never changes, so it can be cached for good.
+<IfModule mod_headers.c>
+  Header set Access-Control-Allow-Origin "*"
+  Header set Cache-Control "public, max-age=31536000, immutable"
+</IfModule>

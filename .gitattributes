@@ -28,3 +28,6 @@
 *.gif binary
 *.ico binary
 *.svg text eol=lf
+
+# Pinned tracker files: byte-exact, their SRI hashes are in src/lib/sri-manifest.json
+public/v/** binary
