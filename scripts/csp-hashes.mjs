@@ -56,7 +56,11 @@ export function fillCsp(dist) {
       const html = fs.readFileSync(file, 'utf8');
       const handlers = inlineHandlers(html);
       if (handlers.length) throw new Error(`Inline event handler in ${path.relative(dist, file)}: ${handlers[0]} — the CSP would block it`);
-      for (const body of inlineScripts(html)) hashes.add(scriptHash(body));
+      // An FTP client in ASCII mode may upload CRLF files from a Windows checkout with LF, so allow both.
+      for (const body of inlineScripts(html)) {
+        hashes.add(scriptHash(body));
+        if (body.includes('\r\n')) hashes.add(scriptHash(body.replaceAll('\r\n', '\n')));
+      }
     }
     const htaccess = path.join(dir, '.htaccess');
     fs.writeFileSync(htaccess, fs.readFileSync(htaccess, 'utf8').replaceAll(PLACEHOLDER, [...hashes].sort().join(' ')));
