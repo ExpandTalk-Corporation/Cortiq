@@ -35,7 +35,7 @@ const CHECKLIST = [
   {
     icon: ShieldAlert,
     title: "No tags blocked by the CSP",
-    text: "A stricter Content-Security-Policy on the new site can block analytics and ad tags without any visible error. Blocked requests are listed per tool.",
+    text: "A stricter Content-Security-Policy on the new site can block analytics and ad tags without any visible error. Blocked requests are listed per tool, and the policy itself is checked for wildcards, 'unsafe-inline' and report-only mode.",
   },
 ];
 

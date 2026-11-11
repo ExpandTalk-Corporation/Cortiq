@@ -78,6 +78,7 @@ const USE_CASES = [
       "What loads before the visitor has answered the banner, and what still loads after \"Reject all\"",
       "Which consent category Google Analytics, Google Ads, Meta, LinkedIn, HubSpot and B2B identification tools wait for",
       "What Google is told: the Consent Mode v2 signals in every request",
+      "Whether the Content-Security-Policy limits which scripts may run, or lets scripts from any domain through",
     ],
     preview: <ConsentPreview />,
     cta: "Check consent",
