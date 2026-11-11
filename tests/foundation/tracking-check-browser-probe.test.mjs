@@ -46,7 +46,7 @@ test('runBrowserProbe posts code and context, unwraps the response and reports e
   const result = await runBrowserProbe({ endpoint: 'https://bl.example/', token: 't k', url: 'https://new.example/', states: ['none'], basicAuth: null, fetchImpl: ok });
   assert.equal(result.cmp, 'cookieyes');
   assert.equal(sent.url, 'https://bl.example/function?token=t%20k&timeout=90000');
-  assert.deepEqual(sent.body.context, { url: 'https://new.example/', states: ['none'], basicAuth: null });
+  assert.deepEqual(sent.body.context, { url: 'https://new.example/', states: ['none'], basicAuth: null, uaToken: 'CortIQ-TrackingCheck' });
   assert.match(sent.body.code, /export default async function/);
 
   const denied = async () => new Response('bad token', { status: 401 });
@@ -101,7 +101,9 @@ test('consentSignal recognises stored consent choices', () => {
 // Each load (goto, then reload) is described by: status, requests, cookies, globals (window
 // properties), banner (a visible cookie banner element) and storage (localStorage keys).
 function fakeBrowser(loadsFor) {
-  return {
+  const browser = {
+    agents: [],
+    async userAgent() { return 'Mozilla/5.0 HeadlessChrome/156.0.0.0'; },
     async createBrowserContext() {
       return {
         async close() {},
@@ -153,6 +155,7 @@ function fakeBrowser(loadsFor) {
           return {
             on(event, fn) { if (event === 'request') listeners.push(fn); },
             async authenticate() {}, async setViewport() {}, async evaluateOnNewDocument() {},
+            async setUserAgent(ua) { browser.agents.push(ua); },
             async goto() { loads.push(...loadsFor()); return load(loads.shift()); },
             async reload() { return load(loads.shift() ?? {}); },
             async waitForNetworkIdle() {},
@@ -164,12 +167,15 @@ function fakeBrowser(loadsFor) {
       };
     },
   };
+  return browser;
 }
 async function probe(states, loadsByState) {
   const mod = await import('data:text/javascript,' + encodeURIComponent(buildProbeSource()));
   let i = 0;
   const browser = fakeBrowser(() => loadsByState[states[i++]]);
-  const res = await mod.default({ page: { browser: () => browser }, context: { url: 'https://new.example/', states, basicAuth: null } });
+  const res = await mod.default({ page: { browser: () => browser }, context: { url: 'https://new.example/', states, basicAuth: null, uaToken: 'CortIQ-TrackingCheck' } });
+  // Every page the probe opens identifies the run, so CortIQ's ingest functions skip it.
+  assert.deepEqual(browser.agents, states.map(() => 'Mozilla/5.0 HeadlessChrome/156.0.0.0 CortIQ-TrackingCheck'));
   return Object.fromEntries(res.data.states.map((s) => [s.state, s]));
 }
 const cookiebot = (hasResponse) => ({ Cookiebot: { hasResponse, submitCustomConsent() {} } });

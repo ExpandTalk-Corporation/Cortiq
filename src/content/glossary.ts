@@ -1,6 +1,6 @@
 import type { ContentPageData } from './types';
 
-// Checked against get_analytics_summary and get_overview_metrics (20261109000004), builtin_segment_match
+// Checked against get_analytics_summary and get_overview_metrics (20261109000004, AI total 20261122000001), builtin_segment_match
 // (20261109000003), record_form_session (20261015120000), increment_link_click (20260830120000),
 // get_attribution_gap, ingest_aggregate_hit (20261107000001), consentAcceptance.ts, pixelReadiness.ts,
 // useConversionGoalHealth.ts, useAttributionGap.ts, spa-tracking.js and ai-bot-registry.ts on 2026-11-08.
@@ -238,7 +238,7 @@ export const GLOSSARY: ContentPageData = {
             {
               id: 'unclassified-ai',
               term: 'Unclassified',
-              definition: 'AI hits that could not be placed in one of the three categories. They count in the AI total but not in any category.',
+              definition: 'Hits that could not be placed in one of the three categories, mostly headless browsers and test tools. They are shown separately and do not count as AI visits.',
             },
             {
               id: 'ai-per-100-visits',

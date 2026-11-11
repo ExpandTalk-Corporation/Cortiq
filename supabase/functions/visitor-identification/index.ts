@@ -10,6 +10,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "../_shared/supabase.ts";
 import { resolveSite } from "../_shared/resolve-site.ts";
 import { countryFromTimeZone } from "../_shared/tz-country.js";
+import { skipTrackingCheck } from '../_shared/tracking-check-ua.ts';
 
 // DB-backed rate limiter — works across all function instances (no cold-start reset)
 async function checkRateLimit(supabase: ReturnType<typeof createClient>, siteId: string): Promise<boolean> {
@@ -279,6 +280,8 @@ serve(async (req) => {
       },
     });
   }
+  const tc = skipTrackingCheck(req, { 'Access-Control-Allow-Origin': '*' });
+  if (tc) return tc;
 
   try {
     // SECURITY: Check content length (max 50KB)

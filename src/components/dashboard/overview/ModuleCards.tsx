@@ -32,8 +32,8 @@ export function ModuleCards({ m, goalIssues, goalCount, keyPages, onNavigate }: 
 }) {
   const open = (tab: string, label = 'Open') => <Button variant="link" className="px-0" onClick={() => onNavigate(tab)}>{label} →</Button>;
   const ai = m.current.ai;
-  // Rows the classifier marked 'unknown' count in the total but in no category.
-  const unclassified = Math.max(0, ai.total - ai.training - ai.agentic - ai.citation);
+  // Headless automation and hits no rule placed; the RPC keeps them out of the AI total.
+  const unclassified = ai.unclassified ?? Math.max(0, ai.total - ai.training - ai.agentic - ai.citation);
   return (
     <div className="grid gap-6 md:grid-cols-2">
       <WidgetCard title="AI agents" subtitle="Training, agentic and citation traffic"
@@ -47,7 +47,7 @@ export function ModuleCards({ m, goalIssues, goalCount, keyPages, onNavigate }: 
               <dd className="text-xl font-semibold tabular-nums">{fmt.format(ai[k])}</dd></div>
           ))}
         </dl>
-        {unclassified > 0 && <p className="text-xs text-muted-foreground">{unclassified} unclassified</p>}
+        {unclassified > 0 && <p className="text-xs text-muted-foreground">{unclassified} automated or unclassified, not counted as AI visits</p>}
         {open('ai-bots')}
       </WidgetCard>
 

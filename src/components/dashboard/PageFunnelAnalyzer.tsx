@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,6 +44,8 @@ export function PageFunnelAnalyzer({ siteId }: PageFunnelAnalyzerProps) {
   const [availablePages, setAvailablePages] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  // Only the latest funnel request may set state; switching page or range drops older answers.
+  const loadId = useRef(0);
 
   useEffect(() => {
     if (siteId) {
@@ -105,7 +107,9 @@ export function PageFunnelAnalyzer({ siteId }: PageFunnelAnalyzerProps) {
 
   const loadFunnelData = async () => {
     if (!selectedUrl) return;
-    
+    const id = ++loadId.current;
+    const stale = () => id !== loadId.current;
+
     setIsLoading(true);
     try {
       // Counted in the database (get_page_funnel), so busy pages are not cut at 1,000 rows.
@@ -115,7 +119,7 @@ export function PageFunnelAnalyzer({ siteId }: PageFunnelAnalyzerProps) {
       const { data, error } = await (supabase as any).rpc('get_page_funnel', {
         p_site_id: siteId, p_url: selectedUrl, p_from: from, p_to: today,
       });
-
+      if (stale()) return;
       if (error) throw error;
 
       const pageVisits = Number(data?.page_visits ?? 0);
@@ -140,6 +144,7 @@ export function PageFunnelAnalyzer({ siteId }: PageFunnelAnalyzerProps) {
       });
 
     } catch (error) {
+      if (stale()) return;
       console.error('Error loading funnel data:', error);
       toast({
         title: "❌ Error",
@@ -147,7 +152,7 @@ export function PageFunnelAnalyzer({ siteId }: PageFunnelAnalyzerProps) {
         variant: "destructive"
       });
     } finally {
-      setIsLoading(false);
+      if (!stale()) setIsLoading(false);
     }
   };
 

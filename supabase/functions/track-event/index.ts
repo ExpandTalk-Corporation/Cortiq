@@ -4,6 +4,7 @@ import { countryFromTimeZone } from '../_shared/tz-country.js';
 import { storedReferrer } from '../_shared/referrer.js';
 import { normalizeGoals, clientGoals, matchPageVisitGoals } from '../_shared/conversion-goals.js';
 import { normalizeSessionTimeout } from '../_shared/session-timeout.js';
+import { skipTrackingCheck } from '../_shared/tracking-check-ua.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -32,6 +33,8 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+  const tc = skipTrackingCheck(req, corsHeaders);
+  if (tc) return tc;
 
   try {
     const supabase = createClient(
