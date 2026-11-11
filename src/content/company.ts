@@ -148,11 +148,11 @@ export const COOKIES: ContentPageData = {
           type: 'list',
           items: [
             '**Without consent:** nothing. The script does not read device properties, write storage or send requests before analytics consent. After consent, a page-depth counter (`_ciq_adp`, sessionStorage) is written only for visitors detected as bots or automated browsers.',
-            '**With analytics consent, full mode:** a session identifier (`cortiq_session_id`, sessionStorage), cleared when the tab closes. In cookieless mode it is held in memory only and nothing is written.',
+            '**With analytics consent, full mode:** a session identifier (`cortiq_session_id`, sessionStorage) and the time it expires after inactivity (`cortiq_session_expires`, sessionStorage), both cleared when the tab closes. In cookieless mode it is held in memory only and nothing is written.',
             '**With marketing consent, full mode:** ad click IDs from the landing URL (`cortiq_click_ids`, sessionStorage).',
           ],
         },
-        { type: 'p', text: 'If the site uses the CortIQ consent banner, it also stores the visitor\'s choice as described above for cortiq.se. If it uses another consent tool, that tool\'s own storage applies. Withdrawing consent removes `cortiq_session_id` and `cortiq_click_ids`.' },
+        { type: 'p', text: 'If the site uses the CortIQ consent banner, it also stores the visitor\'s choice as described above for cortiq.se. If it uses another consent tool, that tool\'s own storage applies. Withdrawing consent removes `cortiq_session_id`, `cortiq_session_expires` and `cortiq_click_ids`.' },
         { type: 'p', text: 'The site owner decides how CortIQ is used on their site and is responsible for informing visitors. See [how consent reaches the script](/docs/#consent) and the [privacy policy](/privacy/).' },
       ],
     },

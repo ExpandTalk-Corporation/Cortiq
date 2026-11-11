@@ -259,7 +259,14 @@
   function getSessionId(types) {
     try {
       var existing = sessionStorage.getItem('cortiq_session_id');
-      if (existing) return existing;
+      // The tracker (5.5.12+) stores when the session times out; an expired id belongs to
+      // a past visit, so the consent record gets a fresh one that the tracker then adopts.
+      var expires = Number(sessionStorage.getItem('cortiq_session_expires'));
+      if (existing && !(expires > 0 && Date.now() > expires)) return existing;
+      if (existing) {
+        sessionStorage.removeItem('cortiq_session_id');
+        sessionStorage.removeItem('cortiq_session_expires');
+      }
     } catch (e) {}
     var id;
     try { id = 'sess_' + crypto.randomUUID(); }

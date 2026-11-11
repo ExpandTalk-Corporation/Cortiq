@@ -22,7 +22,7 @@ export const GLOSSARY: ContentPageData = {
             {
               id: 'visit',
               term: 'Visit',
-              definition: 'A run of page views from one browser session. A visit ends after 30 minutes without a page view; the next page view starts a new one. Visits are counted on the day they start.',
+              definition: 'A run of page views from one browser session. A visit ends after 30 minutes without activity (configurable per site, 5 to 240 minutes); the next page view starts a new one. Visits are counted on the day they start.',
               ga4: 'Session. GA4 also uses a 30-minute timeout by default.',
             },
             {

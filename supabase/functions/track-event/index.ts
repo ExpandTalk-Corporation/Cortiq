@@ -3,6 +3,7 @@ import { anonymizeIP } from '../_shared/jurisdiction.ts';
 import { countryFromTimeZone } from '../_shared/tz-country.js';
 import { storedReferrer } from '../_shared/referrer.js';
 import { normalizeGoals, clientGoals, matchPageVisitGoals } from '../_shared/conversion-goals.js';
+import { normalizeSessionTimeout } from '../_shared/session-timeout.js';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -136,6 +137,19 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Events other than page views are activity too: they keep the visit's tracking_sessions
+    // row alive, so ingest_pageview does not split a visit whose page views are further apart
+    // than the site's session timeout while the visitor kept interacting. Best-effort.
+    const touchTrackingSession = async (siteId: string | null | undefined) => {
+      if (!siteId || typeof body.session_id !== 'string' || !body.session_id) return;
+      const at = body.timestamp ? new Date(body.timestamp) : new Date();
+      const { error: touchError } = await supabase.rpc('touch_tracking_session', {
+        p_site_id: siteId, p_session: body.session_id,
+        p_at: (Number.isNaN(at.getTime()) ? new Date() : at).toISOString(),
+      });
+      if (touchError) console.error('touch_tracking_session failed (non-fatal):', touchError);
+    };
+
     // Click/scroll heatmap points go to heatmap_data, which the dashboard, REST API and
     // MCP server read. Until 2026-10 this event type fell through the allow-list above
     // and was silently dropped, so heatmaps stopped receiving data after June 2026.
@@ -173,6 +187,7 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ success: false, error: 'Failed to store heatmap point' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
+      await touchTrackingSession(site.id);
       return new Response(JSON.stringify({ success: true }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
@@ -216,6 +231,8 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ success: false, error: 'Failed to store form session' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
+      // An abandonment is sent on page hide, which is not activity.
+      if (status === 'completed') await touchTrackingSession(siteId);
       return new Response(JSON.stringify({ success: true }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
@@ -235,6 +252,7 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ success: false, error: 'Failed to store content metrics' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
+      await touchTrackingSession(siteId);
       return new Response(JSON.stringify({ success: true }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
@@ -414,6 +432,10 @@ Deno.serve(async (req) => {
     // event if the bridge errors.
     let viewSiteId: string | null = null;
     let goalsForTracker: ReturnType<typeof clientGoals> | undefined;
+    let sessionTimeoutMinutes: number | undefined;
+    if (body.event_type !== 'view') {
+      try { await touchTrackingSession(eventSiteId); } catch (touchErr) { console.error('touch failed (non-fatal):', touchErr); }
+    }
     if (body.content_type === 'page' && body.event_type === 'view') {
       try {
         // ingest_pageview routes by the URL's domain, so it only runs for a domain-matched
@@ -459,6 +481,19 @@ Deno.serve(async (req) => {
           console.error('conversion goals failed (non-fatal):', goalErr);
         }
       }
+
+      // The site's session timeout for the tracker, which rotates its session id after this
+      // many minutes without activity. Its own query: before the column exists (migration
+      // 20261120000001) it errors and the tracker keeps 30, while goals still work.
+      if (viewSiteId) {
+        try {
+          const { data: timeoutRow, error: timeoutError } = await supabase
+            .from('sites').select('session_timeout_minutes').eq('id', viewSiteId).maybeSingle();
+          sessionTimeoutMinutes = normalizeSessionTimeout(timeoutError ? null : timeoutRow?.session_timeout_minutes);
+        } catch (_) {
+          sessionTimeoutMinutes = normalizeSessionTimeout(null);
+        }
+      }
     }
 
     return new Response(
@@ -466,6 +501,7 @@ Deno.serve(async (req) => {
         success: true,
         event_id: event.id,
         ...(goalsForTracker && { goals: goalsForTracker }),
+        ...(sessionTimeoutMinutes !== undefined && { session_timeout_minutes: sessionTimeoutMinutes }),
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

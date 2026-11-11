@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -13,6 +14,12 @@ import { toast } from 'sonner';
 import type { Site } from '@/types/dashboard';
 import type { SitePatch } from '@/hooks/useSites';
 import { ConsentImpact } from '@/components/dashboard/ConsentImpact';
+import {
+  DEFAULT_SESSION_TIMEOUT_MINUTES,
+  MAX_SESSION_TIMEOUT_MINUTES,
+  MIN_SESSION_TIMEOUT_MINUTES,
+  normalizeSessionTimeout,
+} from '../../../supabase/functions/_shared/session-timeout.js';
 
 interface CMPDashboardProps {
   selectedSite: Site;
@@ -26,6 +33,10 @@ export function CMPDashboard({ selectedSite, onSiteUpdated }: CMPDashboardProps)
   const [serverSideConfig, setServerSideConfig] = useState<any>((selectedSite as any).server_side_tracking_config || {});
   const [trackingMode, setTrackingMode] = useState<string>((selectedSite as any).tracking_mode || 'full');
   const [aggregateOn, setAggregateOn] = useState<boolean>((selectedSite as any).aggregate_measurement === true);
+  const savedTimeout = normalizeSessionTimeout((selectedSite as Site & { session_timeout_minutes?: number }).session_timeout_minutes);
+  const [sessionTimeout, setSessionTimeout] = useState<number>(savedTimeout);
+  const [timeoutInput, setTimeoutInput] = useState<string>(String(savedTimeout));
+  const [savingTimeout, setSavingTimeout] = useState(false);
   const [consentStats, setConsentStats] = useState<any>(null);
   const [recentValidations, setRecentValidations] = useState<any[]>([]);
 
@@ -113,6 +124,25 @@ export function CMPDashboard({ selectedSite, onSiteUpdated }: CMPDashboardProps)
     toast.success(enabled
       ? 'Aggregate measurement on — the Setup snippet now includes aggregate counting. Update the snippet on your site or the plugin setting too.'
       : 'Aggregate measurement off — the Setup snippet no longer includes aggregate counting.');
+  };
+
+  const timeoutValue = Number(timeoutInput);
+  const timeoutValid = Number.isInteger(timeoutValue)
+    && timeoutValue >= MIN_SESSION_TIMEOUT_MINUTES && timeoutValue <= MAX_SESSION_TIMEOUT_MINUTES;
+
+  const updateSessionTimeout = async () => {
+    if (!timeoutValid) return;
+    setSavingTimeout(true);
+    const { error } = await supabase.from('sites').update({ session_timeout_minutes: timeoutValue }).eq('id', selectedSite.id);
+    setSavingTimeout(false);
+    if (error) {
+      console.error('Error updating session timeout:', error);
+      toast.error('Could not update the session timeout');
+      return;
+    }
+    setSessionTimeout(timeoutValue);
+    onSiteUpdated?.({ session_timeout_minutes: timeoutValue });
+    toast.success(`Session timeout set to ${timeoutValue} minutes. Applies to new activity; past sessions are not changed.`);
   };
 
   const testConsentFlow = async () => {
@@ -307,6 +337,44 @@ export function CMPDashboard({ selectedSite, onSiteUpdated }: CMPDashboardProps)
                     Without it, nothing is counted.
                   </AlertDescription>
                 </Alert>
+              )}
+              <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-end sm:justify-between">
+                <div className="space-y-0.5 pr-4">
+                  <Label htmlFor="session-timeout">Session timeout (minutes)</Label>
+                  <p className="text-sm text-muted-foreground">
+                    A new session starts after this many minutes without activity (page views, clicks, scrolls,
+                    form submits), as in GA4. Default {DEFAULT_SESSION_TIMEOUT_MINUTES}, allowed{' '}
+                    {MIN_SESSION_TIMEOUT_MINUTES}–{MAX_SESSION_TIMEOUT_MINUTES}. Sessions do not split at midnight or
+                    when the campaign changes. The tracking script picks up the value with the next page view; no
+                    snippet change is needed.
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Input
+                    id="session-timeout"
+                    type="number"
+                    inputMode="numeric"
+                    min={MIN_SESSION_TIMEOUT_MINUTES}
+                    max={MAX_SESSION_TIMEOUT_MINUTES}
+                    step={1}
+                    className="w-24"
+                    value={timeoutInput}
+                    onChange={(e) => setTimeoutInput(e.target.value)}
+                    aria-invalid={!timeoutValid}
+                  />
+                  <Button
+                    size="sm"
+                    onClick={updateSessionTimeout}
+                    disabled={!timeoutValid || timeoutValue === sessionTimeout || savingTimeout}
+                  >
+                    Save
+                  </Button>
+                </div>
+              </div>
+              {!timeoutValid && (
+                <p className="text-sm text-destructive">
+                  Enter a whole number from {MIN_SESSION_TIMEOUT_MINUTES} to {MAX_SESSION_TIMEOUT_MINUTES}.
+                </p>
               )}
             </CardContent>
           </Card>

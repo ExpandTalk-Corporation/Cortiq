@@ -7303,6 +7303,7 @@ export type Database = {
           salesforce_pardot_enabled: boolean | null
           screenshot_urls: Json | null
           server_side_tracking_config: Json | null
+          session_timeout_minutes: number
           site_name: string
           tiktok_pixel_enabled: boolean | null
           tiktok_pixel_id: string | null
@@ -7372,6 +7373,7 @@ export type Database = {
           salesforce_pardot_enabled?: boolean | null
           screenshot_urls?: Json | null
           server_side_tracking_config?: Json | null
+          session_timeout_minutes?: number
           site_name: string
           tiktok_pixel_enabled?: boolean | null
           tiktok_pixel_id?: string | null
@@ -7441,6 +7443,7 @@ export type Database = {
           salesforce_pardot_enabled?: boolean | null
           screenshot_urls?: Json | null
           server_side_tracking_config?: Json | null
+          session_timeout_minutes?: number
           site_name?: string
           tiktok_pixel_enabled?: boolean | null
           tiktok_pixel_id?: string | null

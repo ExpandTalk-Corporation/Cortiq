@@ -1,7 +1,7 @@
 /**
  * CortIQ Advanced Tracking Script
  * Unified visitor profiling with AI agent detection
- * Version: 5.5.11 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
+ * Version: 5.5.12 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
  *
  * Usage:
  * <script>
@@ -17,7 +17,7 @@
   'use strict';
 
   // Keep in sync with wordpress-plugin/cortiq-analytics.php (CORTIQ_VERSION).
-  const CORTIQ_VERSION = '5.5.11';
+  const CORTIQ_VERSION = '5.5.12';
 
   // Configuration: window.cortiqConfig, overridden by data-* attributes on this script
   // tag, so a single-tag install (<script src=… data-site-id=…>) works and a tag that
@@ -29,7 +29,7 @@
     if (!el && typeof document.querySelector === 'function') el = document.querySelector('script[src*="spa-tracking"], script[src*="cortiq.js"]');
     if (!el || typeof el.getAttribute !== 'function') return {};
     const out = {};
-    const map = { 'site-id': 'siteId', 'api-key': 'apiKey', 'api-url': 'apiUrl', 'exclude-paths': 'excludePaths', 'auth-path': 'authPath', 'tenant-id': 'tenantId' };
+    const map = { 'site-id': 'siteId', 'api-key': 'apiKey', 'api-url': 'apiUrl', 'exclude-paths': 'excludePaths', 'auth-path': 'authPath', 'tenant-id': 'tenantId', 'session-timeout': 'sessionTimeout' };
     for (const name in map) { const v = el.getAttribute('data-' + name); if (v) out[map[name]] = v; }
     for (const name of ['cookieless', 'exclude-iframes']) {
       if (el.getAttribute('data-' + name) === 'true') out[name === 'cookieless' ? 'cookieless' : 'excludeIframes'] = true;
@@ -50,6 +50,18 @@
   const AUTH_PATH = config.authPath || '/admin';
   const TENANT_ID = config.tenantId || null;
 
+  // GA4-style session timeout: a session ends after this many minutes without tracked
+  // activity (page views and events). Inactivity only: no split at midnight or on a campaign
+  // change. Per site (sites.session_timeout_minutes, 5-240): the install snippet passes it as
+  // cortiqConfig.sessionTimeout and track-event returns it with each page view. Default 30.
+  const DEFAULT_SESSION_TIMEOUT_MINUTES = 30;
+  const SESSION_EXPIRES_KEY = 'cortiq_session_expires';
+  function sessionTimeoutMinutes(value) {
+    const n = value === null || value === undefined || value === '' ? NaN : Number(value);
+    return Number.isInteger(n) && n >= 5 && n <= 240 ? n : DEFAULT_SESSION_TIMEOUT_MINUTES;
+  }
+  let SESSION_TIMEOUT_MS = sessionTimeoutMinutes(config.sessionTimeout) * 60000;
+
   if (!SITE_ID) {
     console.error('CortIQ Tracking: Missing siteId (set window.cortiqConfig.siteId or data-site-id on the script tag)');
     return;
@@ -60,6 +72,8 @@
   let VISITOR_PROFILE = null;
   let IDENTIFICATION_COMPLETE = false;
   let MEMORY_SESSION_ID = null; // in-memory session id used in cookieless mode
+  let MEMORY_SESSION_EXPIRES = 0; // cookieless: when MEMORY_SESSION_ID expires (epoch ms)
+  let LAST_ACTIVITY = 0; // last tracked activity in this page (epoch ms)
   let SESSION_ID = null;
   let consentOverride = null;
   let consentGeneration = 0;
@@ -76,31 +90,66 @@
     catch (_) { return 'sess_' + Math.random().toString(36).slice(2) + Date.now().toString(36); }
   })();
 
-  // Stable per-session identifier. Deliberately NOT a device fingerprint — a
-  // random UUID persisted only after analytics consent.
+  function newSessionId() {
+    try { return 'sess_' + crypto.randomUUID(); }
+    catch (_) { return 'sess_' + Math.random().toString(36).slice(2) + Date.now().toString(36); }
+  }
+
+  // Per-session identifier. Deliberately NOT a device fingerprint: a random UUID kept only
+  // after analytics consent. Each call counts as activity: it returns the current session's
+  // id and extends it, or starts a new session when the last activity is older than the
+  // timeout. The expiry is stored next to the id, under the same consent and lifetime.
   function getOrCreateSessionId() {
     if (!hasStoredAnalyticsConsent()) return null;
-    // Cookieless mode: keep the id in memory only — no sessionStorage, nothing written
-    // to the visitor's device — so it never persists beyond the current page context.
+    const now = Date.now();
+    LAST_ACTIVITY = now;
+    // Cookieless mode: keep the id in memory only (no sessionStorage, nothing written
+    // to the visitor's device), so it never persists beyond the current page context.
     if (COOKIELESS) {
-      if (!MEMORY_SESSION_ID) {
-        try { MEMORY_SESSION_ID = 'sess_' + crypto.randomUUID(); }
-        catch (_) { MEMORY_SESSION_ID = 'sess_' + Math.random().toString(36).slice(2) + Date.now().toString(36); }
-      }
+      if (!MEMORY_SESSION_ID || now > MEMORY_SESSION_EXPIRES) MEMORY_SESSION_ID = newSessionId();
+      MEMORY_SESSION_EXPIRES = now + SESSION_TIMEOUT_MS;
       return MEMORY_SESSION_ID;
     }
+    let id = null;
     try {
-      const existing = sessionStorage.getItem('cortiq_session_id');
-      if (existing) return existing;
+      id = sessionStorage.getItem('cortiq_session_id');
+      // An id without an expiry comes from a tracker before 5.5.12 or from the consent
+      // banner: keep it and start the clock now.
+      const expires = Number(sessionStorage.getItem(SESSION_EXPIRES_KEY));
+      if (id && expires > 0 && now > expires) id = null;
     } catch (_) { /* Storage or browser capability unavailable. */ }
-    let id;
+    if (!id) id = newSessionId();
     try {
-      id = 'sess_' + crypto.randomUUID();
-    } catch (_) {
-      id = 'sess_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
-    }
-    try { sessionStorage.setItem('cortiq_session_id', id); } catch (_) { /* Storage or browser capability unavailable. */ }
+      sessionStorage.setItem('cortiq_session_id', id);
+      sessionStorage.setItem(SESSION_EXPIRES_KEY, String(now + SESSION_TIMEOUT_MS));
+    } catch (_) { /* Storage or browser capability unavailable. */ }
     return id;
+  }
+
+  // Every tracked activity goes through here, so the session id rotates within a page (an
+  // SPA, or a tab left open) as soon as the visitor comes back after the timeout.
+  function touchSession() {
+    SESSION_ID = getOrCreateSessionId();
+    return SESSION_ID;
+  }
+
+  // The site's timeout as track-event reports it (sites.session_timeout_minutes). It wins over
+  // the snippet value and also re-dates the current session's expiry.
+  function applySessionTimeout(minutes) {
+    if (minutes === null || minutes === undefined) return;
+    const ms = sessionTimeoutMinutes(minutes) * 60000;
+    if (ms === SESSION_TIMEOUT_MS) return;
+    SESSION_TIMEOUT_MS = ms;
+    if (!LAST_ACTIVITY || !SESSION_ID || !hasStoredAnalyticsConsent()) return;
+    if (COOKIELESS) {
+      if (MEMORY_SESSION_ID === SESSION_ID) MEMORY_SESSION_EXPIRES = LAST_ACTIVITY + ms;
+      return;
+    }
+    try {
+      if (sessionStorage.getItem('cortiq_session_id') === SESSION_ID) {
+        sessionStorage.setItem(SESSION_EXPIRES_KEY, String(LAST_ACTIVITY + ms));
+      }
+    } catch (_) { /* Storage or browser capability unavailable. */ }
   }
 
   // Extract UTM parameters from URL
@@ -276,11 +325,12 @@
   async function trackEvent(eventType, contentId, additionalMetadata = {}) {
     if (!hasStoredAnalyticsConsent()) return;
     const generation = consentGeneration;
+    // The event is activity when it happens, not when identification finishes.
+    const sessionId = touchSession();
     try {
       // Wait for visitor identification
       await waitForIdentification();
       if (generation !== consentGeneration || !hasStoredAnalyticsConsent()) return;
-      if (!SESSION_ID) SESSION_ID = getOrCreateSessionId();
 
       const storedClickIds = getStoredClickIds();
       const metadata = {
@@ -307,7 +357,7 @@
         content_id: contentId || window.location.pathname,
         event_type: eventType,
         platform: PLATFORM,
-        session_id: SESSION_ID,
+        session_id: sessionId,
         visitor_id: VISITOR_ID,
         metadata: metadata,
         timestamp: Date.now()
@@ -348,6 +398,7 @@
     // Lets per-page state (scroll milestones, fired goals) reset on SPA route changes.
     try { window.dispatchEvent(new CustomEvent('cortiq:pageview')); } catch (_) {}
     trackEvent('view', window.location.pathname).then(function (res) {
+      if (res) applySessionTimeout(res.session_timeout_minutes);
       if (res && Array.isArray(res.goals)) installConversionGoals(res.goals);
     });
   }
@@ -432,7 +483,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           siteId: SITE_ID,
-          sessionId: SESSION_ID,
+          sessionId: touchSession(),
           // The unified visitor UUID is the reliable key for looking up captured
           // click IDs (gclid) — pass it so the conversion can be attributed.
           visitorId: VISITOR_ID,
@@ -611,6 +662,7 @@
       const d = describe(el);
       if (!d || seen[action].has(d.id) || !hasInteractionConsent()) return;
       seen[action].add(d.id);
+      touchSession();
       queue.push({ id: d.id, name: d.name, type: d.type, action: action });
       if (!timer) timer = setTimeout(flush, 2000);
     }
@@ -673,7 +725,7 @@
             body: JSON.stringify({
               company_id: siteId,
               site_id: siteId,
-              session_id: SESSION_ID,
+              session_id: touchSession(),
               event_type: 'heatmap',
               content_type: 'page',
               content_id: window.location.pathname,
@@ -825,7 +877,7 @@
           body: JSON.stringify({
             company_id: SITE_ID, site_id: SITE_ID, content_type: 'page',
             content_id: window.location.pathname, event_type: 'heatmap', platform: PLATFORM,
-            session_id: SESSION_ID,
+            session_id: touchSession(),
             metadata: {
               url: window.location.href, device_type: getDeviceType(),
               x_coordinate: x, y_coordinate: y, viewport_width: vw, viewport_height: vh,
@@ -894,7 +946,8 @@
           method: 'POST',
           headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            company_id: SITE_ID, site_id: SITE_ID, session_id: SESSION_ID,
+            // A submit is activity; an abandonment on page hide is not.
+            company_id: SITE_ID, site_id: SITE_ID, session_id: status === 'completed' ? touchSession() : SESSION_ID,
             event_type: 'form_session', content_type: 'form', content_id: id,
             metadata: { form_id: id, form_name: s.formName, form_type: s.formType, status: status,
               duration_seconds: dur, fields_completed: s.fields.size, total_fields: s.totalFields, field_data: fields },
@@ -982,7 +1035,7 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          siteId: SITE_ID, sessionId: SESSION_ID, eventType: 'purchase',
+          siteId: SITE_ID, sessionId: touchSession(), eventType: 'purchase',
           orderId: 'order_' + Date.now(), currency: currency || 'SEK', total: value,
           items: [{ id: id, name: id, price: value, quantity: 1 }],
         }),
@@ -1259,7 +1312,7 @@
     if (analyticsStarted || !hasAnalyticsConsent()) return;
     analyticsStarted = true;
     const generation = consentGeneration;
-    SESSION_ID = getOrCreateSessionId();
+    touchSession();
     // Cookieless skips visitor identification; it does not bypass consent.
     if (!COOKIELESS) {
       await identifyVisitor();
@@ -1304,10 +1357,15 @@
       analyticsStarted = false;
       SESSION_ID = null;
       MEMORY_SESSION_ID = null;
+      MEMORY_SESSION_EXPIRES = 0;
+      LAST_ACTIVITY = 0;
       VISITOR_ID = null;
       VISITOR_PROFILE = null;
       IDENTIFICATION_COMPLETE = false;
-      try { sessionStorage.removeItem('cortiq_session_id'); } catch (_) { /* Storage or browser capability unavailable. */ }
+      try {
+        sessionStorage.removeItem('cortiq_session_id');
+        sessionStorage.removeItem(SESSION_EXPIRES_KEY);
+      } catch (_) { /* Storage or browser capability unavailable. */ }
       stopSecurityLayer();
       return;
     }

@@ -3,7 +3,7 @@ Contributors: cortiq
 Tags: analytics, ai-tracking, heatmap, cookie-free, gdpr, chatgpt, ai-bots
 Requires at least: 5.6
 Tested up to: 6.8
-Stable tag: 5.5.11
+Stable tag: 5.5.12
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -86,6 +86,9 @@ All data is stored in the EU (AWS eu-north-1 via Supabase).
 The tracking script is loaded with `defer` so it does not block rendering.
 
 == Changelog ==
+
+= 5.5.12 =
+* New: GA4-style session timeout. A new session starts after 30 minutes without activity (page views, clicks, scrolls, content interactions or form submits), also within a page left open. The timeout is set per site in the CortIQ dashboard (Settings → GDPR → Configuration, 5–240 minutes) and reaches the tracker with each page view; no plugin setting is needed. Sessions do not split at midnight or on a campaign change. In cookieless mode the expiry is kept in memory only.
 
 = 5.5.11 =
 * Fix: Visitor profiles now record an estimated country from the browser time zone (no IP lookup), the same estimate page views already use.
