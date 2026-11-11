@@ -37,7 +37,8 @@ export function AttributionTab({ selectedSite, onNavigate }: AttributionTabProps
 
   if (!data) return <PixelReadinessCard selectedSite={selectedSite} />;
 
-  const { cortiqConversions, hubspotMQLs, gapPercent, pendingUpload, uploaded, bySource, periodDays } = data;
+  const { cortiqConversions, hubspotMQLs, gapPercent, pendingUpload, uploaded, bySource, period } = data;
+  const periodLabel = `${period.from} – ${period.to}`;
   // A gap needs both sides: conversions in CortIQ and the HubSpot loop feeding lead quality back.
   const gapMeasurable = cortiqConversions > 0 && readiness?.hubspotLoop === true;
 
@@ -55,7 +56,7 @@ export function AttributionTab({ selectedSite, onNavigate }: AttributionTabProps
       <div className="space-y-6">
         <div>
           <h2 className="text-xl font-semibold">Attribution Gap</h2>
-          <p className="text-sm text-muted-foreground">No conversions recorded in the last {periodDays} days, so there is no gap to measure yet.</p>
+          <p className="text-sm text-muted-foreground">No conversions recorded for {periodLabel}, so there is no gap to measure yet.</p>
         </div>
         {checklist}
         <PixelReadinessCard selectedSite={selectedSite} />
@@ -68,7 +69,7 @@ export function AttributionTab({ selectedSite, onNavigate }: AttributionTabProps
       <div>
         <h2 className="text-xl font-semibold">Attribution Gap</h2>
         <p className="text-sm text-muted-foreground">
-          Last {periodDays} days — comparing what CortIQ tracks vs. what reaches qualified pipeline
+          {periodLabel} — comparing what CortIQ tracks vs. what reaches qualified pipeline
         </p>
       </div>
 

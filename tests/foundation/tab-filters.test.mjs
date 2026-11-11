@@ -51,6 +51,8 @@ test('the hooks send the filters and the tabs stop showing the notice', () => {
     assert.match(src, /useFilterParams|p_path: filterParams/, file);
   }
   const aware = tabs.match(/const FILTER_AWARE = new Set\(\[([^\]]+)\]\)/)[1].match(/'([^']+)'/g).map((s) => s.slice(1, -1));
-  assert.deepEqual(aware.sort(), ['analytics', 'campaigns', 'geolocation', 'navigation', 'social-media']);
-  assert.match(tabs, /filters: FILTER_AWARE\.has\(activeTab\)/);
+  assert.deepEqual(aware.sort(), [
+    'analytics', 'attribution', 'campaigns', 'content-performance', 'geolocation', 'navigation', 'social-media',
+  ]);
+  assert.match(tabs, /segment: FILTER_AWARE\.has\(activeTab\)/);
 });

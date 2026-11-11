@@ -23,7 +23,7 @@ interface AIBotTabProps {
 export const AIBotTab = ({ selectedSite }: AIBotTabProps) => {
   const { filters } = useDashboardFilters();
   const range = { from: filters.from, to: filters.to };
-  const { data, isLoading, error } = useAIBotTracking(selectedSite?.id, range);
+  const { data, isLoading, error } = useAIBotTracking(selectedSite?.id, range, filters.path);
   const { data: journeyData, isLoading: journeyLoading } = useAIAgentJourney(selectedSite?.id, range);
 
   if (isLoading) {

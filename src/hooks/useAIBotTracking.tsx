@@ -11,10 +11,13 @@ interface AIBotTrafficData {
   topUrls: { url: string; visits: number }[];
 }
 
-/** `range` is the global dashboard date filter (inclusive YYYY-MM-DD). */
-export const useAIBotTracking = (siteId: string | null, range: { from: string; to: string }) => {
+/**
+ * `range` is the global dashboard date filter (inclusive YYYY-MM-DD). `path` is the global
+ * URL filter (path prefix); bot hits carry no UTM data, so segments do not apply here.
+ */
+export const useAIBotTracking = (siteId: string | null, range: { from: string; to: string }, path: string | null = null) => {
   return useQuery({
-    queryKey: ['ai-bot-tracking', siteId, range.from, range.to],
+    queryKey: ['ai-bot-tracking', siteId, range.from, range.to, path],
     queryFn: async (): Promise<AIBotTrafficData> => {
       if (!siteId) {
         throw new Error('No site ID provided');
@@ -23,7 +26,7 @@ export const useAIBotTracking = (siteId: string | null, range: { from: string; t
       // Aggregated server-side (get_ai_bot_tracking date-range overload): breakdown by
       // category stored at ingest, daily trend, and top non-asset URLs.
       const { data, error } = await (supabase as any).rpc('get_ai_bot_tracking', {
-        p_site_id: siteId, p_from: range.from, p_to: range.to,
+        p_site_id: siteId, p_from: range.from, p_to: range.to, p_path: path,
       });
       if (error) throw error;
 

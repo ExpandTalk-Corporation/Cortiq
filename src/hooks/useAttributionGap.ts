@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
+import { useFilterParams } from '@/hooks/useFilterParams';
 
 export interface AttributionBySource {
   source: string;
@@ -14,15 +16,24 @@ export interface AttributionGapData {
   pendingUpload: number;
   uploaded: number;
   bySource: AttributionBySource[];
-  periodDays: number;
+  /** The global date filter the numbers cover (inclusive YYYY-MM-DD). */
+  period: { from: string; to: string };
 }
 
-export function useAttributionGap(siteId: string, days = 30) {
+/** Uses the global dashboard filters: date range, URL (the visit viewed it) and segment. */
+export function useAttributionGap(siteId: string) {
+  const { filters } = useDashboardFilters();
+  const { p_path, p_segment } = useFilterParams();
+  const p_from = filters.from;
+  const p_to = filters.to;
   return useQuery({
-    queryKey: ['attribution-gap', siteId, days],
+    queryKey: ['attribution-gap', siteId, p_from, p_to, p_path, p_segment],
     queryFn: async (): Promise<AttributionGapData> => {
-      // Aggregated server-side (get_attribution_gap RPC) instead of pulling raw rows.
-      const { data, error } = await supabase.rpc('get_attribution_gap', { p_site_id: siteId, p_days: days });
+      // Aggregated server-side (get_attribution_gap date-range overload) instead of pulling raw rows.
+      // The overload is newer than the generated types; cast at the boundary.
+      const { data, error } = await (supabase as any).rpc('get_attribution_gap', {
+        p_site_id: siteId, p_from, p_to, p_path, p_segment,
+      });
       if (error) throw error;
 
       const r = (Array.isArray(data) ? data[0] : data) ?? {};
@@ -47,7 +58,7 @@ export function useAttributionGap(siteId: string, days = 30) {
         pendingUpload: Number(r.pending_upload ?? 0),
         uploaded: Number(r.uploaded ?? 0),
         bySource,
-        periodDays: days,
+        period: { from: p_from, to: p_to },
       };
     },
     staleTime: 5 * 60 * 1000,

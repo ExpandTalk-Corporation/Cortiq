@@ -2,7 +2,7 @@ import React, { lazy, Suspense } from 'react';
 import { TabErrorBoundary } from './TabErrorBoundary';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { OverviewTab } from './tabs/OverviewTab';
-import { FilterScopeNotice } from './FilterScopeNotice';
+import { FilterScopeNotice, type FilterScopeNotes } from './FilterScopeNotice';
 import { HIDDEN_TABS } from './nav/navSections';
 import { PixelReadinessCard } from './PixelReadinessCard';
 import { PipelineAlerts } from './overview/PipelineAlerts';
@@ -61,11 +61,29 @@ const DATE_AWARE = new Set([
   'analytics', 'geolocation', 'campaigns', 'content-performance', 'content-tracking', 'navigation',
   'click-fraud', 'cookiefree', 'heatmap', 'forms', 'agent-ops', 'ip-segments',
   'server-logs', 'ai-bots', 'ai', 'ai-visibility', 'zero-click-risk', 'kpi-catalog', 'segments',
-  'ecommerce', 'social-media', 'kpi', 'paid-ads',
+  'ecommerce', 'social-media', 'kpi', 'paid-ads', 'attribution',
 ]);
 
 // Tabs whose RPCs also apply the URL and segment filters (public.session_matches_filters).
-const FILTER_AWARE = new Set(['analytics', 'geolocation', 'campaigns', 'navigation', 'social-media']);
+const FILTER_AWARE = new Set([
+  'analytics', 'geolocation', 'campaigns', 'navigation', 'social-media', 'content-performance', 'attribution',
+]);
+
+// Tabs whose RPCs apply the URL filter but where a segment has no meaning: their rows are
+// not linked to a visit with UTM data (heatmap points, AI bot hits).
+const PATH_AWARE = new Set(['heatmap', 'ai-bots']);
+
+// What the notice says about parts of a tab the filters do not reach.
+const FILTER_NOTES: Record<string, FilterScopeNotes> = {
+  heatmap: { segment: 'Heatmap clicks and scrolls are not linked to a visit.' },
+  'ai-bots': {
+    segment: 'AI bot hits carry no UTM or visitor data.',
+    partial: 'Agent journeys and the security analysis use the date range only.',
+  },
+  analytics: { partial: 'The page funnel uses its own time range and no URL or segment filter.' },
+  'content-performance': { partial: 'Tagged blocks use the date range only; scroll depth is hidden while a segment is selected.' },
+  attribution: { partial: 'Pixel readiness always covers the last 30 days without filters.' },
+};
 
 // Tabs where the global filters have no meaning (settings, live view, latest alerts):
 // no "does not apply the filter" notice.
@@ -94,7 +112,14 @@ function DashboardTabsInner({ selectedSite, dateRange, onSiteDeleted, onSiteUpda
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 w-full">
-      {!NO_FILTER_NOTICE.has(activeTab) && !HIDDEN_TABS[activeTab] && <FilterScopeNotice supports={{ date: DATE_AWARE.has(activeTab), filters: FILTER_AWARE.has(activeTab) }} />}
+      {!NO_FILTER_NOTICE.has(activeTab) && !HIDDEN_TABS[activeTab] && <FilterScopeNotice
+        supports={{
+          date: DATE_AWARE.has(activeTab),
+          path: FILTER_AWARE.has(activeTab) || PATH_AWARE.has(activeTab),
+          segment: FILTER_AWARE.has(activeTab),
+        }}
+        notes={FILTER_NOTES[activeTab]}
+      />}
       {HIDDEN_TABS[activeTab] && (
         <div role="note" className="rounded-md border bg-muted/40 px-4 py-6 text-sm text-muted-foreground">
           {HIDDEN_TABS[activeTab]}

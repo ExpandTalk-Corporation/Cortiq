@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Search, ExternalLink, Users, MousePointer, Mail, Share, TrendingUp, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useFilterParams } from '@/hooks/useFilterParams';
 
 interface TrafficSource {
   source: string;
@@ -235,11 +236,15 @@ export function TrafficSourcesAnalysis({ siteId, startDate, endDate, selectedSit
   const [currentPage, setCurrentPage] = useState(1);
   const [usingFallback, setUsingFallback] = useState(false);
   const { toast } = useToast();
+  // Global URL and segment filters. GA4 cannot apply CortIQ segments or the URL rule
+  // (visit viewed a page under the path), so a filtered view always uses first-party data.
+  const { p_path, p_segment } = useFilterParams();
+  const filtered = p_path !== null || p_segment !== null;
+  const filterKey = JSON.stringify([p_path, p_segment]);
 
   const SOURCES_PER_PAGE = 10;
 
   const loadTrafficSources = async () => {
-    console.log('🔍 Loading traffic sources for site:', siteId, 'startDate:', startDate, 'endDate:', endDate);
     setIsLoading(true);
     try {
       // Check if site has GA Property ID configured
@@ -250,8 +255,8 @@ export function TrafficSourcesAnalysis({ siteId, startDate, endDate, selectedSit
         .single();
 
       // Without GA4 the first-party tracking data is the source, not an empty card.
-      if (!site?.ga_property_id) {
-        setHasGAIntegration(false);
+      if (!site?.ga_property_id || filtered) {
+        setHasGAIntegration(!!site?.ga_property_id);
         setUsingFallback(true);
         await loadTrackingData();
         return;
@@ -341,6 +346,8 @@ export function TrafficSourcesAnalysis({ siteId, startDate, endDate, selectedSit
         p_site_id: siteId,
         p_from: startDate ? startDate.slice(0, 10) : defaultFrom,
         p_to: endDate ? endDate.slice(0, 10) : today,
+        p_path,
+        p_segment,
       });
       if (error) throw error;
 
@@ -367,7 +374,7 @@ export function TrafficSourcesAnalysis({ siteId, startDate, endDate, selectedSit
       setLastUpdated(new Date());
     } catch (error) {
       toast({
-        title: "❌ Error",
+        title: "Error",
         description: "Could not load traffic data. Check your GA integration."
       });
     } finally {
@@ -379,7 +386,7 @@ export function TrafficSourcesAnalysis({ siteId, startDate, endDate, selectedSit
     if (siteId) {
       loadTrafficSources();
     }
-  }, [siteId, startDate, endDate]);
+  }, [siteId, startDate, endDate, filterKey]);
 
   const totalSessions = trafficSources.reduce((sum, source) => sum + source.sessions, 0);
   const totalUsers = trafficSources.reduce((sum, source) => sum + source.users, 0);
@@ -427,7 +434,9 @@ export function TrafficSourcesAnalysis({ siteId, startDate, endDate, selectedSit
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              {hasGAIntegration
+              {filtered && hasGAIntegration
+                ? 'Showing CortIQ tracking data: GA4 cannot apply the URL or segment filter. Clear the filter to see GA4 sources.'
+                : hasGAIntegration
                 ? 'Showing CortIQ tracking data because GA4 data could not be fetched. Check that the service account has access to the GA4 property.'
                 : 'Sources from CortIQ tracking (visitors who accepted analytics). Connect GA4 under Settings → Integrations to compare with Google Analytics.'}
             </AlertDescription>
