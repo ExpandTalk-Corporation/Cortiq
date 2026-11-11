@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { monthColumns, percentChange, sameRangeLastYear } from '@/lib/dashboard/filters';
+import type { FilterParams } from '@/hooks/useFilterParams';
 
 interface KPIData {
   overgripande: any;
@@ -54,8 +55,15 @@ function emptyMonth(month: string): MonthlyKPI {
 /**
  * KPI dashboard data for the global date range (inclusive YYYY-MM-DD), compared with the
  * same period one year earlier. GA4 first; CortIQ's own sessions when GA4 has nothing.
+ * The URL and segment filters (filterParams) only reach the CortIQ fallback: GA4 does not know
+ * CortIQ's visits or segments.
  */
-export function useKPIDashboard(siteId: string, range: { from: string; to: string }) {
+export function useKPIDashboard(siteId: string, range: { from: string; to: string }, filterParams?: FilterParams) {
+  const p_path = filterParams?.p_path ?? null;
+  const p_segment = filterParams?.p_segment ?? null;
+  const filterKey = JSON.stringify([p_path, p_segment]);
+  // True once the CortIQ fallback is in use, so a filter change refetches only the fallback.
+  const fallbackActive = useRef(false);
   const [data, setData] = useState<KPIData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -89,6 +97,7 @@ export function useKPIDashboard(siteId: string, range: { from: string; to: strin
       // GA4 returned usable monthly data — use it and drop any stale fallback.
       if (kpiData?.overgripande?.data?.length > 0) {
         setData(kpiData);
+        fallbackActive.current = false;
         setFallbackMonthly([]);
         setFallbackTotals(null);
         return;
@@ -113,9 +122,10 @@ export function useKPIDashboard(siteId: string, range: { from: string; to: strin
   // Fallback from first-party sessions (get_kpi_monthly date-range overload), current
   // period and the same period last year.
   const computeFallbackMonthly = async () => {
+    fallbackActive.current = true;
     try {
       const rpc = (from: string, to: string) =>
-        (supabase as any).rpc('get_kpi_monthly', { p_site_id: siteId, p_from: from, p_to: to });
+        (supabase as any).rpc('get_kpi_monthly', { p_site_id: siteId, p_from: from, p_to: to, p_path, p_segment });
       const [cur, prev] = await Promise.all([rpc(range.from, range.to), rpc(comparison.from, comparison.to)]);
       if (cur.error) throw cur.error;
       if (prev.error) throw prev.error;
@@ -172,6 +182,15 @@ export function useKPIDashboard(siteId: string, range: { from: string; to: strin
   useEffect(() => {
     fetchKPIData();
   }, [siteId, range.from, range.to]);
+
+  // URL or segment changed: GA4 ignores them, so only the CortIQ fallback is fetched again.
+  const firstFilterRun = useRef(true);
+  useEffect(() => {
+    if (firstFilterRun.current) { firstFilterRun.current = false; return; }
+    if (!fallbackActive.current) return;
+    setLoading(true);
+    computeFallbackMonthly().finally(() => setLoading(false));
+  }, [filterKey]);
 
   // Monthly overview: one column per month of the range, devices folded together.
   const getMonthlyOverview = (): MonthlyKPI[] => {

@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/components/ui/use-toast';
+import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
+import { useFilterParams } from '@/hooks/useFilterParams';
 
 interface PaidAdsSummary {
   totalSessions: number;
@@ -51,70 +52,33 @@ interface PaidAdsData {
   rawSessions: number;
 }
 
-export function usePaidAdsAnalytics(siteId: string, startDate?: string, endDate?: string) {
-  const [data, setData] = useState<PaidAdsData | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const { toast } = useToast();
-
-  useEffect(() => {
-    if (!siteId) return;
-
-    const fetchPaidAdsData = async () => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        // Default to last 30 days if no dates provided
-        const end = endDate || new Date().toISOString().split('T')[0];
-        const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
-        console.log('Fetching paid ads analytics:', { siteId, start, end });
-
-        const { data: responseData, error: functionError } = await supabase.functions.invoke('paid-ads-analytics', {
-          body: {
-            siteId,
-            startDate: start,
-            endDate: end
-          }
-        });
-
-        if (functionError) {
-          console.error('Paid ads analytics error:', functionError);
-          throw new Error(functionError.message || 'Failed to fetch paid ads data');
-        }
-
-        if (!responseData.success) {
-          throw new Error(responseData.error || 'Failed to fetch paid ads data');
-        }
-
-        console.log('Paid ads data received:', responseData);
-        setData(responseData);
-
-      } catch (err) {
-        console.error('Error fetching paid ads analytics:', err);
-        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch paid ads analytics';
-        setError(errorMessage);
-        toast({
-          title: 'Error fetching ad data',
-          description: errorMessage,
-          variant: 'destructive'
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPaidAdsData();
-  }, [siteId, startDate, endDate]);
+/**
+ * CortIQ visits with a paid utm_medium for the global dashboard filters: date range, URL (the
+ * visit viewed a page under it) and segment. Counted in the database (get_paid_ads_summary), so
+ * there is no row cap. The paid-ads-analytics Edge Function is kept for older bundles.
+ */
+export function usePaidAdsAnalytics(siteId: string) {
+  const { filters } = useDashboardFilters();
+  const { p_path, p_segment } = useFilterParams();
+  const p_from = filters.from;
+  const p_to = filters.to;
+  const query = useQuery({
+    queryKey: ['paid-ads-summary', siteId, p_from, p_to, p_path, p_segment],
+    queryFn: async (): Promise<PaidAdsData> => {
+      // Newer than the generated types; cast at the boundary.
+      const { data, error } = await (supabase as any).rpc('get_paid_ads_summary', {
+        p_site_id: siteId, p_from, p_to, p_path, p_segment,
+      });
+      if (error) throw error;
+      return data as PaidAdsData;
+    },
+    enabled: !!siteId && !!p_from && !!p_to,
+  });
 
   return {
-    data,
-    loading,
-    error,
-    refetch: () => {
-      // Trigger refetch by updating state
-      setData(null);
-    }
+    data: query.data ?? null,
+    loading: query.isLoading,
+    error: query.error ? (query.error instanceof Error ? query.error.message : 'Failed to fetch paid ads analytics') : null,
+    refetch: query.refetch,
   };
 }

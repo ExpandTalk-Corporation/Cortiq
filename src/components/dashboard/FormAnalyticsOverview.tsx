@@ -4,9 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { useFormAnalytics, useFormPerformanceMetrics, useFormSessionMetrics } from '@/hooks/useFormAnalytics';
+import { useFormAnalytics, useFormStats } from '@/hooks/useFormAnalytics';
 import type { Site } from '@/types/dashboard';
-import type { DateRange } from 'react-day-picker';
 import { 
   FileText, 
   Users, 
@@ -24,23 +23,13 @@ import {
 
 interface FormAnalyticsOverviewProps {
   selectedSite: Site;
-  dateRange?: DateRange;
 }
 
-export function FormAnalyticsOverview({ selectedSite, dateRange }: FormAnalyticsOverviewProps) {
+/** Form sessions for the global filters (date range, URL, segment) via get_form_stats. */
+export function FormAnalyticsOverview({ selectedSite }: FormAnalyticsOverviewProps) {
+  // The form inventory (all time) only decides whether forms exist at all.
   const { data: forms, isLoading: formsLoading } = useFormAnalytics(selectedSite.id);
-  const allTimeMetrics = useFormPerformanceMetrics(selectedSite.id);
-  const rangeMetrics = useFormSessionMetrics(
-    selectedSite.id,
-    dateRange?.from?.toISOString(),
-    dateRange?.to?.toISOString(),
-  );
-
-  const usingRange = !!(dateRange?.from && dateRange?.to);
-  const metrics = usingRange
-    ? (rangeMetrics.data ? { ...allTimeMetrics.data, ...rangeMetrics.data, formsCount: allTimeMetrics.data?.formsCount } : null)
-    : allTimeMetrics.data;
-  const metricsLoading = usingRange ? rangeMetrics.isLoading : allTimeMetrics.isLoading;
+  const { data: metrics, isLoading: metricsLoading } = useFormStats(selectedSite.id);
 
   if (formsLoading || metricsLoading) {
     return <div className="animate-pulse">Loading form analytics...</div>;
@@ -121,9 +110,11 @@ export function FormAnalyticsOverview({ selectedSite, dateRange }: FormAnalytics
     return `${minutes}m ${remainingSeconds}s`;
   };
 
-  const periodLabel = usingRange && dateRange?.from && dateRange?.to
-    ? `${dateRange.from.toLocaleDateString('sv-SE')} – ${dateRange.to.toLocaleDateString('sv-SE')}`
-    : 'All time';
+  const periodLabel = metrics ? `${metrics.period.from} – ${metrics.period.to}` : '';
+  // Best and worst need a few sessions to mean anything.
+  const ranked = (metrics?.forms ?? []).filter((f) => f.starts >= 5);
+  const bestForm = ranked.length >= 2 ? ranked.reduce((a, b) => (b.conversion_rate > a.conversion_rate ? b : a)) : null;
+  const worstForm = ranked.length >= 2 ? ranked.reduce((a, b) => (b.conversion_rate < a.conversion_rate ? b : a)) : null;
 
   return (
     <div className="space-y-6">
@@ -136,24 +127,24 @@ export function FormAnalyticsOverview({ selectedSite, dateRange }: FormAnalytics
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metrics?.totalStarts.toLocaleString('sv-SE')}</div>
+            <div className="text-2xl font-bold">{(metrics?.totalStarts ?? 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              from {metrics?.formsCount} forms
+              from {metrics?.forms.length ?? 0} of {forms.length} forms
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Average conversion</CardTitle>
+            <CardTitle className="text-sm font-medium">Conversion rate</CardTitle>
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${getPerformanceColor(metrics?.avgConversionRate || 0)}`}>
-              {metrics?.avgConversionRate.toFixed(1)}%
+            <div className={`text-2xl font-bold ${getPerformanceColor(metrics?.conversionRate || 0)}`}>
+              {(metrics?.conversionRate ?? 0).toFixed(1)}%
             </div>
             <p className="text-xs text-muted-foreground">
-              {metrics?.totalCompletions} completed
+              {metrics?.totalCompletions ?? 0} completed
             </p>
           </CardContent>
         </Card>
@@ -180,7 +171,7 @@ export function FormAnalyticsOverview({ selectedSite, dateRange }: FormAnalytics
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
-              {metrics?.totalAbandons.toLocaleString('sv-SE')}
+              {(metrics?.totalAbandons ?? 0).toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
               users abandoned
@@ -190,7 +181,7 @@ export function FormAnalyticsOverview({ selectedSite, dateRange }: FormAnalytics
       </div>
 
       {/* Best/Worst Performers */}
-      {metrics?.bestForm && metrics?.worstForm && (
+      {bestForm && worstForm && (
         <div className="grid gap-4 md:grid-cols-2">
           <Card className="border-green-200 bg-green-50">
             <CardHeader>
@@ -202,14 +193,14 @@ export function FormAnalyticsOverview({ selectedSite, dateRange }: FormAnalytics
             <CardContent>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium">{metrics.bestForm.form_name || metrics.bestForm.form_id}</p>
+                  <p className="font-medium">{bestForm.form_name || bestForm.form_id}</p>
                   <p className="text-sm text-muted-foreground">
-                    {getFormTypeName(metrics.bestForm.form_type)}
+                    {getFormTypeName(bestForm.form_type)}
                   </p>
                 </div>
                 <div className="text-right">
                   <div className="text-lg font-bold text-green-600">
-                    {metrics.bestForm.conversion_rate.toFixed(1)}%
+                    {bestForm.conversion_rate.toFixed(1)}%
                   </div>
                   <p className="text-xs text-muted-foreground">conversion</p>
                 </div>
@@ -227,14 +218,14 @@ export function FormAnalyticsOverview({ selectedSite, dateRange }: FormAnalytics
             <CardContent>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium">{metrics.worstForm.form_name || metrics.worstForm.form_id}</p>
+                  <p className="font-medium">{worstForm.form_name || worstForm.form_id}</p>
                   <p className="text-sm text-muted-foreground">
-                    {getFormTypeName(metrics.worstForm.form_type)}
+                    {getFormTypeName(worstForm.form_type)}
                   </p>
                 </div>
                 <div className="text-right">
                   <div className="text-lg font-bold text-red-600">
-                    {metrics.worstForm.conversion_rate.toFixed(1)}%
+                    {worstForm.conversion_rate.toFixed(1)}%
                   </div>
                   <p className="text-xs text-muted-foreground">conversion</p>
                 </div>
@@ -252,13 +243,16 @@ export function FormAnalyticsOverview({ selectedSite, dateRange }: FormAnalytics
             Form performance
           </CardTitle>
           <CardDescription>
-            Detailed analysis of every form on your website
+            Every form with sessions in this period
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {forms.map((form) => (
-              <div key={form.id} className="border rounded-lg p-4">
+            {(metrics?.forms.length ?? 0) === 0 && (
+              <p className="text-sm text-muted-foreground">No form sessions in this period.</p>
+            )}
+            {(metrics?.forms ?? []).map((form) => (
+              <div key={form.form_id} className="border rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">{getFormTypeIcon(form.form_type)}</span>
@@ -282,15 +276,15 @@ export function FormAnalyticsOverview({ selectedSite, dateRange }: FormAnalytics
                 <div className="grid gap-4 md:grid-cols-4">
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Starts</p>
-                    <p className="text-lg font-semibold">{form.total_starts.toLocaleString('sv-SE')}</p>
+                    <p className="text-lg font-semibold">{form.starts.toLocaleString()}</p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Completed</p>
-                    <p className="text-lg font-semibold text-green-600">{form.total_completions.toLocaleString('sv-SE')}</p>
+                    <p className="text-lg font-semibold text-green-600">{form.completions.toLocaleString()}</p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Abandonments</p>
-                    <p className="text-lg font-semibold text-red-600">{form.total_abandons.toLocaleString('sv-SE')}</p>
+                    <p className="text-lg font-semibold text-red-600">{form.abandons.toLocaleString()}</p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Average time</p>

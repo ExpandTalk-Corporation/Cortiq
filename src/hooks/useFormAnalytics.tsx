@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
+import { useFilterParams } from '@/hooks/useFilterParams';
 
 export type FormAnalytics = {
   id: string;
@@ -166,65 +168,69 @@ export function useFormFunnelAnalysis(siteId: string, formId: string) {
   });
 }
 
-export function useFormPerformanceMetrics(siteId: string) {
+export type FormStatsRow = {
+  form_id: string;
+  form_name: string | null;
+  form_type: string;
+  starts: number;
+  completions: number;
+  abandons: number;
+  avg_completion_time: number;
+  conversion_rate: number;
+};
+
+export type FormStats = {
+  totalStarts: number;
+  totalCompletions: number;
+  totalAbandons: number;
+  /** Completions / starts over all forms, in percent. */
+  conversionRate: number;
+  avgCompletionTime: number;
+  forms: FormStatsRow[];
+  /** The global date filter the numbers cover (inclusive YYYY-MM-DD). */
+  period: { from: string; to: string };
+};
+
+/**
+ * Form sessions for the global dashboard filters, counted in the database (get_form_stats):
+ * date range, URL (the visit viewed a page under it) and segment. Form sessions that cannot be
+ * linked to a visit are left out while a URL or segment filter is set.
+ */
+export function useFormStats(siteId: string) {
+  const { filters } = useDashboardFilters();
+  const { p_path, p_segment } = useFilterParams();
+  const p_from = filters.from;
+  const p_to = filters.to;
   return useQuery({
-    queryKey: ['form-performance', siteId],
-    queryFn: async () => {
-      const { data: forms, error: formsError } = await supabase
-        .from('form_analytics')
-        .select('*')
-        .eq('site_id', siteId);
-
-      if (formsError) throw formsError;
-
-      const totalStarts = forms.reduce((sum, form) => sum + form.total_starts, 0);
-      const totalCompletions = forms.reduce((sum, form) => sum + form.total_completions, 0);
-      const totalAbandons = forms.reduce((sum, form) => sum + form.total_abandons, 0);
-      const avgConversionRate = forms.length > 0
-        ? forms.reduce((sum, form) => sum + form.conversion_rate, 0) / forms.length
-        : 0;
-      const avgCompletionTime = forms.length > 0
-        ? forms.reduce((sum, form) => sum + form.avg_completion_time, 0) / forms.length
-        : 0;
-      const bestForm = forms.reduce((best, current) =>
-        current.conversion_rate > best.conversion_rate ? current : best, forms[0] || null);
-      const worstForm = forms.reduce((worst, current) =>
-        current.conversion_rate < worst.conversion_rate ? current : worst, forms[0] || null);
-
-      return { totalStarts, totalCompletions, totalAbandons, avgConversionRate, avgCompletionTime, formsCount: forms.length, bestForm, worstForm, forms };
-    },
-    enabled: !!siteId,
-  });
-}
-
-/** Date-range-filtered metrics derived from form_sessions (not the aggregated form_analytics table). */
-export function useFormSessionMetrics(siteId: string, from?: string, to?: string) {
-  return useQuery({
-    queryKey: ['form-session-metrics', siteId, from, to],
-    queryFn: async () => {
-      let query = supabase
-        .from('form_sessions')
-        .select('completed_at, abandoned_at, completion_time')
-        .eq('site_id', siteId);
-
-      if (from) query = query.gte('started_at', from);
-      if (to)   query = query.lte('started_at', to);
-
-      const { data, error } = await query;
+    queryKey: ['form-stats', siteId, p_from, p_to, p_path, p_segment],
+    queryFn: async (): Promise<FormStats> => {
+      // Newer than the generated types; cast at the boundary.
+      const { data, error } = await (supabase as any).rpc('get_form_stats', {
+        p_site_id: siteId, p_from, p_to, p_path, p_segment,
+      });
       if (error) throw error;
-
-      const sessions = data || [];
-      const totalStarts = sessions.length;
-      const totalCompletions = sessions.filter(s => s.completed_at).length;
-      const totalAbandons = sessions.filter(s => s.abandoned_at && !s.completed_at).length;
-      const avgConversionRate = totalStarts > 0 ? (totalCompletions / totalStarts) * 100 : 0;
-      const completionTimes = sessions.filter(s => s.completion_time != null).map(s => s.completion_time!);
-      const avgCompletionTime = completionTimes.length > 0
-        ? completionTimes.reduce((a, b) => a + b, 0) / completionTimes.length
-        : 0;
-
-      return { totalStarts, totalCompletions, totalAbandons, avgConversionRate, avgCompletionTime };
+      const r = data ?? {};
+      const totalStarts = Number(r.total_starts ?? 0);
+      const totalCompletions = Number(r.total_completions ?? 0);
+      return {
+        totalStarts,
+        totalCompletions,
+        totalAbandons: Number(r.total_abandons ?? 0),
+        conversionRate: totalStarts > 0 ? (totalCompletions / totalStarts) * 100 : 0,
+        avgCompletionTime: Number(r.avg_completion_time ?? 0),
+        forms: (r.forms ?? []).map((f: any) => ({
+          form_id: String(f.form_id),
+          form_name: f.form_name ?? null,
+          form_type: String(f.form_type ?? 'custom'),
+          starts: Number(f.starts ?? 0),
+          completions: Number(f.completions ?? 0),
+          abandons: Number(f.abandons ?? 0),
+          avg_completion_time: Number(f.avg_completion_time ?? 0),
+          conversion_rate: Number(f.conversion_rate ?? 0),
+        })),
+        period: { from: p_from, to: p_to },
+      };
     },
-    enabled: !!siteId,
+    enabled: !!siteId && !!p_from && !!p_to,
   });
 }

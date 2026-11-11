@@ -23,6 +23,8 @@ import {
 } from 'lucide-react';
 import type { Site } from '@/types/dashboard';
 import { useKPIDashboard, type MonthlyKPI } from '@/hooks/useKPIDashboard';
+import { useFilterParams } from '@/hooks/useFilterParams';
+import { FilterScopeNotice } from '@/components/dashboard/FilterScopeNotice';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
@@ -61,7 +63,16 @@ export function KPITab({ selectedSite, onNavigate }: KPITabProps) {
     monthlyOverview,
     channelBreakdown,
     aiTrafficInsights
-  } = useKPIDashboard(selectedSite.id, { from: filters.from, to: filters.to });
+  } = useKPIDashboard(selectedSite.id, { from: filters.from, to: filters.to }, useFilterParams());
+
+  // GA4 numbers cannot be cut by CortIQ URLs or segments; the CortIQ fallback can.
+  const GA4_REASON = 'KPI numbers come from Google Analytics 4, which does not know CortIQ visits, URLs or segments.';
+  const scopeNotice = (
+    <FilterScopeNotice
+      supports={{ date: true, path: usingFallback, segment: usingFallback }}
+      notes={{ path: GA4_REASON, segment: GA4_REASON }}
+    />
+  );
 
   const { toast } = useToast();
   const [checkingGA, setCheckingGA] = useState(false);
@@ -313,6 +324,7 @@ export function KPITab({ selectedSite, onNavigate }: KPITabProps) {
     // Neither GA4 nor the first-party fallback produced anything — show N/A + debug button.
     return (
       <div className="space-y-6">
+        {scopeNotice}
         <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-8 rounded-lg border">
           <div className="flex items-center justify-between">
             <div>
@@ -436,6 +448,7 @@ export function KPITab({ selectedSite, onNavigate }: KPITabProps) {
 
   return (
     <div className="space-y-6">
+      {scopeNotice}
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">

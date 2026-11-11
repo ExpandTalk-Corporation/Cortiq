@@ -67,6 +67,7 @@ const DATE_AWARE = new Set([
 // Tabs whose RPCs also apply the URL and segment filters (public.session_matches_filters).
 const FILTER_AWARE = new Set([
   'analytics', 'geolocation', 'campaigns', 'navigation', 'social-media', 'content-performance', 'attribution',
+  'forms',
 ]);
 
 // Tabs whose RPCs apply the URL filter but where a segment has no meaning: their rows are
@@ -80,7 +81,12 @@ const FILTER_NOTES: Record<string, FilterScopeNotes> = {
     segment: 'AI bot hits carry no UTM or visitor data.',
     partial: 'Agent journeys and the security analysis use the date range only.',
   },
-  analytics: { partial: 'The page funnel uses its own time range and no URL or segment filter.' },
+  analytics: { partial: 'The page funnel lists pages under the URL filter but does not apply the segment: heatmap clicks are not linked to a visit.' },
+  forms: { partial: 'The field funnel, form discovery and the form list cover all recorded data without filters.' },
+  'click-fraud': {
+    path: 'Click fraud scores every paid visit against the Google Ads clicks for the period; a subset would read as missing visits.',
+    segment: 'Click fraud scores every paid visit against the Google Ads clicks for the period; a subset would read as missing visits.',
+  },
   'content-performance': { partial: 'Tagged blocks use the date range only; scroll depth is hidden while a segment is selected.' },
   attribution: { partial: 'Pixel readiness always covers the last 30 days without filters.' },
 };
@@ -92,6 +98,10 @@ const NO_FILTER_NOTICE = new Set([
   'setup', 'integrations', 'cortiq-api', 'api-keys', 'gdpr', 'notifications', 'tag-manager',
   'utm-segments', 'agent-macros', 'agent-registry', 'conversion-goals', 'report-builder',
 ]);
+
+// Tabs that render their own notice because what the filters reach depends on the data
+// source (GA4 or CortIQ) picked inside the tab.
+const SELF_NOTICE = new Set(['kpi', 'paid-ads']);
 
 interface DashboardTabsProps {
   selectedSite: Site;
@@ -107,12 +117,12 @@ function DashboardTabsInner({ selectedSite, dateRange, onSiteDeleted, onSiteUpda
   // (DashboardSidebar) and this content switch share one value.
   const setActiveTab = onTabChange;
   const filterParams = useFilterParams();
-  const { dateRange: filterRange } = useDashboardFilters();
+  const { dateRange: filterRange, filters } = useDashboardFilters();
   const { analytics } = useAnalytics(selectedSite.id, filterRange, filterParams);
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 w-full">
-      {!NO_FILTER_NOTICE.has(activeTab) && !HIDDEN_TABS[activeTab] && <FilterScopeNotice
+      {!NO_FILTER_NOTICE.has(activeTab) && !SELF_NOTICE.has(activeTab) && !HIDDEN_TABS[activeTab] && <FilterScopeNotice
         supports={{
           date: DATE_AWARE.has(activeTab),
           path: FILTER_AWARE.has(activeTab) || PATH_AWARE.has(activeTab),
@@ -141,7 +151,7 @@ function DashboardTabsInner({ selectedSite, dateRange, onSiteDeleted, onSiteUpda
 
       <TabsContent value="forms" className="space-y-6">
         <TabErrorBoundary tabName="Forms">
-          <FormAnalyticsTab selectedSite={selectedSite} dateRange={dateRange} />
+          <FormAnalyticsTab selectedSite={selectedSite} />
         </TabErrorBoundary>
       </TabsContent>
 
@@ -226,12 +236,7 @@ function DashboardTabsInner({ selectedSite, dateRange, onSiteDeleted, onSiteUpda
 
       <TabsContent value="paid-ads" className="space-y-6">
         <TabErrorBoundary tabName="Ads">
-          <AdsTab
-            selectedSite={selectedSite.id}
-            onNavigate={setActiveTab}
-            startDate={dateRange?.from?.toISOString().split('T')[0]}
-            endDate={dateRange?.to?.toISOString().split('T')[0]}
-          />
+          <AdsTab selectedSite={selectedSite.id} onNavigate={setActiveTab} />
         </TabErrorBoundary>
       </TabsContent>
 
@@ -302,8 +307,8 @@ function DashboardTabsInner({ selectedSite, dateRange, onSiteDeleted, onSiteUpda
           <ClickFraudTab
             selectedSite={selectedSite.id}
             onNavigate={setActiveTab}
-            startDate={dateRange?.from?.toISOString().split('T')[0]}
-            endDate={dateRange?.to?.toISOString().split('T')[0]}
+            startDate={filters.from}
+            endDate={filters.to}
           />
         </TabErrorBoundary>
       </TabsContent>

@@ -1,11 +1,10 @@
+// src/components/dashboard/PageFunnelAnalyzer.tsx
+// Funnel for one page: visits → form interaction → submission, plus phone/email clicks.
+// Follows the global date range. The URL filter limits which pages can be picked; the segment
+// filter does not apply because heatmap clicks are not linked to a visit (see FILTER_NOTES).
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PageSelector } from '@/components/dashboard/PageSelector';
 import { 
   Users, 
@@ -21,6 +20,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
 
 interface FunnelData {
   pageVisits: number;
@@ -37,67 +37,59 @@ interface PageFunnelAnalyzerProps {
   siteId: string;
 }
 
+// Pages that usually carry a conversion; listed first.
+const IMPORTANT_PAGE_HINTS = [
+  '/kontakt', '/contact', '/boka', '/offert', '/lediga-jobb', '/karriar', '/jobs', '/ansok',
+  '/tjanster', '/services', '/produkter', '/products', '/priser', '/pricing',
+];
+
 export function PageFunnelAnalyzer({ siteId }: PageFunnelAnalyzerProps) {
+  const { filters } = useDashboardFilters();
+  const p_from = filters.from;
+  const p_to = filters.to;
+  const p_path = filters.path;
   const [selectedUrl, setSelectedUrl] = useState('');
-  const [timeRange, setTimeRange] = useState('7');
   const [funnelData, setFunnelData] = useState<FunnelData | null>(null);
-  const [availablePages, setAvailablePages] = useState<string[]>([]);
+  const [availablePages, setAvailablePages] = useState<{ url: string; detail: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    if (siteId) {
+    if (siteId && p_from && p_to) {
       loadAvailablePages();
     }
-  }, [siteId]);
+  }, [siteId, p_from, p_to, p_path]);
 
   useEffect(() => {
-    if (selectedUrl && siteId) {
+    if (selectedUrl && siteId && p_from && p_to) {
       loadFunnelData();
+    } else {
+      setFunnelData(null);
     }
-  }, [selectedUrl, timeRange, siteId]);
+  }, [selectedUrl, siteId, p_from, p_to]);
 
   const loadAvailablePages = async () => {
     try {
-      // Most viewed pages over the last year, counted in the database (get_top_pages).
-      const today = new Date().toISOString().slice(0, 10);
-      const yearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      // Most viewed pages in the date range under the URL filter (get_top_pages).
       const { data, error } = await (supabase as any).rpc('get_top_pages', {
-        p_site_id: siteId, p_from: yearAgo, p_to: today, p_limit: 200,
+        p_site_id: siteId, p_from, p_to, p_limit: 200, p_path,
       });
 
       if (error) throw error;
 
-      const sortedPages: string[] = (data?.pages ?? []).map((p: { url: string }) => p.url);
+      const sorted: { url: string; views: number }[] = (data?.pages ?? []).map((p: { url: string; views: number }) => ({
+        url: p.url, views: Number(p.views ?? 0),
+      }));
+      const isImportant = (url: string) => IMPORTANT_PAGE_HINTS.some((hint) => url.includes(hint));
+      // Important pages first, then the most viewed.
+      const finalPages = [...sorted.filter((p) => isImportant(p.url)), ...sorted.filter((p) => !isImportant(p.url))]
+        .slice(0, 25);
 
-      // Prioritera viktiga sidor
-      const importantPages = sortedPages.filter(url => 
-        url.includes('/kontakt') || 
-        url.includes('/contact') || 
-        url.includes('/boka') ||
-        url.includes('/offert') ||
-        url.includes('/lediga-jobb') ||
-        url.includes('/karriar') ||
-        url.includes('/jobs') ||
-        url.includes('/ansok') ||
-        url.includes('/tjanster') ||
-        url.includes('/services') ||
-        url.includes('/produkter') ||
-        url.includes('/products') ||
-        url.includes('/priser') ||
-        url.includes('/pricing')
-      );
+      setAvailablePages(finalPages.map((p) => ({ url: p.url, detail: `${p.views.toLocaleString('en-US')} views` })));
 
-      // Kombinera viktiga sidor först, sedan populära
-      const remainingPages = sortedPages.filter(url => !importantPages.includes(url));
-      const finalPages = [...importantPages, ...remainingPages].slice(0, 25);
-      
-      setAvailablePages(finalPages);
-      
-      // Sätt default till första viktiga sidan eller mest populära
-      if (finalPages.length > 0 && !selectedUrl) {
-        setSelectedUrl(finalPages[0]);
-      }
+      // Keep the selection while it is still in the list; otherwise default to the first page.
+      setSelectedUrl((current) =>
+        current && finalPages.some((p) => p.url === current) ? current : finalPages[0]?.url ?? '');
     } catch (error) {
       console.error('Error loading available pages:', error);
     }
@@ -108,12 +100,9 @@ export function PageFunnelAnalyzer({ siteId }: PageFunnelAnalyzerProps) {
     
     setIsLoading(true);
     try {
-      // Counted in the database (get_page_funnel), so busy pages are not cut at 1,000 rows.
-      const daysAgo = parseInt(timeRange);
-      const today = new Date().toISOString().slice(0, 10);
-      const from = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      // Counted in the database (get_page_funnel) for the global date range.
       const { data, error } = await (supabase as any).rpc('get_page_funnel', {
-        p_site_id: siteId, p_url: selectedUrl, p_from: from, p_to: today,
+        p_site_id: siteId, p_url: selectedUrl, p_from, p_to,
       });
 
       if (error) throw error;
@@ -142,7 +131,7 @@ export function PageFunnelAnalyzer({ siteId }: PageFunnelAnalyzerProps) {
     } catch (error) {
       console.error('Error loading funnel data:', error);
       toast({
-        title: "❌ Error",
+        title: "Error",
         description: "Could not load funnel data",
         variant: "destructive"
       });
@@ -191,7 +180,7 @@ export function PageFunnelAnalyzer({ siteId }: PageFunnelAnalyzerProps) {
 
   return (
     <div className="space-y-6">
-      {/* Konfiguration */}
+      {/* Configuration */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -199,46 +188,30 @@ export function PageFunnelAnalyzer({ siteId }: PageFunnelAnalyzerProps) {
             Conversion Funnel Analysis
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Analyze the full conversion flow for a specific page
+            Analyze the full conversion flow for a specific page · {p_from} – {p_to}
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <Label htmlFor="page-url">Select page to analyze</Label>
-              <div className="space-y-2">
-                <PageSelector
-                  siteId={siteId}
-                  selectedPage={selectedUrl}
-                  onPageChange={setSelectedUrl}
-                  placeholder="Select a page to analyze..."
-                />
-                <div className="text-xs text-muted-foreground">
-                  Important pages such as contact, jobs, and services are prioritized first
-                </div>
+          <div>
+            <Label htmlFor="page-url">Select page to analyze</Label>
+            <div className="space-y-2">
+              <PageSelector
+                siteId={siteId}
+                selectedPage={selectedUrl}
+                onPageChange={setSelectedUrl}
+                pages={availablePages}
+                placeholder="Select a page to analyze..."
+              />
+              <div className="text-xs text-muted-foreground">
+                Pages viewed in the selected date range{p_path ? ` under ${p_path}` : ''}. Contact, jobs and service pages are listed first.
               </div>
-            </div>
-
-            <div>
-              <Label htmlFor="time-range">Time period</Label>
-              <Select value={timeRange} onValueChange={setTimeRange}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">Last 24h</SelectItem>
-                  <SelectItem value="7">Last 7 days</SelectItem>
-                  <SelectItem value="30">Last 30 days</SelectItem>
-                  <SelectItem value="90">Last 90 days</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
 
           {selectedUrl && (
             <div className="p-3 bg-muted rounded-lg">
               <div className="text-sm">
-                <strong>Analyserar:</strong> {selectedUrl}
+                <strong>Analyzing:</strong> {selectedUrl}
               </div>
             </div>
           )}
@@ -248,7 +221,7 @@ export function PageFunnelAnalyzer({ siteId }: PageFunnelAnalyzerProps) {
       {/* Funnel Data */}
       {funnelData && (
         <>
-          {/* Översikt */}
+          {/* Overview */}
           <div className="grid gap-4 md:grid-cols-4">
             <Card>
               <CardContent className="p-4">
@@ -299,7 +272,7 @@ export function PageFunnelAnalyzer({ siteId }: PageFunnelAnalyzerProps) {
             </Card>
           </div>
 
-          {/* Detaljerad Funnel */}
+          {/* Detailed funnel */}
           <Card>
             <CardHeader>
               <CardTitle>Conversion Funnel</CardTitle>
@@ -343,7 +316,7 @@ export function PageFunnelAnalyzer({ siteId }: PageFunnelAnalyzerProps) {
                 description="Completed and submitted the form"
               />
 
-              {/* Alternativa konverteringar */}
+              {/* Alternative conversions */}
               <div className="border-t pt-4 mt-6">
                 <h4 className="font-medium mb-3">Alternative conversions</h4>
                 <div className="grid gap-3 md:grid-cols-2">
