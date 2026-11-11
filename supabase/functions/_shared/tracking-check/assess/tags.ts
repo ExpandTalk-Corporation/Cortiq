@@ -240,6 +240,43 @@ export function assessForms({ mode, target, baseline }: AssessInput): Finding[] 
   })];
 }
 
+// GTM Custom HTML listener for HubSpot form submissions. ES5, since it runs as-is in the page.
+const HS_PUSH = `  function push(formId, email) {
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({ event: 'hubspot_form_submit', hs_form_id: formId || '', hs_email: email || undefined });
+    window.dataLayer.push({ hs_email: undefined }); // do not keep the email in the dataLayer
+  }`;
+const HS_LEGACY_LISTENER = `  // Legacy embed (hbspt.forms.create): HubSpot posts hsFormCallback messages to the page.
+  var emails = {};
+  window.addEventListener('message', function (e) {
+    var d = e.data;
+    if (!d || d.type !== 'hsFormCallback') return;
+    if ((d.eventName === 'onBeforeFormSubmit' || d.eventName === 'onFormSubmit') && Array.isArray(d.data)) {
+      for (var i = 0; i < d.data.length; i++) if (d.data[i].name === 'email') emails[d.id] = d.data[i].value;
+    }
+    if (d.eventName === 'onFormSubmitted') {
+      var values = d.data && d.data.submissionValues;
+      push(d.id, (values && values.email) || emails[d.id]);
+    }
+  });`;
+const HS_V4_LISTENER = `  // New embed (hs-form-frame): HubSpot dispatches events on the page window.
+  window.addEventListener('hs-form-event:on-submission:success', function (e) {
+    var formId = e.detail && e.detail.formId;
+    var form = window.HubSpotFormsV4 && window.HubSpotFormsV4.getFormFromEvent(e);
+    if (!form) return push(formId);
+    Promise.resolve(form.getFormFieldValues()).then(function (fields) {
+      var email;
+      for (var i = 0; i < (fields || []).length; i++) if (/(^|\\/)email$/.test(fields[i].name)) email = fields[i].value;
+      push(formId, email);
+    }, function () { push(formId); });
+  });`;
+
+/** The paste-ready GTM tag for the embed versions seen on the site. */
+export function hubSpotListenerTag(legacy: boolean, v4: boolean): string {
+  return ['<script>', '(function () {', HS_PUSH, legacy && HS_LEGACY_LISTENER, v4 && HS_V4_LISTENER, '})();', '</script>']
+    .filter(Boolean).join('\n');
+}
+
 /** HubSpot forms rendered in an iframe: tags on the page cannot see the submission or the email field. */
 export function assessHubSpotFormFrames({ target }: AssessInput): Finding[] {
   const pages = testablePages(target).filter((p) => p.browser?.hubspotForms?.framed);
@@ -248,10 +285,17 @@ export function assessHubSpotFormFrames({ target }: AssessInput): Finding[] {
   // A bare hsforms iframe without other markers is the legacy embed.
   const legacy = pages.some((p) => p.browser!.hubspotForms!.legacy || !p.browser!.hubspotForms!.v4);
   const ads = attemptedVendors(target).has('google-ads');
-  const listen = [
-    legacy && 'legacy embed (hbspt.forms.create): listen for window "message" events with data.type "hsFormCallback"; read the email at eventName "onFormSubmit" and push at "onFormSubmitted"',
-    v4 && 'new embed (hs-form-frame): listen for the window event "hs-form-event:on-submission:success" and read fields with HubSpotFormsV4.getFormFromEvent(event).getFormFieldValues()',
-  ].filter(Boolean).join('; ');
+  const steps = [
+    'In GTM, add a Custom HTML tag with the code below. Trigger: All Pages (Initialization or Page View).',
+    'Variables: two Data Layer Variables, hs_form_id and hs_email.',
+    'Trigger: Custom Event, event name hubspot_form_submit.',
+    'GA4 Event tag on that trigger: event name generate_lead, parameter form_id = {{hs_form_id}}. Never send hs_email to GA4. Mark generate_lead as a key event in GA4.',
+    ...(ads ? [
+      'Google Ads Conversion Tracking tag on the same trigger. Tick "Include user-provided data from your website", create a User-Provided Data variable (Manual configuration) with Email = {{hs_email}}. Google hashes the email before sending. With Consent Mode the data is only sent when ad_user_data is granted.',
+      'In Google Ads: Goals → Settings → Enhanced conversions for web → on, method Google Tag Manager.',
+    ] : []),
+    'Test in GTM Preview: submit a test form and check that hubspot_form_submit appears and the tags fire.',
+  ];
   return [finding({
     scope: 'Forms', checkKey: 'forms.hubspot_iframe', status: 'manual', priority: 'medium',
     title: 'HubSpot forms are in an iframe: check that submissions reach GA4 and Google Ads',
@@ -259,10 +303,9 @@ export function assessHubSpotFormFrames({ target }: AssessInput): Finding[] {
       + 'and the Google tag cannot pick up the email address for Enhanced conversions automatically. '
       + 'HubSpot still receives the lead, but GA4 and Google Ads only count it if a tag listens for the submission.'
       + (ads ? ' Google Ads is on the site: note that Enhanced measurement (GA4) and Enhanced conversions (Google Ads) are separate settings, and having one on does not cover the other.' : ''),
-    fix: `Add a Custom HTML tag in GTM that listens for HubSpot's submit callback and pushes a dataLayer event (e.g. hubspot_form_submit with the form ID). ${listen[0].toUpperCase()}${listen.slice(1)}. `
-      + 'Trigger a GA4 generate_lead event on it (never send the email to GA4)'
-      + (ads ? ', and the Google Ads conversion tag with user-provided data from the pushed email, behind marketing consent' : '')
-      + '. Alternatives: redirect to a thank-you page and count page views, or import qualified HubSpot leads as offline conversions. Verify in GTM Preview with a test submission.',
+    fix: steps.map((s, i) => `${i + 1}. ${s}`).join('\n')
+      + `\n\n${hubSpotListenerTag(legacy, v4)}\n\n`
+      + 'Alternatives: redirect to a thank-you page and count its page views, or import qualified HubSpot leads into Google Ads as offline conversions.',
     typicalOwner: 'gtm',
     evidence: {
       pages: pages.map((p) => p.path),

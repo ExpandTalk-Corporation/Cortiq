@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { assess } from '../../supabase/functions/_shared/tracking-check/assess/index.ts';
+import { hubSpotListenerTag } from '../../supabase/functions/_shared/tracking-check/assess/tags.ts';
 import { detectForms, detectHubSpotFormEmbed } from '../../supabase/functions/_shared/form-detection.ts';
 import { fetchOk, page, site, st, req, POLICY } from './tracking-check-fixtures.mjs';
 
@@ -221,4 +222,42 @@ test('HubSpot forms rendered without an iframe give no iframe finding', () => {
   const findings = assess({ mode: 'policy', baseline: null, policy: POLICY,
     target: site('target', [page('/', { hubspotForms: { legacy: true, v4: false, framed: false } }), page('/a/')]) });
   assert.equal(byKey(findings, 'forms.hubspot_iframe').length, 0);
+});
+
+// Runs the GTM tag's script against a fake window and returns the dataLayer and the registered listeners.
+function runListenerTag(tag, extraWindow = {}) {
+  const listeners = {};
+  const window = { addEventListener: (type, fn) => { listeners[type] = fn; }, ...extraWindow };
+  const body = tag.replace(/^<script>\n/, '').replace(/\n<\/script>$/, '');
+  new Function('window', body)(window);
+  return { window, listeners };
+}
+
+test('the HubSpot listener tag only contains the embeds seen and is valid script', () => {
+  const legacyOnly = hubSpotListenerTag(true, false);
+  assert.match(legacyOnly, /^<script>\n[\s\S]*\n<\/script>$/);
+  assert.match(legacyOnly, /hsFormCallback/);
+  assert.doesNotMatch(legacyOnly, /hs-form-event/);
+  assert.doesNotMatch(hubSpotListenerTag(false, true), /hsFormCallback/);
+  const { listeners } = runListenerTag(hubSpotListenerTag(true, true));
+  assert.deepEqual(Object.keys(listeners).sort(), ['hs-form-event:on-submission:success', 'message']);
+});
+
+test('the legacy listener pushes hubspot_form_submit with the email captured before submit', () => {
+  const { window, listeners } = runListenerTag(hubSpotListenerTag(true, false));
+  listeners.message({ data: { type: 'other' } });
+  listeners.message({ data: { type: 'hsFormCallback', eventName: 'onBeforeFormSubmit', id: 'f1', data: [{ name: 'email', value: 'a@b.se' }] } });
+  listeners.message({ data: { type: 'hsFormCallback', eventName: 'onFormSubmitted', id: 'f1', data: { redirectUrl: '' } } });
+  assert.deepEqual(window.dataLayer, [
+    { event: 'hubspot_form_submit', hs_form_id: 'f1', hs_email: 'a@b.se' },
+    { hs_email: undefined },
+  ]);
+});
+
+test('the v4 listener reads the email field from HubSpotFormsV4', async () => {
+  const form = { getFormFieldValues: () => Promise.resolve([{ name: '0-1/firstname', value: 'A' }, { name: '0-1/email', value: 'a@b.se' }]) };
+  const { window, listeners } = runListenerTag(hubSpotListenerTag(false, true), { HubSpotFormsV4: { getFormFromEvent: () => form } });
+  listeners['hs-form-event:on-submission:success']({ detail: { formId: 'f2' } });
+  await new Promise((r) => setTimeout(r, 0));
+  assert.deepEqual(window.dataLayer[0], { event: 'hubspot_form_submit', hs_form_id: 'f2', hs_email: 'a@b.se' });
 });
