@@ -1,6 +1,7 @@
 import { createClient } from '../_shared/supabase.ts';
 import { sanitize } from './sanitize.ts';
 import { resolveSite } from "../_shared/resolve-site.ts";
+import { skipTrackingCheck } from '../_shared/tracking-check-ua.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -9,6 +10,8 @@ const corsHeaders = {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+  const tc = skipTrackingCheck(req, corsHeaders);
+  if (tc) return tc;
 
   try {
     const supabase = createClient(

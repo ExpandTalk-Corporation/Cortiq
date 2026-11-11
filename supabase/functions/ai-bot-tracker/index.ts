@@ -5,6 +5,7 @@ import { anonymizeIP } from "../_shared/jurisdiction.ts";
 // and server-log paths classify identically. See _shared/ai-bot-registry.ts.
 import { classifyBot, type BotCategory } from "../_shared/ai-bot-registry.ts";
 import { resolveSite } from "../_shared/resolve-site.ts";
+import { skipTrackingCheck } from '../_shared/tracking-check-ua.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -82,6 +83,8 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+  const tc = skipTrackingCheck(req, corsHeaders);
+  if (tc) return tc;
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;

@@ -3,6 +3,7 @@
 // never fall back to a third-party host.
 import { buildProbeSource } from './browser-probe.js';
 import { assertSafeUrl } from '../safe-url.ts';
+import { TRACKING_CHECK_UA_TOKEN } from '../tracking-check-ua.ts';
 import type { LinkPage } from './pages.ts';
 import type { BasicAuth, BrowserObservation, ConsentState } from './types.ts';
 
@@ -17,7 +18,7 @@ export async function runBrowserProbe(opts: {
   const res = await doFetch(`${opts.endpoint.replace(/\/$/, '')}/function?token=${encodeURIComponent(opts.token)}&timeout=90000`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code: buildProbeSource(), context: { url: opts.url, states: opts.states, basicAuth: opts.basicAuth } }),
+    body: JSON.stringify({ code: buildProbeSource(), context: { url: opts.url, states: opts.states, basicAuth: opts.basicAuth, uaToken: TRACKING_CHECK_UA_TOKEN } }),
     signal: AbortSignal.timeout(100_000),
   });
   if (!res.ok) throw new Error(`Browser service ${res.status}: ${(await res.text()).slice(0, 200)}`);
@@ -29,6 +30,7 @@ export async function runBrowserProbe(opts: {
 
 // Page discovery for sites that refuse plain requests: open each URL in turn and read its links.
 const LINK_PROBE_SOURCE = `export default async function ({ page, context }) {
+  if (context.uaToken) await page.setUserAgent(\`\${await page.browser().userAgent()} \${context.uaToken}\`);
   const pages = [];
   for (const url of context.urls) {
     try {
@@ -53,7 +55,7 @@ export async function runLinkProbe(opts: {
   const res = await doFetch(`${opts.endpoint.replace(/\/$/, '')}/function?token=${encodeURIComponent(opts.token)}&timeout=45000`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code: LINK_PROBE_SOURCE, context: { urls: opts.urls, enough: opts.enough } }),
+    body: JSON.stringify({ code: LINK_PROBE_SOURCE, context: { urls: opts.urls, enough: opts.enough, uaToken: TRACKING_CHECK_UA_TOKEN } }),
     signal: AbortSignal.timeout(50_000),
   });
   if (!res.ok) throw new Error(`Browser service ${res.status}: ${(await res.text()).slice(0, 200)}`);

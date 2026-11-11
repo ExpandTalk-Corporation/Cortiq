@@ -325,6 +325,8 @@ async function observeState(browser, state, context, inPageSource) {
   });
   try {
     if (context.basicAuth) await p.authenticate(context.basicAuth);
+    // Marks the run so CortIQ's own ingest functions do not count it as a visit (tracking-check-ua.ts).
+    if (context.uaToken) await p.setUserAgent(`${await browser.userAgent()} ${context.uaToken}`);
     await p.setViewport({ width: 1366, height: 900 });
     await p.evaluateOnNewDocument(() => {
       window.__tcCsp = [];

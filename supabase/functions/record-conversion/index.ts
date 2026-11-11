@@ -13,6 +13,7 @@
 import { createClient } from '../_shared/supabase.ts';
 import { getSessionConsent } from '../_shared/session-consent.ts';
 import { resolveSite } from "../_shared/resolve-site.ts";
+import { skipTrackingCheck } from '../_shared/tracking-check-ua.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,6 +24,8 @@ const HEX64 = /^[a-f0-9]{64}$/i; // SHA-256 hex
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+  const tc = skipTrackingCheck(req, corsHeaders);
+  if (tc) return tc;
 
   const json = (b: unknown, s = 200) =>
     new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });

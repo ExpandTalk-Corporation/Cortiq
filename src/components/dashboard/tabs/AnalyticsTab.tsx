@@ -35,7 +35,8 @@ export function AnalyticsTab({ analytics, dateRange }: AnalyticsTabProps) {
 
       {/* Funnel Analysis */}
       {selectedSite && (
-        <PageFunnelAnalyzer siteId={selectedSite.id} />
+        // Keyed by site: a new site starts with an empty page choice instead of the last site's page.
+        <PageFunnelAnalyzer key={selectedSite.id} siteId={selectedSite.id} />
       )}
 
       <div className="grid gap-6 md:grid-cols-2">

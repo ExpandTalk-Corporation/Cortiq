@@ -632,7 +632,7 @@ export const METRICS: ContentPageData = {
             '**Page views:** every recorded page view. WordPress admin, login and preview URLs (`wp-admin`, `wp-login`, Elementor previews and `preview=true`) are left out.',
             '**Conversions:** recorded goal events. A goal counts at most once per visit, so repeat clicks or reloads do not add conversions.',
             '**Conversion rate:** conversions ÷ visits × 100. Each goal counts separately, so a site with several goals can show more conversions than visits.',
-            '**AI visits:** hits from AI crawlers and agents, from the [server-side adapters](/integrations/server-side/) and from in-browser agent detection. One hit is one request. Hits are split into training, agentic and citation; unclassified hits count only in the total.',
+            '**AI visits:** hits from AI crawlers and agents, from the [server-side adapters](/integrations/server-side/) and from in-browser agent detection. One hit is one request. Hits are split into training, agentic and citation. Unclassified hits, mostly headless browsers and test tools, are shown separately and do not count as AI visits.',
             '**AI per 100 visits:** AI visits ÷ visits × 100. Hidden when a UTM segment is active, because bots carry no UTM tags.',
             '**Change vs previous period:** compared with the period of the same length immediately before.',
           ],
