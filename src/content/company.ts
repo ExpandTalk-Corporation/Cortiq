@@ -145,6 +145,21 @@ export const SECURITY_SRI: ContentPageData = {
       ],
     },
     {
+      // Checked against the primary reports (Sekoia, Sansec) on 2026-11-11, not secondary coverage.
+      id: 'incidents',
+      heading: 'Recent incidents',
+      blocks: [
+        {
+          type: 'list',
+          items: [
+            '**Plerdy, August–September 2026.** Between 27 August and 3 September, attackers that Sekoia links to APT29 with moderate to high confidence injected code into the Plerdy analytics tracker on Plerdy\'s own server. Thousands of websites that loaded it, most of them Ukrainian, sent their visitors a fingerprinting script that served exploits to unpatched iPhones and Android phones. Fully updated devices were not affected. ([Sekoia](https://www.sekoia.com/blog/poisoned-source-apt29-watering-holes-targets-mobile-devices-with-n-day-exploits))',
+            '**Convertr, October 2026.** A card skimmer was added to the self-hosted Plausible tracker of the Brazilian e-commerce platform Convertr, which every merchant checkout loaded. From 24 October it sent card numbers, CVV codes and taxpayer IDs to the attackers. ([Sansec](https://sansec.io/research/convertr-plausible-supply-chain-attack))',
+          ],
+        },
+        { type: 'p', text: 'In both cases, websites loaded the tracker from a URL whose content the attacker could replace. Had a page carried an integrity hash of the original file, the browser would have refused the changed one. CortIQ\'s standard snippet also loads a URL whose content can change; a pinned install removes that.' },
+      ],
+    },
+    {
       id: 'how',
       heading: 'How CortIQ implements it',
       blocks: [
