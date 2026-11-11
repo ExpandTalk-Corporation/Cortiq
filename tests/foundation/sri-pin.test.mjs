@@ -83,3 +83,17 @@ test('pin status: auto snippet, up to date, behind, behind a security fix', () =
   assert.deepEqual(pinStatus('5.5.13', m), { latest: '5.6.0', behind: true, securityFixes: ['5.5.14'] });
   assert.equal(compareVersions('5.5.10', '5.5.9'), 1);
 });
+
+// The public page at /security/sri/ makes claims about this code; keep them true.
+test('/security/sri/ shows the latest pinned version and hashes, and its claims match the code', async () => {
+  const { SECURITY_SRI } = await import('../../src/content/company.ts');
+  const text = JSON.stringify(SECURITY_SRI);
+  const { files } = manifest.versions[manifest.latest];
+  assert.ok(text.includes(`https://cortiq.se/v/${manifest.latest}/cortiq.js`));
+  for (const hash of Object.values(files)) assert.ok(text.includes(hash), `page is missing ${hash}`);
+  // "Pin version … with Subresource Integrity (SRI)" and "Install tracking" are the dashboard labels.
+  assert.match(readFileSync(url('src/components/dashboard/TrackingSnippetSetup.tsx'), 'utf8'), /Pin version \{pin\.version\} with Subresource Integrity \(SRI\)/);
+  assert.match(readFileSync(url('src/pages/Installation.tsx'), 'utf8'), />Install tracking</);
+  // "The WordPress plugin … no longer falls back to cortiq.se"
+  assert.equal(/https?:\/\/cortiq\.se\/[^'"]*\.js/.test(readFileSync(url('wordpress-plugin/cortiq-analytics.php'), 'utf8')), false);
+});
