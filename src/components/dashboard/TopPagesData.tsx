@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ExternalLink, FileText, Eye, Percent } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { useFilterParams } from '@/hooks/useFilterParams';
 
 interface TopPage {
   url: string;
@@ -20,27 +21,23 @@ interface TopPagesDataProps {
 }
 
 export function TopPagesData({ siteId, startDate, endDate }: TopPagesDataProps) {
-  const [topPages, setTopPages] = useState<TopPage[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [totalViews, setTotalViews] = useState(0);
-  const { toast } = useToast();
+  const { p_path, p_segment } = useFilterParams();
+  const today = new Date().toISOString().slice(0, 10);
+  const defaultFrom = new Date(Date.now() - 29 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const from = startDate ? startDate.slice(0, 10) : defaultFrom;
+  const to = endDate ? endDate.slice(0, 10) : today;
 
-  const loadTopPages = async () => {
-    setIsLoading(true);
-    try {
+  const { data, isFetching: isLoading, isError, refetch, dataUpdatedAt } = useQuery({
+    queryKey: ['top-pages', siteId, from, to, p_path, p_segment],
+    enabled: !!siteId,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
       // Counted in the database (get_top_pages), so long ranges are not cut at the API row limit.
-      const today = new Date().toISOString().slice(0, 10);
-      const defaultFrom = new Date(Date.now() - 29 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      // The global URL and segment filters are applied there too.
       const { data, error } = await (supabase as any).rpc('get_top_pages', {
-        p_site_id: siteId,
-        p_from: startDate ? startDate.slice(0, 10) : defaultFrom,
-        p_to: endDate ? endDate.slice(0, 10) : today,
-        p_limit: 10,
+        p_site_id: siteId, p_from: from, p_to: to, p_limit: 10, p_path, p_segment,
       });
-
       if (error) throw error;
-
       const total = Number(data?.total_views ?? 0);
       const pages: TopPage[] = (data?.pages ?? []).map((p: { url: string; title: string | null; views: number }) => ({
         url: p.url,
@@ -48,27 +45,12 @@ export function TopPagesData({ siteId, startDate, endDate }: TopPagesDataProps) 
         views: Number(p.views),
         percentage: total > 0 ? (Number(p.views) / total) * 100 : 0,
       }));
-
-      setTopPages(pages);
-      setTotalViews(total);
-      setLastUpdated(new Date());
-
-    } catch (error) {
-      console.error('Error loading top pages:', error);
-      toast({
-        title: "❌ Error",
-        description: "Could not load top pages"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (siteId) {
-      loadTopPages();
-    }
-  }, [siteId, startDate, endDate]);
+      return { pages, total };
+    },
+  });
+  const topPages = data?.pages ?? [];
+  const totalViews = data?.total ?? 0;
+  const lastUpdated = dataUpdatedAt ? new Date(dataUpdatedAt) : null;
 
   const formatUrl = (url: string) => {
     try {
@@ -103,6 +85,11 @@ export function TopPagesData({ siteId, startDate, endDate }: TopPagesDataProps) 
             {Array.from({length: 5}).map((_, i) => (
               <div key={i} className="h-16 bg-muted rounded animate-pulse" />
             ))}
+          </div>
+        ) : isError ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <p className="mb-4">Could not load top pages</p>
+            <Button variant="outline" size="sm" onClick={() => refetch()}>Try again</Button>
           </div>
         ) : topPages.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
@@ -153,7 +140,7 @@ export function TopPagesData({ siteId, startDate, endDate }: TopPagesDataProps) 
             </div>
 
             <div className="flex justify-between items-center pt-4 border-t">
-              <Button variant="outline" size="sm" onClick={loadTopPages} disabled={isLoading}>
+              <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
                 {isLoading ? 'Loading...' : 'Refresh data'}
               </Button>
               <div className="text-sm text-muted-foreground">

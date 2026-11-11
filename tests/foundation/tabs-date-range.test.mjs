@@ -176,7 +176,7 @@ test('hooks put the range in the query key and query, not a hardcoded window', (
     assert.match(code, pattern, file);
     assert.doesNotMatch(code, /subDays\(new Date\(\)|Date\.now\(\) - 30 \* 24/, `${file} still uses a rolling window`);
   }
-  assert.match(src('src/hooks/useAIBotTracking.tsx'), /queryKey: \['ai-bot-tracking', siteId, range\.from, range\.to\]/);
+  assert.match(src('src/hooks/useAIBotTracking.tsx'), /queryKey: \['ai-bot-tracking', siteId, range\.from, range\.to, path\]/);
   assert.match(src('src/components/dashboard/tabs/EcommerceTab.tsx'),
     /queryKey: \['ecommerce-analytics', selectedSiteId, filters\.from, filters\.to\]/);
   assert.match(src('src/hooks/useKPIDashboard.tsx'), /sameRangeLastYear\(range\.from, range\.to\)/);

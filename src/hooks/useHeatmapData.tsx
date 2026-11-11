@@ -32,8 +32,9 @@ export function useHeatmapData(siteId: string | null) {
 
       // Only pages that have heatmap data in the selected range, member-only paths excluded
       // (the screenshot behind the heatmap is taken logged out). Ownership enforced in the RPC.
+      // The global URL filter applies; segments do not (heatmap rows are not linked to a visit).
       const { data, error: pageError } = await (supabase as any).rpc('get_heatmap_pages', {
-        p_site_id: siteId, p_from: filters.from, p_to: filters.to, p_limit: 50,
+        p_site_id: siteId, p_from: filters.from, p_to: filters.to, p_limit: 50, p_path: filters.path,
       });
 
       if (pageError) throw pageError;
@@ -133,7 +134,7 @@ export function useHeatmapData(siteId: string | null) {
     if (siteId) {
       loadTopPages(siteId);
     }
-  }, [siteId, filters.from, filters.to]);
+  }, [siteId, filters.from, filters.to, filters.path]);
 
   useEffect(() => {
     if (siteId && selectedUrl) {
