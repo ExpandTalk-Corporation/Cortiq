@@ -504,6 +504,7 @@ const Privacy = () => {
                 <h5 className="font-semibold text-sm mb-1">Analytical (requires analytics consent)</h5>
                 <ul className="text-muted-foreground space-y-1 ml-4 mb-3">
                   <li>• <code>cortiq_session_id</code> (sessionStorage, Full mode only) - Per-session identifier (Lifetime: tab session). In Cookieless mode it is held in memory only and nothing is written.</li>
+                  <li>• <code>cortiq_session_expires</code> (sessionStorage, Full mode only) - When the session identifier expires after inactivity (default 30 minutes), so a new session can start (Lifetime: tab session). Not written in Cookieless mode.</li>
                   <li>• <code>_ciq_adp</code> (sessionStorage) - Page-depth counter, written after analytics consent, in either mode, only for clients classified as automated (Lifetime: tab session)</li>
                 </ul>
                 <h5 className="font-semibold text-sm mb-1">Marketing (requires marketing consent, Full mode only)</h5>
@@ -529,7 +530,7 @@ const Privacy = () => {
                 visitors; only clients classified as automated get the <code>_ciq_adp</code> counter. The
                 <code> site_consent</code> cookie above is set only by cortiq.se&apos;s own banner.
                 Analytical and marketing storage is written only after the corresponding consent. Withdrawing consent removes
-                <code> cortiq_session_id</code> and <code>cortiq_click_ids</code>. The aggregate script (section 3C),
+                <code> cortiq_session_id</code>, <code>cortiq_session_expires</code> and <code>cortiq_click_ids</code>. The aggregate script (section 3C),
                 if enabled, writes nothing to your browser.
               </p>
             </CardContent>

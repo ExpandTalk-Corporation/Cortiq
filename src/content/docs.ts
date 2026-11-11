@@ -607,15 +607,17 @@ export const METRICS: ContentPageData = {
         {
           type: 'list',
           items: [
-            '**A visit ends after 30 minutes without a page view.** The next page view starts a new visit, as with GA4\'s default session timeout. Only page views extend a visit; clicks, scrolls and form events do not.',
-            '**Full mode:** the identifier lives in sessionStorage, so it lasts as long as the browser tab.',
+            '**A visit ends after 30 minutes without activity** (the session timeout, as in GA4). Page views, clicks, scrolls, content interactions and form submits all count as activity. After a longer pause the tracking script switches to a new session identifier and the next page view starts a new visit.',
+            '**Configurable per site:** Settings → GDPR → Configuration → Session timeout, 5 to 240 minutes (default 30). The tracking script picks up a change with the next page view; no snippet change is needed. Past visits are not recalculated.',
+            '**Inactivity is the only rule.** A visit does not split at midnight or when the campaign changes; it keeps the source of its first page view.',
+            '**Full mode:** the identifier and its expiry time (`cortiq_session_expires`) live in sessionStorage, so a visit never outlasts the browser tab.',
             '**Cookieless mode:** the identifier is held in memory only. Every full page load starts a new visit; route changes in a single-page app stay in the same visit.',
             '**Traffic source, UTM tags and country** are taken from the first page view of the visit.',
             '**Visit duration** is the time from the first to the last page view. Time on the last page is not counted, so a one-page visit has a duration of 0.',
             '**Bounced visit:** a visit with one page view. Used in the country breakdown and in the MCP tools.',
           ],
         },
-        { type: 'note', tone: 'info', text: 'Visits recorded before the 30-minute rule was introduced (November 2026) are not split retroactively.' },
+        { type: 'note', tone: 'info', text: 'Visits recorded before the 30-minute rule was introduced (November 2026) are not split retroactively. Before tracking script 5.5.12, only page views extended a visit.' },
       ],
     },
     {
