@@ -21,12 +21,12 @@ test('each .htaccess with the placeholder gets the hashes of the pages it serves
   write('index.html', '<script>a()</script>');
   write('features/index.html', '<script>a()</script><script>b()</script>');
   write('api-docs/.htaccess', `script-src ${PLACEHOLDER}`);
-  write('api-docs/index.html', '<script>c()</script>');
+  write('api-docs/index.html', '<script>c()\r\nd()</script>');
   write('server/x.html', '<script>ignored()</script>');
   fillCsp(dist);
   const root = fs.readFileSync(path.join(dist, '.htaccess'), 'utf8');
   assert.equal(root, `script-src 'self' ${[scriptHash('a()'), scriptHash('b()')].sort().join(' ')}`);
-  assert.equal(fs.readFileSync(path.join(dist, 'api-docs/.htaccess'), 'utf8'), `script-src ${scriptHash('c()')}`);
+  assert.equal(fs.readFileSync(path.join(dist, 'api-docs/.htaccess'), 'utf8'), `script-src ${[scriptHash('c()\r\nd()'), scriptHash('c()\nd()')].sort().join(' ')}`);
   write('bad/index.html', '<img onerror="x()">');
   write('.htaccess', PLACEHOLDER);
   assert.throws(() => fillCsp(dist), /Inline event handler/);
