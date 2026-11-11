@@ -239,3 +239,34 @@ export function assessForms({ mode, target, baseline }: AssessInput): Finding[] 
     evidence: { pages: missing.flatMap((m) => [...m.pages]), details: missing.map((m) => `${label(m.hit)} (on ${pageList(m.pages)})`) },
   })];
 }
+
+/** HubSpot forms rendered in an iframe: tags on the page cannot see the submission or the email field. */
+export function assessHubSpotFormFrames({ target }: AssessInput): Finding[] {
+  const pages = testablePages(target).filter((p) => p.browser?.hubspotForms?.framed);
+  if (!pages.length) return [];
+  const v4 = pages.some((p) => p.browser!.hubspotForms!.v4);
+  // A bare hsforms iframe without other markers is the legacy embed.
+  const legacy = pages.some((p) => p.browser!.hubspotForms!.legacy || !p.browser!.hubspotForms!.v4);
+  const ads = attemptedVendors(target).has('google-ads');
+  const listen = [
+    legacy && 'legacy embed (hbspt.forms.create): listen for window "message" events with data.type "hsFormCallback"; read the email at eventName "onFormSubmit" and push at "onFormSubmitted"',
+    v4 && 'new embed (hs-form-frame): listen for the window event "hs-form-event:on-submission:success" and read fields with HubSpotFormsV4.getFormFromEvent(event).getFormFieldValues()',
+  ].filter(Boolean).join('; ');
+  return [finding({
+    scope: 'Forms', checkKey: 'forms.hubspot_iframe', status: 'manual', priority: 'medium',
+    title: 'HubSpot forms are in an iframe: check that submissions reach GA4 and Google Ads',
+    explanation: 'The form renders inside an iframe, so GA4 Enhanced measurement cannot record form_start or form_submit, '
+      + 'and the Google tag cannot pick up the email address for Enhanced conversions automatically. '
+      + 'HubSpot still receives the lead, but GA4 and Google Ads only count it if a tag listens for the submission.'
+      + (ads ? ' Google Ads is on the site: note that Enhanced measurement (GA4) and Enhanced conversions (Google Ads) are separate settings, and having one on does not cover the other.' : ''),
+    fix: `Add a Custom HTML tag in GTM that listens for HubSpot's submit callback and pushes a dataLayer event (e.g. hubspot_form_submit with the form ID). ${listen[0].toUpperCase()}${listen.slice(1)}. `
+      + 'Trigger a GA4 generate_lead event on it (never send the email to GA4)'
+      + (ads ? ', and the Google Ads conversion tag with user-provided data from the pushed email, behind marketing consent' : '')
+      + '. Alternatives: redirect to a thank-you page and count page views, or import qualified HubSpot leads as offline conversions. Verify in GTM Preview with a test submission.',
+    typicalOwner: 'gtm',
+    evidence: {
+      pages: pages.map((p) => p.path),
+      details: [legacy && 'Legacy HubSpot embed (embed/v2.js, hs-form-iframe)', v4 && 'New HubSpot embed (hs-form-frame)'].filter(Boolean) as string[],
+    },
+  })];
+}

@@ -57,11 +57,15 @@ export interface FormHit {
   method: 'hs_context' | 'data_form_id' | 'embed_script' | 'gravity_class';
 }
 
+export interface HubSpotFormEmbed { legacy: boolean; v4: boolean; framed: boolean }
+
 export interface BrowserObservation {
   url: string;
   cmp: string | null;
   states: StateObservation[];
   forms: FormHit[];
+  /** HubSpot form embed seen in the rendered page; null when none. Absent in older observations. */
+  hubspotForms?: HubSpotFormEmbed | null;
 }
 
 export interface PageObservation {
