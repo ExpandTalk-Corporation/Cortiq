@@ -23,6 +23,8 @@ test('both browser probes mark their User-Agent with the shared token', () => {
   assert.match(ua, /TRACKING_CHECK_UA_TOKEN = 'CortIQ-TrackingCheck'/);
   // The fetch probe sends its own User-Agent, which must carry the same token.
   assert.match(read('supabase/functions/_shared/tracking-check/fetch-probe.ts'), /USER_AGENT = '[^']*CortIQ-TrackingCheck/);
+  // Hosts that check the TLS handshake reset clients that claim to be a browser (xensam.com, SiteGround).
+  assert.doesNotMatch(read('supabase/functions/_shared/tracking-check/fetch-probe.ts'), /USER_AGENT = 'Mozilla/);
   const client = read('supabase/functions/_shared/tracking-check/browserless.ts');
   assert.equal(client.match(/uaToken: TRACKING_CHECK_UA_TOKEN/g)?.length, 2);
   assert.match(client, /page\.setUserAgent\(/);

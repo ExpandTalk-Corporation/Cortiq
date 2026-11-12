@@ -3,9 +3,9 @@ import { vendorForUrl, extractVendorIds, vendorById, type CspDirective, type Ven
 import { cspAllows } from '../fetch-probe.ts';
 import { MANUAL_STEPS } from '../instructions.ts';
 import { STATE_LABEL } from '../report.ts';
-import { allRequestUrls, attemptedVendors, comparablePaths, finding, fullLoadReliable, plural, testablePages } from './util.ts';
+import { allRequestUrls, attemptedVendors, comparablePaths, fetchUsable, finding, fullLoadReliable, plural, testablePages } from './util.ts';
 
-const firstCsp = (site: SiteObservation) => testablePages(site).find((p) => p.fetch?.csp)?.fetch?.csp ?? null;
+const firstCsp = (site: SiteObservation) => testablePages(site).find((p) => fetchUsable(p) && p.fetch!.csp)?.fetch?.csp ?? null;
 const pageList = (pages: Iterable<string>) => [...pages].join(', ');
 
 export function cspFixLines(vendor: Vendor, csp: Record<string, string[]> | null, extra: Map<string, Set<string>> = new Map()): string[] {
@@ -374,7 +374,7 @@ const CSP_ISSUE_TEXT: Record<CspIssue, { title: string; explanation: string; fix
 
 /** How well the Content-Security-Policy of the tested site restricts scripts. Findings that something is blocked are in assessCsp. */
 export function assessCspPolicy({ target }: AssessInput): Finding[] {
-  const pages = testablePages(target).filter((p) => p.fetch && !p.fetch.error);
+  const pages = testablePages(target).filter(fetchUsable);
   if (!pages.length) return [];
   const byIssue = new Map<CspIssue, { pages: string[]; details: Set<string> }>();
   for (const p of pages) {

@@ -41,7 +41,7 @@ test('legacy redirect checks only run in comparison mode', () => {
 
 test('challenge, 401 and failed pages are untestable and excluded from other checks', () => {
   const findings = run([
-    page('/a/', { fetch: fetchOk('/a/', { challenge: true, paramsLost: ['gclid'] }) }),
+    page('/a/', { fetch: fetchOk('/a/', { challenge: true, paramsLost: ['gclid'] }), states: [st('none', { challenge: true })] }),
     page('/b/', { fetch: fetchOk('/b/', { finalStatus: 401, paramsLost: ['gclid'] }) }),
     page('/c/', { failed: 'Browserless 500' }),
   ]);
@@ -49,6 +49,25 @@ test('challenge, 401 and failed pages are untestable and excluded from other che
   assert.equal(coverage.status, 'untestable');
   assert.deepEqual(coverage.evidence.pages, ['new /a/', 'new /b/', 'new /c/']);
   assert.equal(byKey(findings, 'params.survive').length, 0, 'no pass or fail from untestable pages');
+});
+
+test('a failed direct request keeps the browser checks and skips only the fetch-based ones', () => {
+  const dropped = fetchOk('/', { error: 'http2 error: stream error received', finalStatus: 0, paramsLost: ['gclid'], csp: null });
+  const findings = run([page('/', { fetch: dropped }), page('/b/', { fetch: fetchOk('/b/', { challenge: true }) })], 'policy');
+  assert.equal(byKey(findings, 'coverage.untestable').length, 0);
+  const [skipped] = byKey(findings, 'coverage.fetch_failed');
+  assert.equal(skipped.status, 'manual');
+  assert.deepEqual(skipped.evidence.pages, ['new /', 'new /b/']);
+  assert.deepEqual(skipped.evidence.details, ['/: http2 error: stream error received', '/b/: bot protection challenge']);
+  assert.equal(byKey(findings, 'params.survive').length, 0, 'no parameter result without the direct request');
+  assert.equal(findings.filter((f) => /^csp\.(missing|report_only|script_src|policy)/.test(f.checkKey)).length, 0, 'no CSP header result');
+  assert.ok(byKey(findings, 'coverage.consent_automation').length, 'browser checks still run');
+});
+
+test('a failed direct request without a browser observation is still untestable', () => {
+  const findings = run([page('/', { fetch: fetchOk('/', { error: 'connection reset' }), states: null })], 'policy');
+  assert.deepEqual(byKey(findings, 'coverage.untestable')[0].evidence.details, ['/: connection reset']);
+  assert.equal(byKey(findings, 'coverage.fetch_failed').length, 0);
 });
 
 test('findings are sorted fail, warning, manual, untestable, pass', () => {
