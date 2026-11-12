@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { NAV_SECTIONS, SETTINGS_ITEMS, numberedLabel } from '../../src/components/dashboard/nav/navSections.ts';
+import { NAV_SECTIONS, SETTINGS_ITEMS } from '../../src/components/dashboard/nav/navSections.ts';
 
 // Every tab value that DashboardTabs renders must be reachable from the menu exactly once.
 const tabsSource = readFileSync(new URL('../../src/components/dashboard/DashboardTabs.tsx', import.meta.url), 'utf8');
@@ -15,10 +15,13 @@ test('menu covers every rendered tab exactly once', () => {
   for (const v of all) assert.ok(rendered.has(v), `menu entry "${v}" has no TabsContent`);
 });
 
-test('sections are numbered 1..n and items get n.m labels', () => {
-  NAV_SECTIONS.forEach((s, i) => assert.equal(s.number, i + 1));
-  assert.equal(numberedLabel(1, 0), '1.1');
-  assert.equal(numberedLabel(4, 2), '4.3');
+test('sections have unique ids, each with an icon, and the menu shows no numbers', () => {
+  const ids = NAV_SECTIONS.map((s) => s.id);
+  assert.equal(new Set(ids).size, ids.length);
+  const sidebar = readFileSync(new URL('../../src/components/dashboard/nav/DashboardSidebar.tsx', import.meta.url), 'utf8');
+  const icons = sidebar.match(/SECTION_ICONS[^{]*\{([\s\S]*?)\};/)[1];
+  for (const id of ids) assert.ok(icons.includes(`${id}:`) || icons.includes(`'${id}':`), `section ${id} has no icon`);
+  assert.doesNotMatch(sidebar, /numberedLabel|s\.number/);
 });
 
 test('overview is the first item', () => {
@@ -58,10 +61,10 @@ test('one Ads tab; the old paid-ads-server link opens it with the CortIQ source'
   assert.match(ads, /get\('tab'\) === 'paid-ads-server' \? 'cortiq'/);
 });
 
-test('Attribution gap is last in Acquisition and hidden until the site has a conversion', async () => {
+test('Attribution gap is in Acquisition and hidden until the site has a conversion', async () => {
   const { NEEDS_CONVERSIONS } = await import('../../src/components/dashboard/nav/navSections.ts');
   const acquisition = NAV_SECTIONS.find((s) => s.label === 'Acquisition').items;
-  assert.equal(acquisition.at(-1).value, 'attribution', 'hiding it must not renumber other items');
+  assert.ok(acquisition.some((i) => i.value === 'attribution'));
   assert.ok(NEEDS_CONVERSIONS.has('attribution'));
   const sidebar = readFileSync(new URL('../../src/components/dashboard/nav/DashboardSidebar.tsx', import.meta.url), 'utf8');
   assert.match(sidebar, /hasConversions \|\| value === activeTab \|\| !NEEDS_CONVERSIONS\.has\(value\)/);

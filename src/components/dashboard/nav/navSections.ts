@@ -1,33 +1,33 @@
 // src/components/dashboard/nav/navSections.ts
-// Numbered dashboard menu. Values are the existing ?tab= values — never rename them.
+// Dashboard menu: sections with an icon (see DashboardSidebar). Values are the existing ?tab=
+// values — never rename them.
 export type NavItem = { value: string; label: string };
-export type NavSection = { number: number; label: string; items: NavItem[] };
+export type NavSection = { id: string; label: string; items: NavItem[] };
 
 export const NAV_SECTIONS: NavSection[] = [
-  { number: 1, label: 'Visitors', items: [
+  { id: 'visitors', label: 'Visitors', items: [
     { value: 'overview', label: 'Overview' },
     { value: 'analytics', label: 'Analytics' },
     { value: 'realtime', label: 'Real-time' },
     { value: 'geolocation', label: 'Locations' },
     { value: 'cookiefree', label: 'Cookie-free' },
   ] },
-  { number: 2, label: 'Acquisition', items: [
+  { id: 'acquisition', label: 'Acquisition', items: [
     { value: 'google-search', label: 'Google Search' },
     { value: 'social-media', label: 'Social media' },
     { value: 'campaigns', label: 'Campaigns' },
     { value: 'paid-ads', label: 'Ads' },
     { value: 'click-fraud', label: 'Click fraud' },
-    // Last in the section: it is left out of the menu until the site has a conversion,
-    // so hiding it does not renumber the items above.
+    // Left out of the menu until the site has a conversion (NEEDS_CONVERSIONS).
     { value: 'attribution', label: 'Attribution gap' },
   ] },
-  { number: 3, label: 'Behavior', items: [
+  { id: 'behavior', label: 'Behavior', items: [
     { value: 'navigation', label: 'Navigation flow' },
     { value: 'content-performance', label: 'Content' },
     { value: 'heatmap', label: 'Heatmaps' },
     { value: 'forms', label: 'Forms' },
   ] },
-  { number: 4, label: 'AI agents', items: [
+  { id: 'ai-agents', label: 'AI agents', items: [
     { value: 'ai', label: 'AI traffic' },
     { value: 'ai-bots', label: 'AI agents & crawlers' },
     { value: 'server-logs', label: 'Server-side measurement' },
@@ -35,11 +35,11 @@ export const NAV_SECTIONS: NavSection[] = [
     { value: 'zero-click-risk', label: 'Zero-click risk' },
     { value: 'agent-ops', label: 'Agent ops' },
   ] },
-  { number: 5, label: 'Conversions', items: [
+  { id: 'conversions', label: 'Conversions', items: [
     { value: 'conversion-goals', label: 'Goals' },
     { value: 'user-ltv', label: 'LTV & cohorts' },
   ] },
-  { number: 6, label: 'Reports', items: [
+  { id: 'reports', label: 'Reports', items: [
     { value: 'kpi', label: 'KPI dashboard' },
     { value: 'kpi-catalog', label: 'AI KPI overview' },
     { value: 'report-builder', label: 'Report builder' },
@@ -82,4 +82,3 @@ export const TAB_ALIASES: Record<string, string> = {
 // Menu items shown only once the site has data for them.
 export const NEEDS_CONVERSIONS = new Set(['attribution']);
 
-export const numberedLabel = (sectionNumber: number, itemIndex: number) => `${sectionNumber}.${itemIndex + 1}`;
