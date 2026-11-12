@@ -26,7 +26,7 @@ test('the workbook has a summary sheet and a filterable findings sheet; formulas
   await wb.xlsx.load(await blob.arrayBuffer());
   const summary = wb.getWorksheet('Summary');
   assert.equal(summary.getCell('B1').value, 'https://paligo.net');
-  assert.match(String(summary.getCell('B4').value), /^1 commitment is not met/);
+  assert.match(String(summary.getCell('B4').value), /^1 problem to fix/);
   assert.equal(summary.getCell('A5').value, 'Checked against');
   assert.equal(summary.getCell('B5').value, 'No commitments ticked');
   const ws = wb.getWorksheet('Findings');
@@ -49,7 +49,7 @@ test('runs with a vendor matrix get a By tool sheet before the findings', async 
   assert.deepEqual(wb.worksheets.map((w) => w.name), ['Summary', 'By tool', 'Findings']);
   const ws = wb.getWorksheet('By tool');
   assert.deepEqual(ws.getRow(2).values.slice(1, 6), ['Problem', 'HubSpot tracking code', 'Analytics', 'Page source', 'Stores hubspotutk (1 of 2 pages: /)']);
-  assert.equal(ws.getCell('F2').value, 'Nothing');
+  assert.equal(ws.getCell('F2').value, 'Nothing seen');
   assert.match(String(ws.getCell('H2').value), /^Step one/);
   assert.match(String(ws.getCell('A4').value), /fresh browser/);
 });

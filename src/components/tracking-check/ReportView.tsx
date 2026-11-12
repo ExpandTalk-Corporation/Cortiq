@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import type { FindingStatus, Mode } from '../../../supabase/functions/_shared/tracking-check/types.ts';
-import { MATRIX_NOTE, ORIGIN_SHORT, OWNER_LABEL, STATE_LABEL, cellText, matrixStates, type ReportSummary, type VendorRow } from '../../../supabase/functions/_shared/tracking-check/report.ts';
+import { MATRIX_MANUAL_NOTE, MATRIX_NOTE, ORIGIN_SHORT, OWNER_LABEL, STATE_LABEL, cellText, matrixStates, type ReportSummary, type VendorRow } from '../../../supabase/functions/_shared/tracking-check/report.ts';
 import type { DiffItem, RunDiff } from '../../../supabase/functions/_shared/tracking-check/diff.ts';
 import type { FindingRow } from '@/hooks/useTrackingCheck';
 
@@ -54,7 +54,7 @@ export function ReportView({ summary, findings, mode, baselineUrl, targetUrl, fi
           {summary.commitments && (
             <p className="text-sm text-muted-foreground">
               {summary.commitments.length
-                ? <>Checked against: {summary.commitments.join('; ')}. A problem means a commitment is not met.</>
+                ? <>Checked against: {summary.commitments.join('; ')}. A problem breaks one of these commitments, or a consent rule that always applies, such as nothing stored on the device before the visitor chooses.</>
                 : 'No commitments were ticked: findings show what the site does, not whether it meets a policy.'}
             </p>
           )}
@@ -169,6 +169,7 @@ function VendorTable({ rows, onShow }: { rows: VendorRow[]; onShow: (checkKey: s
       <CardHeader>
         <CardTitle className="text-lg">By tool</CardTitle>
         <p className="text-sm text-muted-foreground">{MATRIX_NOTE}</p>
+        <p className="text-sm text-muted-foreground">{MATRIX_MANUAL_NOTE}</p>
       </CardHeader>
       <CardContent className="overflow-x-auto">
         <table className="w-full min-w-[640px] text-sm">

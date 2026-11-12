@@ -5,7 +5,7 @@ import type { FindingRow } from '@/hooks/useTrackingCheck';
 export const TRACKING_CHECK_SAMPLE: { targetUrl: string; summary: ReportSummary; findings: FindingRow[] } = {
   "targetUrl": "https://www.example.com",
   "summary": {
-    "headline": "5 commitments are not met · 6 OK · 1 to review · 5 to test manually",
+    "headline": "5 problems to fix · 6 OK · 1 to review · 5 to test manually",
     "counts": {
       "pass": 6,
       "fail": 5,

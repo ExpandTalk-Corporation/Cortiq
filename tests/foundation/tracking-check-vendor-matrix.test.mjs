@@ -28,7 +28,7 @@ test('one row per tool, worst first, with what it did in each state', () => {
   assert.equal(hs.origin, 'page');
   assert.deepEqual(hs.findings, ['consent.before_choice.hubspot']);
   assert.equal(cellText(hs.states.none), 'Stores hubspotutk (1 of 3 pages: /)');
-  assert.equal(cellText(hs.states.reject), 'Nothing');
+  assert.equal(cellText(hs.states.reject), 'Nothing seen');
   assert.equal(hs.states.reject.of, 2, 'a reject that could not be automated is not counted');
   assert.equal(cellText(hs.states.accept), 'Sends requests (2 of 3 pages: /, /pricing/)');
   assert.equal(cellText(ga.states.accept), 'Sends requests', 'pages are left out when the tool behaved the same everywhere');
@@ -60,8 +60,18 @@ test('after "Reject all" the cell tells kept cookies from cookies written again'
   const rows = vendorMatrix(target, assess({ mode: 'policy', baseline: null, policy: POLICY, target }));
   const cell = (id, s) => cellText(rows.find((r) => r.id === id).states[s]);
   assert.equal(cell('hubspot', 'reject'), 'Keeps hubspotutk from before the choice');
-  assert.equal(cell('hubspot', 'accept'), 'Nothing', 'kept cookies are expected after "Accept all"');
+  assert.equal(cell('hubspot', 'accept'), 'Nothing seen', 'kept cookies are expected after "Accept all"');
   assert.equal(cell('linkedin', 'reject'), 'Keeps bcookie from before the choice; sends requests');
   assert.equal(cell('zoominfo', 'reject'), 'Stores _zitok');
   assert.equal(rows.find((r) => r.id === 'hubspot').status, 'warning');
+});
+
+test('the tool table explains why an incognito window can miss third-party cookies, on screen and in Excel', async () => {
+  const { MATRIX_MANUAL_NOTE } = await import('../../supabase/functions/_shared/tracking-check/report.ts');
+  assert.match(MATRIX_MANUAL_NOTE, /incognito/);
+  assert.match(MATRIX_MANUAL_NOTE, /third-party cookies/);
+  const { readFileSync } = await import('node:fs');
+  for (const f of ['../../src/components/tracking-check/ReportView.tsx', '../../src/lib/trackingCheckXlsx.ts']) {
+    assert.match(readFileSync(new URL(f, import.meta.url), 'utf8'), /MATRIX_MANUAL_NOTE/, f);
+  }
 });
