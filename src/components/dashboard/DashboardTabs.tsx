@@ -88,7 +88,7 @@ const FILTER_NOTES: Record<string, FilterScopeNotes> = {
     segment: 'Click fraud scores every paid visit against the Google Ads clicks for the period; a subset would read as missing visits.',
   },
   'content-performance': { partial: 'Tagged blocks use the date range only; scroll depth is hidden while a segment is selected.' },
-  attribution: { partial: 'Pixel readiness always covers the last 30 days without filters.' },
+  attribution: { partial: 'Pixel readiness always covers the last 30 days without filters. AI influence uses the date range only.' },
 };
 
 // Tabs where the global filters have no meaning (settings, live view, latest alerts):
