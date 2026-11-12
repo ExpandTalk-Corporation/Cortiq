@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from '../_shared/supabase.ts';
+import { sanitizeInteraction } from '../_shared/interaction.js';
 
 // CORS Headers
 const corsHeaders = {
@@ -18,6 +19,14 @@ interface TrackingEvent {
   sessionId: string;
   data: any;
   events?: any[];
+  // The visitor's analytics choice, set by the caller after its consent check. Without it
+  // nothing is stored: this endpoint keeps sessions, page views and per-element clicks.
+  consent?: { analytics?: boolean };
+  analytics_consent?: boolean;
+}
+
+function hasAnalyticsConsent(event: TrackingEvent): boolean {
+  return event.consent?.analytics === true || event.analytics_consent === true;
 }
 
 function validateTrackingId(id: string): boolean {
@@ -86,6 +95,13 @@ serve(async (req) => {
         console.error('Invalid tracking ID format:', siteId);
         return new Response(JSON.stringify({ error: 'Invalid tracking ID format' }), {
           status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      if (!hasAnalyticsConsent(event)) {
+        return new Response(JSON.stringify({ success: true, stored: false, reason: 'no_analytics_consent' }), {
+          status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
@@ -195,6 +211,7 @@ async function handleSessionStart(event: any, siteId: string, sessionId: string)
     .select('id')
     .eq('session_id', sessionId)
     .eq('site_id', siteId)
+    .limit(1)
     .maybeSingle();
 
   if (existingSession) {
@@ -235,12 +252,33 @@ async function handleSessionStart(event: any, siteId: string, sessionId: string)
   }
 }
 
+// page_views.session_id and user_interactions.session_id reference tracking_sessions(id), a
+// uuid, not the client's session id text. Creates the visit when it does not exist yet.
+async function sessionRowId(event: any, siteId: string, sessionId: string): Promise<string | null> {
+  const find = () => supabase
+    .from('tracking_sessions')
+    .select('id')
+    .eq('session_id', sessionId)
+    .eq('site_id', siteId)
+    .order('started_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  let { data: row } = await find();
+  if (!row) {
+    await handleSessionStart(event, siteId, sessionId);
+    ({ data: row } = await find());
+  }
+  return row?.id ?? null;
+}
+
 async function handlePageView(event: any, siteId: string, sessionId: string) {
   const data = event.data || event;
-  
+  const sessionRow = await sessionRowId(event, siteId, sessionId);
+  if (!sessionRow) throw new Error('No tracking session for page view');
+
   const pageViewData = {
     site_id: siteId,
-    session_id: sessionId,
+    session_id: sessionRow,
     url: data.url || data.href || event.url || 'unknown',
     title: data.title || null,
     referrer: data.referrer || null,
@@ -261,70 +299,68 @@ async function handlePageView(event: any, siteId: string, sessionId: string) {
 
 async function handleInteraction(event: any, siteId: string, sessionId: string) {
   const data = event.data || event;
-  
-  // Get the page view for this session (or latest page view globally)
-  let { data: pageView } = await supabase
+  const sessionRow = await sessionRowId(event, siteId, sessionId);
+  if (!sessionRow) return;
+  const url = data.url || event.url || null;
+
+  // The click needs a page view in its visit (user_interactions.page_view_id is required).
+  const { data: pageView } = await supabase
     .from('page_views')
-    .select('id, url')
-    .eq('session_id', sessionId)
+    .select('id')
+    .eq('session_id', sessionRow)
     .eq('site_id', siteId)
-    .order('viewed_at', { ascending: false })
     .limit(1)
     .maybeSingle();
-
   if (!pageView) {
-    console.warn('No page view found for interaction, creating one');
-    // Create a page view if none exists
-    const pageViewData = {
+    const { error: pageViewError } = await supabase.from('page_views').insert({
       site_id: siteId,
-      session_id: sessionId,
-      url: data.url || event.url || 'unknown',
+      session_id: sessionRow,
+      url: url || 'unknown',
       title: data.title || event.title || null,
       viewed_at: new Date().toISOString()
-    };
-    
-    const { data: newPageView, error: pageViewError } = await supabase
-      .from('page_views')
-      .insert(pageViewData)
-      .select('id, url')
-      .single();
-      
+    });
     if (pageViewError) {
       console.error('Failed to create page view:', pageViewError);
       return;
     }
-    pageView = newPageView;
   }
 
-  // Store interaction in user_interactions table
-  const interactionData = {
-    site_id: siteId,
-    session_id: sessionId,
-    page_view_id: pageView.id,
+  // user_interactions has no site_id: the row is tied to the site through its session and
+  // page view, which record_user_interaction resolves.
+  const clean = sanitizeInteraction({
     interaction_type: `${data.type || 'unknown'}_general`,
-    element_tag: data.element?.tagName || null,
-    element_id: data.element?.id || null,
-    element_class: data.element?.className || null,
-    element_text: data.element?.text?.substring(0, 255) || null,
-    x_coordinate: data.x ? Math.round(data.x) : null,
-    y_coordinate: data.y ? Math.round(data.y) : null,
-    scroll_position: data.scrollTop || null,
-    timestamp_ms: Date.now(),
-    created_at: new Date().toISOString()
-  };
-
-  const { error } = await supabase
-    .from('user_interactions')
-    .insert(interactionData);
-
-  if (error) {
-    console.error('Interaction insert error:', error);
+    element_tag: data.element?.tagName,
+    element_id: data.element?.id,
+    element_class: data.element?.className,
+    element_text: data.element?.text,
+    href: data.element?.href,
+  });
+  if (clean) {
+    const int = (v: unknown) => (Number.isFinite(Number(v)) ? Math.round(Number(v)) : null);
+    const { error } = await supabase.rpc('record_user_interaction', {
+      p_site_id: siteId,
+      p_session: sessionId,
+      p_url: url,
+      p_type: clean.interaction_type,
+      p_element_tag: clean.element_tag,
+      p_element_id: clean.element_id,
+      p_element_class: clean.element_class,
+      p_element_text: clean.element_text,
+      p_element_href: clean.element_href,
+      p_x: int(data.x),
+      p_y: int(data.y),
+      p_scroll: int(data.scrollTop),
+      p_at: new Date().toISOString(),
+    });
+    if (error) {
+      console.error('Interaction insert error:', error);
+    }
   }
 
   // Update heatmap data using GDPR-compliant grid system
   if ((data.type === 'click' || data.type === 'mousemove') && data.x && data.y) {
     try {
-      const currentUrl = data.url || event.url || pageView.url || 'unknown';
+      const currentUrl = url || 'unknown';
       console.log('Updating heatmap grid with URL:', currentUrl, 'coordinates:', data.x, data.y);
       
       // Convert exact coordinates to 50x50 grid for GDPR compliance

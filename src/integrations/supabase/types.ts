@@ -8686,6 +8686,7 @@ export type Database = {
         Row: {
           created_at: string
           element_class: string | null
+          element_href: string | null
           element_id: string | null
           element_tag: string | null
           element_text: string | null
@@ -8701,6 +8702,7 @@ export type Database = {
         Insert: {
           created_at?: string
           element_class?: string | null
+          element_href?: string | null
           element_id?: string | null
           element_tag?: string | null
           element_text?: string | null
@@ -8716,6 +8718,7 @@ export type Database = {
         Update: {
           created_at?: string
           element_class?: string | null
+          element_href?: string | null
           element_id?: string | null
           element_tag?: string | null
           element_text?: string | null
@@ -10397,6 +10400,24 @@ export type Database = {
           p_total_fields: number
         }
         Returns: undefined
+      }
+      record_user_interaction: {
+        Args: {
+          p_at: string
+          p_element_class: string
+          p_element_href: string
+          p_element_id: string
+          p_element_tag: string
+          p_element_text: string
+          p_scroll: number
+          p_session: string
+          p_site_id: string
+          p_type: string
+          p_url: string
+          p_x: number
+          p_y: number
+        }
+        Returns: string
       }
       refresh_agent_hourly_stats: {
         Args: { p_company_id: string; p_hour: string }
