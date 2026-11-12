@@ -1,5 +1,5 @@
 import type { ConsentState, Finding, PageObservation, ScriptOrigin, SiteObservation, StateObservation } from '../types.ts';
-import { vendorForUrl, type Vendor } from '../../tracking-vendors.ts';
+import { vendorForName, vendorForUrl, type Vendor } from '../../tracking-vendors.ts';
 
 /** HTTP error status that makes the page untestable, or null. Legacy URLs that end in an error are assessed as broken redirects instead. */
 export function errorStatus(page: PageObservation): number | null {
@@ -13,10 +13,21 @@ export function errorStatus(page: PageObservation): number | null {
 const UI_STATE_KEYS = [/^react-router-scroll-positions$/];
 const isUiState = (key: string): boolean => UI_STATE_KEYS.some((re) => re.test(key));
 
+/** The vendor of a frame's storage: by the frame's origin, or by the key when that vendor also loads from this origin
+ *  (reCAPTCHA's rc::a lives in a google.com frame, and google.com/ alone matches no vendor). */
+function frameVendor(origin: string, key: string): Vendor | null {
+  const byOrigin = vendorForUrl(`${origin}/`);
+  if (byOrigin) return byOrigin;
+  const byKey = vendorForName(key);
+  let host = '';
+  try { host = new URL(origin).hostname; } catch { return null; }
+  return byKey && byKey.requests.some((m) => m.host.test(host)) ? byKey : null;
+}
+
 /** Storage written inside embedded frames, attributed by the frame's origin (a YouTube player's keys belong to YouTube). */
 export function frameStored(st: StateObservation): { vendor: Vendor; key: string }[] {
   return (st.frameStorage ?? []).flatMap(({ origin, key }) => {
-    const vendor = isUiState(key) ? null : vendorForUrl(`${origin}/`);
+    const vendor = isUiState(key) ? null : frameVendor(origin, key);
     return vendor ? [{ vendor, key }] : [];
   });
 }
@@ -24,7 +35,7 @@ export function frameStored(st: StateObservation): { vendor: Vendor; key: string
 /** Storage inside frames from origins no known tool matches, as { hostname, key }. */
 export function unknownFrameStored(st: StateObservation): { host: string; key: string }[] {
   return (st.frameStorage ?? []).flatMap(({ origin, key }) => {
-    if (isUiState(key) || vendorForUrl(`${origin}/`)) return [];
+    if (isUiState(key) || frameVendor(origin, key)) return [];
     try { return [{ host: new URL(origin).hostname, key }]; } catch { return []; }
   });
 }

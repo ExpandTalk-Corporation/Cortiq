@@ -454,6 +454,19 @@ test('a widget cookie kept from before "Reject all" is not a fail after it', () 
   assert.equal(byKey(findings, 'consent.after_reject.verify.1mind')[0].status, 'manual');
 });
 
+test('reCAPTCHA storage in a google.com frame and Google CSP reports are not unknown third parties', () => {
+  const recaptcha = { requests: [req('https://google.com/recaptcha/enterprise.js'), req('https://csp.withgoogle.com/csp/frame-ancestors/abc', 'other')], frameStorage: [{ origin: 'https://google.com', key: 'rc::a' }, { origin: 'https://www.google.com', key: 'rc::c' }] };
+  const findings = policyRun([st('none', recaptcha), st('reject', recaptcha), st('accept', recaptcha)]);
+  assert.equal(byKey(findings, 'consent.unknown_after_reject')[0].status, 'pass');
+});
+
+test("a storage key only names a vendor for frames from that vendor's own hosts", () => {
+  const findings = policyRun([st('none'), st('reject', { frameStorage: [{ origin: 'https://widget.example', key: 'rc::a' }] }), st('accept')]);
+  const [f] = byKey(findings, 'consent.unknown_after_reject');
+  assert.equal(f.status, 'warning');
+  assert.match(f.evidence.details.join(' '), /widget\.example/);
+});
+
 test('storage inside an embed frame is attributed to the embed: a YouTube player writing after "Reject all" is a fail', () => {
   const findings = compareRun([
     st('none', { requests: [req('https://www.youtube-nocookie.com/embed/abc')], frameStorage: [{ origin: 'https://www.youtube-nocookie.com', key: 'yt-remote-device-id' }] }),
