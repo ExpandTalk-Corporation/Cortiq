@@ -4,6 +4,7 @@ import { countryFromTimeZone } from '../_shared/tz-country.js';
 import { storedReferrer } from '../_shared/referrer.js';
 import { normalizeGoals, clientGoals, matchPageVisitGoals } from '../_shared/conversion-goals.js';
 import { normalizeSessionTimeout } from '../_shared/session-timeout.js';
+import { browserAndOs } from '../_shared/user-agent.js';
 import { skipTrackingCheck } from '../_shared/tracking-check-ua.ts';
 
 const corsHeaders = {
@@ -445,6 +446,7 @@ Deno.serve(async (req) => {
         // site owned by the caller (see the tenant guard above).
         if (domainSiteId) {
           viewSiteId = domainSiteId;
+          const ua = browserAndOs(req.headers.get('user-agent'));
           await supabase.rpc('ingest_pageview', {
             p_url: pageUrl,
             p_session: body.session_id ?? null,
@@ -456,6 +458,9 @@ Deno.serve(async (req) => {
             // estimate; the header still wins if it comes back. ingest_pageview drops
             // XX/T1/non-ISO values.
             p_country: req.headers.get('cf-ipcountry') ?? countryFromTimeZone(body.metadata?.timezone),
+            // Browser and OS families only (no versions); the User-Agent itself is not stored.
+            p_browser: ua.browser,
+            p_os: ua.os,
           });
         } else if (foreignSiteId) {
           console.warn('page_view bridge: domain-resolved site not owned by caller; skipping', {

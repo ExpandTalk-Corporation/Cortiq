@@ -10279,8 +10279,10 @@ export type Database = {
       }
       ingest_pageview: {
         Args: {
+          p_browser?: string
           p_country?: string
           p_device: string
+          p_os?: string
           p_referrer: string
           p_session: string
           p_url: string
