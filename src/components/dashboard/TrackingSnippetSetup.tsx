@@ -381,7 +381,7 @@ export function TrackingSnippetSetup({ siteId, trackingKey, aggregateMeasurement
           The tracker is requested only after analytics consent. Page views, sessions, AI referrals, heatmaps, click/scroll, conversions and in-browser agent
           signals all wait for consent.
           {mode === 'cookieless'
-            ? ' Cookieless keeps the session id in sessionStorage for the tab\'s lifetime and skips returning-visitor recognition and all ad measurement. Add sessionStorage: false to keep it in memory only (every full page load is then a new visit).'
+            ? ' Cookieless keeps the session id in sessionStorage for the tab\'s lifetime and skips returning-visitor recognition and all ad measurement. Add sessionStorage: false to cortiqConfig to keep it in memory only (every full page load is then a new visit).'
             : ' Full mode also stores a session id in sessionStorage and recognises returning visitors.'}
           {useMarketing && ' Ad click IDs and the email hash also need marketing consent.'}
           {' '}Confirming sets this site's tracking mode to {mode === 'full' ? 'Full' : 'Cookieless'}.

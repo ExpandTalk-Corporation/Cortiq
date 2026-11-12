@@ -21,12 +21,14 @@ test('policy checklist follows the tracking mode and marketing choice', () => {
   assert.match(cookieless, /Expandtalk Corporation AB/);
   assert.match(cookieless, /heatmaps/);
   assert.match(cookieless, /sessionStorage until the tab is closed/);
-  assert.match(cookieless, /memory only store nothing/);
+  assert.match(cookieless, /memory only/);
+  assert.match(cookieless, /Bot checks/);
   assert.equal(/Device details|click IDs/.test(cookieless), false);
 
   const full = policyChecklist({ trackingMode: 'full', marketing: false }).join('\n');
   assert.match(full, /sessionStorage/);
   assert.match(full, /Device details/);
+  assert.equal(/memory only/.test(full), false);
   assert.equal(/click IDs|Google Ads/.test(full), false);
 
   const fullMarketing = policyChecklist({ trackingMode: 'full', marketing: true }).join('\n');

@@ -95,7 +95,7 @@ export const GETTING_STARTED: ContentPageData = {
       id: 'cookieless',
       heading: 'Cookieless mode',
       blocks: [
-        { type: 'p', text: 'With `cookieless: true` the script sets no cookies, skips visitor identification and switches off all marketing features (click IDs, email hashing, fingerprinting). After analytics consent it keeps the session ID in sessionStorage until the tab is closed, so a visit lasts across page loads. Add `sessionStorage: false` (or `data-session-storage="false"` on the script tag) to keep it in memory only: nothing is stored, and every full page load starts a new visit.' },
+        { type: 'p', text: 'With `cookieless: true` the script sets no cookies, skips visitor identification and switches off all marketing features (click IDs, email hashing, fingerprinting). After analytics consent it keeps the session ID in sessionStorage until the tab is closed, so a visit lasts across page loads. Add `sessionStorage: false` (or `data-session-storage="false"` on the script tag) to keep it in memory only: the session ID is not stored, and every full page load starts a new visit.' },
         { type: 'note', tone: 'warning', text: 'Cookieless mode still requires analytics consent. It reduces what is stored; it is not a legal basis for tracking without consent.' },
         { type: 'p', text: 'Conversions are not recorded in cookieless mode.' },
       ],

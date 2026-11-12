@@ -297,7 +297,7 @@ export const COOKIES: ContentPageData = {
           type: 'list',
           items: [
             '**Without consent:** nothing. The script does not read device properties, write storage or send requests before analytics consent. After consent, a page-depth counter (`_ciq_adp`, sessionStorage) is written only for visitors detected as bots or automated browsers.',
-            '**With analytics consent, full and cookieless mode:** a session identifier (`cortiq_session_id`, sessionStorage) and the time it expires after inactivity (`cortiq_session_expires`, sessionStorage), both cleared when the tab closes. Cookieless mode keeps the same two values in sessionStorage; a site that opts for memory only writes nothing.',
+            '**With analytics consent, full and cookieless mode:** a session identifier (`cortiq_session_id`, sessionStorage) and the time it expires after inactivity (`cortiq_session_expires`, sessionStorage), both cleared when the tab closes. A cookieless site that chooses memory only writes neither value.',
             '**With marketing consent, full mode:** ad click IDs from the landing URL (`cortiq_click_ids`, sessionStorage).',
           ],
         },

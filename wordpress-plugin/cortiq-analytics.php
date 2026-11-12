@@ -957,7 +957,7 @@ function cortiq_settings_page() {
                         <label style="display:block;margin:0 0 8px 24px">
                             <input type="checkbox" name="<?php echo CORTIQ_OPTION_KEY; ?>[cookieless_memory_only]" value="1"
                                    <?php checked( ! empty( $opts['cookieless_memory_only'] ) ); ?> />
-                            Memory only (cookieless): store nothing in the browser. Every full page load then counts as a new visit.
+                            Memory only (cookieless): do not store the session id in the browser. Every full page load then counts as a new visit.
                         </label>
                         <label style="display:block">
                             <input type="radio" name="<?php echo CORTIQ_OPTION_KEY; ?>[tracking_mode]" value="full"
