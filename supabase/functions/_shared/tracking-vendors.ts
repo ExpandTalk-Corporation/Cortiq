@@ -408,6 +408,14 @@ export const TRACKING_VENDORS: Vendor[] = [
     verify: `${embedNote('Vimeo video', 'Vimeo')} Vimeo documents a dnt=1 player parameter that stops the player tracking session data, including cookies.`,
   },
   {
+    // Webflow's video element wraps YouTube and Vimeo in a cdn.embedly.com frame (seen 2026-11-12 on xirisgroup.com).
+    id: 'embedly', name: 'Embedly video embed', category: 'preferences', googleTag: false,
+    requests: [{ host: /^cdn\.embedly\.com$/ }], cookies: [],
+    csp: { 'frame-src': ['cdn.embedly.com'] },
+    impact: 'Embedded videos added with the site builder\'s video element do not play.',
+    verify: embedNote('video frame', 'Embedly'),
+  },
+  {
     id: 'spotify-embed', name: 'Spotify embed', category: 'preferences', googleTag: false,
     requests: [{ host: /^open\.spotify\.com$/, path: /^\/embed/ }, { host: /(^|\.)spotifycdn\.com$/ }, { host: /^i\.scdn\.co$/ }],
     cookies: [],
@@ -490,6 +498,17 @@ export const TRACKING_VENDORS: Vendor[] = [
     id: 'google-csp-reports', kind: 'infrastructure', name: 'Google CSP reports', category: 'necessary', googleTag: false,
     requests: [{ host: /^csp\.withgoogle\.com$/, path: /^\/csp\// }], cookies: [], csp: {},
     impact: 'Google does not receive reports about its own embedded frames. Nothing on the site changes.',
+  },
+  {
+    // Webflow sites load their own scripts, styles and images from these hosts, plus jQuery from Webflow's CloudFront host.
+    id: 'webflow', kind: 'infrastructure', name: 'Webflow (hosting)', category: 'necessary', googleTag: false,
+    requests: [
+      { host: /^(cdn\.prod|assets-global|assets|uploads-ssl)\.website-files\.com$/ },
+      { host: /^uploads-ssl\.webflow\.com$/ },
+      { host: /^d3e54v103j8qbb\.cloudfront\.net$/ },
+    ],
+    cookies: [], csp: {},
+    impact: 'The site\'s own scripts, styles and images hosted by Webflow do not load.',
   },
   {
     // Cloudflare Web Analytics (cloudflareinsights.com) is an analytics vendor above, not infrastructure.
