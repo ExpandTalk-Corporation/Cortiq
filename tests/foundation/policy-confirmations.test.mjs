@@ -20,8 +20,9 @@ test('policy checklist follows the tracking mode and marketing choice', () => {
   const cookieless = policyChecklist({ trackingMode: 'cookieless', marketing: false }).join('\n');
   assert.match(cookieless, /Expandtalk Corporation AB/);
   assert.match(cookieless, /heatmaps/);
-  assert.match(cookieless, /held in memory only/);
-  assert.equal(/sessionStorage|Device details|click IDs/.test(cookieless), false);
+  assert.match(cookieless, /sessionStorage until the tab is closed/);
+  assert.match(cookieless, /memory only store nothing/);
+  assert.equal(/Device details|click IDs/.test(cookieless), false);
 
   const full = policyChecklist({ trackingMode: 'full', marketing: false }).join('\n');
   assert.match(full, /sessionStorage/);

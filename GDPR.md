@@ -53,7 +53,7 @@ Activated only when a visitor accepts the "Statistics" category in the cookie ba
 - **E-commerce and conversion events**
 - **A/B test assignment**
 
-**Cookieless mode:** no cookies, no fingerprint, no cross-visit profile, no persistent IDs. Page views within a visit are linked in memory only. Consent is still required.
+**Cookieless mode:** no cookies, no fingerprint, no cross-visit profile, no persistent IDs. After analytics consent, page views within a visit are linked by a session id kept in sessionStorage for the tab's lifetime (operators can choose memory only: nothing stored, one visit per page load). Consent is still required.
 
 **Full mode:** a persistent visitor ID (derived from device characteristics) lets returning visits be recognised, and a session ID is kept in sessionStorage. Data is associated with a hashed visitor ID, not a name or email address.
 

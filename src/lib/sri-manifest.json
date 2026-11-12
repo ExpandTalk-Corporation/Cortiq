@@ -1,10 +1,17 @@
 {
-  "latest": "5.5.13",
+  "latest": "5.5.14",
   "versions": {
     "5.5.13": {
       "securityFix": false,
       "files": {
         "cortiq.js": "sha384-KecY4f1sFO3chEtpc1CUaEYFayHJJNlPMAKVlaxdv5EOhwx0BUHJIZkfRHaweaM0",
+        "consent-banner.js": "sha384-mOuIhCRdKpu/do6St0RuyD+x83EbOaI2pgWgWQtCf892w+mPzK2Wru+WVseNAPqU"
+      }
+    },
+    "5.5.14": {
+      "securityFix": false,
+      "files": {
+        "cortiq.js": "sha384-mXJcmeckInKbPiZ6Y7+ogdI8p1LmDXCpDy2UD2okMZc8GeVoTT95PSb3Qp1ssV2n",
         "consent-banner.js": "sha384-mOuIhCRdKpu/do6St0RuyD+x83EbOaI2pgWgWQtCf892w+mPzK2Wru+WVseNAPqU"
       }
     }

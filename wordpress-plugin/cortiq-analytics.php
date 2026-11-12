@@ -3,7 +3,7 @@
  * Plugin Name: CortIQ Analytics
  * Plugin URI: https://cortiq.se
  * Description: Analytics for the agentic web. Classifies AI crawlers and agent fetches (GPTBot, ClaudeBot, ChatGPT-User, PerplexityBot…) and measures human visitors after consent — cookieless mode, heatmaps, conversions and a built-in consent banner.
- * Version: 5.5.13
+ * Version: 5.5.14
  * Author: CortIQ
  * Author URI: https://cortiq.se
  * Requires at least: 5.6
@@ -21,7 +21,7 @@ if ( defined( 'CORTIQ_LOADED' ) ) return;
 define( 'CORTIQ_LOADED', true );
 
 // Shared with public/spa-tracking.js (CORTIQ_VERSION) — also the ?ver= cache-bust for it.
-define( 'CORTIQ_VERSION',    '5.5.13' );
+define( 'CORTIQ_VERSION',    '5.5.14' );
 define( 'CORTIQ_OPTION_KEY', 'cortiq_options' );
 // Supabase Edge Functions base — used for the GDPR consent ledger (store-consent).
 define( 'CORTIQ_API',        'https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1' );
@@ -45,6 +45,7 @@ function cortiq_defaults() {
         'excluded_roles'        => array( 'administrator' ),
         'accent_color'          => '#6366f1',
         'tracking_mode'         => 'full',   // 'cookieless' (no fingerprint/profile) | 'full'
+        'cookieless_memory_only'=> false,    // cookieless: keep the session id in memory only (no sessionStorage)
         'banner_language'       => 'auto',   // 'auto' (WP locale) | 'en' | 'sv' | 'de'
         'consent_mode'          => 'basic',  // GA4 Consent Mode: 'basic' | 'advanced'
         'policy_version'        => '1',      // change to re-prompt every visitor
@@ -269,6 +270,9 @@ function cortiq_enqueue() {
         // Cookieless mode: no fingerprint and no cross-visit profile. Like everything
         // in spa-tracking.js (including in-browser bot detection) it waits for consent.
         'cookieless'  => ( 'cookieless' === $opts['tracking_mode'] ),
+        // Cookieless keeps the session id in sessionStorage after consent (one visit per tab);
+        // memory-only writes nothing, and every full page load starts a new visit.
+        'sessionStorage' => ! ( 'cookieless' === $opts['tracking_mode'] && ! empty( $opts['cookieless_memory_only'] ) ),
         'aggregate'   => ! empty( $opts['aggregate'] ),
     ) );
     wp_add_inline_script( 'cortiq-tracking', 'window.cortiqConfig = ' . $config . ';', 'before' );
@@ -792,6 +796,7 @@ function cortiq_sanitize_options( $input ) {
     $ac = isset( $input['accent_color'] ) ? sanitize_hex_color( trim( (string) $input['accent_color'] ) ) : '';
     $clean['accent_color']     = $ac ? $ac : '#6366f1';
     $clean['tracking_mode']    = ( isset( $input['tracking_mode'] ) && 'cookieless' === $input['tracking_mode'] ) ? 'cookieless' : 'full';
+    $clean['cookieless_memory_only'] = ! empty( $input['cookieless_memory_only'] );
     $bl = isset( $input['banner_language'] ) ? $input['banner_language'] : 'auto';
     $clean['banner_language']  = in_array( $bl, array( 'auto', 'en', 'sv', 'de', 'fr', 'pt' ), true ) ? $bl : 'auto';
     $clean['consent_mode']     = ( isset( $input['consent_mode'] ) && 'advanced' === $input['consent_mode'] ) ? 'advanced' : 'basic';
@@ -945,8 +950,14 @@ function cortiq_settings_page() {
                         <label style="display:block;margin-bottom:8px">
                             <input type="radio" name="<?php echo CORTIQ_OPTION_KEY; ?>[tracking_mode]" value="cookieless"
                                    <?php checked( 'cookieless', $opts['tracking_mode'] ); ?> />
-                            <strong>Cookieless</strong> — privacy-minimised measurement. No fingerprint, no cross-visit profile.
+                            <strong>Cookieless</strong> — privacy-minimised measurement. No cookies, no fingerprint, no cross-visit profile.
+                            After consent a session id is kept in sessionStorage for the tab's lifetime.
                             Requires analytics consent (<em>Statistics</em> in the banner).
+                        </label>
+                        <label style="display:block;margin:0 0 8px 24px">
+                            <input type="checkbox" name="<?php echo CORTIQ_OPTION_KEY; ?>[cookieless_memory_only]" value="1"
+                                   <?php checked( ! empty( $opts['cookieless_memory_only'] ) ); ?> />
+                            Memory only (cookieless): store nothing in the browser. Every full page load then counts as a new visit.
                         </label>
                         <label style="display:block">
                             <input type="radio" name="<?php echo CORTIQ_OPTION_KEY; ?>[tracking_mode]" value="full"

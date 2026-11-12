@@ -178,6 +178,20 @@ Spec: `docs/superpowers/specs/2026-10-29-aggregate-measurement-and-pixel-readine
 
 ---
 
+## Cookieless session storage (added 2026-11-12)
+
+Spec: `docs/superpowers/specs/2026-11-12-cookieless-session-stitching.md`.
+
+- Cookieless mode (5.5.14+) keeps `cortiq_session_id` + `cortiq_session_expires` in sessionStorage **after analytics
+  consent**, same keys as full mode, so a visit survives full page loads in the tab. Withdrawal removes both.
+- Opt-out: `sessionStorage: false` / `data-session-storage="false"` (WP: "Memory only") keeps the id in memory; every
+  full page load is then a new visit. Snippet-only; not stored server-side.
+- Never cookies or localStorage in cookieless mode; click IDs stay marketing-gated (off in cookieless).
+- Copy: "sessionStorage after consent" — never "nothing stored" for cookieless, never "no consent needed".
+- Phase 2 (not built): daily-salted server hash, consent-only, after jurist review + DPA 1.6.
+
+---
+
 ## Deployment
 
 ```bash

@@ -53,7 +53,7 @@ const MODES: { value: TrackingMode; label: string; description: string }[] = [
   {
     value: 'cookieless',
     label: 'Cookieless',
-    description: 'Session id in memory only, nothing stored on the device. Page views, heatmaps, click/scroll and goals. No returning-visitor recognition and no ad measurement.',
+    description: 'No cookies. After consent a session id is kept in sessionStorage for the tab\'s lifetime. Page views, heatmaps, click/scroll and goals. No returning-visitor recognition and no ad measurement.',
   },
   {
     value: 'full',
@@ -381,7 +381,7 @@ export function TrackingSnippetSetup({ siteId, trackingKey, aggregateMeasurement
           The tracker is requested only after analytics consent. Page views, sessions, AI referrals, heatmaps, click/scroll, conversions and in-browser agent
           signals all wait for consent.
           {mode === 'cookieless'
-            ? ' Cookieless keeps the session id in memory and skips returning-visitor recognition and all ad measurement.'
+            ? ' Cookieless keeps the session id in sessionStorage for the tab\'s lifetime and skips returning-visitor recognition and all ad measurement. Add sessionStorage: false to keep it in memory only (every full page load is then a new visit).'
             : ' Full mode also stores a session id in sessionStorage and recognises returning visitors.'}
           {useMarketing && ' Ad click IDs and the email hash also need marketing consent.'}
           {' '}Confirming sets this site's tracking mode to {mode === 'full' ? 'Full' : 'Cookieless'}.

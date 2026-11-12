@@ -212,7 +212,7 @@ const Index = () => {
                       <div>
                         <h3 className="font-bold text-lg mb-2">Cookieless or Full Mode</h3>
                         <p className="text-muted-foreground">
-                          Cookieless mode: no cookies, no device fingerprint, no cross-visit profile. Full mode adds a per-tab session ID (sessionStorage, no cookies) and a salted device hash for the visitor profile. Both start only after analytics consent.
+                          Cookieless mode: no cookies, no device fingerprint, no cross-visit profile; a per-tab session ID (sessionStorage) after consent. Full mode adds a salted device hash for the visitor profile. Both start only after analytics consent.
                         </p>
                       </div>
                     </div>

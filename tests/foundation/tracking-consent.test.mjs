@@ -153,12 +153,17 @@ for (const [label, extra] of [
   });
 }
 
-test('cookieless with consent does not identify visitors or persist IDs', async () => {
+test('cookieless with consent does not identify visitors and stores only the session id', async () => {
   const b = browser({ cookieless: true }, { analytics: true, marketing: true });
   await settle();
   assert.ok(b.calls.some(c => c.body.event_type === 'view'));
   assert.equal(b.calls.some(c => c.url.endsWith('/visitor-identification')), false);
-  assert.equal(b.storageWrites.length, 0);
+  assert.deepEqual([...new Set(b.storageWrites)].sort(), ['cortiq_session_expires', 'cortiq_session_id']);
+
+  const memoryOnly = browser({ cookieless: true, sessionStorage: false }, { analytics: true, marketing: true });
+  await settle();
+  assert.ok(memoryOnly.calls.some(c => c.body.event_type === 'view'));
+  assert.equal(memoryOnly.storageWrites.length, 0);
 });
 
 test('revocation wins over stale stored consent and blocks listeners, SPA and public API', async () => {

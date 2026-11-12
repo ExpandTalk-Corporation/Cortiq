@@ -3,7 +3,7 @@ Contributors: cortiq
 Tags: analytics, ai-tracking, heatmap, cookie-free, gdpr, chatgpt, ai-bots
 Requires at least: 5.6
 Tested up to: 6.8
-Stable tag: 5.5.13
+Stable tag: 5.5.14
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -86,6 +86,9 @@ All data is stored in the EU (AWS eu-north-1 via Supabase).
 The tracking script is loaded with `defer` so it does not block rendering.
 
 == Changelog ==
+
+= 5.5.14 =
+* Change: Cookieless mode keeps the session id in sessionStorage after analytics consent, so a visit lasts across page loads in the same tab instead of starting over on every page. Still no cookies, no fingerprint and no cross-visit profile; nothing is stored before consent and the id is removed when consent is withdrawn. The new "Memory only" setting keeps the old behaviour (nothing stored, one visit per page load).
 
 = 5.5.13 =
 * Security: The plugin always serves the tracker from your own site. It no longer falls back to loading it from cortiq.se when the bundled copy is missing; tracking then stays off until the plugin is reinstalled.

@@ -241,7 +241,7 @@ export const ALTERNATIVES: ContentPageData = {
           items: [
             '**Server-side AI agent measurement:** AI crawlers and assistants classified on your server, with no code in the browser.',
             '**Aggregate measurement** (off by default): page views, visits, daily visitors, sources and goals from a script that stores nothing in the browser. It is designed to not require consent; you make the legal assessment for your site. See [how it counts](/docs/metrics/#aggregate).',
-            '**Visitor analytics after consent,** with heatmaps, form analytics and conversion attribution. [Cookieless mode](/docs/#cookieless) keeps the session in memory only, and still waits for analytics consent.',
+            '**Visitor analytics after consent,** with heatmaps, form analytics and conversion attribution. [Cookieless mode](/docs/#cookieless) sets no cookies, keeps the session id in sessionStorage until the tab is closed, and still waits for analytics consent.',
           ],
         },
         { type: 'p', text: 'CortIQ is free during the beta. See [pricing](/pricing/).' },

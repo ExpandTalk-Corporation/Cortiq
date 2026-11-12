@@ -298,7 +298,7 @@ export function CMPDashboard({ selectedSite, onSiteUpdated }: CMPDashboardProps)
                 <div className="space-y-0.5 pr-4">
                   <Label>Cookieless</Label>
                   <p className="text-sm text-muted-foreground">
-                    No device storage, no fingerprint, no cross-visit profile. Still requires
+                    No cookies, no fingerprint, no cross-visit profile; a per-tab session id after consent. Still requires
                     analytics consent. Recommended for privacy-first sites.
                   </p>
                 </div>
