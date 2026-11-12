@@ -364,7 +364,7 @@ const Privacy = () => {
                     <li>• No cookies</li>
                     <li>• No device fingerprinting</li>
                     <li>• No cross-visit or cross-site profile</li>
-                    <li>• Session identifier held in memory only</li>
+                    <li>• Session identifier in sessionStorage (deleted when the tab closes); held in memory only if the site chooses that</li>
                     <li>• No advertising click IDs</li>
                     <li>• Still requires consent</li>
                   </ul>
@@ -503,13 +503,13 @@ const Privacy = () => {
                 </p>
                 <h5 className="font-semibold text-sm mb-1">Necessary (always active)</h5>
                 <ul className="text-muted-foreground space-y-1 ml-4 mb-3">
-                  <li>• <code>site_cookie_consent</code> (localStorage) - Your consent choices, read by the tracking script before anything is measured, and by the aggregate script (section 3C) to detect a refusal (Lifetime: 12 months; you are then asked again)</li>
+                  <li>• <code>site_cookie_consent</code> (localStorage) - Your consent choices, read by the tracking script before anything is measured, and by the aggregate script (section 3C) to detect a refusal (Lifetime: 12 months after accepting, 6 months after choosing necessary only by default; you are then asked again)</li>
                   <li>• <code>user_consent</code> (sessionStorage) - Copy of your consent choices for the current tab, set by the consent banner (Lifetime: tab session)</li>
                 </ul>
                 <h5 className="font-semibold text-sm mb-1">Analytical (requires analytics consent)</h5>
                 <ul className="text-muted-foreground space-y-1 ml-4 mb-3">
-                  <li>• <code>cortiq_session_id</code> (sessionStorage, Full mode only) - Per-session identifier (Lifetime: tab session). In Cookieless mode it is held in memory only and nothing is written.</li>
-                  <li>• <code>cortiq_session_expires</code> (sessionStorage, Full mode only) - When the session identifier expires after inactivity (default 30 minutes), so a new session can start (Lifetime: tab session). Not written in Cookieless mode.</li>
+                  <li>• <code>cortiq_session_id</code> (sessionStorage) - Per-session identifier (Lifetime: tab session). Not written on Cookieless sites that choose memory only.</li>
+                  <li>• <code>cortiq_session_expires</code> (sessionStorage) - When the session identifier expires after inactivity (default 30 minutes), so a new session can start (Lifetime: tab session). Not written on Cookieless sites that choose memory only.</li>
                   <li>• <code>_ciq_adp</code> (sessionStorage) - Page-depth counter, written after analytics consent, in either mode, only for clients classified as automated (Lifetime: tab session)</li>
                 </ul>
                 <h5 className="font-semibold text-sm mb-1">Marketing (requires marketing consent, Full mode only)</h5>
@@ -530,9 +530,10 @@ const Privacy = () => {
                 </ul>
               </div>
               <p className="text-sm text-muted-foreground">
-                The CortIQ tracking script and the CortIQ consent banner set no cookies, in either mode. In Full mode
-                the script keeps a session identifier in sessionStorage. In Cookieless mode it stores nothing for human
-                visitors; only clients classified as automated get the <code>_ciq_adp</code> counter. The
+                The CortIQ tracking script and the CortIQ consent banner set no cookies, in either mode. In both modes
+                the script keeps a session identifier in sessionStorage after analytics consent. A Cookieless site can choose
+                memory only; the script then stores nothing for human visitors, and only clients classified as automated get
+                the <code>_ciq_adp</code> counter. The
                 <code> site_consent</code> cookie above is set only by cortiq.se&apos;s own banner.
                 Analytical and marketing storage is written only after the corresponding consent. Withdrawing consent removes
                 <code> cortiq_session_id</code>, <code>cortiq_session_expires</code> and <code>cortiq_click_ids</code>. The aggregate script (section 3C),
@@ -636,7 +637,7 @@ const Privacy = () => {
               <div className="bg-primary/5 p-4 rounded-lg">
                 <h4 className="font-semibold mb-2 text-foreground">Consent and data-subject requests</h4>
                 <ul className="text-sm text-muted-foreground space-y-1 ml-4">
-                  <li>• <strong>Consent records (proof of consent):</strong> 2 years, to demonstrate consent under GDPR Art. 7.1. This is separate from how long a consent choice is valid: a consent choice expires after 12 months, after which you are asked again.</li>
+                  <li>• <strong>Consent records (proof of consent):</strong> 2 years, to demonstrate consent under GDPR Art. 7.1. This is separate from how long a consent choice is valid: an accepted choice expires after 12 months and a necessary-only choice after 6 months by default, after which you are asked again.</li>
                   <li>• <strong>Data-subject requests:</strong> 3 years, or 1 year after a request is completed</li>
                 </ul>
               </div>

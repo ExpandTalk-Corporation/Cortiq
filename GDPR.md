@@ -12,11 +12,11 @@ CortIQ separates server-side agent measurement from everything that runs in the 
 |-------|------|------------------------|-------------|
 | **Server-side agent measurement** | Always (on your server or edge, not in the browser) | None — no device access | Typically legitimate interest (Art. 6.1.f GDPR); in our assessment not covered by ePrivacy Art. 5(3) (not settled) – the site operator makes the final assessment |
 | **In-browser bot checks** (bot probe, honeypot, canary) | Only after analytics consent | `_ciq_adp` (sessionStorage), only for clients detected as automated | Consent (Art. 6.1.a GDPR / ePrivacy Art. 5.3) |
-| **Visitor analytics — Cookieless mode** | Only after analytics consent | None (no cookies, no fingerprint, no persistent IDs) | Consent (Art. 6.1.a GDPR / ePrivacy Art. 5.3) |
+| **Visitor analytics — Cookieless mode** | Only after analytics consent | Session ID + its expiry time (sessionStorage, deleted when the tab closes); none if the site chooses memory only. No cookies, no fingerprint, no persistent IDs | Consent (Art. 6.1.a GDPR / ePrivacy Art. 5.3) |
 | **Visitor analytics — Full mode** | Only after analytics consent | Session ID (sessionStorage) + persistent visitor ID for returning-visitor recognition | Consent (Art. 6.1.a GDPR / ePrivacy Art. 5.3) |
 | **Marketing click IDs** (gclid, fbclid, …) | Only after marketing consent | Session storage | Consent (Art. 6.1.a GDPR) |
 
-Consent is stored with an expiry and is valid for 12 months; after that the banner is shown again. Closing the banner without a choice saves "necessary only".
+Consent is stored with an expiry: an accepted choice is valid for 12 months, a necessary-only choice for 180 days by default (setting, 1–400 days); after that the banner is shown again, never on every visit. Closing the banner without a choice saves "necessary only".
 
 ---
 
@@ -53,7 +53,7 @@ Activated only when a visitor accepts the "Statistics" category in the cookie ba
 - **E-commerce and conversion events**
 - **A/B test assignment**
 
-**Cookieless mode:** no cookies, no fingerprint, no cross-visit profile, no persistent IDs. Page views within a visit are linked in memory only. Consent is still required.
+**Cookieless mode:** no cookies, no fingerprint, no cross-visit profile, no persistent IDs. After analytics consent, page views within a visit are linked by a session id kept in sessionStorage for the tab's lifetime (operators can choose memory only: the session id is not stored, and every full page load starts a new visit). Consent is still required.
 
 **Full mode:** a persistent visitor ID (derived from device characteristics) lets returning visits be recognised, and a session ID is kept in sessionStorage. Data is associated with a hashed visitor ID, not a name or email address.
 
@@ -156,9 +156,9 @@ Our legitimate interest (Art. 6(1)(f) GDPR) is to understand, manage and protect
 
 **Analytics (only after consent)**
 
-If you accept the Statistics category in our cookie banner, we collect: visited pages, referrer, device type, browser family, anonymised IP address, click positions (heatmaps), scroll depth, form interaction data, conversion events and session recordings. Without your consent, none of this is collected.
+If you accept the Statistics category in our cookie banner, we collect: visited pages, referrer, device type, browser family, anonymised IP address, click positions (heatmaps), scroll depth, form interaction data and conversion events. Without your consent, none of this is collected.
 
-[Cookieless mode:] No cookies are set and no persistent identifier is stored; visits are not linked to each other.
+[Cookieless mode:] No cookies are set and no persistent identifier is stored. A session identifier is kept in your browser (sessionStorage) until you close the tab, so that page views within one visit can be linked; separate visits are not linked to each other. [If you chose memory only: The session identifier is held in memory and not stored in your browser.]
 [Full mode:] We use a persistent visitor identifier, derived from technical characteristics of your device, so that returning visits can be recognised, and store a session identifier in your browser for the duration of your visit.
 
 This processing is based on your consent (Art. 6.1.a GDPR). Your choice is stored for 12 months, after which we ask again. You can withdraw consent at any time via the cookie icon in the bottom corner.

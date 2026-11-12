@@ -4,7 +4,7 @@
 // Covers what CortIQ does on the owner's behalf; not a full GDPR art. 13 template.
 // Pure module: the foundation tests import it from disk.
 
-export const POLICY_CHECKLIST_VERSION = '2026-11-05';
+export const POLICY_CHECKLIST_VERSION = '2026-11-12';
 
 export type TrackingMode = 'cookieless' | 'full';
 
@@ -21,13 +21,13 @@ export function policyChecklist({ trackingMode, marketing }: PolicyChecklistOpti
     'States the purpose, statistics on how the site is used, and the legal basis: the visitor\'s consent.',
     'Lists what is collected: pages viewed, referrer and campaign parameters, clicks and scroll depth (heatmaps), form conversions, and the IP address the browser sends with each request.',
   ];
+  items.push(
+    'A session identifier and its expiry time, stored in the browser\'s sessionStorage until the tab is closed and removed if consent is withdrawn.'
+      + (trackingMode === 'cookieless' ? ' (If you set the tracker to memory only, state instead that the identifier is held in memory and not stored.)' : ''),
+    'Bot checks after analytics consent: for visitors whose browser looks automated, device capability signals and a page counter stored in sessionStorage until the tab is closed.',
+  );
   if (trackingMode === 'full') {
-    items.push(
-      'A session identifier stored in the browser\'s sessionStorage until the tab is closed.',
-      'Device details (browser, screen and window size, language, time zone, platform) used to recognise returning visitors across visits.',
-    );
-  } else {
-    items.push('A session identifier held in memory only; nothing is stored on the device.');
+    items.push('Device details (browser, screen and window size, language, time zone, platform) used to recognise returning visitors across visits.');
   }
   if (trackingMode === 'full' && marketing) {
     items.push(

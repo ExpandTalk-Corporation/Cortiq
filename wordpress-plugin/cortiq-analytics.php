@@ -3,7 +3,7 @@
  * Plugin Name: CortIQ Analytics
  * Plugin URI: https://cortiq.se
  * Description: Analytics for the agentic web. Classifies AI crawlers and agent fetches (GPTBot, ClaudeBot, ChatGPT-User, PerplexityBot…) and measures human visitors after consent — cookieless mode, heatmaps, conversions and a built-in consent banner.
- * Version: 5.5.13
+ * Version: 5.5.14
  * Author: CortIQ
  * Author URI: https://cortiq.se
  * Requires at least: 5.6
@@ -21,7 +21,7 @@ if ( defined( 'CORTIQ_LOADED' ) ) return;
 define( 'CORTIQ_LOADED', true );
 
 // Shared with public/spa-tracking.js (CORTIQ_VERSION) — also the ?ver= cache-bust for it.
-define( 'CORTIQ_VERSION',    '5.5.13' );
+define( 'CORTIQ_VERSION',    '5.5.14' );
 define( 'CORTIQ_OPTION_KEY', 'cortiq_options' );
 // Supabase Edge Functions base — used for the GDPR consent ledger (store-consent).
 define( 'CORTIQ_API',        'https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1' );
@@ -45,10 +45,12 @@ function cortiq_defaults() {
         'excluded_roles'        => array( 'administrator' ),
         'accent_color'          => '#6366f1',
         'tracking_mode'         => 'full',   // 'cookieless' (no fingerprint/profile) | 'full'
+        'cookieless_memory_only'=> false,    // cookieless: keep the session id in memory only (no sessionStorage)
         'banner_language'       => 'auto',   // 'auto' (WP locale) | 'en' | 'sv' | 'de'
         'consent_mode'          => 'basic',  // GA4 Consent Mode: 'basic' | 'advanced'
         'policy_version'        => '1',      // change to re-prompt every visitor
-        'reprompt_cooldown_days'=> 365,      // how long a saved choice is respected before re-asking
+        'reprompt_cooldown_days'=> 365,      // how long an accepted choice is respected before re-asking
+        'reprompt_reject_days'  => 180,      // how long a necessary-only choice is respected before re-asking
         'consent_region'        => 'eea',    // 'eea' (region-scoped defaults) | 'global'
         'geo_gating'            => false,    // show the banner only to EEA/UK/CH visitors
         'server_side'           => true,     // server-side AI agent measurement (needs tracking_id)
@@ -269,6 +271,9 @@ function cortiq_enqueue() {
         // Cookieless mode: no fingerprint and no cross-visit profile. Like everything
         // in spa-tracking.js (including in-browser bot detection) it waits for consent.
         'cookieless'  => ( 'cookieless' === $opts['tracking_mode'] ),
+        // Cookieless keeps the session id in sessionStorage after consent (one visit per tab);
+        // memory-only writes nothing, and every full page load starts a new visit.
+        'sessionStorage' => ! ( 'cookieless' === $opts['tracking_mode'] && ! empty( $opts['cookieless_memory_only'] ) ),
         'aggregate'   => ! empty( $opts['aggregate'] ),
     ) );
     wp_add_inline_script( 'cortiq-tracking', 'window.cortiqConfig = ' . $config . ';', 'before' );
@@ -541,7 +546,9 @@ function cortiq_cookie_banner() {
     'cdate' => $t['consent_date'], 'cid'  => $t['consent_id'], 'cats' => $t['categories'],
   ) ); ?>;
   var POLICY_VERSION = '<?php echo esc_js( $opts['policy_version'] ); ?>';
-  var MAX_AGE = <?php echo max( 1, intval( $opts['reprompt_cooldown_days'] ) ); ?>*24*60*60*1000; // re-ask cooldown (days)
+  var MAX_AGE = <?php echo max( 1, intval( $opts['reprompt_cooldown_days'] ) ); ?>*24*60*60*1000; // re-ask after an accepted choice
+  var MAX_AGE_REJECT = <?php echo max( 1, intval( $opts['reprompt_reject_days'] ) ); ?>*24*60*60*1000; // re-ask after necessary-only
+  function ageFor(c){ return (c && (c.preferences || c.analytics || c.marketing)) ? MAX_AGE : MAX_AGE_REJECT; }
   var GEO_GATING = <?php echo ! empty( $opts['geo_gating'] ) ? 'true' : 'false'; ?>;
   var KEY = 'site_cookie_consent';
   var overlay = document.getElementById('cq-overlay');
@@ -576,7 +583,7 @@ function cortiq_cookie_banner() {
     var now=Date.now();
     // spa-tracking.js only honours a stored choice with a future expiresAt.
     var c={ necessary:true, preferences:pref, analytics:anal, marketing:mark,
-      timestamp:now, expiresAt:new Date(now+MAX_AGE).toISOString(),
+      timestamp:now, expiresAt:new Date(now+(pref||anal||mark ? MAX_AGE : MAX_AGE_REJECT)).toISOString(),
       consentId:genId(), policyVersion:POLICY_VERSION };
     try { localStorage.setItem(KEY,JSON.stringify(c)); } catch(e){}
     // GA4 Consent Mode + spa-tracking listen for this event.
@@ -642,12 +649,12 @@ function cortiq_cookie_banner() {
   var existing;
   try{ existing=JSON.parse(localStorage.getItem(KEY)); }catch(e){}
   // Show the banner only if there's no fresh decision. A saved choice (even reject) is
-  // respected for ~12 months — no nagging.
-  var fresh = existing && existing.policyVersion===POLICY_VERSION && ((Date.now()-(existing.timestamp||0)) < MAX_AGE);
+  // respected (accepted: ~12 months, necessary-only: ~6 months by default) — never asked on every visit.
+  var fresh = existing && existing.policyVersion===POLICY_VERSION && ((Date.now()-(existing.timestamp||0)) < ageFor(existing));
   // Choices saved by plugin < 5.4.0 have no expiresAt, so spa-tracking.js ignores them.
   // Backfill it here: this footer script runs before the deferred tracker executes.
   if(fresh && !(Date.parse(existing.expiresAt) > Date.now())){
-    existing.expiresAt=new Date(existing.timestamp+MAX_AGE).toISOString();
+    existing.expiresAt=new Date(existing.timestamp+ageFor(existing)).toISOString();
     try { localStorage.setItem(KEY,JSON.stringify(existing)); } catch(e){}
   }
   function showBanner(){
@@ -792,6 +799,7 @@ function cortiq_sanitize_options( $input ) {
     $ac = isset( $input['accent_color'] ) ? sanitize_hex_color( trim( (string) $input['accent_color'] ) ) : '';
     $clean['accent_color']     = $ac ? $ac : '#6366f1';
     $clean['tracking_mode']    = ( isset( $input['tracking_mode'] ) && 'cookieless' === $input['tracking_mode'] ) ? 'cookieless' : 'full';
+    $clean['cookieless_memory_only'] = ! empty( $input['cookieless_memory_only'] );
     $bl = isset( $input['banner_language'] ) ? $input['banner_language'] : 'auto';
     $clean['banner_language']  = in_array( $bl, array( 'auto', 'en', 'sv', 'de', 'fr', 'pt' ), true ) ? $bl : 'auto';
     $clean['consent_mode']     = ( isset( $input['consent_mode'] ) && 'advanced' === $input['consent_mode'] ) ? 'advanced' : 'basic';
@@ -799,6 +807,8 @@ function cortiq_sanitize_options( $input ) {
     $clean['policy_version']   = ( '' !== $pv ) ? $pv : '1';
     $cd = isset( $input['reprompt_cooldown_days'] ) ? intval( $input['reprompt_cooldown_days'] ) : 365;
     $clean['reprompt_cooldown_days'] = ( $cd >= 1 && $cd <= 400 ) ? $cd : 365;
+    $rd = isset( $input['reprompt_reject_days'] ) ? intval( $input['reprompt_reject_days'] ) : 180;
+    $clean['reprompt_reject_days']   = ( $rd >= 1 && $rd <= 400 ) ? $rd : 180;
     $clean['consent_region']   = ( isset( $input['consent_region'] ) && 'global' === $input['consent_region'] ) ? 'global' : 'eea';
     $clean['geo_gating']       = ! empty( $input['geo_gating'] );
     $clean['server_side']      = ! empty( $input['server_side'] );
@@ -945,8 +955,14 @@ function cortiq_settings_page() {
                         <label style="display:block;margin-bottom:8px">
                             <input type="radio" name="<?php echo CORTIQ_OPTION_KEY; ?>[tracking_mode]" value="cookieless"
                                    <?php checked( 'cookieless', $opts['tracking_mode'] ); ?> />
-                            <strong>Cookieless</strong> — privacy-minimised measurement. No fingerprint, no cross-visit profile.
+                            <strong>Cookieless</strong> — privacy-minimised measurement. No cookies, no fingerprint, no cross-visit profile.
+                            After consent a session id is kept in sessionStorage for the tab's lifetime.
                             Requires analytics consent (<em>Statistics</em> in the banner).
+                        </label>
+                        <label style="display:block;margin:0 0 8px 24px">
+                            <input type="checkbox" name="<?php echo CORTIQ_OPTION_KEY; ?>[cookieless_memory_only]" value="1"
+                                   <?php checked( ! empty( $opts['cookieless_memory_only'] ) ); ?> />
+                            Memory only (cookieless): do not store the session id in the browser. Every full page load then counts as a new visit.
                         </label>
                         <label style="display:block">
                             <input type="radio" name="<?php echo CORTIQ_OPTION_KEY; ?>[tracking_mode]" value="full"
@@ -1023,7 +1039,14 @@ function cortiq_settings_page() {
                             <input id="cortiq_cooldown" type="number" min="1" max="400"
                                    name="<?php echo CORTIQ_OPTION_KEY; ?>[reprompt_cooldown_days]"
                                    value="<?php echo esc_attr( $opts['reprompt_cooldown_days'] ); ?>" style="max-width:90px" />
-                            <span class="description"> How long a saved choice (incl. reject) is respected before asking again. Default 365.</span>
+                            <span class="description"> How long an accepted choice is respected before asking again. Default 365.</span>
+                        </p>
+                        <p style="margin:0">
+                            <label for="cortiq_reject_cooldown"><strong>Re-ask after "necessary only" (days)</strong></label><br>
+                            <input id="cortiq_reject_cooldown" type="number" min="1" max="400"
+                                   name="<?php echo CORTIQ_OPTION_KEY; ?>[reprompt_reject_days]"
+                                   value="<?php echo esc_attr( $opts['reprompt_reject_days'] ); ?>" style="max-width:90px" />
+                            <span class="description"> How long a necessary-only choice is respected before asking again. Default 180. Asking on every visit pressures visitors and can make consent invalid.</span>
                         </p>
                     </td>
                 </tr>

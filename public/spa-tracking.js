@@ -1,7 +1,7 @@
 /**
  * CortIQ Advanced Tracking Script
  * Unified visitor profiling with AI agent detection
- * Version: 5.5.13 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
+ * Version: 5.5.14 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
  *
  * Usage:
  * <script>
@@ -17,7 +17,7 @@
   'use strict';
 
   // Keep in sync with wordpress-plugin/cortiq-analytics.php (CORTIQ_VERSION).
-  const CORTIQ_VERSION = '5.5.13';
+  const CORTIQ_VERSION = '5.5.14';
 
   // Configuration: window.cortiqConfig, overridden by data-* attributes on this script
   // tag, so a single-tag install (<script src=… data-site-id=…>) works and a tag that
@@ -34,6 +34,7 @@
     for (const name of ['cookieless', 'exclude-iframes']) {
       if (el.getAttribute('data-' + name) === 'true') out[name === 'cookieless' ? 'cookieless' : 'excludeIframes'] = true;
     }
+    if (el.getAttribute('data-session-storage') === 'false') out.sessionStorage = false;
     return out;
   }
   const API_URL = config.apiUrl || 'https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1';
@@ -44,6 +45,10 @@
   // Cookieless controls identity/storage, not legal permission. This client script
   // requires analytics consent in either mode. Server-only measurement is separate.
   const COOKIELESS = config.cookieless === true;
+  // Cookieless keeps the session id in sessionStorage after consent, so a visit survives full
+  // page loads within the tab. sessionStorage: false (data-session-storage="false") keeps it in
+  // memory only: nothing is written, and every full page load starts a new visit.
+  const MEMORY_ONLY_SESSION = COOKIELESS && (config.sessionStorage === false || config.sessionStorage === 'false');
   // Optional scoping / parity config (all opt-in via window.cortiqConfig).
   const EXCLUDE_IFRAMES = config.excludeIframes === true;
   const EXCLUDE_PATHS = (config.excludePaths || '').split(',').map(s => s.trim()).filter(Boolean);
@@ -71,8 +76,8 @@
   let VISITOR_ID = null;
   let VISITOR_PROFILE = null;
   let IDENTIFICATION_COMPLETE = false;
-  let MEMORY_SESSION_ID = null; // in-memory session id used in cookieless mode
-  let MEMORY_SESSION_EXPIRES = 0; // cookieless: when MEMORY_SESSION_ID expires (epoch ms)
+  let MEMORY_SESSION_ID = null; // in-memory session id (cookieless with sessionStorage: false)
+  let MEMORY_SESSION_EXPIRES = 0; // when MEMORY_SESSION_ID expires (epoch ms)
   let LAST_ACTIVITY = 0; // last tracked activity in this page (epoch ms)
   let SESSION_ID = null;
   let consentOverride = null;
@@ -103,9 +108,9 @@
     if (!hasStoredAnalyticsConsent()) return null;
     const now = Date.now();
     LAST_ACTIVITY = now;
-    // Cookieless mode: keep the id in memory only (no sessionStorage, nothing written
-    // to the visitor's device), so it never persists beyond the current page context.
-    if (COOKIELESS) {
+    // Memory-only session (cookieless with sessionStorage: false): nothing is written to the
+    // visitor's device, so the id never persists beyond the current page context.
+    if (MEMORY_ONLY_SESSION) {
       if (!MEMORY_SESSION_ID || now > MEMORY_SESSION_EXPIRES) MEMORY_SESSION_ID = newSessionId();
       MEMORY_SESSION_EXPIRES = now + SESSION_TIMEOUT_MS;
       return MEMORY_SESSION_ID;
@@ -141,7 +146,7 @@
     if (ms === SESSION_TIMEOUT_MS) return;
     SESSION_TIMEOUT_MS = ms;
     if (!LAST_ACTIVITY || !SESSION_ID || !hasStoredAnalyticsConsent()) return;
-    if (COOKIELESS) {
+    if (MEMORY_ONLY_SESSION) {
       if (MEMORY_SESSION_ID === SESSION_ID) MEMORY_SESSION_EXPIRES = LAST_ACTIVITY + ms;
       return;
     }
@@ -1365,6 +1370,7 @@
       try {
         sessionStorage.removeItem('cortiq_session_id');
         sessionStorage.removeItem(SESSION_EXPIRES_KEY);
+        sessionStorage.removeItem('_ciq_adp'); // bot-probe page counter
       } catch (_) { /* Storage or browser capability unavailable. */ }
       stopSecurityLayer();
       return;

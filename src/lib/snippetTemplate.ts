@@ -27,7 +27,7 @@ export interface TrackingSnippetOptions {
   policyVersion?: string;
   /** Banner sends Google Consent Mode v2 signals (data-consent-mode="google"). Opt-in. */
   googleConsentMode?: boolean;
-  /** sites.tracking_mode. Cookieless (default) keeps the session id in memory and has no marketing features. */
+  /** sites.tracking_mode. Cookieless (default) sets no cookies, keeps the session id in sessionStorage after consent and has no marketing features. */
   trackingMode?: 'cookieless' | 'full';
   /** Ask for marketing consent in the banner (click IDs, hashed email). Full mode only, ignored otherwise. */
   marketing?: boolean;

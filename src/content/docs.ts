@@ -95,9 +95,9 @@ export const GETTING_STARTED: ContentPageData = {
       id: 'cookieless',
       heading: 'Cookieless mode',
       blocks: [
-        { type: 'p', text: 'With `cookieless: true` the script keeps the session ID in memory instead of browser storage, skips visitor identification and switches off all marketing features (click IDs, email hashing, fingerprinting).' },
+        { type: 'p', text: 'With `cookieless: true` the script sets no cookies, skips visitor identification and switches off all marketing features (click IDs, email hashing, fingerprinting). After analytics consent it keeps the session ID in sessionStorage until the tab is closed, so a visit lasts across page loads. Add `sessionStorage: false` (or `data-session-storage="false"` on the script tag) to keep it in memory only: the session ID is not stored, and every full page load starts a new visit.' },
         { type: 'note', tone: 'warning', text: 'Cookieless mode still requires analytics consent. It reduces what is stored; it is not a legal basis for tracking without consent.' },
-        { type: 'p', text: 'Conversions are not recorded in cookieless mode, and each full page load starts a new session.' },
+        { type: 'p', text: 'Conversions are not recorded in cookieless mode.' },
       ],
     },
     {
@@ -611,8 +611,8 @@ export const METRICS: ContentPageData = {
             '**A visit ends after 30 minutes without activity** (the session timeout, as in GA4). Page views, clicks, scrolls, content interactions and form submits all count as activity. After a longer pause the tracking script switches to a new session identifier and the next page view starts a new visit.',
             '**Configurable per site:** Settings → GDPR → Configuration → Session timeout, 5 to 240 minutes (default 30). The tracking script picks up a change with the next page view; no snippet change is needed. Past visits are not recalculated.',
             '**Inactivity is the only rule.** A visit does not split at midnight or when the campaign changes; it keeps the source of its first page view.',
-            '**Full mode:** the identifier and its expiry time (`cortiq_session_expires`) live in sessionStorage, so a visit never outlasts the browser tab.',
-            '**Cookieless mode:** the identifier is held in memory only. Every full page load starts a new visit; route changes in a single-page app stay in the same visit.',
+            '**Full and cookieless mode:** the identifier and its expiry time (`cortiq_session_expires`) live in sessionStorage, so a visit never outlasts the browser tab.',
+            '**Cookieless with `sessionStorage: false`:** the identifier is held in memory only. Every full page load starts a new visit; route changes in a single-page app stay in the same visit.',
             '**Traffic source, UTM tags and country** are taken from the first page view of the visit.',
             '**Visit duration** is the time from the first to the last page view. Time on the last page is not counted, so a one-page visit has a duration of 0.',
             '**Bounced visit:** a visit with one page view. Used in the country breakdown and in the MCP tools.',

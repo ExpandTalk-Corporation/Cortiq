@@ -183,8 +183,8 @@ test('revoking consent removes the id and its expiry; later activity writes noth
   assert.equal(b.storageWrites.length, writes);
 });
 
-test('cookieless mode: rotation happens in memory only, nothing is written', async () => {
-  const b = browser({ config: { cookieless: true } });
+test('cookieless memory only (sessionStorage: false): rotation happens in memory, nothing is written', async () => {
+  const b = browser({ config: { cookieless: true, sessionStorage: false } });
   b.choose(true);
   await settle();
   const first = b.window.CortIQ.getSessionId();
