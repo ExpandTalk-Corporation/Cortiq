@@ -47,6 +47,10 @@ test('classifies request URLs, including gtag by ID prefix', () => {
     'https://google.com/recaptcha/enterprise.js': 'recaptcha',
     'https://www.googletagmanager.com/a?id=GTM-ABC123&v=3': 'gtm',
     'https://csp.withgoogle.com/csp/frame-ancestors/38fac9d5': 'google-csp-reports',
+    'https://cdn.prod.website-files.com/665450f234a4dec9a3bae142/js/webflow.e04e3444.js': 'webflow',
+    'https://assets-global.website-files.com/5f0/img.png': 'webflow',
+    'https://d3e54v103j8qbb.cloudfront.net/js/jquery-3.5.1.min.dc5e7f18c8.js?site=665450f234a4dec9a3bae142': 'webflow',
+    'https://d111111abcdef8.cloudfront.net/x.js': null,
     'https://tags.inzynk.io/bpedxeoi/iztag.js': 'inzynk',
     'https://js.chilipiper.com/marketing.js': 'chilipiper',
     'https://launcher.1mind.com/deployment-n8bthh9zt8': '1mind',
@@ -93,7 +97,7 @@ test('vendor kinds: CMPs and infrastructure are marked in the registry', () => {
   for (const v of TRACKING_VENDORS) assert.ok([undefined, 'tag', 'cmp', 'infrastructure'].includes(v.kind), v.id);
   const ids = (kind) => TRACKING_VENDORS.filter((v) => v.kind === kind).map((v) => v.id).sort();
   assert.deepEqual(ids('cmp'), ['complianz', 'cookiebot', 'cookieyes', 'dynamicweb', 'onetrust']);
-  assert.deepEqual(ids('infrastructure'), ['akamai', 'cloudflare', 'google-csp-reports', 'google-fonts', 'public-cdn', 'recaptcha']);
+  assert.deepEqual(ids('infrastructure'), ['akamai', 'cloudflare', 'google-csp-reports', 'google-fonts', 'public-cdn', 'recaptcha', 'webflow']);
 });
 
 test('Cloudflare Turnstile on a challenges subdomain is infrastructure, not an unknown third party', () => {
@@ -123,13 +127,14 @@ test('social and media embeds are verify vendors; Meta Pixel and the LinkedIn In
     'https://www.tiktok.com/embed.js': 'tiktok-embed',
     'https://assets.pinterest.com/js/pinit.js': 'pinterest-embed',
     'https://player.vimeo.com/video/76979871': 'vimeo',
+    'https://cdn.embedly.com/widgets/media.html?src=https%3A%2F%2Fplayer.vimeo.com%2Fvideo%2F1': 'embedly',
     'https://open.spotify.com/embed/episode/abc': 'spotify-embed',
     'https://w.soundcloud.com/player/?url=x': 'soundcloud-embed',
     'https://www.google.com/maps/embed?pb=x': 'google-maps',
     'https://maps.googleapis.com/maps/api/js?key=x': 'google-maps',
   };
   for (const [url, id] of Object.entries(cases)) assert.equal(vendorForUrl(url)?.id ?? null, id, url);
-  for (const id of ['facebook-embed', 'x-embed', 'instagram-embed', 'linkedin-embed', 'tiktok-embed', 'pinterest-embed', 'vimeo', 'spotify-embed', 'soundcloud-embed', 'google-maps']) {
+  for (const id of ['facebook-embed', 'x-embed', 'instagram-embed', 'linkedin-embed', 'tiktok-embed', 'pinterest-embed', 'vimeo', 'embedly', 'spotify-embed', 'soundcloud-embed', 'google-maps']) {
     const v = TRACKING_VENDORS.find((x) => x.id === id);
     assert.equal(v.category, 'preferences', id);
     assert.match(v.verify, /click-to-load preview loads nothing until the visitor asks/, id);
