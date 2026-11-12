@@ -1,6 +1,6 @@
 -- Run only in an EMPTY, disposable cortiq_test database. All fixtures roll back.
 -- Global dashboard filters (date, path, segment) on Forms, the KPI fallback and Ads (CortIQ):
--- 20261121000001_filters_remaining_tabs.sql.
+-- 20261123000001_filters_remaining_tabs.sql.
 BEGIN;
 CREATE ROLE anon;
 CREATE ROLE authenticated;
@@ -32,7 +32,7 @@ RETURNS TABLE (month text, sessions bigint, unique_users bigint, page_views bigi
 LANGUAGE sql AS $$ SELECT NULL::text, 0::bigint, 0::bigint, 0::bigint, 0::numeric WHERE false $$;
 \ir ../../supabase/migrations/20261109000003_builtin_segments.sql
 \ir ../../supabase/migrations/20261109000004_tab_filters.sql
-\ir ../../supabase/migrations/20261121000001_filters_remaining_tabs.sql
+\ir ../../supabase/migrations/20261123000001_filters_remaining_tabs.sql
 
 INSERT INTO sites VALUES
  ('11111111-1111-4111-8111-111111111111', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),

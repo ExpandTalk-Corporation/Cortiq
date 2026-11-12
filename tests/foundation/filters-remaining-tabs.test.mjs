@@ -1,6 +1,6 @@
 // tests/foundation/filters-remaining-tabs.test.mjs
 // The global date / URL / segment filters reach Forms, the KPI fallback and Ads (CortIQ source)
-// through their RPCs (20261121000001_filters_remaining_tabs.sql). Click fraud follows the date
+// through their RPCs (20261123000001_filters_remaining_tabs.sql). Click fraud follows the date
 // only, and the page funnel follows the date with a URL-filtered page list.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -20,7 +20,7 @@ test('PostgreSQL: forms, KPI and paid ads RPCs filter by path and segment, owner
 });
 
 test('the paid medium list in get_paid_ads_summary matches PAID_MEDIUMS', () => {
-  const migration = read('../../supabase/migrations/20261121000001_filters_remaining_tabs.sql');
+  const migration = read('../../supabase/migrations/20261123000001_filters_remaining_tabs.sql');
   const list = migration.match(/lower\(ts\.utm_medium\) IN \(([^)]+)\)/)[1].split(',').map((m) => m.trim().replace(/'/g, ''));
   const lib = read('../../src/lib/paidMediums.ts').match(/PAID_MEDIUMS = \[([^\]]+)\]/)[1]
     .split(',').map((m) => m.trim().replace(/'/g, ''));
