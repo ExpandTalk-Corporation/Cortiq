@@ -5,6 +5,7 @@ import { KpiRow } from '@/components/dashboard/overview/KpiRow';
 import { ModuleCards } from '@/components/dashboard/overview/ModuleCards';
 import { AggregateOverview } from '@/components/dashboard/overview/AggregateOverview';
 import { PipelineAlerts } from '@/components/dashboard/overview/PipelineAlerts';
+import { DataCoverage } from '@/components/dashboard/overview/DataCoverage';
 import { TrackingCheckAlerts } from '@/components/tracking-check/TrackingCheckAlerts';
 import { useOverviewMetrics } from '@/hooks/useOverviewMetrics';
 import { useConversionGoalHealth } from '@/hooks/useConversionGoalHealth';
@@ -42,6 +43,7 @@ export function OverviewTab({ selectedSite, onNavigate }: { selectedSite: Site; 
       <TrackingCheckAlerts />
       {aggregateOnly && <AggregateOverview siteId={selectedSite.id} from={filters.from} to={filters.to} />}
       <KpiRow m={m} from={filters.from} to={filters.to} segmented={!!filters.segmentId} aggregateOnly={aggregateOnly} />
+      {!aggregateOnly && <DataCoverage siteId={selectedSite.id} from={filters.from} to={filters.to} />}
       {aggregateOn && !aggregateOnly && <AggregateOverview siteId={selectedSite.id} from={filters.from} to={filters.to} />}
       <ModuleCards m={m} goalCount={goals.length} goalIssues={goalIssues} keyPages={keyPages.data ?? []} onNavigate={onNavigate} />
       {/* AI suggestions live in the header AI panel; this line opens it and runs them for the period. */}
