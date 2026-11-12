@@ -503,7 +503,7 @@ const Privacy = () => {
                 </p>
                 <h5 className="font-semibold text-sm mb-1">Necessary (always active)</h5>
                 <ul className="text-muted-foreground space-y-1 ml-4 mb-3">
-                  <li>• <code>site_cookie_consent</code> (localStorage) - Your consent choices, read by the tracking script before anything is measured, and by the aggregate script (section 3C) to detect a refusal (Lifetime: 12 months; you are then asked again)</li>
+                  <li>• <code>site_cookie_consent</code> (localStorage) - Your consent choices, read by the tracking script before anything is measured, and by the aggregate script (section 3C) to detect a refusal (Lifetime: 12 months after accepting, 6 months after choosing necessary only by default; you are then asked again)</li>
                   <li>• <code>user_consent</code> (sessionStorage) - Copy of your consent choices for the current tab, set by the consent banner (Lifetime: tab session)</li>
                 </ul>
                 <h5 className="font-semibold text-sm mb-1">Analytical (requires analytics consent)</h5>
@@ -637,7 +637,7 @@ const Privacy = () => {
               <div className="bg-primary/5 p-4 rounded-lg">
                 <h4 className="font-semibold mb-2 text-foreground">Consent and data-subject requests</h4>
                 <ul className="text-sm text-muted-foreground space-y-1 ml-4">
-                  <li>• <strong>Consent records (proof of consent):</strong> 2 years, to demonstrate consent under GDPR Art. 7.1. This is separate from how long a consent choice is valid: a consent choice expires after 12 months, after which you are asked again.</li>
+                  <li>• <strong>Consent records (proof of consent):</strong> 2 years, to demonstrate consent under GDPR Art. 7.1. This is separate from how long a consent choice is valid: an accepted choice expires after 12 months and a necessary-only choice after 6 months by default, after which you are asked again.</li>
                   <li>• <strong>Data-subject requests:</strong> 3 years, or 1 year after a request is completed</li>
                 </ul>
               </div>

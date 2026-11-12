@@ -49,7 +49,8 @@ function cortiq_defaults() {
         'banner_language'       => 'auto',   // 'auto' (WP locale) | 'en' | 'sv' | 'de'
         'consent_mode'          => 'basic',  // GA4 Consent Mode: 'basic' | 'advanced'
         'policy_version'        => '1',      // change to re-prompt every visitor
-        'reprompt_cooldown_days'=> 365,      // how long a saved choice is respected before re-asking
+        'reprompt_cooldown_days'=> 365,      // how long an accepted choice is respected before re-asking
+        'reprompt_reject_days'  => 180,      // how long a necessary-only choice is respected before re-asking
         'consent_region'        => 'eea',    // 'eea' (region-scoped defaults) | 'global'
         'geo_gating'            => false,    // show the banner only to EEA/UK/CH visitors
         'server_side'           => true,     // server-side AI agent measurement (needs tracking_id)
@@ -545,7 +546,9 @@ function cortiq_cookie_banner() {
     'cdate' => $t['consent_date'], 'cid'  => $t['consent_id'], 'cats' => $t['categories'],
   ) ); ?>;
   var POLICY_VERSION = '<?php echo esc_js( $opts['policy_version'] ); ?>';
-  var MAX_AGE = <?php echo max( 1, intval( $opts['reprompt_cooldown_days'] ) ); ?>*24*60*60*1000; // re-ask cooldown (days)
+  var MAX_AGE = <?php echo max( 1, intval( $opts['reprompt_cooldown_days'] ) ); ?>*24*60*60*1000; // re-ask after an accepted choice
+  var MAX_AGE_REJECT = <?php echo max( 1, intval( $opts['reprompt_reject_days'] ) ); ?>*24*60*60*1000; // re-ask after necessary-only
+  function ageFor(c){ return (c && (c.preferences || c.analytics || c.marketing)) ? MAX_AGE : MAX_AGE_REJECT; }
   var GEO_GATING = <?php echo ! empty( $opts['geo_gating'] ) ? 'true' : 'false'; ?>;
   var KEY = 'site_cookie_consent';
   var overlay = document.getElementById('cq-overlay');
@@ -580,7 +583,7 @@ function cortiq_cookie_banner() {
     var now=Date.now();
     // spa-tracking.js only honours a stored choice with a future expiresAt.
     var c={ necessary:true, preferences:pref, analytics:anal, marketing:mark,
-      timestamp:now, expiresAt:new Date(now+MAX_AGE).toISOString(),
+      timestamp:now, expiresAt:new Date(now+(pref||anal||mark ? MAX_AGE : MAX_AGE_REJECT)).toISOString(),
       consentId:genId(), policyVersion:POLICY_VERSION };
     try { localStorage.setItem(KEY,JSON.stringify(c)); } catch(e){}
     // GA4 Consent Mode + spa-tracking listen for this event.
@@ -646,12 +649,12 @@ function cortiq_cookie_banner() {
   var existing;
   try{ existing=JSON.parse(localStorage.getItem(KEY)); }catch(e){}
   // Show the banner only if there's no fresh decision. A saved choice (even reject) is
-  // respected for ~12 months — no nagging.
-  var fresh = existing && existing.policyVersion===POLICY_VERSION && ((Date.now()-(existing.timestamp||0)) < MAX_AGE);
+  // respected (accepted: ~12 months, necessary-only: ~6 months by default) — never asked on every visit.
+  var fresh = existing && existing.policyVersion===POLICY_VERSION && ((Date.now()-(existing.timestamp||0)) < ageFor(existing));
   // Choices saved by plugin < 5.4.0 have no expiresAt, so spa-tracking.js ignores them.
   // Backfill it here: this footer script runs before the deferred tracker executes.
   if(fresh && !(Date.parse(existing.expiresAt) > Date.now())){
-    existing.expiresAt=new Date(existing.timestamp+MAX_AGE).toISOString();
+    existing.expiresAt=new Date(existing.timestamp+ageFor(existing)).toISOString();
     try { localStorage.setItem(KEY,JSON.stringify(existing)); } catch(e){}
   }
   function showBanner(){
@@ -804,6 +807,8 @@ function cortiq_sanitize_options( $input ) {
     $clean['policy_version']   = ( '' !== $pv ) ? $pv : '1';
     $cd = isset( $input['reprompt_cooldown_days'] ) ? intval( $input['reprompt_cooldown_days'] ) : 365;
     $clean['reprompt_cooldown_days'] = ( $cd >= 1 && $cd <= 400 ) ? $cd : 365;
+    $rd = isset( $input['reprompt_reject_days'] ) ? intval( $input['reprompt_reject_days'] ) : 180;
+    $clean['reprompt_reject_days']   = ( $rd >= 1 && $rd <= 400 ) ? $rd : 180;
     $clean['consent_region']   = ( isset( $input['consent_region'] ) && 'global' === $input['consent_region'] ) ? 'global' : 'eea';
     $clean['geo_gating']       = ! empty( $input['geo_gating'] );
     $clean['server_side']      = ! empty( $input['server_side'] );
@@ -1034,7 +1039,14 @@ function cortiq_settings_page() {
                             <input id="cortiq_cooldown" type="number" min="1" max="400"
                                    name="<?php echo CORTIQ_OPTION_KEY; ?>[reprompt_cooldown_days]"
                                    value="<?php echo esc_attr( $opts['reprompt_cooldown_days'] ); ?>" style="max-width:90px" />
-                            <span class="description"> How long a saved choice (incl. reject) is respected before asking again. Default 365.</span>
+                            <span class="description"> How long an accepted choice is respected before asking again. Default 365.</span>
+                        </p>
+                        <p style="margin:0">
+                            <label for="cortiq_reject_cooldown"><strong>Re-ask after "necessary only" (days)</strong></label><br>
+                            <input id="cortiq_reject_cooldown" type="number" min="1" max="400"
+                                   name="<?php echo CORTIQ_OPTION_KEY; ?>[reprompt_reject_days]"
+                                   value="<?php echo esc_attr( $opts['reprompt_reject_days'] ); ?>" style="max-width:90px" />
+                            <span class="description"> How long a necessary-only choice is respected before asking again. Default 180. Asking on every visit pressures visitors and can make consent invalid.</span>
                         </p>
                     </td>
                 </tr>

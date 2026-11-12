@@ -8,7 +8,7 @@ Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Analytics for the agentic web. Track AI agents, human visitors and Core Web Vitals — cookie-free and GDPR-compliant.
+Analytics for the agentic web. Track AI agents, human visitors and Core Web Vitals — cookie-free, built for GDPR consent.
 
 == Description ==
 
@@ -88,7 +88,9 @@ The tracking script is loaded with `defer` so it does not block rendering.
 == Changelog ==
 
 = 5.5.14 =
-* Change: Cookieless mode keeps the session id in sessionStorage after analytics consent, so a visit lasts across page loads in the same tab instead of starting over on every page. Still no cookies, no fingerprint and no cross-visit profile; nothing is stored before consent and the id is removed when consent is withdrawn. The new "Memory only" setting keeps the old behaviour (the session id is not stored, and every page load starts a new visit).
+* Change: A "necessary only" choice is now kept for 180 days before the banner asks again (new setting; an accepted choice is still kept 365 days). The banner never asks again on every visit.
+* Change: Withdrawing analytics consent also removes the bot-check page counter from sessionStorage.
+* Change: Cookieless mode keeps the session id in sessionStorage after analytics consent, so a visit lasts across page loads in the same tab instead of starting over on every page. Still no cookies, no fingerprinting of human visitors and no cross-visit profile; nothing is stored before consent and the id is removed when consent is withdrawn. The new "Memory only" setting keeps the old behaviour (the session id is not stored, and every page load starts a new visit).
 
 = 5.5.13 =
 * Security: The plugin always serves the tracker from your own site. It no longer falls back to loading it from cortiq.se when the bundled copy is missing; tracking then stays off until the plugin is reinstalled.
@@ -168,10 +170,10 @@ The tracking script is loaded with `defer` so it does not block rendering.
 * Two more banner languages: Français and Português (now English, Svenska, Deutsch, Français, Português).
 
 = 5.3.0 =
-* Cookieless mode: consent-exempt audience measurement (no device storage, no fingerprint, no cross-visit profile) — removes the Statistics toggle from the banner. Choose Cookieless or Full per site under Tracking mode.
+* Cookieless mode without the Statistics toggle in the banner. Superseded in 5.4.0: Cookieless mode now waits for consent too. Choose Cookieless or Full per site under Tracking mode.
 * Banner localisation: English, Svenska and Deutsch, auto-detected from the WordPress locale (or set it manually), with clearer value-based copy.
 * GA4 Consent Mode v2: Basic (GA4 loads only after the visitor accepts Statistics — default) or Advanced (cookieless pings + modelling).
-* Banner: a saved choice (including reject) is respected for ~12 months — no re-prompting. The reopen icon reflects the current consent level.
+* Banner: a saved choice (including reject) is respected for ~12 months — no re-prompting (since 5.5.14: necessary-only for 180 days by default). The reopen icon reflects the current consent level.
 
 = 5.2.3 =
 * Cookie banner: configurable accent colour — pick a preset, use the colour picker, or enter a custom hex value

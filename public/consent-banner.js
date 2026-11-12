@@ -21,6 +21,8 @@
  *                                purposes your site actually uses (default: analytics)
  *   data-policy-version="1"      Bump it when your privacy policy or categories change;
  *                                visitors are asked again (default: 1)
+ *   data-reprompt-reject-days="180"  Days a necessary-only choice is kept before the banner
+ *                                asks again (1–400, default 180). An accepted choice is kept 365 days.
  *   data-company="Your Co AB"    Controller's legal name in the banner text (fallback: hostname)
  *   data-policy-url="/privacy"   Privacy policy link
  *   data-tracking-mode="cookieless" | "standard" — picks the statistics text (default: read
@@ -58,6 +60,10 @@
     document.querySelector('script[src*="consent-banner"]');
 
   function attr(name) { return (_script && _script.getAttribute(name)) || null; }
+  function clampDays(value, fallback) {
+    var n = parseInt(value, 10);
+    return n >= 1 && n <= 400 ? n : fallback;
+  }
 
   function parseCategories(value) {
     var picked = String(value || 'analytics').toLowerCase().split(',')
@@ -197,6 +203,7 @@
     company       : attr('data-company') || String(location.hostname || '').replace(/^www\./, ''),
     policyUrl     : attr('data-policy-url'),
     policyVersion : String(attr('data-policy-version') || '1').slice(0, 20),
+    rejectDays    : clampDays(attr('data-reprompt-reject-days'), 180),
     categories    : parseCategories(attr('data-categories')),
     lang          : pickLang(),
     siteId        : attr('data-site-id'),
@@ -362,7 +369,8 @@
       consentId     : newConsentId(),
       policyVersion : cfg.policyVersion,
       timestamp     : now,
-      expiresAt     : new Date(now + 365 * 24 * 60 * 60 * 1000).toISOString()
+      // A necessary-only choice is asked again sooner than an accepted one; never on every visit.
+      expiresAt     : new Date(now + (ALL_CATEGORIES.some(function (key) { return types[key]; }) ? 365 : cfg.rejectDays) * 24 * 60 * 60 * 1000).toISOString()
     };
     // localStorage only: no server code reads a consent cookie, so none is set.
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(payload)); } catch (e) {}

@@ -73,7 +73,7 @@ function bannerScript() {
   const values = [
     'https://api.test', 'site-1', 'tk_1',
     JSON.stringify({ show: 's', hide: 'h', nec: 'N', pref: 'P', stat: 'S', mark: 'M', cdate: 'd', cid: 'i', cats: 'c' }),
-    '1', '365', 'false',
+    '1', '365', '180', 'false',
   ];
   let i = 0;
   const js = php.slice(from + '<script>'.length, to).replace(/<\?php[\s\S]*?\?>/g, () => values[i++]);
@@ -128,6 +128,18 @@ test('pre-5.4.0 consent without expiresAt is backfilled without re-prompting', (
   assert.ok(trackerAccepts(c), 'legacy consent should be accepted after backfill');
   assert.equal(Date.parse(c.expiresAt), timestamp + 365 * DAY);
   assert.notEqual(b.el('cq-overlay').style.display, 'flex', 'banner must not re-prompt');
+});
+
+test('necessary-only is kept 180 days, then the banner asks again', () => {
+  const b = runBanner(null);
+  b.el('cq-reject').onclick();
+  const c = b.saved();
+  assert.equal(c.analytics, false);
+  assert.ok(Math.abs(Date.parse(c.expiresAt) - (c.timestamp + 180 * DAY)) < 1000);
+  const recent = runBanner({ ...c, timestamp: Date.now() - 170 * DAY });
+  assert.notEqual(recent.el('cq-overlay').style.display, 'flex', 'must not re-prompt within 180 days');
+  const old = runBanner({ ...c, timestamp: Date.now() - 190 * DAY });
+  assert.equal(old.el('cq-overlay').style.display, 'flex', 'asks again after 180 days');
 });
 
 test('expired or other-policy legacy consent is not backfilled', () => {

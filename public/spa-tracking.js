@@ -1370,6 +1370,7 @@
       try {
         sessionStorage.removeItem('cortiq_session_id');
         sessionStorage.removeItem(SESSION_EXPIRES_KEY);
+        sessionStorage.removeItem('_ciq_adp'); // bot-probe page counter
       } catch (_) { /* Storage or browser capability unavailable. */ }
       stopSecurityLayer();
       return;

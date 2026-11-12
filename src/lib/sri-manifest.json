@@ -11,8 +11,8 @@
     "5.5.14": {
       "securityFix": false,
       "files": {
-        "cortiq.js": "sha384-mXJcmeckInKbPiZ6Y7+ogdI8p1LmDXCpDy2UD2okMZc8GeVoTT95PSb3Qp1ssV2n",
-        "consent-banner.js": "sha384-mOuIhCRdKpu/do6St0RuyD+x83EbOaI2pgWgWQtCf892w+mPzK2Wru+WVseNAPqU"
+        "cortiq.js": "sha384-y4y4XBb9pn3VYZavtnyDTwibEDzqHANTfcwWHIwlT27Ovco8rm1Yd8/xmWxLp5to",
+        "consent-banner.js": "sha384-GSIAtZ2qcSnLQOngYax7JbC8x/fsChkMIKV+p9Zud6O0QdWj/Qwfafx12tc9OAEt"
       }
     }
   }

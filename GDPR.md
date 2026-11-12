@@ -16,7 +16,7 @@ CortIQ separates server-side agent measurement from everything that runs in the 
 | **Visitor analytics — Full mode** | Only after analytics consent | Session ID (sessionStorage) + persistent visitor ID for returning-visitor recognition | Consent (Art. 6.1.a GDPR / ePrivacy Art. 5.3) |
 | **Marketing click IDs** (gclid, fbclid, …) | Only after marketing consent | Session storage | Consent (Art. 6.1.a GDPR) |
 
-Consent is stored with an expiry and is valid for 12 months; after that the banner is shown again. Closing the banner without a choice saves "necessary only".
+Consent is stored with an expiry: an accepted choice is valid for 12 months, a necessary-only choice for 180 days by default (setting, 1–400 days); after that the banner is shown again, never on every visit. Closing the banner without a choice saves "necessary only".
 
 ---
 
