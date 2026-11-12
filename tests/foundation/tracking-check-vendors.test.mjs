@@ -38,6 +38,15 @@ test('classifies request URLs, including gtag by ID prefix', () => {
     'https://js.zi-scripts.com/zi-tag.js': 'zoominfo',
     'https://ws.zoominfo.com/pixel/abc': 'zoominfo',
     'https://static.claydar.com/init.v1.js?id=cxOZuQoVl3': 'claydar',
+    'https://tags.clickagy.com/data.js?rnd=1': 'zoominfo',
+    'https://aorta.clickagy.com/pixel.gif': 'zoominfo',
+    'https://edge.marker.io/latest/shim.js': 'marker-io',
+    'https://api.marker.io/widget/ping': 'marker-io',
+    'https://static.hsappstatic.net/ui-forms-embed-components-app/static-1.7011/bundles/project.js': 'hubspot-forms',
+    'https://static.hsappstatic.net/conversations-visitor-ui/static/bundle.js': null,
+    'https://google.com/recaptcha/enterprise.js': 'recaptcha',
+    'https://www.googletagmanager.com/a?id=GTM-ABC123&v=3': 'gtm',
+    'https://csp.withgoogle.com/csp/frame-ancestors/38fac9d5': 'google-csp-reports',
     'https://tags.inzynk.io/bpedxeoi/iztag.js': 'inzynk',
     'https://js.chilipiper.com/marketing.js': 'chilipiper',
     'https://launcher.1mind.com/deployment-n8bthh9zt8': '1mind',
@@ -84,7 +93,7 @@ test('vendor kinds: CMPs and infrastructure are marked in the registry', () => {
   for (const v of TRACKING_VENDORS) assert.ok([undefined, 'tag', 'cmp', 'infrastructure'].includes(v.kind), v.id);
   const ids = (kind) => TRACKING_VENDORS.filter((v) => v.kind === kind).map((v) => v.id).sort();
   assert.deepEqual(ids('cmp'), ['complianz', 'cookiebot', 'cookieyes', 'dynamicweb', 'onetrust']);
-  assert.deepEqual(ids('infrastructure'), ['akamai', 'cloudflare', 'google-fonts', 'public-cdn', 'recaptcha']);
+  assert.deepEqual(ids('infrastructure'), ['akamai', 'cloudflare', 'google-csp-reports', 'google-fonts', 'public-cdn', 'recaptcha']);
 });
 
 test('Cloudflare Turnstile on a challenges subdomain is infrastructure, not an unknown third party', () => {

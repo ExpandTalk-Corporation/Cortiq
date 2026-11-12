@@ -37,7 +37,8 @@ function embedNote(what: string, company: string): string {
 export const TRACKING_VENDORS: Vendor[] = [
   {
     id: 'gtm', name: 'Google Tag Manager', category: 'necessary', googleTag: true,
-    requests: [{ host: /^www\.googletagmanager\.com$/, path: /^\/gtm\.js/ }],
+    // /a: the Google tag's diagnostics beacon (seen 2026-11-12 on xensam.com).
+    requests: [{ host: /^www\.googletagmanager\.com$/, path: /^\/gtm\.js/ }, { host: /^www\.googletagmanager\.com$/, path: /^\/a$/ }],
     cookies: [], idFrom: param('id', 'GTM-'),
     csp: { 'script-src': ['*.googletagmanager.com'], 'img-src': ['*.googletagmanager.com'], 'connect-src': ['*.googletagmanager.com'] },
     impact: 'Tags managed in GTM (for example GA4, Google Ads and Meta) do not run.',
@@ -122,7 +123,11 @@ export const TRACKING_VENDORS: Vendor[] = [
   },
   {
     id: 'hubspot-forms', name: 'HubSpot forms', category: 'necessary', googleTag: false,
-    requests: [{ host: /^(js(-eu1)?\.hsforms\.net|(forms|perf)(-[a-z]+\d+)?\.hsforms\.com|forms(-eu1)?\.hubspot\.com)$/ }],
+    // static.hsappstatic.net/ui-forms-*: the embed bundle of the current forms editor (seen 2026-11-12 on xensam.com).
+    requests: [
+      { host: /^(js(-eu1)?\.hsforms\.net|(forms|perf)(-[a-z]+\d+)?\.hsforms\.com|forms(-eu1)?\.hubspot\.com)$/ },
+      { host: /^static\.hsappstatic\.net$/, path: /^\/ui-forms-/ },
+    ],
     cookies: [],
     csp: { 'script-src': ['js.hsforms.net'], 'connect-src': ['forms.hsforms.com', 'forms.hubspot.com'], 'frame-src': ['forms.hsforms.com'], 'img-src': ['forms.hsforms.com'] },
     impact: 'HubSpot forms do not render or cannot be submitted.',
@@ -283,9 +288,10 @@ export const TRACKING_VENDORS: Vendor[] = [
   },
   {
     id: 'zoominfo', name: 'ZoomInfo WebSights', category: 'marketing', googleTag: false,
-    requests: [{ host: /(^|\.)zi-scripts\.com$|(^|\.)zoominfo\.com$/ }],
+    // Clickagy is ZoomInfo's intent data service; zi-tag.js loads it (seen 2026-11-12 on xensam.com).
+    requests: [{ host: /(^|\.)zi-scripts\.com$|(^|\.)zoominfo\.com$|(^|\.)clickagy\.com$/ }],
     cookies: [/^_zitok$/],
-    csp: { 'script-src': ['js.zi-scripts.com', 'ws-assets.zoominfo.com'], 'connect-src': ['*.zoominfo.com', '*.zi-scripts.com'] },
+    csp: { 'script-src': ['js.zi-scripts.com', 'ws-assets.zoominfo.com', 'tags.clickagy.com'], 'connect-src': ['*.zoominfo.com', '*.zi-scripts.com', '*.clickagy.com'] },
     impact: 'ZoomInfo cannot identify visiting companies.',
   },
   {
@@ -318,6 +324,14 @@ export const TRACKING_VENDORS: Vendor[] = [
     csp: { 'script-src': ['launcher.1mind.com'], 'connect-src': ['*.1mind.com'], 'frame-src': ['*.1mind.com'] },
     impact: 'The 1mind AI assistant does not appear.',
     verify: 'An AI sales assistant is functional when a visitor talks to it, but it processes what visitors type and may identify or track them before anyone uses it.',
+  },
+  {
+    id: 'marker-io', name: 'Marker.io feedback widget', category: 'preferences', googleTag: false,
+    requests: [{ host: /(^|\.)marker\.io$/ }],
+    cookies: [],
+    csp: { 'script-src': ['edge.marker.io'], 'connect-src': ['*.marker.io'], 'frame-src': ['*.marker.io'] },
+    impact: 'The feedback and bug report button does not appear.',
+    verify: 'A feedback widget is functional when someone reports a problem, but loaded for every visitor it contacts Marker.io on each page view, and some setups record the session or console. It is usually meant for the site\'s own team and can be limited to them.',
   },
   {
     id: 'ip-lookup', name: 'IP address lookup (ipify and similar)', category: 'preferences', googleTag: false,
@@ -464,10 +478,18 @@ export const TRACKING_VENDORS: Vendor[] = [
   },
   {
     id: 'recaptcha', kind: 'infrastructure', name: 'Google reCAPTCHA', category: 'necessary', googleTag: false,
-    requests: [{ host: /^www\.(google|gstatic)\.com$/, path: /^\/recaptcha\// }], cookies: [/^_GRECAPTCHA$/],
+    // Also served from google.com without www (seen 2026-11-12 on xensam.com). rc::a–rc::f: the challenge's own
+    // storage in its frame.
+    requests: [{ host: /^(www\.)?(google|gstatic)\.com$/, path: /^\/recaptcha\// }], cookies: [/^_GRECAPTCHA$/, /^rc::[a-f]/],
     // Google's documented reCAPTCHA CSP: the script loads from both hosts and the challenge runs in an iframe.
     csp: { 'script-src': ['www.google.com', 'www.gstatic.com'], 'frame-src': ['www.google.com', 'recaptcha.google.com'] },
     impact: 'Forms protected by reCAPTCHA cannot be submitted.',
+  },
+  {
+    // Google's own frames (such as the reCAPTCHA challenge) report CSP violations of their own pages here.
+    id: 'google-csp-reports', kind: 'infrastructure', name: 'Google CSP reports', category: 'necessary', googleTag: false,
+    requests: [{ host: /^csp\.withgoogle\.com$/, path: /^\/csp\// }], cookies: [], csp: {},
+    impact: 'Google does not receive reports about its own embedded frames. Nothing on the site changes.',
   },
   {
     // Cloudflare Web Analytics (cloudflareinsights.com) is an analytics vendor above, not infrastructure.
