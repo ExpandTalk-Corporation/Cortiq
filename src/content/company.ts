@@ -1,4 +1,5 @@
 import type { ContentPageData } from './types';
+import sriManifest from '../lib/sri-manifest.json' with { type: 'json' };
 
 // Company and trust pages. Facts verified against the code, the live site and the
 // Supabase project on 2026-10-03; subprocessor list re-checked against DPA.md on 2026-10-14. Update the page in the same commit as the change.
@@ -92,6 +93,13 @@ export const SECURITY: ContentPageData = {
       ],
     },
     {
+      id: 'script-integrity',
+      heading: 'Tracking script integrity',
+      blocks: [
+        { type: 'p', text: 'The standard snippet loads `cortiq.js` from cortiq.se and always gets the latest version. If you want the browser to run only a file you have checked, you can [pin a version with Subresource Integrity](/security/sri/) instead. The WordPress plugin and the server-side adapters do not load the script from cortiq.se at all.' },
+      ],
+    },
+    {
       id: 'certifications',
       heading: 'Certifications',
       blocks: [
@@ -111,6 +119,147 @@ export const SECURITY: ContentPageData = {
     { label: 'Privacy policy', path: '/privacy/' },
     { label: 'Cookies', path: '/cookies/' },
     { label: 'Terms of Service', path: '/terms/' },
+  ],
+};
+
+// Every version, hash and URL below comes from src/lib/sri-manifest.json, so the page cannot
+// drift from the pinned files. Facts verified against scripts/pin-tracker.mjs, snippetTemplate.ts,
+// TrackingSnippetSetup.tsx and public/v/.htaccess on 2026-11-11.
+const SRI_VERSION = sriManifest.latest;
+const SRI_FILES: Record<string, string> = (sriManifest.versions as Record<string, { files: Record<string, string> }>)[SRI_VERSION].files;
+const SRI_BASE = `https://cortiq.se/v/${SRI_VERSION}`;
+
+export const SECURITY_SRI: ContentPageData = {
+  path: '/security/sri/',
+  breadcrumb: [{ label: 'Security', path: '/security/' }, { label: 'Subresource Integrity', path: '/security/sri/' }],
+  eyebrow: 'Trust',
+  h1: 'Pinned installs with Subresource Integrity',
+  lead: 'An optional install where your site loads one fixed version of the CortIQ tracking script, and the browser refuses to run it if the file differs by a single byte from the version you installed.',
+  sections: [
+    {
+      id: 'why',
+      heading: 'Why it matters',
+      blocks: [
+        { type: 'p', text: 'A script tag that loads a file from another domain runs that file with the same access as your own code: it can read the page, forms included. With the standard snippet, whoever controls the file on cortiq.se controls what runs on your site. That is how the snippet gets updates without you doing anything, and it is also the risk if cortiq.se were ever compromised.' },
+        { type: 'p', text: 'Subresource Integrity (SRI) is a browser standard that closes that gap. The script tag carries a cryptographic hash of the expected file. The browser downloads the file, computes its hash and runs it only if the two match. All current browsers support it.' },
+      ],
+    },
+    {
+      // Checked against the primary reports (Sekoia, Sansec) on 2026-11-11, not secondary coverage.
+      id: 'incidents',
+      heading: 'Recent incidents',
+      blocks: [
+        {
+          type: 'list',
+          items: [
+            '**Plerdy, August–September 2026.** Between 27 August and 3 September, attackers that Sekoia links to APT29 with moderate to high confidence injected code into the Plerdy analytics tracker on Plerdy\'s own server. Thousands of websites that loaded it, most of them Ukrainian, sent their visitors a fingerprinting script that served exploits to unpatched iPhones and Android phones. Fully updated devices were not affected. ([Sekoia](https://www.sekoia.com/blog/poisoned-source-apt29-watering-holes-targets-mobile-devices-with-n-day-exploits))',
+            '**Convertr, October 2026.** A card skimmer was added to the self-hosted Plausible tracker of the Brazilian e-commerce platform Convertr, which every merchant checkout loaded. From 24 October it sent card numbers, CVV codes and taxpayer IDs to the attackers. ([Sansec](https://sansec.io/research/convertr-plausible-supply-chain-attack))',
+          ],
+        },
+        { type: 'p', text: 'In both cases, websites loaded the tracker from a URL whose content the attacker could replace. Had a page carried an integrity hash of the original file, the browser would have refused the changed one. CortIQ\'s standard snippet also loads a URL whose content can change; a pinned install removes that.' },
+      ],
+    },
+    {
+      id: 'how',
+      heading: 'How CortIQ implements it',
+      blocks: [
+        {
+          type: 'list',
+          items: [
+            `**Fixed versions.** Every release of the tracking script and the consent banner is published under its own path, for example \`${SRI_BASE}/cortiq.js\`. A published version is never changed or removed: the build fails if the file for an already published version changes, and each version's files are committed to the [public repository](${REPO}/tree/main/public/v).`,
+            `**SHA-384 hashes.** The hashes are kept in [sri-manifest.json](${REPO}/blob/main/src/lib/sri-manifest.json), and every build checks each hash against its file.`,
+            '**CORS headers.** Files under `/v/` are sent with `Access-Control-Allow-Origin: *`, which the browser requires before it checks the hash of a file from another domain. The snippet loads them with `crossorigin="anonymous"`, so no cookies are sent.',
+            '**Turned on in the dashboard.** Under **Install tracking**, tick **Pin version … with Subresource Integrity (SRI)**. The snippet then points at the fixed version with its hash. This works with your own consent banner and with the CortIQ banner; the banner file is pinned too.',
+          ],
+        },
+        { type: 'p', text: 'The tracking script itself is loaded only after analytics consent, so the snippet sets the hash on the script element it creates:' },
+        {
+          type: 'code',
+          lang: 'js',
+          code: `s.src = '${SRI_BASE}/cortiq.js';
+s.integrity = '${SRI_FILES['cortiq.js']}';
+s.crossOrigin = 'anonymous';`,
+        },
+        { type: 'p', text: 'With the CortIQ consent banner, its script tag gets the same two attributes:' },
+        {
+          type: 'code',
+          lang: 'html',
+          code: `<script src="${SRI_BASE}/consent-banner.js"
+  integrity="${SRI_FILES['consent-banner.js']}" crossorigin="anonymous"
+  defer></script>`,
+        },
+        { type: 'note', tone: 'info', text: `These are the values for version ${SRI_VERSION}, the latest. Copy the full snippet from the dashboard rather than from this page: it also contains your Site ID and tracking key.` },
+      ],
+    },
+    {
+      id: 'trade-off',
+      heading: 'The trade-off: no automatic updates',
+      blocks: [
+        { type: 'p', text: 'A pinned site keeps running the version it was installed with. New features and fixes reach it only when you copy a new snippet from the dashboard and replace the old one.' },
+        {
+          type: 'list',
+          items: [
+            'When you copy a pinned snippet, the dashboard records which version the site uses.',
+            'If a newer version fixes a security issue, **Install tracking** shows a warning for that site, naming the version with the fix. Other new versions are shown as a short note.',
+            'We do not yet notify you by email. Check **Install tracking** or the [changelog](/changelog/) when you update your site.',
+          ],
+        },
+        { type: 'p', text: 'If the hash does not match, or the CORS header is missing, the browser blocks the file and logs an error in the console. Tracking then stops on that page. That is the intended behaviour: a missing page view is better than running a file you did not install.' },
+      ],
+    },
+    {
+      id: 'verify',
+      heading: 'Check the hash yourself',
+      blocks: [
+        { type: 'p', text: 'You do not have to trust the hash we give you. Download the file and compute its hash:' },
+        {
+          type: 'code',
+          lang: 'bash',
+          code: `curl -s ${SRI_BASE}/cortiq.js | openssl dgst -sha384 -binary | openssl base64 -A`,
+        },
+        { type: 'p', text: 'Prefix the output with `sha384-` and compare it with the `integrity` value in your snippet. You can also compare the downloaded file with the copy in the public repository, and read the [source code](' + REPO + '/blob/main/public/spa-tracking.js) it is built from.' },
+        { type: 'p', text: 'To check that the CORS header is sent:' },
+        {
+          type: 'code',
+          lang: 'bash',
+          code: `curl -sI ${SRI_BASE}/cortiq.js | grep -i access-control-allow-origin`,
+        },
+      ],
+    },
+    {
+      id: 'limits',
+      heading: 'What SRI does not cover',
+      blocks: [
+        {
+          type: 'list',
+          items: [
+            '**The snippet itself.** SRI checks the file the snippet loads, not the snippet. If the snippet were altered before you copied it, the hash in it would be wrong too. Check the hash as above before you install.',
+            '**Data sent to CortIQ.** SRI protects your visitors from a changed script. How the data is stored and protected afterwards is described on the [security page](/security/).',
+            '**Your dashboard account.** Anyone with access to your account can change site settings. Use a strong, unique password.',
+            '**Other scripts on your site.** SRI applies per script tag. Each third-party script you load needs its own `integrity` attribute.',
+          ],
+        },
+      ],
+    },
+    {
+      id: 'other-installs',
+      heading: 'Installs that load nothing from cortiq.se',
+      blocks: [
+        {
+          type: 'list',
+          items: [
+            '**WordPress plugin.** The plugin serves `cortiq.js` from your own WordPress site and renders its consent banner from the plugin itself. Since version 5.5.13 it no longer falls back to cortiq.se if the bundled file is missing. The code changes only when you update the plugin.',
+            '**Server-side adapters.** The [server-side adapters](/integrations/server-side/) and the [Cloudflare Worker](/integrations/cloudflare/) run on your own server or Cloudflare account and send requests to the CortIQ API. They add no script to your pages.',
+            '**Aggregate measurement without a banner.** The snippet for this mode contains the whole counting script inline, so nothing is loaded from cortiq.se.',
+          ],
+        },
+      ],
+    },
+  ],
+  related: [
+    { label: 'Security and data protection', path: '/security/' },
+    { label: 'Getting started', path: '/docs/' },
+    { label: 'WordPress plugin', path: '/integrations/wordpress/' },
   ],
 };
 
@@ -240,6 +389,7 @@ export const CHANGELOG: ContentPageData = {
         {
           type: 'list',
           items: [
+            '**Pinned installs with Subresource Integrity (5.5.13).** An optional snippet loads a fixed version of the tracking script with a SHA-384 hash, so the browser refuses a changed file. The dashboard warns when a newer version fixes a security issue. The WordPress plugin no longer falls back to cortiq.se. [How it works](/security/sri/).',
             '**Consent banner in the install snippet.** The snippet can include the CortIQ consent banner, with Google Consent Mode v2 as an option. You choose cookieless or full mode; marketing consent is offered only in full mode.',
             '**Safari and iPhone visitors were logged as AI bots** by the in-browser checks. Fixed in 5.5.8, and the wrongly logged visits were deleted.',
             '**Tracking Check (private preview)** tests what a site loads before and after the cookie banner. Findings explain the cause and the fix, and the report can be exported as CSV or Excel.',
@@ -338,4 +488,4 @@ export const CHANGELOG: ContentPageData = {
   ],
 };
 
-export const COMPANY_PAGES: ContentPageData[] = [SECURITY, COOKIES, ABOUT, CHANGELOG];
+export const COMPANY_PAGES: ContentPageData[] = [SECURITY, SECURITY_SRI, COOKIES, ABOUT, CHANGELOG];

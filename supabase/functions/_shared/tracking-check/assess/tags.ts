@@ -239,3 +239,162 @@ export function assessForms({ mode, target, baseline }: AssessInput): Finding[] 
     evidence: { pages: missing.flatMap((m) => [...m.pages]), details: missing.map((m) => `${label(m.hit)} (on ${pageList(m.pages)})`) },
   })];
 }
+
+// GTM Custom HTML listener for HubSpot form submissions. ES5, since it runs as-is in the page.
+const HS_PUSH = `  function push(formId, email) {
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({ event: 'hubspot_form_submit', hs_form_id: formId || '', hs_email: email || undefined });
+    window.dataLayer.push({ hs_email: undefined }); // do not keep the email in the dataLayer
+  }`;
+const HS_LEGACY_LISTENER = `  // Legacy embed (hbspt.forms.create): HubSpot posts hsFormCallback messages to the page.
+  var emails = {};
+  window.addEventListener('message', function (e) {
+    var d = e.data;
+    if (!d || d.type !== 'hsFormCallback') return;
+    if ((d.eventName === 'onBeforeFormSubmit' || d.eventName === 'onFormSubmit') && Array.isArray(d.data)) {
+      for (var i = 0; i < d.data.length; i++) if (d.data[i].name === 'email') emails[d.id] = d.data[i].value;
+    }
+    if (d.eventName === 'onFormSubmitted') {
+      var values = d.data && d.data.submissionValues;
+      push(d.id, (values && values.email) || emails[d.id]);
+    }
+  });`;
+const HS_V4_LISTENER = `  // New embed (hs-form-frame): HubSpot dispatches events on the page window.
+  window.addEventListener('hs-form-event:on-submission:success', function (e) {
+    var formId = e.detail && e.detail.formId;
+    var form = window.HubSpotFormsV4 && window.HubSpotFormsV4.getFormFromEvent(e);
+    if (!form) return push(formId);
+    Promise.resolve(form.getFormFieldValues()).then(function (fields) {
+      var email;
+      for (var i = 0; i < (fields || []).length; i++) if (/(^|\\/)email$/.test(fields[i].name)) email = fields[i].value;
+      push(formId, email);
+    }, function () { push(formId); });
+  });`;
+
+/** The paste-ready GTM tag for the embed versions seen on the site. */
+export function hubSpotListenerTag(legacy: boolean, v4: boolean): string {
+  return ['<script>', '(function () {', HS_PUSH, legacy && HS_LEGACY_LISTENER, v4 && HS_V4_LISTENER, '})();', '</script>']
+    .filter(Boolean).join('\n');
+}
+
+/** HubSpot forms rendered in an iframe: tags on the page cannot see the submission or the email field. */
+export function assessHubSpotFormFrames({ target }: AssessInput): Finding[] {
+  const pages = testablePages(target).filter((p) => p.browser?.hubspotForms?.framed);
+  if (!pages.length) return [];
+  const v4 = pages.some((p) => p.browser!.hubspotForms!.v4);
+  // A bare hsforms iframe without other markers is the legacy embed.
+  const legacy = pages.some((p) => p.browser!.hubspotForms!.legacy || !p.browser!.hubspotForms!.v4);
+  const ads = attemptedVendors(target).has('google-ads');
+  const steps = [
+    'In GTM, add a Custom HTML tag with the code below. Trigger: All Pages (Initialization or Page View).',
+    'Variables: two Data Layer Variables, hs_form_id and hs_email.',
+    'Trigger: Custom Event, event name hubspot_form_submit.',
+    'GA4 Event tag on that trigger: event name generate_lead, parameter form_id = {{hs_form_id}}. Never send hs_email to GA4. Mark generate_lead as a key event in GA4.',
+    ...(ads ? [
+      'Google Ads Conversion Tracking tag on the same trigger. Tick "Include user-provided data from your website", create a User-Provided Data variable (Manual configuration) with Email = {{hs_email}}. Google hashes the email before sending. With Consent Mode the data is only sent when ad_user_data is granted.',
+      'In Google Ads: Goals → Settings → Enhanced conversions for web → on, method Google Tag Manager.',
+    ] : []),
+    'Test in GTM Preview: submit a test form and check that hubspot_form_submit appears and the tags fire.',
+  ];
+  return [finding({
+    scope: 'Forms', checkKey: 'forms.hubspot_iframe', status: 'manual', priority: 'medium',
+    title: 'HubSpot forms are in an iframe: check that submissions reach GA4 and Google Ads',
+    explanation: 'The form renders inside an iframe, so GA4 Enhanced measurement cannot record form_start or form_submit, '
+      + 'and the Google tag cannot pick up the email address for Enhanced conversions automatically. '
+      + 'HubSpot still receives the lead, but GA4 and Google Ads only count it if a tag listens for the submission.'
+      + (ads ? ' Google Ads is on the site: note that Enhanced measurement (GA4) and Enhanced conversions (Google Ads) are separate settings, and having one on does not cover the other.' : ''),
+    fix: steps.map((s, i) => `${i + 1}. ${s}`).join('\n')
+      + `\n\n${hubSpotListenerTag(legacy, v4)}\n\n`
+      + 'Alternatives: redirect to a thank-you page and count its page views, or import qualified HubSpot leads into Google Ads as offline conversions.',
+    typicalOwner: 'gtm',
+    evidence: {
+      pages: pages.map((p) => p.path),
+      details: [legacy && 'Legacy HubSpot embed (embed/v2.js, hs-form-iframe)', v4 && 'New HubSpot embed (hs-form-frame)'].filter(Boolean) as string[],
+    },
+  })];
+}
+
+type CspIssue = 'missing' | 'report_only' | 'script_src.missing' | 'script_src.wildcard' | 'script_src.unsafe_inline' | 'script_src.unsafe_eval';
+
+/** Script sources the policy enforces: script-src-elem, else script-src, else default-src; null when scripts are not restricted. */
+export function effectiveScriptSrc(csp: Record<string, string[]>): string[] | null {
+  return csp['script-src-elem'] ?? csp['script-src'] ?? csp['default-src'] ?? null;
+}
+
+/** Weaknesses in how a page's Content-Security-Policy restricts scripts. */
+export function cspIssues(csp: Record<string, string[]> | null, reportOnly: Record<string, string[]> | null | undefined): CspIssue[] {
+  if (!csp) return [reportOnly ? 'report_only' : 'missing'];
+  const src = effectiveScriptSrc(csp);
+  if (!src) return ['script_src.missing'];
+  const s = src.map((x) => x.toLowerCase());
+  const nonceOrHash = s.some((x) => /^'(nonce-|sha(256|384|512)-)/.test(x));
+  // With a nonce or hash, browsers ignore 'unsafe-inline'; with 'strict-dynamic' as well, they also ignore host and scheme sources.
+  const strict = nonceOrHash && s.includes("'strict-dynamic'");
+  const out: CspIssue[] = [];
+  if (!strict && s.some((x) => ['*', 'http:', 'https:', 'data:'].includes(x))) out.push('script_src.wildcard');
+  if (!nonceOrHash && s.includes("'unsafe-inline'")) out.push('script_src.unsafe_inline');
+  if (s.includes("'unsafe-eval'")) out.push('script_src.unsafe_eval');
+  return out;
+}
+
+const NONCE_FIX = "Use a nonce or hash with 'strict-dynamic' in script-src: inline scripts and the scripts they load then need the server-generated nonce, and other scripts are refused. Google Tag Manager documents a nonce-aware snippet for this.";
+
+const CSP_ISSUE_TEXT: Record<CspIssue, { title: string; explanation: string; fix: string }> = {
+  missing: {
+    title: 'The site sends no Content-Security-Policy',
+    explanation: 'Without a Content-Security-Policy the browser runs scripts from any domain and lets them send data anywhere. If a third-party script is replaced or a script is injected, nothing in the browser limits it.',
+    fix: `Add a Content-Security-Policy header that lists the domains scripts may load from (script-src) and send data to (connect-src). Start with Content-Security-Policy-Report-Only to see what would be blocked. ${NONCE_FIX}`,
+  },
+  report_only: {
+    title: 'The Content-Security-Policy only reports, it does not block',
+    explanation: 'The site sends Content-Security-Policy-Report-Only. Violations are reported, but the browser still runs every script.',
+    fix: 'When the reports show no unexpected violations, send the same policy as Content-Security-Policy.',
+  },
+  'script_src.missing': {
+    title: 'The Content-Security-Policy does not restrict scripts',
+    explanation: 'The policy has no script-src or default-src, so scripts from any domain may run. Policies that only set frame-ancestors or upgrade-insecure-requests often look like this.',
+    fix: `Add script-src with the domains your scripts load from, and connect-src for where they send data. ${NONCE_FIX}`,
+  },
+  'script_src.wildcard': {
+    title: 'The Content-Security-Policy allows scripts from any domain',
+    explanation: "script-src contains *, http:, https: or data:, so a script from any domain is allowed. This also covers a script an attacker injects.",
+    fix: `Replace the wildcard with the domains your scripts load from. ${NONCE_FIX}`,
+  },
+  'script_src.unsafe_inline': {
+    title: "The Content-Security-Policy allows inline scripts ('unsafe-inline')",
+    explanation: "With 'unsafe-inline' and no nonce or hash, any inline script runs, including one injected into the page. The policy still limits which domains scripts load from.",
+    fix: NONCE_FIX,
+  },
+  'script_src.unsafe_eval': {
+    title: "The Content-Security-Policy allows eval ('unsafe-eval')",
+    explanation: "Scripts may turn text into code with eval() and similar functions. Some tag manager setups need it, such as Custom JavaScript variables in Google Tag Manager.",
+    fix: "Remove 'unsafe-eval' if no tag needs it. In Google Tag Manager, custom templates work without it; Custom JavaScript variables do not.",
+  },
+};
+
+/** How well the Content-Security-Policy of the tested site restricts scripts. Findings that something is blocked are in assessCsp. */
+export function assessCspPolicy({ target }: AssessInput): Finding[] {
+  const pages = testablePages(target).filter((p) => p.fetch && !p.fetch.error);
+  if (!pages.length) return [];
+  const byIssue = new Map<CspIssue, { pages: string[]; details: Set<string> }>();
+  for (const p of pages) {
+    const f = p.fetch!;
+    for (const issue of cspIssues(f.csp, f.cspReportOnly)) {
+      const e = byIssue.get(issue) ?? { pages: [], details: new Set<string>() };
+      e.pages.push(p.path);
+      const src = f.csp && effectiveScriptSrc(f.csp);
+      if (src) e.details.add(`script-src: ${src.join(' ')}`.slice(0, 300));
+      byIssue.set(issue, e);
+    }
+  }
+  if (!byIssue.size) return [finding({
+    scope: 'CSP', checkKey: 'csp.policy.ok', status: 'pass', priority: null,
+    title: 'The Content-Security-Policy restricts which scripts can run',
+    explanation: 'Every tested page has a policy that limits script sources, without wildcards or inline scripts allowed without a nonce or hash.',
+    fix: '', typicalOwner: null, evidence: { pages: pages.map((p) => p.path) },
+  })];
+  return [...byIssue].map(([issue, e]) => finding({
+    scope: 'CSP', checkKey: `csp.${issue}`, status: 'warning', priority: 'low',
+    ...CSP_ISSUE_TEXT[issue], typicalOwner: 'developer', evidence: { pages: e.pages, details: [...e.details].slice(0, 5) },
+  }));
+}

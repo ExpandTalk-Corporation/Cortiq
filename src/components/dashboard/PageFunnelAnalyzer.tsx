@@ -2,7 +2,7 @@
 // Funnel for one page: visits → form interaction → submission, plus phone/email clicks.
 // Follows the global date range. The URL filter limits which pages can be picked; the segment
 // filter does not apply because heatmap clicks are not linked to a visit (see FILTER_NOTES).
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { PageSelector } from '@/components/dashboard/PageSelector';
@@ -53,6 +53,8 @@ export function PageFunnelAnalyzer({ siteId }: PageFunnelAnalyzerProps) {
   const [availablePages, setAvailablePages] = useState<{ url: string; detail: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  // Only the latest funnel request may set state; switching page or range drops older answers.
+  const loadId = useRef(0);
 
   useEffect(() => {
     if (siteId && p_from && p_to) {
@@ -97,14 +99,16 @@ export function PageFunnelAnalyzer({ siteId }: PageFunnelAnalyzerProps) {
 
   const loadFunnelData = async () => {
     if (!selectedUrl) return;
-    
+    const id = ++loadId.current;
+    const stale = () => id !== loadId.current;
+
     setIsLoading(true);
     try {
       // Counted in the database (get_page_funnel) for the global date range.
       const { data, error } = await (supabase as any).rpc('get_page_funnel', {
         p_site_id: siteId, p_url: selectedUrl, p_from, p_to,
       });
-
+      if (stale()) return;
       if (error) throw error;
 
       const pageVisits = Number(data?.page_visits ?? 0);
@@ -129,6 +133,7 @@ export function PageFunnelAnalyzer({ siteId }: PageFunnelAnalyzerProps) {
       });
 
     } catch (error) {
+      if (stale()) return;
       console.error('Error loading funnel data:', error);
       toast({
         title: "Error",
@@ -136,7 +141,7 @@ export function PageFunnelAnalyzer({ siteId }: PageFunnelAnalyzerProps) {
         variant: "destructive"
       });
     } finally {
-      setIsLoading(false);
+      if (!stale()) setIsLoading(false);
     }
   };
 

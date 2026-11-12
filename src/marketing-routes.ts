@@ -295,6 +295,15 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
     footer: { group: 'company', label: 'Security' },
   },
   {
+    path: '/security/sri/',
+    title: 'Subresource Integrity for the Tracking Script — CortIQ',
+    description: 'Pin the CortIQ tracking script to a fixed version with a SHA-384 hash, so browsers refuse a changed file. How it works, the trade-off and how to verify it.',
+    published: '2026-11-11',
+    changefreq: 'monthly',
+    priority: 0.5,
+    source: 'src/content/company.ts',
+  },
+  {
     path: '/cookies/',
     title: 'Cookie Policy: What CortIQ Stores in Your Browser',
     description: 'Everything cortiq.se and the CortIQ tracking script store in the browser: one consent cookie on cortiq.se, and no cookies from the tracking script.',

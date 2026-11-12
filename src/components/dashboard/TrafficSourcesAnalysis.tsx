@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -243,8 +243,13 @@ export function TrafficSourcesAnalysis({ siteId, startDate, endDate, selectedSit
   const filterKey = JSON.stringify([p_path, p_segment]);
 
   const SOURCES_PER_PAGE = 10;
+  // Each load gets a number; a response for an older load (previous site or range) is dropped,
+  // so switching site never shows the last site's figures.
+  const loadId = useRef(0);
 
   const loadTrafficSources = async () => {
+    const id = ++loadId.current;
+    const stale = () => id !== loadId.current;
     setIsLoading(true);
     try {
       // Check if site has GA Property ID configured
@@ -253,12 +258,13 @@ export function TrafficSourcesAnalysis({ siteId, startDate, endDate, selectedSit
         .select('ga_property_id, site_name')
         .eq('id', siteId)
         .single();
+      if (stale()) return;
 
       // Without GA4 the first-party tracking data is the source, not an empty card.
       if (!site?.ga_property_id || filtered) {
         setHasGAIntegration(!!site?.ga_property_id);
         setUsingFallback(true);
-        await loadTrackingData();
+        await loadTrackingData(stale);
         return;
       }
 
@@ -272,6 +278,7 @@ export function TrafficSourcesAnalysis({ siteId, startDate, endDate, selectedSit
           endDate: endDate ? new Date(endDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
         }
       });
+      if (stale()) return;
 
       if (gaError || gaData?.error) {
         console.error('GA API error:', gaError || gaData?.error);
@@ -286,7 +293,7 @@ export function TrafficSourcesAnalysis({ siteId, startDate, endDate, selectedSit
             : 'Showing internal tracking data instead.',
           variant: 'destructive',
         });
-        await loadTrackingData();
+        await loadTrackingData(stale);
         return;
       }
 
@@ -320,23 +327,23 @@ export function TrafficSourcesAnalysis({ siteId, startDate, endDate, selectedSit
       } else {
         console.log('GA4 returned no traffic sources, falling back to tracking data. GA data:', gaData);
         // Fallback to tracking data if no sources returned
-        await loadTrackingData();
+        await loadTrackingData(stale);
         return;
       }
 
       // If GA4 API fails, fallback to tracking data
-      await loadTrackingData();
+      await loadTrackingData(stale);
 
     } catch (error) {
       console.error('Error loading traffic sources:', error);
       // Fallback to tracking data
-      await loadTrackingData();
+      await loadTrackingData(stale);
     } finally {
-      setIsLoading(false);
+      if (!stale()) setIsLoading(false);
     }
   };
 
-  const loadTrackingData = async () => {
+  const loadTrackingData = async (stale: () => boolean) => {
     try {
       // First-party fallback, counted in the database (get_source_breakdown) so every session
       // in the range is included, not only the first 1,000 rows.
@@ -349,6 +356,7 @@ export function TrafficSourcesAnalysis({ siteId, startDate, endDate, selectedSit
         p_path,
         p_segment,
       });
+      if (stale()) return;
       if (error) throw error;
 
       const totalSessions = Number(data?.total_sessions ?? 0);
@@ -373,12 +381,13 @@ export function TrafficSourcesAnalysis({ siteId, startDate, endDate, selectedSit
       setTrafficSources(sources);
       setLastUpdated(new Date());
     } catch (error) {
+      if (stale()) return;
       toast({
         title: "Error",
         description: "Could not load traffic data. Check your GA integration."
       });
     } finally {
-      setIsLoading(false);
+      if (!stale()) setIsLoading(false);
     }
   };
 

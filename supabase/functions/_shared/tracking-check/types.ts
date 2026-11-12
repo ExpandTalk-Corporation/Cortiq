@@ -14,7 +14,10 @@ export interface FetchObservation {
   finalUrl: string;
   finalStatus: number;
   paramsLost: string[];              // tracking params sent but missing from the final URL
+  /** Enforced policy: the Content-Security-Policy header, else a <meta http-equiv> policy in the page. */
   csp: Record<string, string[]> | null;
+  /** Content-Security-Policy-Report-Only header. Absent in observations from before this field. */
+  cspReportOnly?: Record<string, string[]> | null;
   challenge: boolean;                // bot-protection challenge page
   error: string | null;
 }
@@ -57,11 +60,15 @@ export interface FormHit {
   method: 'hs_context' | 'data_form_id' | 'embed_script' | 'gravity_class';
 }
 
+export interface HubSpotFormEmbed { legacy: boolean; v4: boolean; framed: boolean }
+
 export interface BrowserObservation {
   url: string;
   cmp: string | null;
   states: StateObservation[];
   forms: FormHit[];
+  /** HubSpot form embed seen in the rendered page; null when none. Absent in older observations. */
+  hubspotForms?: HubSpotFormEmbed | null;
 }
 
 export interface PageObservation {

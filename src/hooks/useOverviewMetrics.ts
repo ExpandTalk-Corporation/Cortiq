@@ -5,7 +5,8 @@ import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
 import { useFilterParams } from '@/hooks/useFilterParams';
 
 export type PeriodTotals = { visits: number; pageViews: number; conversions: number;
-  ai: { total: number; training: number; agentic: number; citation: number } };
+  // unclassified: headless automation and hits no rule placed; not part of total (20261122000001).
+  ai: { total: number; training: number; agentic: number; citation: number; unclassified?: number } };
 export type OverviewMetrics = { current: PeriodTotals; previous: PeriodTotals;
   daily: { date: string; visits: number; pageViews: number; conversions: number; ai: number }[];
   lastPageViewAt: string | null; lastServerHitAt: string | null; serverHits: number };

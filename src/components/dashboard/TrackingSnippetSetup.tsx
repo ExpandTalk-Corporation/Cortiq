@@ -7,6 +7,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { supabase } from '@/integrations/supabase/client';
 import { POLICY_CHECKLIST_VERSION, policyChecklist, type TrackingMode } from '@/lib/policyChecklist';
 import { bannerDetailsProblem, buildTrackingSnippet, type ConsentSetup } from '@/lib/trackingSnippet';
+import { pinnedScripts, pinStatus, type SriManifest } from '@/lib/sriPin';
+import sriManifest from '@/lib/sri-manifest.json';
 import { toast } from 'sonner';
 
 interface TrackingSnippetSetupProps {
@@ -73,6 +75,9 @@ export function TrackingSnippetSetup({ siteId, trackingKey, aggregateMeasurement
   const [marketing, setMarketing] = useState(false);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [pinned, setPinned] = useState(false);
+  // sites.sri_pinned_version: the version of the last pinned snippet copied for this site.
+  const [pinnedVersion, setPinnedVersion] = useState<string | null>(null);
 
   // Prefill the banner's policy link and version from the site's GDPR settings, and the choices
   // from the latest policy confirmation, so a returning owner sees the snippet they confirmed.
@@ -83,6 +88,12 @@ export function TrackingSnippetSetup({ siteId, trackingKey, aggregateMeasurement
         if (cancelled || !data) return;
         if (data.privacy_policy_url) setPolicyUrl(url => url || data.privacy_policy_url!);
         if (data.policy_version) setPolicyVersion(data.policy_version);
+      });
+    supabase.from('sites').select('sri_pinned_version').eq('id', siteId).maybeSingle()
+      .then(({ data }) => {
+        if (cancelled || !data?.sri_pinned_version) return;
+        setPinnedVersion(data.sri_pinned_version);
+        setPinned(true);
       });
     supabase.from('policy_confirmations')
       .select('consent_setup, tracking_mode, marketing, policy_url, checklist_version, confirmed_at')
@@ -114,12 +125,16 @@ export function TrackingSnippetSetup({ siteId, trackingKey, aggregateMeasurement
   const bannerProblem = consentSetup === 'cortiq-banner' ? bannerDetailsProblem({ company, policyUrl }) : null;
   const gateProblem = bannerProblem
     ?? (withConsent && !confirmed ? 'Confirm that your privacy policy covers the items above to get the snippet.' : null);
+  const pin = pinnedScripts(scriptOrigin, sriManifest as SriManifest);
+  const usePin = pinned && withConsent;
+  const status = pinStatus(pinnedVersion, sriManifest as SriManifest);
   const snippet = gateProblem ? '' : buildTrackingSnippet({
     apiUrl: apiBase,
     siteId,
     trackingKey,
-    scriptSrc: `${scriptOrigin}/cortiq.js`,
-    bannerSrc: `${scriptOrigin}/consent-banner.js`,
+    ...(usePin
+      ? pin
+      : { scriptSrc: `${scriptOrigin}/cortiq.js`, bannerSrc: `${scriptOrigin}/consent-banner.js` }),
     aggregate: aggregateOn,
     consentSetup,
     company,
@@ -129,6 +144,21 @@ export function TrackingSnippetSetup({ siteId, trackingKey, aggregateMeasurement
     trackingMode: mode,
     marketing: useMarketing,
   });
+
+  // Remember which snippet the owner took, so the dashboard can warn a pinned site about fixes it
+  // does not get automatically. Never blocks the copy.
+  const copySnippet = async () => {
+    navigator.clipboard.writeText(snippet);
+    toast.success('Copied to clipboard!');
+    const version = usePin ? pin.version : null;
+    if (version === pinnedVersion) return;
+    const { error } = await supabase.from('sites').update({ sri_pinned_version: version }).eq('id', siteId);
+    if (error) {
+      console.error('Error saving pinned version:', error);
+      return;
+    }
+    setPinnedVersion(version);
+  };
 
   const enableAggregate = async () => {
     setSaving(true);
@@ -281,13 +311,42 @@ export function TrackingSnippetSetup({ siteId, trackingKey, aggregateMeasurement
         </div>
       )}
 
+      {status?.behind && (
+        status.securityFixes.length > 0 ? (
+          <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm">
+            <p className="font-medium">Security fix not installed</p>
+            <p className="text-xs">
+              {`This site's snippet is pinned to version ${pinnedVersion}. ${status.securityFixes.length > 1
+                ? `Versions ${status.securityFixes.join(', ')} fix`
+                : `Version ${status.securityFixes[0]} fixes`} a security issue in the tracker or banner.`}
+              {' '}Pinned sites do not update automatically: copy the snippet below and replace the old one on every page.
+            </p>
+          </div>
+        ) : (
+          <p className="rounded-md border p-3 text-xs text-muted-foreground">
+            This site's snippet is pinned to version {pinnedVersion}; {status.latest} is available. It stays on
+            {' '}{pinnedVersion} until you replace the snippet.
+          </p>
+        )
+      )}
+
+      {withConsent && (
+        <label htmlFor="snippet-pinned" className="flex items-start gap-3 cursor-pointer">
+          <Checkbox id="snippet-pinned" checked={pinned} onCheckedChange={v => setPinned(v === true)} className="mt-0.5" />
+          <span>
+            <span className="block text-sm font-medium">Pin version {pin.version} with Subresource Integrity (SRI)</span>
+            <span className="block text-xs text-muted-foreground">The browser checks a cryptographic hash of the
+              {consentSetup === 'cortiq-banner' ? ' tracker and banner' : ' tracker'} and refuses to run them if the file
+              on cortiq.se has been changed. Fixes and new features then reach the site only when you replace the
+              snippet; this page warns you when a newer version fixes a security issue.</span>
+          </span>
+        </label>
+      )}
+
       <div>
         <div className="flex items-center justify-between">
           <Label>Tracking snippet — paste before &lt;/body&gt; on every page</Label>
-          <Button variant="outline" size="sm" className="text-xs" disabled={!snippet} onClick={() => {
-            navigator.clipboard.writeText(snippet);
-            toast.success('Copied to clipboard!');
-          }}>Copy</Button>
+          <Button variant="outline" size="sm" className="text-xs" disabled={!snippet} onClick={copySnippet}>Copy</Button>
         </div>
         {gateProblem ? (
           <p className="mt-2 rounded-md border border-dashed p-4 text-sm text-muted-foreground">{gateProblem}</p>

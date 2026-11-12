@@ -6,7 +6,10 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.join(root, 'dist');
 const server = path.join(dist, 'server');
 
-for (const file of ['index.html', '.htaccess', 'cortiq.js', 'consent-banner.min.js', 'assets']) {
+// Pinned (SRI) installs need every version directory and its CORS header, not just the latest.
+const { versions } = JSON.parse(fs.readFileSync(path.join(root, 'src', 'lib', 'sri-manifest.json'), 'utf8'));
+const pinned = Object.entries(versions).flatMap(([v, { files }]) => Object.keys(files).map(f => `v/${v}/${f}`));
+for (const file of ['index.html', '.htaccess', 'cortiq.js', 'consent-banner.min.js', 'assets', 'v/.htaccess', ...pinned]) {
   if (!fs.existsSync(path.join(dist, file))) throw new Error(`Missing FTP artifact: ${file}`);
 }
 // Only remove the generated SSR bundle after prerendering succeeds.

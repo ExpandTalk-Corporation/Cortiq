@@ -5,11 +5,11 @@ import type { FindingRow } from '@/hooks/useTrackingCheck';
 export const TRACKING_CHECK_SAMPLE: { targetUrl: string; summary: ReportSummary; findings: FindingRow[] } = {
   "targetUrl": "https://www.example.com",
   "summary": {
-    "headline": "5 commitments are not met · 6 OK · 5 to test manually",
+    "headline": "5 commitments are not met · 6 OK · 1 to review · 5 to test manually",
     "counts": {
       "pass": 6,
       "fail": 5,
-      "warning": 0,
+      "warning": 1,
       "manual": 5,
       "untestable": 0
     },
@@ -29,6 +29,11 @@ export const TRACKING_CHECK_SAMPLE: { targetUrl: string; summary: ReportSummary;
         "status": "fail",
         "text": "Meta Pixel stores data on the device after \"Reject all\"",
         "checkKey": "consent.after_reject.meta"
+      },
+      {
+        "status": "warning",
+        "text": "The site sends no Content-Security-Policy",
+        "checkKey": "csp.missing"
       },
       {
         "status": "pass",
@@ -260,6 +265,25 @@ export const TRACKING_CHECK_SAMPLE: { targetUrl: string; summary: ReportSummary;
         "details": [
           "www.facebook.com: dl"
         ]
+      },
+      "verifiedAt": null
+    },
+    {
+      "scope": "CSP",
+      "checkKey": "csp.missing",
+      "status": "warning",
+      "priority": "low",
+      "title": "The site sends no Content-Security-Policy",
+      "explanation": "Without a Content-Security-Policy the browser runs scripts from any domain and lets them send data anywhere. If a third-party script is replaced or a script is injected, nothing in the browser limits it.",
+      "fix": "Add a Content-Security-Policy header that lists the domains scripts may load from (script-src) and send data to (connect-src). Start with Content-Security-Policy-Report-Only to see what would be blocked. Use a nonce or hash with 'strict-dynamic' in script-src: inline scripts and the scripts they load then need the server-generated nonce, and other scripts are refused. Google Tag Manager documents a nonce-aware snippet for this.",
+      "typicalOwner": "developer",
+      "evidence": {
+        "pages": [
+          "/",
+          "/podcast",
+          "/thanks?email=test@example.org"
+        ],
+        "details": []
       },
       "verifiedAt": null
     },

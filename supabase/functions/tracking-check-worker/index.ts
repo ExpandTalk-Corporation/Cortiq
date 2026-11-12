@@ -4,7 +4,7 @@ import { createClient } from '../_shared/supabase.ts';
 import { processBatch, type Probes } from '../_shared/tracking-check/worker-core.ts';
 import { fetchProbe } from '../_shared/tracking-check/fetch-probe.ts';
 import { runBrowserProbe } from '../_shared/tracking-check/browserless.ts';
-import { detectForms } from '../_shared/form-detection.ts';
+import { detectForms, detectHubSpotFormEmbed } from '../_shared/form-detection.ts';
 import { open } from '../_shared/tracking-check/secret-box.ts';
 import { kickWorker } from '../_shared/tracking-check/kick.ts';
 import { createStore } from './store.ts';
@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
         endpoint: Deno.env.get('BROWSERLESS_URL') ?? '',
         token: Deno.env.get('BROWSERLESS_API_KEY') ?? '', url, states, basicAuth: auth,
       });
-      return { ...obs, forms: detectForms(html) };
+      return { ...obs, forms: detectForms(html), hubspotForms: detectHubSpotFormEmbed(html) };
     },
     openAuth: async (ciphertext) => JSON.parse(await open(ciphertext, Deno.env.get('TRACKING_CHECK_AUTH_KEY')!)),
   };

@@ -31,6 +31,10 @@ export interface TrackingSnippetOptions {
   trackingMode?: 'cookieless' | 'full';
   /** Ask for marketing consent in the banner (click IDs, hashed email). Full mode only, ignored otherwise. */
   marketing?: boolean;
+  /** SRI hash of scriptSrc (a pinned /v/<version>/ file). The browser refuses the tracker if it changed. */
+  scriptIntegrity?: string;
+  /** SRI hash of bannerSrc, as scriptIntegrity. */
+  bannerIntegrity?: string;
 }
 
 /** Why the CortIQ banner snippet cannot be rendered yet, or null. No placeholder may reach a live site. */
@@ -51,6 +55,15 @@ function stripLineComments(source: string): string {
     .trim();
 }
 
+const SRI = /^sha(256|384|512)-[A-Za-z0-9+/]+={0,2}$/;
+
+/** The integrity hash, validated: a malformed one would block the script on every page. */
+function integrity(hash: string | undefined, what: string): string | null {
+  if (hash === undefined) return null;
+  if (!SRI.test(hash)) throw new Error(`Invalid SRI hash for ${what}`);
+  return hash;
+}
+
 const escapeAttr = (value: string) =>
   value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -62,7 +75,7 @@ export function renderTrackingSnippet(
   {
     apiUrl, siteId, trackingKey, scriptSrc, aggregate = false, consentSetup = 'own-cmp',
     bannerSrc, company, policyUrl, policyVersion, googleConsentMode = false,
-    trackingMode = 'cookieless', marketing = false,
+    trackingMode = 'cookieless', marketing = false, scriptIntegrity, bannerIntegrity,
   }: TrackingSnippetOptions,
   sources: { loader: string; beacon: string },
 ): string {
@@ -83,7 +96,14 @@ ${beacon}
 </script>`;
   }
 
-  const loader = stripLineComments(sources.loader).replace('__CORTIQ_SRC__', () => escapeJs(scriptSrc));
+  // crossOrigin is required with integrity on a cross-origin script; the pinned files send CORS headers.
+  const scriptSri = integrity(scriptIntegrity, 'the tracker');
+  const loaderSource = stripLineComments(sources.loader);
+  if (!loaderSource.includes("s.src = '__CORTIQ_SRC__';")) throw new Error('Loader source placeholder not found');
+  const loader = loaderSource.replace("s.src = '__CORTIQ_SRC__';", () => `s.src = '${escapeJs(scriptSrc)}';`
+    + (scriptSri ? `
+    s.integrity = '${scriptSri}';
+    s.crossOrigin = 'anonymous';` : ''));
   const header = aggregate
     ? '<!-- CortIQ Analytics: counts page views without consent (no cookies, no device storage, no IDs); full tracking loads only after analytics consent -->'
     : '<!-- CortIQ Analytics: loads only after analytics consent -->';
@@ -94,6 +114,7 @@ ${beacon}
   // Cookieless switches off every marketing feature, so the banner must not ask for it.
   const full = trackingMode === 'full';
   const categories = full && marketing ? 'analytics,marketing' : 'analytics';
+  const bannerSri = integrity(bannerIntegrity, 'the banner');
   // The banner tag comes first so the loader can read its data-policy-version.
   const banner = consentSetup === 'cortiq-banner'
     ? `<!-- CortIQ consent banner. List only the purposes you use in data-categories (analytics, marketing,
@@ -106,7 +127,8 @@ ${beacon}
   data-company="${escapeAttr(company!.trim())}"
   data-policy-url="${escapeAttr(policyUrl!.trim())}"
   data-categories="${categories}"
-  data-policy-version="${escapeAttr(policyVersion?.trim() || '1')}"${googleConsentMode ? '\n  data-consent-mode="google"' : ''}
+  data-policy-version="${escapeAttr(policyVersion?.trim() || '1')}"${googleConsentMode ? '\n  data-consent-mode="google"' : ''}${bannerSri ? `
+  integrity="${bannerSri}" crossorigin="anonymous"` : ''}
   defer></script>
 `
     : '';
