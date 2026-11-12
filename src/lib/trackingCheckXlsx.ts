@@ -1,7 +1,7 @@
 // Tracking Check report as an Excel workbook: a summary sheet, one row per tool (newer runs) and one row per finding.
 // exceljs is loaded on demand so it stays out of the report page bundle.
 import type { FindingStatus, Mode } from '../../supabase/functions/_shared/tracking-check/types.ts';
-import { FINDING_STATUS_LABEL, MATRIX_NOTE, SHEET_COLUMNS, toSheetRows, toVendorSheet, type ReportSummary } from '../../supabase/functions/_shared/tracking-check/report.ts';
+import { FINDING_STATUS_LABEL, MATRIX_MANUAL_NOTE, MATRIX_NOTE, SHEET_COLUMNS, toSheetRows, toVendorSheet, type ReportSummary } from '../../supabase/functions/_shared/tracking-check/report.ts';
 import type { FindingRow } from '@/hooks/useTrackingCheck';
 
 interface XlsxInput {
@@ -56,10 +56,12 @@ export async function trackingCheckXlsx({ summary, findings, mode, baselineUrl, 
     });
     vs.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: sheet.columns.length } };
     vs.addRow([]);
-    const note = vs.addRow([MATRIX_NOTE]);
-    note.font = { italic: true };
-    note.height = 32;
-    vs.mergeCells(note.number, 1, note.number, sheet.columns.length);
+    for (const text of [MATRIX_NOTE, MATRIX_MANUAL_NOTE]) {
+      const note = vs.addRow([text]);
+      note.font = { italic: true };
+      note.height = 48;
+      vs.mergeCells(note.number, 1, note.number, sheet.columns.length);
+    }
   }
 
   const ws = wb.addWorksheet('Findings', { views: [{ state: 'frozen', ySplit: 1 }] });

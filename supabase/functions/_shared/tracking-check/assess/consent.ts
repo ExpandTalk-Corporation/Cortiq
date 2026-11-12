@@ -269,7 +269,7 @@ function choiceCheck({ mode, policy }: AssessInput, pages: PageObservation[], st
     } else {
       out.push(finding({
         scope: 'Consent', checkKey: `${key}.cookieless.${id}`, status: 'warning', priority: 'medium',
-        title: `${v.name} sends requests ${label} without cookies`,
+        title: `${v.name} sends cookieless requests ${label}`,
         explanation: [`${v.name} contacted ${hosts} ${label} on ${where}, without setting cookies or local storage.`, serverSide(v, h.hosts),
           `Without cookies, the visitor's IP address, browser and page address still reach ${v.name}. Cookieless measurement ${LEGAL}`].filter(Boolean).join(' '),
         fix: [v.note ?? `Check ${v.name}'s settings (for example a "track visitors always" option).`,

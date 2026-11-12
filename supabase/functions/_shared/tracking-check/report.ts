@@ -33,10 +33,11 @@ export function summarize(findings: Finding[], mode: Mode, policy?: PolicyTempla
   for (const f of findings) counts[f.status]++;
   const blocking = findings.filter((f) => f.status === 'fail' && f.priority === 'high').length;
   const nothingTested = counts.pass + counts.fail + counts.warning === 0;
+  // Count problems, not commitments: several problems can break the same commitment, and some break a rule that always applies.
+  const problems = `${counts.fail} ${counts.fail === 1 ? 'problem' : 'problems'} to fix`;
   const lead = nothingTested ? 'The site could not be tested automatically' : mode === 'comparison'
-    ? (blocking ? `${blocking} ${blocking === 1 ? 'problem blocks' : 'problems block'} go-live`
-      : counts.fail ? `${counts.fail} ${counts.fail === 1 ? 'problem' : 'problems'} to fix` : 'No blocking problems')
-    : (counts.fail ? `${counts.fail} ${counts.fail === 1 ? 'commitment is' : 'commitments are'} not met` : 'All tested commitments are met');
+    ? (blocking ? `${blocking} ${blocking === 1 ? 'problem blocks' : 'problems block'} go-live` : counts.fail ? problems : 'No blocking problems')
+    : (counts.fail ? problems : 'All tested commitments are met');
   const parts = nothingTested ? [lead] : [lead, `${counts.pass} OK`];
   if (counts.warning) parts.push(`${counts.warning} to review`);
   const manual = counts.manual + counts.untestable;
@@ -135,7 +136,9 @@ export const STATE_LABEL: Record<ConsentState, string> = {
   none: 'Before choice', reject: 'After "Reject all"', accept: 'After "Accept all"', analytics_only: 'Statistics only', marketing_only: 'Marketing only',
 };
 export const ORIGIN_SHORT: Record<ScriptOrigin, string> = { page: 'Page source', gtm: 'GTM', cmp: 'Cookie banner', other: 'Another script' };
-export const MATRIX_NOTE = 'Each consent state starts in a fresh browser. Cookies are listed when set or written again, so after "Accept all" a cookie the tool set before the click and did not touch again is not listed. After "Reject all", cookies left over from before the click are listed as kept. Pages are listed only when the tool did not behave the same on every tested page.';
+export const MATRIX_NOTE = 'Each column is a separate visit in a fresh browser that accepts third-party cookies, like most visitors\' browsers. "Stores" lists cookies the tool set or wrote again in that state, so after "Accept all" a cookie set before the click and not touched again is not listed. "Keeps" lists cookies from before the choice that were still there after "Reject all". Pages are named only when the tool did not behave the same on every tested page.';
+/** Why a manual check in a private window can miss what the report lists. */
+export const MATRIX_MANUAL_NOTE = 'Checking by hand: Chrome\'s incognito window and Safari block third-party cookies, so cookies another domain sets, such as LinkedIn\'s bcookie or YouTube\'s VISITOR_INFO1_LIVE, may not show up there. That does not mean they are not set for visitors. To see them, use a new browser profile in a normal window, or allow third-party cookies in the incognito window (the eye icon in the address bar). Cookies on the site\'s own domain, such as HubSpot\'s __hstc or Google\'s _ga, show up in both.';
 
 /** States that any row has a cell for, in display order. */
 export const matrixStates = (rows: VendorRow[]): ConsentState[] => MATRIX_STATES.filter((s) => rows.some((r) => r.states[s]?.of));
@@ -143,7 +146,7 @@ export const matrixStates = (rows: VendorRow[]): ConsentState[] => MATRIX_STATES
 /** A cell as text: what the tool did, and on which pages only when it did not do it everywhere. */
 export function cellText(cell: VendorCell | undefined, maxPages = 5): string {
   if (!cell || !cell.of) return 'Not tested';
-  if (!cell.pages.length) return 'Nothing';
+  if (!cell.pages.length) return 'Nothing seen';
   const kept = cell.kept ?? [];
   const parts = [
     cell.stored.length ? `stores ${cell.stored.join(', ')}` : '',

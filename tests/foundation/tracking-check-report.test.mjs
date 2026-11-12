@@ -18,7 +18,7 @@ test('policy headline and pass lines skip scopes that have failures', () => {
   const ok = summarize([f('manual', 'medium', 'Manual', 'GA4 retention'), f('pass', null, 'Consent', 'Nothing after reject')], 'policy');
   assert.equal(ok.headline, 'All tested commitments are met · 1 OK · 1 to test manually');
   const bad = summarize([f('fail', 'high', 'Consent', 'Google after reject'), f('pass', null, 'Consent', 'Defaults denied')], 'policy');
-  assert.equal(bad.headline, '1 commitment is not met · 1 OK');
+  assert.equal(bad.headline, '1 problem to fix · 1 OK');
   assert.deepEqual(bad.lines.map((l) => l.text), ['Google after reject']);
 });
 
