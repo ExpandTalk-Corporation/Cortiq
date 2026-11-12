@@ -103,6 +103,18 @@ test('form goal by id uses the configured name and value; unknown form falls bac
   assert.deepEqual([fallback.p_goal_id, fallback.p_goal_name, fallback.p_value], ['form:contact', 'Contact form', 50]);
 });
 
+test('identifying free text never reaches the daily totals', async () => {
+  const { handler, rpcCalls } = setup();
+  await handler(post({ siteId: SITE, kind: 'pageview', url: 'https://shop.test/order/48213377/jane%40example.com',
+    utm: { utm_source: 'newsletter', utm_medium: 'email', utm_campaign: 'jane@example.com' } }));
+  await handler(post({ siteId: SITE, kind: 'goal', url: 'https://shop.test/order/48213377',
+    formId: '5f0c6c1e-7d2a-4b1e-9a3c-2f4e6d8b0a1c', contentId: '/order/48213377' }));
+  const [view, goal] = ingests(rpcCalls);
+  assert.equal(view.p_path, '/order/:id/:id');
+  assert.deepEqual([view.p_utm_source, view.p_utm_medium, view.p_utm_campaign], ['newsletter', 'email', '']);
+  assert.deepEqual([goal.p_goal_id, goal.p_goal_name], ['form:/order/:id', '/order/:id']);
+});
+
 test('click goals are not accepted without consent', async () => {
   const { handler, rpcCalls } = setup();
   await handler(post({ siteId: SITE, kind: 'goal', url: 'https://shop.test/', goalId: 'g-click' }));

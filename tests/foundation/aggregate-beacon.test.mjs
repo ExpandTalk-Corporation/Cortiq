@@ -121,6 +121,18 @@ test('suppressed: GPC, stored refusal, Cookiebot refusal, Consent Mode denied, m
   }
 });
 
+// Product decision (legal review 2026-11): a Consent Mode *default* of denied is what sites set
+// before anyone has chosen, so it means "no choice yet" and the page is counted. Only an explicit
+// choice (update to denied, banner/Cookiebot refusal, GPC) stops the beacon.
+test('Consent Mode default denied alone is not a refusal; a later update to denied is', async () => {
+  const counted = browser({ dataLayer: [['consent', 'default', { analytics_storage: 'denied' }]] });
+  await settle();
+  assert.equal(counted.calls.length, 1);
+  const refused = browser({ dataLayer: [['consent', 'default', { analytics_storage: 'denied' }], ['consent', 'update', { analytics_storage: 'denied' }]] });
+  await settle();
+  assert.equal(refused.calls.length, 0);
+});
+
 test('a later refusal stops further hits; a later grant resumes', async () => {
   const b = browser();
   await settle();

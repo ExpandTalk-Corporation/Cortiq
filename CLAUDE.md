@@ -153,7 +153,12 @@ Spec: `docs/superpowers/specs/2026-10-29-aggregate-measurement-and-pixel-readine
   Salts and `aggregate_visitors` are deleted when the UTC day ends (`aggregate_retention`, hourly cron).
 - **Reads:** `get_aggregate_summary(site, from, to)` (RLS, SECURITY INVOKER). Overview shows it when enabled.
 - **Pixel readiness:** `src/lib/pixelReadiness.ts` + `PixelReadinessCard` (Ads → Attribution, Conversion Goals).
-  Effective conversions = conversions × banner acceptance; thresholds ~30/~50 per 30 days are a rule of thumb.
+  Effective conversions = aggregate (consent-free) conversions × banner acceptance; conversions counted from
+  consented sessions are used as they are, never multiplied again. Thresholds ~30/~50 per 30 days are a rule of thumb.
+- **Consent signals:** a Consent Mode *default* of denied = no choice yet (counted); an *update* to denied, banner or
+  Cookiebot refusal, or GPC stops the beacon. Server-side, `_shared/aggregate.js` masks emails/IDs/tokens in paths
+  (`:id`) and drops them from UTM and form goal values. Daily totals follow site retention (default 365 d) in
+  `run_data_retention()`; `api_key_usage` IP/UA are cleared after 90 d.
 - **Copy rule:** "designed to not require consent" — never "GDPR-compliant without consent" or "no banner needed".
   Legal review (jurist agent + DPA 1.4) before any public claim.
 

@@ -224,6 +224,7 @@ const Privacy = () => {
                 <ul className="text-sm text-muted-foreground space-y-2 ml-4">
                   <li>• Your IP address and User-Agent are combined with a random value that changes every day (UTC) into a one-way hash. CortIQ does not store or log the IP address or User-Agent. Only the device type (desktop, mobile or tablet) is kept.</li>
                   <li>• The referrer is reduced to its domain. Requests from known bots and automated browsers are discarded.</li>
+                  <li>• Parts of the page address, UTM values and form names that look like an email address, a long number or an ID are replaced (for example <code>/order/:id</code>) or dropped before anything is counted.</li>
                   <li>• For the current day, the hash is used to count visits (a new visit starts after 30 minutes of inactivity or when you arrive from a new referrer or campaign): entry page, referrer domain, UTM values, device type, goals reached, number of page views and time in the foreground.</li>
                   <li>• Once the day has ended, the daily value and these visit records are deleted, normally within an hour after midnight UTC. After that, the hash cannot be recomputed or linked across days.</li>
                   <li>• Only daily totals are kept: page views per page, and visits, visitors, engagement and conversions per traffic source and device type.</li>
@@ -236,8 +237,11 @@ const Privacy = () => {
                 <p className="text-sm text-muted-foreground mt-3">
                   <strong className="text-foreground">Reading your consent choice:</strong> the script reads the
                   consent choice stored by the site&apos;s consent tool, but only to detect a refusal. It recognises the
-                  CortIQ consent banner, Cookiebot and Google Consent Mode (<code>analytics_storage</code> set to
-                  denied). It also reads your browser&apos;s Global Privacy Control setting.
+                  CortIQ consent banner, Cookiebot and Google Consent Mode (<code>analytics_storage</code> updated to
+                  denied). It also reads your browser&apos;s Global Privacy Control setting. A Consent Mode default of
+                  denied, which sites set before you have made a choice, is not treated as a refusal. Some consent
+                  tools repeat an earlier refusal only as such a default; the script does not detect that refusal
+                  unless the tool also reports it as an update.
                 </p>
                 <p className="text-sm text-muted-foreground mt-3">
                   <strong className="text-foreground">Legal basis:</strong> the site operator, as controller, decides
@@ -307,7 +311,8 @@ const Privacy = () => {
                   <strong className="text-foreground">API and MCP requests:</strong> if you use the CortIQ REST API or
                   MCP server with your API key, we log each request (endpoint, response time, IP address and user agent)
                   to secure the service and enforce rate limits. We are the controller, the legal basis is legitimate
-                  interest (GDPR Art. 6(1)(f)), and the log is deleted together with the API key.
+                  interest (GDPR Art. 6(1)(f)). The IP address and user agent are cleared after 90 days; the rest
+                  of the log is deleted together with the API key.
                 </p>
                 <p className="text-sm text-muted-foreground mt-2">
                   <strong className="text-foreground">Note:</strong> This covers account holders of the CortIQ
@@ -615,7 +620,7 @@ const Privacy = () => {
                 <ul className="text-sm text-muted-foreground space-y-1 ml-4">
                   <li>• <strong>Daily value and visit records (hash):</strong> deleted once the UTC day has ended, normally within an hour after midnight UTC, so no more than about 25 hours after creation</li>
                   <li>• <strong>IP address and User-Agent:</strong> not stored by CortIQ; only the device type is kept</li>
-                  <li>• <strong>Daily totals (page views, visits, sources, conversions):</strong> kept without an automatic time limit and deleted when the site is deleted from CortIQ</li>
+                  <li>• <strong>Daily totals (page views, visits, sources, conversions):</strong> the value in the site's GDPR settings (default 365 days), and deleted when the site is deleted from CortIQ</li>
                 </ul>
               </div>
 

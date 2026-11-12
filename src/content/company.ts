@@ -45,7 +45,7 @@ export const SECURITY: ContentPageData = {
           items: [
             'API keys for the [REST API](/api/) and [MCP server](/integrations/mcp/) are stored only as SHA-256 hashes and shown once, when created.',
             'Each key reads exactly one site, read-only, and has its own rate limit. You can disable or delete a key at any time.',
-            'Requests to the REST API and MCP server are logged with the endpoint, response time, and the caller\'s IP address and user agent. The log counts toward the key\'s rate limit and is deleted together with the key.',
+            'Requests to the REST API and MCP server are logged with the endpoint, response time, and the caller\'s IP address and user agent. The log counts toward the key\'s rate limit. The IP address and user agent are cleared after 90 days; the rest of the log is deleted together with the key.',
             'Server-side fetches on your behalf (GEO audits, form detection) block private, loopback and cloud-metadata addresses.',
           ],
         },

@@ -5,7 +5,9 @@
  * Called by src/lib/aggregate-beacon.js on sites whose owner enabled sites.aggregate_measurement.
  * The beacon stores nothing on the device and sends no identifier. Here, IP + User-Agent are
  * folded into a daily-salted hash (the salt is deleted when the UTC day ends) and dropped; only
- * the hash and sanitized dimensions reach ingest_aggregate_hit. Never logs IP, UA or hash.
+ * the hash and sanitized dimensions reach ingest_aggregate_hit: paths lose query and fragment,
+ * and emails, IDs and tokens in paths, UTM values and form ids are masked or dropped
+ * (_shared/aggregate.js). Never logs IP, UA or hash.
  *
  * Auth: Bearer = the site's tracking key (sites.tracking_id) with body.siteId = site id or owner
  * id, or the account key (companies.api_key, WordPress plugin) with body.siteId = account id, in
@@ -21,7 +23,7 @@ import { createClient } from '../_shared/supabase.ts';
 import { classifyBot, GENERIC_BOT_PATTERN } from '../_shared/ai-bot-registry.ts';
 import { normalizeGoals, matchPageVisitGoals } from '../_shared/conversion-goals.js';
 import { normHost, ownsHost } from '../_shared/site-host.ts';
-import { cleanPath, referrerSource, utmFrom, deviceFromUA, clientIp, visitorHash } from '../_shared/aggregate.js';
+import { cleanPath, referrerSource, utmFrom, fallbackGoal, deviceFromUA, clientIp, visitorHash } from '../_shared/aggregate.js';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -40,7 +42,6 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 }
 const skipped = (reason: string) => json({ skipped: reason });
-const clip = (v: unknown, n: number) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, n) : null);
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 
 function isLikelyBot(ua: string): boolean {
@@ -142,10 +143,11 @@ Deno.serve(async (req) => {
   const goal = typeof body.goalId === 'string'
     ? goals.find((g) => g.id === body.goalId && g.type === 'form_submission')
     : undefined;
+  const fallback = fallbackGoal(body.formId, body.contentId, base.p_path);
   await ingest({
     ...base, ...noSource, p_kind: 'goal',
-    p_goal_id: goal ? goal.id : `form:${clip(body.formId, 100) ?? base.p_path}`,
-    p_goal_name: goal ? goal.name : (clip(body.contentId, 200) ?? 'Conversion'),
+    p_goal_id: goal ? goal.id : fallback.id,
+    p_goal_name: goal ? goal.name : fallback.name,
     p_value: goal ? num(goal.value) : num(body.value),
   });
   return new Response(null, { status: 204, headers: corsHeaders });
