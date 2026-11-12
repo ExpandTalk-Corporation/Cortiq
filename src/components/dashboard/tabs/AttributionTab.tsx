@@ -10,6 +10,7 @@ import { useAcquisitionReadiness } from '@/hooks/useAcquisitionReadiness';
 import { SetupChecklist } from '../setup/SetupChecklist';
 import { conversionStep, goalsStep, googleAdsApiStep, hubspotStep } from '../setup/acquisitionSteps';
 import { GoogleAdsConnectHint } from '@/components/dashboard/GoogleAdsConnectCard';
+import { AiInfluenceCard } from '@/components/dashboard/AiInfluenceCard';
 
 interface AttributionTabProps {
   selectedSite: Site;
@@ -35,7 +36,14 @@ export function AttributionTab({ selectedSite, onNavigate }: AttributionTabProps
     return <div className="py-12 text-center text-sm text-muted-foreground">Loading attribution data...</div>;
   }
 
-  if (!data) return <PixelReadinessCard selectedSite={selectedSite} />;
+  if (!data) {
+    return (
+      <div className="space-y-6">
+        <PixelReadinessCard selectedSite={selectedSite} />
+        <AiInfluenceCard selectedSite={selectedSite} onNavigate={onNavigate} />
+      </div>
+    );
+  }
 
   const { cortiqConversions, hubspotMQLs, gapPercent, pendingUpload, uploaded, bySource, period } = data;
   const periodLabel = `${period.from} – ${period.to}`;
@@ -60,6 +68,7 @@ export function AttributionTab({ selectedSite, onNavigate }: AttributionTabProps
         </div>
         {checklist}
         <PixelReadinessCard selectedSite={selectedSite} />
+        <AiInfluenceCard selectedSite={selectedSite} onNavigate={onNavigate} />
       </div>
     );
   }
@@ -174,6 +183,8 @@ export function AttributionTab({ selectedSite, onNavigate }: AttributionTabProps
       </Card>
 
       {!gapMeasurable && checklist}
+
+      <AiInfluenceCard selectedSite={selectedSite} onNavigate={onNavigate} />
 
       {/* Source breakdown */}
       {bySource.length > 0 && (
