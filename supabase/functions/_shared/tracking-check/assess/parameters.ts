@@ -1,7 +1,7 @@
 import type { AssessInput, ConsentMethod, Finding, PageObservation, SiteObservation } from '../types.ts';
 import { vendorById } from '../../tracking-vendors.ts';
 import { MANUAL_STEPS } from '../instructions.ts';
-import { displayPath, errorStatus, finding, isTestable, plural, stripQueryValues, testablePages } from './util.ts';
+import { displayPath, errorStatus, fetchFailed, fetchUsable, finding, isTestable, plural, stripQueryValues, testablePages } from './util.ts';
 
 function untestableReason(p: PageObservation): string {
   if (p.failed) return p.failed;
@@ -17,8 +17,21 @@ function untestableReason(p: PageObservation): string {
 export function assessCoverage({ target, baseline }: AssessInput): Finding[] {
   const sites = [target, baseline].filter((s): s is SiteObservation => !!s);
   const bad = sites.flatMap((s) => s.pages.filter((p) => !isTestable(p)).map((p) => ({ s, p })));
-  if (!bad.length) return [];
-  return [finding({
+  const partial = sites.flatMap((s) => s.pages.filter((p) => isTestable(p) && fetchFailed(p)).map((p) => ({ s, p })));
+  const out: Finding[] = [];
+  if (partial.length) out.push(finding({
+    scope: 'Coverage', checkKey: 'coverage.fetch_failed', status: 'manual', priority: 'low',
+    title: `Redirect, parameter and CSP header checks were skipped on ${plural(partial.length, 'page', 'pages')}`,
+    explanation: 'The server refused or dropped CortIQ\'s direct request to these pages (often bot protection that only lets real browsers through), but the automated browser loaded them. Consent, tag and cookie checks are in this report. Whether ad and campaign parameters survive redirects, and what the Content-Security-Policy header allows, could not be checked.',
+    fix: 'Open a page with ?utm_source=test&gclid=test added and check that both parameters are still in the address bar after it loads. To include these checks in the next run, let requests with the user agent "CortIQ-TrackingCheck" through the bot protection.',
+    typicalOwner: 'developer',
+    evidence: {
+      pages: partial.map(({ s, p }) => `${s.role === 'baseline' ? 'current' : 'new'} ${displayPath(p.path)}`),
+      details: partial.map(({ p }) => `${displayPath(p.path)}: ${stripQueryValues(p.fetch!.error ?? 'bot protection challenge')}`),
+    },
+  }));
+  if (!bad.length) return out;
+  return [...out, finding({
     scope: 'Coverage', checkKey: 'coverage.untestable', status: 'untestable', priority: 'medium',
     title: `${plural(bad.length, 'page', 'pages')} could not be tested automatically`,
     explanation: 'These pages blocked the automated browser (bot protection or a login), timed out or returned an error. They are left out of every other check in this report.',
@@ -69,7 +82,7 @@ export function assessConsentAutomation({ target, baseline }: AssessInput): Find
 
 export function assessParameters({ mode, target }: AssessInput): Finding[] {
   const out: Finding[] = [];
-  const probed = target.pages.filter((p) => p.fetch && isTestable(p));
+  const probed = target.pages.filter(fetchUsable);
   if (probed.length) {
     const lost = probed.filter((p) => p.fetch!.paramsLost.length);
     out.push(lost.length
@@ -93,7 +106,7 @@ export function assessParameters({ mode, target }: AssessInput): Finding[] {
 }
 
 function assessLegacyRedirects(target: SiteObservation): Finding[] {
-  const legacy = target.pages.filter((p) => p.legacy && p.fetch && isTestable(p));
+  const legacy = target.pages.filter((p) => p.legacy && fetchUsable(p));
   if (!legacy.length) return [];
   const chain = (p: PageObservation) => p.fetch!.hops.map((h) => `${h.status} ${stripQueryValues(h.url)}`).join(' → ');
   const broken = legacy.filter((p) => p.fetch!.finalStatus >= 400);

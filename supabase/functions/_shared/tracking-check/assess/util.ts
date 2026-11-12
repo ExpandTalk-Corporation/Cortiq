@@ -29,10 +29,16 @@ export function unknownFrameStored(st: StateObservation): { host: string; key: s
   });
 }
 
+/** The direct server request failed or got a bot challenge, so redirect, parameter and CSP header checks have no data. */
+export const fetchFailed = (page: PageObservation): boolean => !!page.fetch && (!!page.fetch.error || page.fetch.challenge);
+
+/** A testable page whose direct server request can feed the redirect, parameter and CSP header checks. */
+export const fetchUsable = (page: PageObservation): boolean => !!page.fetch && !fetchFailed(page) && isTestable(page);
+
 export function isTestable(page: PageObservation): boolean {
   if (page.failed) return false;
-  const f = page.fetch;
-  if (f && (f.error || f.challenge)) return false;
+  // Some hosts drop non-browser requests but serve the real browser; only the fetch-based checks are lost then.
+  if (fetchFailed(page) && !page.browser) return false;
   if (page.browser && page.browser.states.some((s) => s.challenge || s.error)) return false;
   return errorStatus(page) === null;
 }

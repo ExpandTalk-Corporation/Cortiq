@@ -10,7 +10,9 @@ export interface ProbeOptions {
   maxHops?: number;
 }
 
-const USER_AGENT = 'Mozilla/5.0 (compatible; CortIQ-TrackingCheck/1.0)';
+// No "Mozilla" prefix: some hosts (SiteGround, seen on xensam.com) reset the connection when a client claims to be a
+// browser but its TLS handshake is not one. The real-browser probe uses Chrome's own user agent.
+const USER_AGENT = 'CortIQ-TrackingCheck/1.0 (+https://cortiq.se/tracking-check/)';
 const MAX_BODY = 2_000_000;
 const CHALLENGE = /cf-chl|challenges\.cloudflare\.com|Just a moment\.\.\.|Attention Required! \| Cloudflare|captcha-delivery\.com|verify you are human/i;
 
