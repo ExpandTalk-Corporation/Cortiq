@@ -553,7 +553,7 @@ export const MCP: ContentPageData = {
             'The same key works for the MCP server and the [REST API](/api/).',
             'Keys are stored as SHA-256 hashes. You can disable or delete a key at any time.',
             'Rate limit per key, 1,000 requests per hour by default. You can change it when you create the key. Every authenticated MCP request counts, including `initialize` and `tools/list`, over a rolling hour shared with REST API calls made with the same key.',
-            'Each request is logged with the method, response time, IP address and user agent. The log is deleted together with the key.',
+            'Each request is logged with the method, response time, IP address and user agent. The IP address and user agent are cleared after 90 days; the rest of the log is deleted together with the key.',
           ],
         },
       ],

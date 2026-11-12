@@ -145,7 +145,8 @@ No deduplication between the layers is needed.
   ```
   - `effectiveConversions = primaryConversions30d × (acceptanceRate ?? ASSUMED_ACCEPTANCE)` — what an ad
     platform would actually see behind a banner. `ASSUMED_ACCEPTANCE = 0.5`, flagged as an assumption in
-    `reasons` when used.
+    `reasons` when used. Only aggregate (consent-free) counts are scaled: conversions counted from consented
+    sessions are already behind the banner and are used as they are (amendment 11.4).
   - No primary goal → `no_primary_goal`. Primary goal `silent` / `fires_too_often` / `duplicate_primary` →
     `fix_goals`.
   - `effectiveConversions < 30` → `aggregate_enough`; `30–49` → `borderline`; `≥ 50` and `adsConnected` →
@@ -222,3 +223,29 @@ No deduplication between the layers is needed.
    no names or values); other successful hits return `204`.
 4. **Server-side summary (§4.4).** Dashboard reads go through `get_aggregate_summary(site, from, to)` (SECURITY
    INVOKER, RLS-enforced) so totals are never truncated by the PostgREST row cap.
+
+## 11. Amendments (2026-11-12, product risks from the legal review)
+1. **Google Consent Mode `default` vs `update` (§4.3).** The beacon treats a Consent Mode *default* of
+   `analytics_storage: 'denied'` as "no choice yet" and counts the page. Only an explicit choice stops it: an
+   *update* to denied, a CortIQ banner or Cookiebot refusal, or Global Privacy Control. Reason: nearly every site
+   with Consent Mode sets `default: denied` before the visitor has seen the banner. Treating that as a refusal
+   would turn aggregate measurement off on those sites, which is the case the feature exists for. Known gap:
+   some CMPs replay a returning visitor's stored refusal as a `default` command instead of an `update`. For
+   those visitors the refusal is not detected unless the CMP also sends an update or a recognised signal.
+   Follow-up (needs a beacon change, so a tracker/plugin release): a per-site option "treat a Consent Mode
+   default of denied as a refusal" for sites whose CMP behaves this way. Locked by `aggregate-beacon.test.mjs`.
+2. **Server-side sanitising of free text (§4.2).** `aggregate-hit` drops query string and fragment from paths
+   (as before) and now replaces path segments that look like an email address, a UUID, 6+ digits in a row, a
+   long hex string or a token with `:id` (`/order/48213377` → `/order/:id`). UTM values and the fallback form
+   goal id/name that look like that are dropped (goal name falls back to `Conversion`, goal id to the page
+   path). Lengths stay capped (path 512, UTM 100, form id 100, goal name 200). Helpers in
+   `_shared/aggregate.js` (`looksIdentifying`, `cleanText`, `fallbackGoal`).
+3. **Retention of daily totals and API log IPs.** `run_data_retention()` deletes `aggregate_pages_daily`,
+   `aggregate_sources_daily`, `aggregate_conversions_daily` and `aggregate_filtered_daily` rows older than the
+   site's retention period (`gdpr_settings.data_retention_days`, default 365 days), like the site's other data.
+   It also clears `request_ip` and `user_agent` in `api_key_usage` after 90 days; the rest of the row stays
+   until the key is deleted. Migration `20261125000001_aggregate_and_api_log_retention.sql`.
+4. **Pixel readiness (§4.5), owner ruling.** Consented conversions are not multiplied by banner acceptance
+   again. `readinessSource()` picks `aggregate` only for page-visit and form goals with aggregate measurement
+   on; then `effective = conversions × acceptance`. Otherwise (`conversionsAlreadyConsented: true`)
+   `effective = conversions`. Locked by `pixel-readiness.test.mjs`.
