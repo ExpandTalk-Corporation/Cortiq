@@ -138,7 +138,8 @@ export function ContentTrackingAdvanced({
             });
           }
           const e = elementMap.get(key)!;
-          if (ia.interaction_type === 'click') e.clicks++;
+          // Tracker types: nav_navigation, button_click, link_click, element_click.
+          if (ia.interaction_type === 'click' || ia.interaction_type.endsWith('_click') || ia.interaction_type === 'nav_navigation') e.clicks++;
           else e.views++;
         }
         const perfData = Array.from(elementMap.values()).map(e => ({

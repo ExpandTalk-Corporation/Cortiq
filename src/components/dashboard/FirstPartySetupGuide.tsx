@@ -51,7 +51,9 @@ export function FirstPartySetupGuide({ selectedSite }: FirstPartySetupGuideProps
 </script>
 <script src="/js/first-party-tracking.js" defer></script>`;
 
-  const serverProxyCode = `// Server-side proxy (Express.js exempel)
+  const serverProxyCode = `// Server-side proxy (Express.js example)
+// pixel-tracking stores nothing unless the body carries consent: { analytics: true },
+// set only after the visitor has accepted analytics cookies.
 app.post('/api/analytics/track', async (req, res) => {
   try {
     const response = await fetch('${process.env.SUPABASE_URL}/functions/v1/pixel-tracking', {

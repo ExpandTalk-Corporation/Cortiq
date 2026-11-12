@@ -5,6 +5,7 @@ import { storedReferrer } from '../_shared/referrer.js';
 import { normalizeGoals, clientGoals, matchPageVisitGoals } from '../_shared/conversion-goals.js';
 import { normalizeSessionTimeout } from '../_shared/session-timeout.js';
 import { skipTrackingCheck } from '../_shared/tracking-check-ua.ts';
+import { sanitizeInteraction } from '../_shared/interaction.js';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,7 +16,7 @@ interface TrackingEventRequest {
   company_id: string;
   content_type: 'image' | 'form' | 'event' | 'survey' | 'chatbot' | 'page';
   content_id: string;
-  event_type: 'view' | 'click' | 'conversion' | 'submission' | 'heatmap' | 'form_session' | 'content';
+  event_type: 'view' | 'click' | 'conversion' | 'submission' | 'heatmap' | 'form_session' | 'content' | 'interaction';
   platform?: string;
   session_id: string;
   metadata?: {
@@ -126,7 +127,7 @@ Deno.serve(async (req) => {
 
     // Check consent settings
     const consentSettings = company.consent_settings || {};
-    const allowedEventTypes = consentSettings.gdpr_settings?.allowed_event_types || ['view', 'click', 'conversion', 'submission', 'heatmap', 'form_session', 'content'];
+    const allowedEventTypes = consentSettings.gdpr_settings?.allowed_event_types || ['view', 'click', 'conversion', 'submission', 'heatmap', 'form_session', 'content', 'interaction'];
     
     if (!allowedEventTypes.includes(body.event_type)) {
       console.log('Event type not allowed by consent settings:', body.event_type);
@@ -237,6 +238,45 @@ Deno.serve(async (req) => {
       // An abandonment is sent on page hide, which is not activity.
       if (status === 'completed') await touchTrackingSession(siteId);
       return new Response(JSON.stringify({ success: true }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // Nav / button / link / element clicks → user_interactions (Navigation, Important
+    // interactions, Content tracking, MCP). Until 2026-11 'interaction' was not on the
+    // allow-list and was dropped, so the table stayed empty. The tracker sends these only
+    // after the visitor's analytics choice (hasInteractionConsent), in every tracking mode;
+    // the aggregate beacon never sends them. The RPC attaches the click to the visit's page
+    // view and stores nothing when the visit has none. Not kept in tracking_events.
+    if (body.event_type === 'interaction') {
+      const siteId = await resolveOwnedSite();
+      const clean = sanitizeInteraction(body.metadata);
+      if (!siteId || !clean || typeof body.session_id !== 'string' || !body.session_id) {
+        return new Response(JSON.stringify({ success: false, error: 'Invalid interaction event' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      const at = body.timestamp ? new Date(body.timestamp) : new Date();
+      const { data: interactionId, error: interactionError } = await supabase.rpc('record_user_interaction', {
+        p_site_id: siteId,
+        p_session: body.session_id,
+        p_url: typeof body.metadata?.url === 'string' ? body.metadata.url : null,
+        p_type: clean.interaction_type,
+        p_element_tag: clean.element_tag,
+        p_element_id: clean.element_id,
+        p_element_class: clean.element_class,
+        p_element_text: clean.element_text,
+        p_element_href: clean.element_href,
+        p_x: null,
+        p_y: null,
+        p_scroll: null,
+        p_at: (Number.isNaN(at.getTime()) ? new Date() : at).toISOString(),
+      });
+      if (interactionError) {
+        console.error('Failed to record interaction:', interactionError);
+        return new Response(JSON.stringify({ success: false, error: 'Failed to store interaction' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      await touchTrackingSession(siteId);
+      return new Response(JSON.stringify({ success: true, stored: !!interactionId }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 

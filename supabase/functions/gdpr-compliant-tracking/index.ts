@@ -239,13 +239,16 @@ serve(async (req) => {
           console.log('Unknown integration type:', integration_type);
       }
 
-      // Always track internally (this is first-party data)
+      // First-party copy. pixel-tracking stores only with analytics consent, which this
+      // check covers for analytics integrations (GA, Hotjar, Clarity); a marketing-only
+      // check does not prove it, so nothing is stored internally then.
       const internalTracking = await supabase.functions.invoke('pixel-tracking', {
         body: {
           type: event_type,
           siteId: site_id,
           sessionId: session_id,
-          data: event_data
+          data: event_data,
+          consent: { analytics: (consentData.allowed_consent_types || []).includes('analytics') }
         }
       });
 
