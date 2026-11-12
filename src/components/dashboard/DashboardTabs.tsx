@@ -113,7 +113,7 @@ interface DashboardTabsProps {
 }
 
 function DashboardTabsInner({ selectedSite, dateRange, onSiteDeleted, onSiteUpdated, activeTab, onTabChange }: DashboardTabsProps) {
-  // Active tab lives in the URL (?tab=); Dashboard.tsx owns it so the numbered sidebar
+  // Active tab lives in the URL (?tab=); Dashboard.tsx owns it so the sidebar
   // (DashboardSidebar) and this content switch share one value.
   const setActiveTab = onTabChange;
   const filterParams = useFilterParams();
