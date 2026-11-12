@@ -7,9 +7,8 @@ import { FormTypeSelector } from '../FormTypeSelector';
 import { SystemSpecificConfig } from '../SystemSpecificConfig';
 import { ConversionGoalsConfig } from '../ConversionGoalsConfig';
 import { FormDiscoveryWidget } from '../FormDiscoveryWidget';
-import { useFormAnalytics } from '@/hooks/useFormAnalytics';
+import { useFormAnalytics, useFormStats } from '@/hooks/useFormAnalytics';
 import type { Site } from '@/types/dashboard';
-import type { DateRange } from 'react-day-picker';
 import { 
   BarChart3, 
   TrendingDown, 
@@ -24,11 +23,12 @@ import { useToast } from '@/hooks/use-toast';
 
 interface FormAnalyticsTabProps {
   selectedSite: Site;
-  dateRange?: DateRange;
 }
 
-export function FormAnalyticsTab({ selectedSite, dateRange }: FormAnalyticsTabProps) {
+export function FormAnalyticsTab({ selectedSite }: FormAnalyticsTabProps) {
   const { data: forms } = useFormAnalytics(selectedSite.id);
+  // Footer numbers follow the global filters (same query as the overview, shared cache).
+  const { data: stats } = useFormStats(selectedSite.id);
   const { toast } = useToast();
   const [selectedFormId, setSelectedFormId] = useState<string>('');
   const [selectedFormType, setSelectedFormType] = useState<string>('');
@@ -167,7 +167,7 @@ export function FormAnalyticsTab({ selectedSite, dateRange }: FormAnalyticsTabPr
         </TabsContent>
 
         <TabsContent value="overview" className="space-y-6">
-          <FormAnalyticsOverview selectedSite={selectedSite} dateRange={dateRange} />
+          <FormAnalyticsOverview selectedSite={selectedSite} />
         </TabsContent>
 
         <TabsContent value="funnel" className="space-y-6">
@@ -191,34 +191,32 @@ export function FormAnalyticsTab({ selectedSite, dateRange }: FormAnalyticsTabPr
 
       </Tabs>
 
-      {/* Quick Stats Footer */}
-      {forms && forms.length > 0 && (
+      {/* Quick Stats Footer: the global filters (date range, URL, segment) */}
+      {forms && forms.length > 0 && stats && (
         <Card className="bg-muted/50">
           <CardContent className="pt-6">
             <div className="grid gap-4 md:grid-cols-4 text-center">
               <div>
-                <div className="text-2xl font-bold">{forms.length}</div>
-                <p className="text-sm text-muted-foreground">Active forms</p>
+                <div className="text-2xl font-bold">{stats.forms.length}</div>
+                <p className="text-sm text-muted-foreground">Forms used in this period</p>
               </div>
               <div>
                 <div className="text-2xl font-bold">
-                  {forms.reduce((sum, form) => sum + form.total_starts, 0).toLocaleString('sv-SE')}
+                  {stats.totalStarts.toLocaleString()}
                 </div>
                 <p className="text-sm text-muted-foreground">Total starts</p>
               </div>
               <div>
                 <div className="text-2xl font-bold text-green-600">
-                  {forms.reduce((sum, form) => sum + form.total_completions, 0).toLocaleString('sv-SE')}
+                  {stats.totalCompletions.toLocaleString()}
                 </div>
                 <p className="text-sm text-muted-foreground">Completed</p>
               </div>
               <div>
                 <div className="text-2xl font-bold">
-                  {forms.length > 0
-                    ? (forms.reduce((sum, form) => sum + form.conversion_rate, 0) / forms.length).toFixed(1)
-                    : 0}%
+                  {stats.conversionRate.toFixed(1)}%
                 </div>
-                <p className="text-sm text-muted-foreground">Average conversion</p>
+                <p className="text-sm text-muted-foreground">Conversion rate</p>
               </div>
             </div>
           </CardContent>

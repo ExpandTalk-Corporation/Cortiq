@@ -11,6 +11,8 @@ export interface FilterSupport {
 }
 
 export interface FilterScopeNotes {
+  /** Why the URL filter cannot apply to this tab (shown when a URL filter is set). */
+  path?: string;
   /** Why the segment filter cannot apply to this tab (shown when a segment is selected). */
   segment?: string;
   /** Parts of the tab that ignore the URL or segment filter (shown when either is set). */
@@ -19,15 +21,18 @@ export interface FilterScopeNotes {
 
 export function FilterScopeNotice({ supports, notes }: { supports: FilterSupport; notes?: FilterScopeNotes }) {
   const { filters } = useDashboardFilters();
+  const pathIgnored = !supports.path && !!filters.path;
   const segmentIgnored = !supports.segment && !!filters.segmentId;
   const ignored = [
-    !supports.path && filters.path && 'URL',
+    pathIgnored && 'URL',
     segmentIgnored && 'segment',
     !supports.date && 'date range',
   ].filter(Boolean) as string[];
   const lines: string[] = [];
   if (ignored.length) {
-    const reason = segmentIgnored && notes?.segment ? ` ${notes.segment}` : '';
+    // A reason means the filter cannot apply by design; without one it is not built yet.
+    const reasons = [...new Set([pathIgnored && notes?.path, segmentIgnored && notes?.segment].filter(Boolean))];
+    const reason = reasons.length ? ` ${reasons.join(' ')}` : '';
     lines.push(`This view does not apply the ${ignored.join(' and ')} filter${reason ? '.' + reason : ' yet.'}`);
   }
   const filterActive = (supports.path && !!filters.path) || (supports.segment && !!filters.segmentId);

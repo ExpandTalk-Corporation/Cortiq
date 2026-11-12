@@ -1,7 +1,8 @@
 // src/components/dashboard/tabs/AdsTab.tsx
 // One Ads tab with two sources:
-// - CortIQ: visits recorded by the tracking script with a paid utm_medium (paid-ads-analytics).
-// - GA4: paid sessions and ad cost read from Google Analytics 4 (ga4-kpi-dashboard).
+// - CortIQ: visits recorded by the tracking script with a paid utm_medium (get_paid_ads_summary);
+//   follows the date, URL and segment filters.
+// - GA4: paid sessions and ad cost read from Google Analytics 4 (ga4-kpi-dashboard); date only.
 // The source lives in the URL (?source=cortiq|ga4). Without it, the old ?tab=paid-ads-server
 // link opens CortIQ; otherwise GA4 is shown when connected.
 import { useSearchParams } from 'react-router-dom';
@@ -9,17 +10,18 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useAcquisitionReadiness } from '@/hooks/useAcquisitionReadiness';
 import { PaidAdsTab } from './PaidAdsTab';
 import { ServerSidePaidAdsTab } from './ServerSidePaidAdsTab';
+import { FilterScopeNotice } from '@/components/dashboard/FilterScopeNotice';
+
+const GA4_REASON = 'Google Analytics 4 does not know CortIQ visits, URLs or segments; switch to the CortIQ source to filter.';
 
 export type AdsSource = 'cortiq' | 'ga4';
 
 interface AdsTabProps {
   selectedSite: string;
-  startDate?: string;
-  endDate?: string;
   onNavigate?: (tab: string) => void;
 }
 
-export function AdsTab({ selectedSite, startDate, endDate, onNavigate }: AdsTabProps) {
+export function AdsTab({ selectedSite, onNavigate }: AdsTabProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const { data: readiness, isLoading } = useAcquisitionReadiness(selectedSite);
 
@@ -58,12 +60,19 @@ export function AdsTab({ selectedSite, startDate, endDate, onNavigate }: AdsTabP
         </ToggleGroup>
       </div>
 
+      {source !== null && (
+        <FilterScopeNotice
+          supports={{ date: true, path: source === 'cortiq', segment: source === 'cortiq' }}
+          notes={{ path: GA4_REASON, segment: GA4_REASON }}
+        />
+      )}
+
       {source === null ? (
         <div className="py-12 text-center text-sm text-muted-foreground">Loading...</div>
       ) : source === 'ga4' ? (
         <PaidAdsTab selectedSite={selectedSite} onNavigate={onNavigate} />
       ) : (
-        <ServerSidePaidAdsTab selectedSite={selectedSite} startDate={startDate} endDate={endDate} onNavigate={onNavigate} />
+        <ServerSidePaidAdsTab selectedSite={selectedSite} onNavigate={onNavigate} />
       )}
     </div>
   );

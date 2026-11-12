@@ -20,13 +20,11 @@ import { goalsStep, paidMediumStep, trackingStep } from '../setup/acquisitionSte
 
 interface ServerSidePaidAdsTabProps {
   selectedSite: string;
-  startDate?: string;
-  endDate?: string;
   onNavigate?: (tab: string) => void;
 }
 
-export function ServerSidePaidAdsTab({ selectedSite, startDate, endDate, onNavigate }: ServerSidePaidAdsTabProps) {
-  const { data, loading, error } = usePaidAdsAnalytics(selectedSite, startDate, endDate);
+export function ServerSidePaidAdsTab({ selectedSite, onNavigate }: ServerSidePaidAdsTabProps) {
+  const { data, loading, error } = usePaidAdsAnalytics(selectedSite);
   const { data: readiness } = useAcquisitionReadiness(selectedSite);
 
   if (!selectedSite) {
