@@ -17,7 +17,7 @@
 
 ---
 
-![CortIQ Analytics Dashboard](src/assets/analytics-dashboard-hero.jpg)
+![An analyst reviews web traffic dashboards in an office overlooking a city waterfront](src/assets/hero/hero-1280.jpg)
 
 ---
 
@@ -99,6 +99,11 @@ npm install && npm run dev  # → http://localhost:8080
 - Browser-type breakdown: Visual / Headless / Text-based
 - Server-log + edge ingest so even non-JS training crawlers are counted
 
+### 🌐 GEO — visibility in AI search
+- **GEO audit** — a 0–100 score per URL across six areas: AI access (robots.txt groups for 14 AI crawlers), citability (deterministic passage scoring), content, freshness, schema and technical (JavaScript rendering, security headers), plus `llms.txt` validation. The score model version is stored with each audit so results stay comparable
+- **AI referrals** — human visits arriving from ChatGPT, Perplexity, Claude and other assistants, measured after analytics consent with the referrer reduced to its origin
+- **Zero-Click Risk Index** — pages AI crawlers ingest heavily, weighted by crawler intent and set against Search Console CTR, so you see where AI may answer without sending the click
+
 ### 🎯 Conversion & Attribution *(closes the GA4 ↔ Google Ads ↔ CRM gap)*
 - First-party click-ID capture (gclid, fbclid, msclkid, ttclid, li_fat_id) — consent-gated
 - Conversion-goal **health monitor** (flags goals that fire too often, went silent, or split Smart Bidding signal)
@@ -108,6 +113,7 @@ npm install && npm run dev  # → http://localhost:8080
 - **AI influence** — AI assistant fetches and referral visits per day, and conversions on pages AI assistants read in the 14 days before (a correlation, never credited), plus Search Console brand vs non-brand clicks
 - **Pixel readiness** — estimates whether Meta/Google pixels get enough conversions to optimise (aggregate conversions × banner acceptance)
 - Google Ads connected via OAuth; pick the "Import from clicks" conversion action in Settings
+- **Attribution models: not built yet.** Today a conversion is tied to the source of the visit it happens in (UTM first touch per session). A side-by-side model comparison (first touch, last non-direct, linear, position-based, time decay) on consented journeys is planned and waits for legal review
 
 ### 📊 Human Visitor Analytics
 - Page views, sessions, bounce rate, traffic sources
@@ -146,8 +152,13 @@ CortIQ is built by an EU company for EU-grade compliance:
 - **EU data residency** — Supabase, AWS `eu-north-1`; US transfers (AI/ads) are optional, consent-gated and disclosed
 - **Transparent transfers** — Google, HubSpot and Anthropic are named as recipients/processors in the privacy policy with SCC coverage
 
+### 🔎 Search engine data
+- **Google Search Console** — connect with your Google account (read-only, `webmasters.readonly`) and pick a property. Queries, pages, clicks, impressions, CTR and position sync daily per calendar month, with 16 months of history on the first sync
+- Search Console data feeds the **Zero-Click Risk Index** (AI crawler visits per page set against CTR) and the brand vs non-brand split in **AI influence** (brand terms set per site)
+- **Bing Webmaster Tools** — import of search performance, indexing and crawl data is in development, not yet ready to recommend
+
 ### ⚙️ Integrations & Advanced
-GA4 (server-side) · Google Search Console · Tag Manager · Data Warehouse connectors (BigQuery, Snowflake, Redshift, PostgreSQL) · Geolocation maps · User LTV & cohorts · Web Vitals (LCP, INP, CLS) · White-label · WordPress plugin · REST + MCP API.
+GA4 (server-side) · Tag Manager · Data Warehouse connectors (BigQuery, Snowflake, Redshift, PostgreSQL) · Geolocation maps · User LTV & cohorts · Web Vitals (LCP, INP, CLS) · White-label · WordPress plugin · REST + MCP API.
 
 ---
 
