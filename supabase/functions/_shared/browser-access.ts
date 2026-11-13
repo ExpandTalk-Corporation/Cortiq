@@ -1,5 +1,5 @@
 // Who may use the headless browser (Tracking Check and heatmap screenshots).
-// Until the browser runs under an EU agreement (browser-service/, DPA 1.5) only allowlisted accounts may
+// Until the browser runs under an EU agreement (browser-service/, DPA 1.6) only allowlisted accounts may
 // use it: the hosted browser is not a listed sub-processor, so no customer data may reach it.
 // Set TRACKING_CHECK_PUBLIC=true once the EU browser is live to open it to every confirmed account.
 type User = { email?: string | null; email_confirmed_at?: string | null };
