@@ -6,9 +6,9 @@ import PublicNavigation from "@/components/PublicNavigation";
 import PublicFooter from "@/components/PublicFooter";
 import { useSEO } from "@/hooks/useSEO";
 import { seoFor } from "@/marketing-routes";
-import { Shield, CheckCircle, Mail, FileText, Database, Users, BarChart3, Megaphone } from "lucide-react";
+import { Shield, CheckCircle, Mail, FileText, Database, Users, BarChart3, Megaphone, Search } from "lucide-react";
 
-const LAST_UPDATED = "November 7, 2026";
+const LAST_UPDATED = "November 12, 2026";
 
 const Privacy = () => {
   useSEO(seoFor("/privacy/"));
@@ -77,7 +77,7 @@ const Privacy = () => {
                   For analytics data collected on our customers' websites, CortIQ acts as a
                   <strong> processor</strong> on behalf of the site operator (the controller). For our own
                   account, billing and platform data, CortIQ (Expandtalk Corporation AB) is the
-                  <strong> controller</strong>.
+                  <strong> controller</strong>. We are also the controller for the Tracking Check tool (section 4A).
                 </p>
                 <p className="text-sm mt-3">
                   <strong className="text-foreground">Visiting a website that uses CortIQ?</strong> The owner of that
@@ -323,6 +323,130 @@ const Privacy = () => {
             </CardContent>
           </Card>
 
+          {/* Tracking Check — Expandtalk is the controller */}
+          {/* Facts below are checked against supabase/functions/tracking-check-start, tracking-check-worker,
+              tracking-check-report, _shared/tracking-check/ and the tracking_check migrations
+              (tests/foundation/privacy-tracking-check.test.mjs keeps the numbers in sync).
+              TODO(owner): before publishing, confirm the production BROWSERLESS_URL (Browserless cloud,
+              which region) and the transfer basis for Browserless (Art. 44–46 GDPR) — see the comment in
+              "Recipients and transfers". If the hosted browser moves to Hetzner (browser-service/), update
+              this section, section 5B/5C and the DPA first. */}
+          <Card className="glass shadow-elegant border-primary/20" id="tracking-check">
+            <CardHeader>
+              <div className="flex items-center space-x-3 mb-2">
+                <Search className="h-6 w-6 text-primary" />
+                <CardTitle>4A. Tracking Check (We are the controller)</CardTitle>
+              </div>
+              <Badge className="w-fit bg-gradient-primary text-white">Our own processing</Badge>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-muted-foreground leading-relaxed">
+                Tracking Check (<Link to="/tracking-check/" className="text-primary underline">/tracking-check/</Link>) checks
+                how a website handles tracking tags and cookie consent. A logged-in account holder enters a website
+                address and the pages to check. We then open those pages in a headless browser with no consent, after
+                rejecting and after accepting the cookie banner, and report what the pages load and store. The website
+                does not need CortIQ installed.
+              </p>
+              <p className="text-muted-foreground leading-relaxed">
+                For this processing, Expandtalk Corporation AB is the <strong>controller</strong>. We decide what the
+                tool does and why. This is different from ordinary CortIQ analytics, where we act as a processor for
+                the site operator (section 2). The owner of a checked website is not the controller for our
+                processing, and running a check does not make us that owner&apos;s processor.
+              </p>
+              <p className="text-muted-foreground leading-relaxed">
+                During the private preview, only invited accounts can run checks.
+              </p>
+
+              <div className="bg-primary/10 p-4 rounded-lg">
+                <h4 className="font-semibold mb-2 text-foreground">What we process about you, the account holder</h4>
+                <ul className="text-sm text-muted-foreground space-y-1 ml-4">
+                  <li>• <strong>Account data:</strong> your email address and whether it is confirmed, used to check that you may run checks and which limits apply</li>
+                  <li>• <strong>Run settings:</strong> the website addresses (and, in comparison mode, a second address to compare with), the page paths you choose, old URLs to test for redirects, and the policy choices you tick</li>
+                  <li>• <strong>Run history:</strong> when each run was started, whether you or a schedule started it, its status and errors</li>
+                  <li>• <strong>Results:</strong> the report with findings and a summary. If you mark a finding as verified, we store your email address and the time with it</li>
+                  <li>• <strong>Schedules:</strong> if you turn on weekly or monthly reruns, a copy of the run settings, the frequency and the next run time</li>
+                  <li>• <strong>Share links:</strong> if you share a report, a random link token and the expiry date you choose</li>
+                </ul>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Tracking Check does not take screenshots. It does not accept login credentials for password-protected
+                  sites at the moment.
+                </p>
+              </div>
+
+              <div className="bg-primary/10 p-4 rounded-lg">
+                <h4 className="font-semibold mb-2 text-foreground">Data about the checked website</h4>
+                <p className="text-sm text-muted-foreground">
+                  The browser loads each page as a new visitor and does not log in or fill in forms. For each page we
+                  store the redirect chain, HTTP status, Content-Security-Policy, the addresses of the network
+                  requests the page makes, and the <strong>names</strong> of cookies and browser storage it sets.
+                  We never store cookie or storage values. The page&apos;s text and HTML are read during the run to find
+                  the cookie banner and forms, and are not stored.
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  We collect no data about the checked website&apos;s visitors: the browser is our own test visitor.
+                  Personal data can still appear in what we store if the website itself puts it there, for example an
+                  email address in a request address, or if the website address identifies a person, such as a sole
+                  trader. The report flags email addresses in request addresses by parameter name and never shows the
+                  value.
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  <strong className="text-foreground">If your data appears on a website that someone checked:</strong>{" "}
+                  contact us at info@expandtalk.se to exercise your rights for our processing. For the website itself,
+                  contact its owner.
+                </p>
+              </div>
+
+              <div className="bg-primary/5 p-4 rounded-lg">
+                <h4 className="font-semibold mb-2 text-foreground">Purposes and legal basis</h4>
+                <ul className="text-sm text-muted-foreground space-y-2 ml-4">
+                  <li>• <strong>Running checks, reports, schedules and share links you ask for</strong> — performance of our contract with you under the Terms of Service (GDPR Art. 6(1)(b)).</li>
+                  <li>• <strong>Usage limits and abuse prevention</strong> — we count the runs you start yourself (at most 3 per 24 hours) and your active schedules (at most 5), so the shared browser is not overloaded or used to flood websites with requests. Legitimate interest (GDPR Art. 6(1)(f)) in securing the service and keeping it available to all users.</li>
+                  <li>• <strong>Personal data that happens to appear in stored data about a checked website</strong> — legitimate interest (GDPR Art. 6(1)(f)) in giving the account holder an accurate report. We do not use it for any other purpose.</li>
+                </ul>
+                <p className="text-sm text-muted-foreground mt-2">
+                  You can object to processing based on legitimate interest (Art. 21 GDPR).
+                </p>
+              </div>
+
+              {/* TODO(owner): Art. 13(1)(e)–(f) GDPR requires the recipients and the transfer safeguard.
+                  Verified in code: the browser endpoint is BROWSERLESS_URL (no default; the plan defaulted to
+                  production-sfo.browserless.io, USA). Not verified: which endpoint production uses, and whether a
+                  data processing agreement (Art. 28) and a transfer basis (DPF certification or SCCs, Art. 45/46)
+                  exist. Browserless's trust page says a DPA is available on Enterprise plans. Add the basis here
+                  before publishing; do not publish this section without it. */}
+              <div className="bg-primary/5 p-4 rounded-lg">
+                <h4 className="font-semibold mb-2 text-foreground">Recipients and transfers</h4>
+                <ul className="text-sm text-muted-foreground space-y-2 ml-4">
+                  <li>• <strong>Supabase</strong> — stores runs, results and schedules, and runs the server functions that start checks and fetch pages (section 5B).</li>
+                  <li>• <strong>Browserless</strong> (Browserless, Inc., USA) — the hosted headless browser. It receives the page addresses of each run and loads the pages. This is a transfer of personal data to the USA where the run data contains any.</li>
+                  <li>• <strong>Anyone with a share link</strong> — sees the report: the checked website addresses, findings and summary, until the link expires or you revoke it. Your email address is not shown.</li>
+                  <li>• <strong>The checked website</strong> — receives ordinary page requests from our browser and server. The requests are marked with <code>CortIQ-TrackingCheck</code> in the User-Agent and carry test values in the address (such as <code>utm_source=cortiq_check</code>).</li>
+                </ul>
+              </div>
+
+              <div className="bg-primary/5 p-4 rounded-lg">
+                <h4 className="font-semibold mb-2 text-foreground">Retention</h4>
+                <ul className="text-sm text-muted-foreground space-y-1 ml-4">
+                  <li>• <strong>Raw page data</strong> (request addresses, cookie and storage names): deleted after 90 days by an hourly job</li>
+                  <li>• <strong>Runs, reports and schedules:</strong> kept while your account exists, so you can compare runs over time. Turning a schedule off stops new runs but keeps the schedule record.</li>
+                  <li>• <strong>Share links:</strong> stop working at the expiry you chose (at most 365 days) or when you revoke them; links without an expiry work until revoked</li>
+                  <li>• <strong>When you close your account:</strong> all your runs, results and schedules are deleted with it</li>
+                  <li>• <strong>Error logs</strong> at our hosting and browser providers follow those providers&apos; own log retention</li>
+                </ul>
+                {/* TODO(owner): there is no time limit or self-service deletion for single runs in the UI
+                    (RLS allows DELETE, the dashboard has no button). Decide a retention period, or add deletion,
+                    and update this list. Also confirm Browserless's log retention for our plan. */}
+                <p className="text-sm text-muted-foreground mt-2">
+                  To delete a single run earlier, email info@expandtalk.se.
+                </p>
+              </div>
+
+              <p className="text-sm text-muted-foreground">
+                Your rights are listed in section 7. You can also complain to Integritetsskyddsmyndigheten (IMY).
+              </p>
+            </CardContent>
+          </Card>
+
           {/* Visitor Analytics with Consent */}
           <Card className="glass shadow-elegant border-accent/20">
             <CardHeader>
@@ -554,7 +678,7 @@ const Privacy = () => {
                 <li>✓ <strong>Right to erasure</strong> (Art. 17 GDPR) - Request deletion of your data</li>
                 <li>✓ <strong>Right to rectification</strong> (Art. 16 GDPR) - Correct inaccurate data</li>
                 <li>✓ <strong>Right to restriction of processing</strong> (Art. 18 GDPR) - Ask us to limit how we use your data, for example while we check a disputed fact</li>
-                <li>✓ <strong>Right to object</strong> (Art. 21 GDPR) - Object to processing based on legitimate interest (sections 3A, 3B and 3C)</li>
+                <li>✓ <strong>Right to object</strong> (Art. 21 GDPR) - Object to processing based on legitimate interest (sections 3A, 3B, 3C, 4 and 4A)</li>
                 <li>✓ <strong>Right to data portability</strong> (Art. 20 GDPR) - Get your data in structured form</li>
                 <li>✓ <strong>Right to withdraw consent</strong> (Art. 7.3 GDPR) - At any time, via the site's cookie settings</li>
               </ul>
@@ -640,6 +764,14 @@ const Privacy = () => {
                   <li>• <strong>Consent records (proof of consent):</strong> 2 years, to demonstrate consent under GDPR Art. 7.1. This is separate from how long a consent choice is valid: an accepted choice expires after 12 months and a necessary-only choice after 6 months by default, after which you are asked again.</li>
                   <li>• <strong>Data-subject requests:</strong> 3 years, or 1 year after a request is completed</li>
                 </ul>
+              </div>
+
+              <div className="bg-primary/5 p-4 rounded-lg">
+                <h4 className="font-semibold mb-2 text-foreground">Tracking Check</h4>
+                <p className="text-sm text-muted-foreground">
+                  Raw page data is deleted after 90 days; runs, reports and schedules are kept while your account
+                  exists (section 4A).
+                </p>
               </div>
 
               <div className="bg-primary/5 p-4 rounded-lg">
