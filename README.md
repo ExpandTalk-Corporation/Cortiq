@@ -99,6 +99,11 @@ npm install && npm run dev  # → http://localhost:8080
 - Browser-type breakdown: Visual / Headless / Text-based
 - Server-log + edge ingest so even non-JS training crawlers are counted
 
+### 🌐 GEO — visibility in AI search
+- **GEO audit** — a 0–100 score per URL across six areas: AI access (robots.txt groups for 14 AI crawlers), citability (deterministic passage scoring), content, freshness, schema and technical (JavaScript rendering, security headers), plus `llms.txt` validation. The score model version is stored with each audit so results stay comparable
+- **AI referrals** — human visits arriving from ChatGPT, Perplexity, Claude and other assistants, measured after analytics consent with the referrer reduced to its origin
+- **Zero-Click Risk Index** — pages AI crawlers ingest heavily, weighted by crawler intent and set against Search Console CTR, so you see where AI may answer without sending the click
+
 ### 🎯 Conversion & Attribution *(closes the GA4 ↔ Google Ads ↔ CRM gap)*
 - First-party click-ID capture (gclid, fbclid, msclkid, ttclid, li_fat_id) — consent-gated
 - Conversion-goal **health monitor** (flags goals that fire too often, went silent, or split Smart Bidding signal)
@@ -108,6 +113,7 @@ npm install && npm run dev  # → http://localhost:8080
 - **AI influence** — AI assistant fetches and referral visits per day, and conversions on pages AI assistants read in the 14 days before (a correlation, never credited), plus Search Console brand vs non-brand clicks
 - **Pixel readiness** — estimates whether Meta/Google pixels get enough conversions to optimise (aggregate conversions × banner acceptance)
 - Google Ads connected via OAuth; pick the "Import from clicks" conversion action in Settings
+- **Attribution models: not built yet.** Today a conversion is tied to the source of the visit it happens in (UTM first touch per session). A side-by-side model comparison (first touch, last non-direct, linear, position-based, time decay) on consented journeys is planned and waits for legal review
 
 ### 📊 Human Visitor Analytics
 - Page views, sessions, bounce rate, traffic sources
