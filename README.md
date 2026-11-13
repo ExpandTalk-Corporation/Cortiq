@@ -25,15 +25,17 @@
 
 1 in 31 web visits is now an AI bot — up from 1 in 200 at the start of 2025. Every other platform treats that traffic as noise to filter, or a binary block/allow decision.
 
-CortIQ is the **first open-source, EU-built analytics platform** that turns AI traffic into a signal instead of noise — with consent-gated visitor analytics and a cookieless mode (no cookies, no fingerprint, no persistent IDs).
+CortIQ is the **first open-source, EU-built analytics platform** that turns AI traffic into a signal instead of noise — with consent-gated visitor analytics, a cookieless mode (no cookies, no fingerprint, no persistent IDs) and an opt-in aggregate mode designed to not require consent.
 
 It classifies every AI visit into three categories:
 
 | Type | Examples | What it means for you |
 |------|----------|-----------------------|
-| 🔴 **Training Crawlers** | GPTBot, ClaudeBot, CCBot | Pure infrastructure cost — no referral value |
-| 🟢 **Agentic Browsers** | ChatGPT Browser, Perplexity Comet, Claude Browser | Real users acting through an AI — track and convert them |
-| 🔵 **Citation Crawlers** | PerplexityBot, Google-Extended, OAI-SearchBot | AI search indexing — your visibility signal |
+| 🔴 **Training Crawlers** | GPTBot, ClaudeBot, CCBot, Google-Extended | Pure infrastructure cost — no referral value |
+| 🟢 **Agentic Fetches** | ChatGPT-User, Claude-User, Perplexity-User | Real users acting through an AI — track and convert them |
+| 🔵 **Citation Crawlers** | PerplexityBot, OAI-SearchBot, Claude-SearchBot | AI search indexing — your visibility signal |
+
+In-browser agents such as Perplexity Comet send a stock Chrome user agent, so they are detected by JavaScript signals only, never by UA.
 
 On top of that: **full human analytics** (heatmaps, sessions, A/B testing, forms) and a **paid-conversion attribution loop** that closes the GA4 ↔ Google Ads ↔ CRM gap — all under one roof.
 
@@ -56,7 +58,7 @@ CortIQ is built as three clearly separated layers. This separation is deliberate
 │  🗄️   DATA LAYER                                                        │
 │      • Ingest: tracking script + Edge Functions (visitor-id, events,   │
 │        consent, conversions, bot tracker) — service-role, validated    │
-│      • Storage: PostgreSQL, ~66 tables, Row-Level Security per tenant  │
+│      • Storage: PostgreSQL, Row-Level Security per tenant              │
 │      • Unified visitor profiles, sessions, heatmaps, conversions       │
 │      writes ▼                                                          │
 ├──────────────────────────────────────────────────────────────────────┤
@@ -92,7 +94,7 @@ npm install && npm run dev  # → http://localhost:8080
 
 ### 🤖 AI Bot Intelligence — the differentiator
 - Classify every AI visit: **training crawler**, **agentic browser**, or **citation crawler** — a single canonical registry drives both ingest and dashboard
-- Track agentic-browser journeys page-by-page (ChatGPT Browser, Perplexity Comet, Claude Browser)
+- Track agentic journeys page-by-page (ChatGPT-User, Claude-User, Perplexity-User; in-browser agents via JS signals)
 - Citation-request detection — know when LLMs index and cite your content
 - Browser-type breakdown: Visual / Headless / Text-based
 - Server-log + edge ingest so even non-JS training crawlers are counted
@@ -103,17 +105,23 @@ npm install && npm run dev  # → http://localhost:8080
 - Form auto-discovery with HubSpot / Gravity Forms GUID detection
 - HubSpot lead-quality → **Google Ads Enhanced Conversions** feedback loop (email is SHA-256 hashed in the browser — raw PII never touches CortIQ)
 - Attribution-gap dashboard: CortIQ conversions vs CRM-qualified leads vs upload status
+- **AI influence** — AI assistant fetches and referral visits per day, and conversions on pages AI assistants read in the 14 days before (a correlation, never credited), plus Search Console brand vs non-brand clicks
+- **Pixel readiness** — estimates whether Meta/Google pixels get enough conversions to optimise (aggregate conversions × banner acceptance)
+- Google Ads connected via OAuth; pick the "Import from clicks" conversion action in Settings
 
 ### 📊 Human Visitor Analytics
 - Page views, sessions, bounce rate, traffic sources
 - Click heatmaps by device + scroll-depth funnels (25/50/75/100%)
 - Form analytics — field-level completion and drop-off
 - Navigation flow analysis
+- **Filters and segments** on every main tab (URL-shareable), built-in segments and saved presets
+- **Custom dimensions** with report RPCs, GA4-style engagement metrics (engaged visits, engagement time)
 
 ### 🧪 Optimisation
 - A/B testing with statistical significance · conversion funnels
 - KPI dashboards — build your own or pick from a catalog
 - Segments and behavioral alerts
+- **Pipeline freshness alerts** — warns when a data source (tracker, consent, server-side ingest) goes silent
 
 ### 🧠 AI & Agent-Ready
 - **AI Assistant** — ask questions in natural language; answers are grounded in your real data via tool-use, never hallucinated
@@ -121,12 +129,17 @@ npm install && npm run dev  # → http://localhost:8080
 - `llms.txt` published so AI systems can understand the product
 - **Transparent insights** — every AI recommendation shows tables queried, row counts, model, tokens, and duration
 
+### 🔍 Tracking Check — free public tool
+[cortiq.se/tracking-check](https://cortiq.se/tracking-check/) loads a site in an EU-hosted browser and reports what fires before and after consent: cookies, storage, third-party requests, Consent Mode signals (gcs/gcd), emails in URLs, HubSpot iframe forms (with a paste-ready GTM listener), CSP and script-integrity findings. Results export to Excel; scheduled re-runs available.
+
 ### 🔒 Privacy & GDPR — built in, not bolted on
 CortIQ is built by an EU company for EU-grade compliance:
+- **Aggregate measurement (opt-in per site)** — counts page views, visits, daily visitors, sources/UTM and goals without storage, IDs or fingerprint signals; visitors are a daily-salted server hash, deleted when the UTC day ends. Honours refusal and GPC. Designed to not require consent; the site operator makes the final legal assessment
 - **Server-side agent measurement** — AI crawlers and agents measured on your own server or edge (Next.js, Netlify, Cloudflare, Node, WordPress or any server via HTTP API). Only bot-like requests are sent, with the IP truncated on your server. No access to the visitor's device, so in our assessment no consent banner is needed for it; it is still personal data under GDPR (typically legitimate interest). The site operator makes the final legal assessment
 - **In-browser bot checks after consent** — bot probe, honeypot and canary in the tracking script read device properties, so they start only after analytics consent
 - **Consent-gated visitor analytics** — page views, sessions, AI referrals, clicks, scroll, heatmaps, forms, e-commerce, conversions and A/B tests start only after analytics consent (GDPR Art. 6.1.a / ePrivacy Art. 5.3), verified **server-side**. Consent is valid 12 months, then re-asked
-- **Cookieless or Full mode** — Cookieless: no cookies, no fingerprint, no cross-visit profile, no persistent IDs (still needs consent). Full: persistent visitor ID and returning-visitor analysis after consent. Marketing click IDs only with marketing consent
+- **Cookieless or Full mode** — Cookieless: no cookies, no fingerprint, no cross-visit profile, no persistent IDs (still needs consent); a session ID is kept in sessionStorage after consent so a visit survives page loads (opt out with `data-session-storage="false"`). Full: persistent visitor ID and returning-visitor analysis after consent. Marketing click IDs only with marketing consent
+- **Pinned installs with SRI** — optional snippet that loads a fixed tracker version with `integrity` hashes; security fixes are flagged for sites on older pins ([details](https://cortiq.se/security/sri/))
 - **Demonstrable consent** — the consent banner writes an authoritative server-side ledger (timestamp, version, GPC signal) for Art. 7(1) proof
 - **Data minimisation** — IP addresses anonymised at ingest; emails SHA-256 hashed before any third-party upload
 - **Retention & erasure** — automated retention cron across all sensitive tables + a data-subject-request path
@@ -148,9 +161,9 @@ GA4 (server-side) · Google Search Console · Tag Manager · Data Warehouse conn
 | Backend | Supabase (PostgreSQL + Deno Edge Functions) |
 | Auth | Supabase Auth with Row-Level Security |
 | AI | Claude (Anthropic) — assistant, GEO audits; BYOK supported |
-| Tracking script | Vanilla JS, ~13 kB gzipped |
+| Tracking script | Vanilla JS, ~18 kB gzipped |
 
-**Scale:** ~66 core database tables · 76 Edge Functions · 144 migrations · 135 dashboard components · 28 dashboard tabs
+**Scale:** 81 Edge Functions · 204 migrations · 154 dashboard components · 29 dashboard tabs · 75 data hooks
 
 ---
 
@@ -229,12 +242,12 @@ For WordPress, download the plugin zip from the dashboard (Settings → Setup); 
 ```
 cortiq/
 ├── src/
-│   ├── components/dashboard/   # 135 dashboard components (tabs/ = one per tab)
-│   ├── hooks/                  # 50+ typed data-fetching hooks  ← Data Layer reads
+│   ├── components/dashboard/   # 154 dashboard components (tabs/ = one per tab)
+│   ├── hooks/                  # 75 typed data-fetching hooks  ← Data Layer reads
 │   ├── pages/                  # Public pages + Dashboard
 │   └── integrations/supabase/  # Client & generated TypeScript types
 ├── supabase/
-│   ├── functions/              # 76 Edge Functions (Deno)
+│   ├── functions/              # 81 Edge Functions (Deno)
 │   │   ├── ai-assistant/       #   ← Agentic Layer
 │   │   ├── mcp-server/         #   ← Agentic Layer (external agent API)
 │   │   ├── visitor-identification/, track-event/, record-conversion/  # ← Data Layer ingest
@@ -244,6 +257,7 @@ cortiq/
 ├── public/
 │   ├── spa-tracking.js         # Embeddable tracking script (consent-gated)
 │   ├── consent-banner.js       # Drop-in CMP → server-side consent ledger
+│   ├── v/<version>/            # Pinned, immutable tracker builds for SRI installs
 │   └── llms.txt                # AI-discoverability manifest
 └── SKILL.md                    # Agent skill definition
 ```
