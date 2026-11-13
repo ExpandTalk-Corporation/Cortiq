@@ -17,7 +17,7 @@
 
 ---
 
-![CortIQ Analytics Dashboard](src/assets/analytics-dashboard-hero.jpg)
+![An analyst reviews web traffic dashboards in an office overlooking a city waterfront](src/assets/hero/hero-1280.jpg)
 
 ---
 
@@ -146,8 +146,13 @@ CortIQ is built by an EU company for EU-grade compliance:
 - **EU data residency** — Supabase, AWS `eu-north-1`; US transfers (AI/ads) are optional, consent-gated and disclosed
 - **Transparent transfers** — Google, HubSpot and Anthropic are named as recipients/processors in the privacy policy with SCC coverage
 
+### 🔎 Search engine data
+- **Google Search Console** — connect with your Google account (read-only, `webmasters.readonly`) and pick a property. Queries, pages, clicks, impressions, CTR and position sync daily per calendar month, with 16 months of history on the first sync
+- Search Console data feeds the **Zero-Click Risk Index** (AI crawler visits per page set against CTR) and the brand vs non-brand split in **AI influence** (brand terms set per site)
+- **Bing Webmaster Tools** — import of search performance, indexing and crawl data is in development, not yet ready to recommend
+
 ### ⚙️ Integrations & Advanced
-GA4 (server-side) · Google Search Console · Tag Manager · Data Warehouse connectors (BigQuery, Snowflake, Redshift, PostgreSQL) · Geolocation maps · User LTV & cohorts · Web Vitals (LCP, INP, CLS) · White-label · WordPress plugin · REST + MCP API.
+GA4 (server-side) · Tag Manager · Data Warehouse connectors (BigQuery, Snowflake, Redshift, PostgreSQL) · Geolocation maps · User LTV & cohorts · Web Vitals (LCP, INP, CLS) · White-label · WordPress plugin · REST + MCP API.
 
 ---
 
