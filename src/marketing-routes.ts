@@ -210,6 +210,15 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
     source: 'src/content/guides.ts',
   },
   {
+    path: '/guides/chatgpt-business-hub/',
+    title: 'ChatGPT Business Hub: Clicks vs Visits — CortIQ',
+    description: 'What ChatGPT Business Hub reports, why its website clicks do not match the ChatGPT visits in your analytics, and how to compare the two.',
+    published: '2026-11-13',
+    changefreq: 'monthly',
+    priority: 0.6,
+    source: 'src/content/guides.ts',
+  },
+  {
     path: '/integrations/',
     title: 'Integrations: WordPress, Cloudflare, GA4 & MCP — CortIQ',
     description: 'Connect CortIQ to WordPress, Cloudflare, Google Analytics 4 and MCP clients like Claude Code, or use the REST API. What works today and what is coming.',

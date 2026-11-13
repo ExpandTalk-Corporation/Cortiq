@@ -338,6 +338,97 @@ export const COOKIES_BEFORE_CONSENT: ContentPageData = {
   ],
 };
 
+export const BUSINESS_HUB: ContentPageData = {
+  path: '/guides/chatgpt-business-hub/',
+  breadcrumb: [BREADCRUMB_ROOT, { label: 'ChatGPT Business Hub', path: '/guides/chatgpt-business-hub/' }],
+  eyebrow: 'Guide',
+  h1: 'ChatGPT Business Hub: what the clicks mean for your analytics',
+  lead: 'What ChatGPT Business Hub reports, why its website clicks will not match the ChatGPT visits in your analytics, and how to compare the two.',
+  sections: [
+    {
+      id: 'what-is-business-hub',
+      heading: 'What is ChatGPT Business Hub?',
+      blocks: [
+        { type: 'p', text: 'Business Hub is where a company manages how it appears in ChatGPT. OpenAI launched it on 10 November 2026 as part of Businesses in ChatGPT, in beta. A verified business can claim its ChatGPT profile, update its details and add product feeds with prices and availability.' },
+        { type: 'p', text: 'When a business appears in an answer, the user can open its profile in ChatGPT. Eligible US e-commerce and online-service companies can also set up a Business Agent, which answers follow-up questions about their offering inside ChatGPT.' },
+      ],
+    },
+    {
+      id: 'what-business-hub-shows',
+      heading: 'What Business Hub reports',
+      blocks: [
+        { type: 'p', text: 'Business Hub shows aggregated figures for the last 7 or 28 days:' },
+        {
+          type: 'list',
+          items: [
+            '**Mentions:** answers in which ChatGPT referenced the business\'s website. A brand name on its own does not count.',
+            '**Profile views:** people who opened the business profile in ChatGPT.',
+            '**Website clicks:** clicks on a link to the website.',
+            '**Discovery topics:** themes in the conversations that mentioned the business.',
+          ],
+        },
+        { type: 'p', text: 'OpenAI notes that recorded clicks do not confirm website visits or conversions. As of November 2026 there is no published reporting API or export, so the figures can only be read in Business Hub.' },
+      ],
+    },
+    {
+      id: 'click-is-not-a-visit',
+      heading: 'Why Business Hub clicks do not match your visits',
+      blocks: [
+        { type: 'p', text: 'Business Hub counts the click inside ChatGPT. Your analytics counts the page that loaded on your site. Between the two, several things can happen:' },
+        {
+          type: 'list',
+          items: [
+            '**The page never loads:** the person closes the tab, goes back, or the connection drops.',
+            '**No consent:** in most of Europe, visitor analytics waits for consent. A visitor who refuses the banner is not counted, unless you use consent-free [aggregate measurement](/docs/metrics/#aggregate).',
+            '**Blocked script:** ad and tracker blockers stop many analytics scripts.',
+            '**Counted as direct:** a link opened from the ChatGPT app may arrive without a referrer. Without a UTM tag it then looks like a [direct](/glossary/#direct) visit, not an AI referral.',
+            '**Several clicks, one visit:** a person who clicks twice within a visit is one visit in analytics.',
+          ],
+        },
+        { type: 'p', text: 'Expect your measured ChatGPT visits to be lower than Business Hub clicks. A large but stable gap usually comes from consent or attribution, not missing traffic.' },
+      ],
+    },
+    {
+      id: 'how-cortiq-counts',
+      heading: 'How CortIQ counts ChatGPT visits',
+      blocks: [
+        { type: 'p', text: 'CortIQ counts a visit as an [AI referral](/glossary/#ai-referral) from ChatGPT when the referrer is `chatgpt.com` or `chat.openai.com`, or when `utm_source` is `chatgpt` or `chatgpt.com`. These are people clicking a link, not bots.' },
+        { type: 'p', text: 'The **AI influence** card under Acquisition → Attribution gap shows these visits per day next to the AI assistant fetches of your pages, and the conversions on pages AI assistants read. It uses aggregate measurement when the site has it on, which counts every visit; otherwise it uses consented sessions.' },
+        { type: 'note', tone: 'info', text: 'OpenAI has not published how clicks from a business profile or a Business Agent are tagged. If they arrive without a referrer and without `utm_source`, they are counted as direct.' },
+      ],
+    },
+    {
+      id: 'compare',
+      heading: 'How to compare Business Hub with your analytics',
+      blocks: [
+        {
+          type: 'steps',
+          items: [
+            'Use the same period. Business Hub shows the last 7 or 28 days; set CortIQ to the same days.',
+            'Take **Website clicks** from Business Hub and the ChatGPT referral visits from CortIQ.',
+            'Divide visits by clicks. This is the share of clicks that became measured visits.',
+            'Compare that share with your banner acceptance rate. If the two are close, consent explains most of the gap.',
+            'Repeat every month. A sudden drop in the share points to a change in tagging, your banner or your tracking, not in ChatGPT.',
+          ],
+        },
+        { type: 'p', text: 'Mentions and profile views have no equivalent on your site: they happen entirely inside ChatGPT. What you can measure is what happens after the click: which pages people land on and whether they convert.' },
+      ],
+    },
+    {
+      id: 'bots',
+      heading: 'ChatGPT bots are a separate count',
+      blocks: [
+        { type: 'p', text: 'ChatGPT also fetches your pages itself, without a person clicking: OAI-SearchBot indexes pages for ChatGPT search, and ChatGPT-User fetches a page when a user\'s request needs it. Neither is a website click in Business Hub, and neither is a visit. CortIQ reports them as [AI traffic](/glossary/#ai-traffic), separately from human visits.' },
+      ],
+    },
+  ],
+  related: [
+    { label: 'Analytics glossary', path: '/glossary/' },
+    { label: 'How CortIQ counts', path: '/docs/metrics/' },
+    { label: 'AI agent analytics', path: '/features/ai/' },
+  ],
+};
+
 export const GUIDES_INDEX: ContentPageData = {
   path: '/guides/',
   breadcrumb: [BREADCRUMB_ROOT],
@@ -356,6 +447,7 @@ export const GUIDES_INDEX: ContentPageData = {
             '[How to detect bot traffic in web analytics](/guides/detect-bot-traffic/): the signs in your reports and the methods that catch declared and disguised bots.',
             '[Cookieless analytics alternatives to Google Analytics](/guides/cookieless-analytics-alternatives/): what cookieless means, why it is not consent-free, and the main options.',
             '[How to find cookies loaded before consent](/guides/find-cookies-before-consent/): a step-by-step check in Chrome DevTools, and the usual causes.',
+            '[ChatGPT Business Hub: what the clicks mean for your analytics](/guides/chatgpt-business-hub/): what Business Hub reports, why its clicks differ from your visits, and how to compare them.',
           ],
         },
       ],
@@ -367,4 +459,4 @@ export const GUIDES_INDEX: ContentPageData = {
   ],
 };
 
-export const GUIDE_PAGES: ContentPageData[] = [GUIDES_INDEX, WITHOUT_GA, DETECT_BOTS, ALTERNATIVES, COOKIES_BEFORE_CONSENT];
+export const GUIDE_PAGES: ContentPageData[] = [GUIDES_INDEX, WITHOUT_GA, DETECT_BOTS, ALTERNATIVES, COOKIES_BEFORE_CONSENT, BUSINESS_HUB];
