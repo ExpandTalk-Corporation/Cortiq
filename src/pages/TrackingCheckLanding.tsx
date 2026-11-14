@@ -1,3 +1,4 @@
+import { HexIcon } from '@/components/HexIcon';
 import { Link } from "react-router-dom";
 import {
   ArrowRight, Ban, Check, Cookie, FileSearch, KeyRound, Mail, Route, ShieldCheck, Shuffle, SlidersHorizontal, Tags, Wrench, X,
@@ -200,9 +201,7 @@ export default function TrackingCheckLanding() {
               <Card key={u.title} className="flex flex-col border-primary/20 bg-background">
                 <CardContent className="flex flex-1 flex-col gap-5 p-6 md:p-8">
                   <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-primary">
-                      <u.icon className="h-6 w-6 text-white" aria-hidden />
-                    </div>
+                    <HexIcon size={52} className="text-primary"><u.icon className="h-6 w-6" aria-hidden="true" /></HexIcon>
                     <h3 className="text-2xl font-bold">{u.title}</h3>
                   </div>
                   <p className="text-muted-foreground">{u.lead}</p>
