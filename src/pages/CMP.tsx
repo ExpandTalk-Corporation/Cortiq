@@ -1,3 +1,4 @@
+import { HexIcon } from '@/components/HexIcon';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -96,9 +97,7 @@ export default function CMP() {
           {features.map((feature, index) => (
             <Card key={index} className="hover-lift">
               <CardHeader>
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                  {feature.icon}
-                </div>
+                <HexIcon size={52} className="mb-4">{feature.icon}</HexIcon>
                 <CardTitle className="text-xl">{feature.title}</CardTitle>
               </CardHeader>
               <CardContent>

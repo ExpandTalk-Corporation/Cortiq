@@ -1,3 +1,4 @@
+import { HexIcon } from '@/components/HexIcon';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -320,9 +321,7 @@ export default function Features() {
               <Card key={index} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-start gap-4">
-                    <div className="text-primary">
-                      {feature.icon}
-                    </div>
+                    <HexIcon size={72}>{feature.icon}</HexIcon>
                     <div>
                       <CardTitle className="text-xl mb-2">{feature.title}</CardTitle>
                       <CardDescription className="text-base">
@@ -359,9 +358,7 @@ export default function Features() {
               <Card key={index} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-start gap-4">
-                    <div className="text-primary">
-                      {feature.icon}
-                    </div>
+                    <HexIcon size={72}>{feature.icon}</HexIcon>
                     <div>
                       <CardTitle className="text-xl mb-2">{feature.title}</CardTitle>
                       <CardDescription className="text-base">
@@ -398,9 +395,7 @@ export default function Features() {
               <Card key={index} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-start gap-4">
-                    <div className="text-primary">
-                      {feature.icon}
-                    </div>
+                    <HexIcon size={72}>{feature.icon}</HexIcon>
                     <div>
                       <CardTitle className="text-xl mb-2">{feature.title}</CardTitle>
                       <CardDescription className="text-base">
@@ -685,9 +680,7 @@ export default function Features() {
               <Card key={index} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-start gap-4">
-                    <div className="text-primary">
-                      {feature.icon}
-                    </div>
+                    <HexIcon size={72}>{feature.icon}</HexIcon>
                     <div>
                       <CardTitle className="text-xl mb-2">{feature.title}</CardTitle>
                       <CardDescription className="text-base">
@@ -724,9 +717,7 @@ export default function Features() {
               <Card key={index} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-start gap-4">
-                    <div className="text-primary">
-                      {feature.icon}
-                    </div>
+                    <HexIcon size={72}>{feature.icon}</HexIcon>
                     <div>
                       <CardTitle className="text-xl mb-2">{feature.title}</CardTitle>
                       <CardDescription className="text-base">
@@ -820,7 +811,7 @@ export default function Features() {
               <Card key={index} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-start gap-4">
-                    <div className="text-primary">{feature.icon}</div>
+                    <HexIcon size={72}>{feature.icon}</HexIcon>
                     <div>
                       <CardTitle className="text-xl mb-2">{feature.title}</CardTitle>
                       <CardDescription className="text-base">{feature.description}</CardDescription>

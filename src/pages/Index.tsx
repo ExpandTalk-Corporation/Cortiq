@@ -1,3 +1,4 @@
+import { HexIcon } from '@/components/HexIcon';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -190,9 +191,7 @@ const Index = () => {
                 <Card className="border-primary/20 bg-background/50 backdrop-blur">
                   <CardContent className="p-6">
                     <div className="flex items-start space-x-4">
-                      <div className="w-12 h-12 bg-gradient-primary rounded-xl flex items-center justify-center flex-shrink-0">
-                        <Shield className="h-6 w-6 text-white" />
-                      </div>
+                      <HexIcon size={52} className="text-primary"><Shield className="h-6 w-6" aria-hidden="true" /></HexIcon>
                       <div>
                         <h3 className="font-bold text-lg mb-2">Server-Side Agent Measurement</h3>
                         <p className="text-muted-foreground">
@@ -206,9 +205,7 @@ const Index = () => {
                 <Card className="border-accent/20 bg-background/50 backdrop-blur">
                   <CardContent className="p-6">
                     <div className="flex items-start space-x-4">
-                      <div className="w-12 h-12 bg-gradient-accent rounded-xl flex items-center justify-center flex-shrink-0">
-                        <Zap className="h-6 w-6 text-white" />
-                      </div>
+                      <HexIcon size={52} className="text-accent"><Zap className="h-6 w-6" aria-hidden="true" /></HexIcon>
                       <div>
                         <h3 className="font-bold text-lg mb-2">Cookieless or Full Mode</h3>
                         <p className="text-muted-foreground">
@@ -222,9 +219,7 @@ const Index = () => {
                 <Card className="border-primary/20 bg-background/50 backdrop-blur">
                   <CardContent className="p-6">
                     <div className="flex items-start space-x-4">
-                      <div className="w-12 h-12 bg-gradient-primary rounded-xl flex items-center justify-center flex-shrink-0">
-                        <BarChart3 className="h-6 w-6 text-white" />
-                      </div>
+                      <HexIcon size={52} className="text-primary"><BarChart3 className="h-6 w-6" aria-hidden="true" /></HexIcon>
                       <div>
                         <h3 className="font-bold text-lg mb-2">Privacy-First Solution</h3>
                         <p className="text-muted-foreground">
@@ -340,9 +335,7 @@ const Index = () => {
             {/* Server-side AI crawler classification */}
             <Card className="glass shadow-elegant hover-lift border-primary/20">
               <CardHeader>
-                <div className="w-12 h-12 bg-gradient-primary rounded-xl flex items-center justify-center mb-4">
-                  <Shield className="h-6 w-6 text-white" />
-                </div>
+                <HexIcon size={52} className="text-primary mb-4"><Shield className="h-6 w-6" aria-hidden="true" /></HexIcon>
                 <CardTitle className="text-xl">AI Crawler Classification</CardTitle>
               </CardHeader>
               <CardContent>
@@ -356,9 +349,7 @@ const Index = () => {
             {/* Spy Bots & Scrapers */}
             <Card className="glass shadow-elegant hover-lift border-accent/20">
               <CardHeader>
-                <div className="w-12 h-12 bg-gradient-accent rounded-xl flex items-center justify-center mb-4">
-                  <AlertTriangle className="h-6 w-6 text-white" />
-                </div>
+                <HexIcon size={52} className="text-accent mb-4"><AlertTriangle className="h-6 w-6" aria-hidden="true" /></HexIcon>
                 <CardTitle className="text-xl">Spy Bots</CardTitle>
               </CardHeader>
               <CardContent>
@@ -372,9 +363,7 @@ const Index = () => {
             {/* Fraud Prevention */}
             <Card className="glass shadow-elegant hover-lift border-primary/20">
               <CardHeader>
-                <div className="w-12 h-12 bg-gradient-primary rounded-xl flex items-center justify-center mb-4">
-                  <Lock className="h-6 w-6 text-white" />
-                </div>
+                <HexIcon size={52} className="text-primary mb-4"><Lock className="h-6 w-6" aria-hidden="true" /></HexIcon>
                 <CardTitle className="text-xl">Click-Fraud Detection</CardTitle>
               </CardHeader>
               <CardContent>
@@ -522,9 +511,7 @@ const Index = () => {
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto mb-16">
             <Card className="glass shadow-elegant hover-lift border-primary/20 text-center">
               <CardContent className="pt-8 pb-6">
-                <div className="w-16 h-16 bg-gradient-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Bot className="h-8 w-8 text-white" />
-                </div>
+                <HexIcon size={68} className="text-primary flex mx-auto mb-4"><Bot className="h-8 w-8" aria-hidden="true" /></HexIcon>
                 <h3 className="font-bold text-lg mb-2">ChatGPT</h3>
                 <p className="text-sm text-muted-foreground">
                   ChatGPT-User fetches for real users, OAI-SearchBot indexing and GPTBot training crawls
@@ -534,9 +521,7 @@ const Index = () => {
 
             <Card className="glass shadow-elegant hover-lift border-accent/20 text-center">
               <CardContent className="pt-8 pb-6">
-                <div className="w-16 h-16 bg-gradient-accent rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Sparkles className="h-8 w-8 text-white" />
-                </div>
+                <HexIcon size={68} className="text-accent flex mx-auto mb-4"><Sparkles className="h-8 w-8" aria-hidden="true" /></HexIcon>
                 <h3 className="font-bold text-lg mb-2">Perplexity</h3>
                 <p className="text-sm text-muted-foreground">
                   Perplexity-User fetches and PerplexityBot citation crawling
@@ -546,9 +531,7 @@ const Index = () => {
 
             <Card className="glass shadow-elegant hover-lift border-primary/20 text-center">
               <CardContent className="pt-8 pb-6">
-                <div className="w-16 h-16 bg-gradient-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Brain className="h-8 w-8 text-white" />
-                </div>
+                <HexIcon size={68} className="text-primary flex mx-auto mb-4"><Brain className="h-8 w-8" aria-hidden="true" /></HexIcon>
                 <h3 className="font-bold text-lg mb-2">Claude</h3>
                 <p className="text-sm text-muted-foreground">
                   Claude-User fetches, Claude-SearchBot indexing and ClaudeBot training crawls
@@ -558,9 +541,7 @@ const Index = () => {
 
             <Card className="glass shadow-elegant hover-lift border-accent/20 text-center">
               <CardContent className="pt-8 pb-6">
-                <div className="w-16 h-16 bg-gradient-accent rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Users className="h-8 w-8 text-white" />
-                </div>
+                <HexIcon size={68} className="text-accent flex mx-auto mb-4"><Users className="h-8 w-8" aria-hidden="true" /></HexIcon>
                 <h3 className="font-bold text-lg mb-2">Custom Agents</h3>
                 <p className="text-sm text-muted-foreground">
                   Register and measure your own AI agents and bots
@@ -668,9 +649,7 @@ const Index = () => {
               <div className="absolute inset-0 bg-gradient-primary opacity-0 group-hover:opacity-5 transition-opacity duration-500"></div>
               
               <CardHeader className="text-center pb-6 relative z-10">
-                <div className="mx-auto w-16 h-16 bg-gradient-primary rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                  <Shield className="h-8 w-8 text-white" />
-                </div>
+                <HexIcon size={68} className="text-primary flex mx-auto mb-6 group-hover:scale-110 transition-transform duration-300"><Shield className="h-8 w-8" aria-hidden="true" /></HexIcon>
                 <Badge className="mb-4 bg-gradient-primary text-white mx-auto">
                   Recommended
                 </Badge>
@@ -718,9 +697,7 @@ const Index = () => {
               <div className="absolute inset-0 bg-gradient-accent opacity-0 group-hover:opacity-5 transition-opacity duration-500"></div>
               
               <CardHeader className="text-center pb-6 relative z-10">
-                <div className="mx-auto w-16 h-16 bg-gradient-accent rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                  <Globe className="h-8 w-8 text-white" />
-                </div>
+                <HexIcon size={68} className="text-accent flex mx-auto mb-6 group-hover:scale-110 transition-transform duration-300"><Globe className="h-8 w-8" aria-hidden="true" /></HexIcon>
                 <Badge className="mb-4 bg-gradient-accent text-white mx-auto">
                   Also Available
                 </Badge>
@@ -806,9 +783,7 @@ const Index = () => {
           <div className="grid lg:grid-cols-3 gap-8 max-w-6xl mx-auto mb-16">
             <Card className="border-2 border-primary/20 shadow-elegant hover-lift bg-gradient-card">
               <CardHeader className="text-center pb-6">
-                <div className="mx-auto w-16 h-16 bg-gradient-primary rounded-2xl flex items-center justify-center mb-6 hover:scale-110 transition-transform duration-300 shadow-lg">
-                  <Globe className="h-8 w-8 text-white" />
-                </div>
+                <HexIcon size={68} className="text-primary flex mx-auto mb-6 hover:scale-110 transition-transform duration-300"><Globe className="h-8 w-8" aria-hidden="true" /></HexIcon>
                 <CardTitle className="text-xl font-bold">Google Ads Enhanced Conversions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -833,9 +808,7 @@ const Index = () => {
 
             <Card className="border-2 border-accent/20 shadow-elegant hover-lift bg-gradient-card">
               <CardHeader className="text-center pb-6">
-                <div className="mx-auto w-16 h-16 bg-gradient-accent rounded-2xl flex items-center justify-center mb-6 hover:scale-110 transition-transform duration-300 shadow-lg">
-                  <Users className="h-8 w-8 text-white" />
-                </div>
+                <HexIcon size={68} className="text-accent flex mx-auto mb-6 hover:scale-110 transition-transform duration-300"><Users className="h-8 w-8" aria-hidden="true" /></HexIcon>
                 <CardTitle className="text-xl font-bold">Meta Conversions API</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -856,9 +829,7 @@ const Index = () => {
 
             <Card className="border-2 border-primary/20 shadow-elegant hover-lift bg-gradient-card">
               <CardHeader className="text-center pb-6">
-                <div className="mx-auto w-16 h-16 bg-gradient-primary rounded-2xl flex items-center justify-center mb-6 hover:scale-110 transition-transform duration-300 shadow-lg">
-                  <TrendingUp className="h-8 w-8 text-white" />
-                </div>
+                <HexIcon size={68} className="text-primary flex mx-auto mb-6 hover:scale-110 transition-transform duration-300"><TrendingUp className="h-8 w-8" aria-hidden="true" /></HexIcon>
                 <CardTitle className="text-xl font-bold">GA4 Measurement Protocol</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -964,9 +935,7 @@ const Index = () => {
                 <div className="absolute inset-0 bg-gradient-primary opacity-0 group-hover:opacity-5 transition-opacity duration-500"></div>
                 
                 <CardHeader className="text-center pb-6 relative z-10">
-                  <div className="mx-auto w-16 h-16 bg-gradient-primary rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                    <feature.icon className="h-8 w-8 text-white" />
-                  </div>
+                  <HexIcon size={68} className="text-primary flex mx-auto mb-6 group-hover:scale-110 transition-transform duration-300"><feature.icon className="h-8 w-8" aria-hidden="true" /></HexIcon>
                   <CardTitle className="text-xl font-bold group-hover:text-primary transition-colors">
                     {feature.title}
                   </CardTitle>
@@ -989,9 +958,7 @@ const Index = () => {
               <div className="absolute inset-0 bg-gradient-primary opacity-0 group-hover:opacity-5 transition-opacity duration-500"></div>
               
               <CardHeader className="text-center pb-6 relative z-10">
-                <div className="mx-auto w-20 h-20 bg-gradient-primary rounded-3xl flex items-center justify-center mb-8 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                  <Bot className="h-10 w-10 text-white" />
-                </div>
+                <HexIcon size={84} className="flex mx-auto mb-8 group-hover:scale-110 transition-transform duration-300"><Bot className="h-10 w-10" aria-hidden="true" /></HexIcon>
                 <Badge className="mb-4 bg-gradient-accent text-white">
                   <Sparkles className="h-4 w-4 mr-2 inline" />
                   Future-Proof Analytics
@@ -1086,9 +1053,7 @@ const Index = () => {
               <Card className="absolute -top-6 -left-6 glass shadow-elegant hover-lift animate-float">
                 <CardContent className="p-6">
                   <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-gradient-primary rounded-xl flex items-center justify-center">
-                      <Users className="h-6 w-6 text-white" />
-                    </div>
+                    <HexIcon size={52} className="text-primary"><Users className="h-6 w-6" aria-hidden="true" /></HexIcon>
                     <div>
                       <div className="text-3xl font-black text-gradient-primary">12,847</div>
                       <div className="text-sm text-muted-foreground font-medium">Visitors this month</div>
@@ -1101,9 +1066,7 @@ const Index = () => {
               <Card className="absolute -bottom-6 -right-6 glass shadow-elegant hover-lift animate-float delay-1000">
                 <CardContent className="p-6">
                   <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-gradient-accent rounded-xl flex items-center justify-center">
-                      <TrendingUp className="h-6 w-6 text-white" />
-                    </div>
+                    <HexIcon size={52} className="text-accent"><TrendingUp className="h-6 w-6" aria-hidden="true" /></HexIcon>
                     <div>
                       <div className="text-3xl font-black text-gradient-accent">+23%</div>
                       <div className="text-sm text-muted-foreground font-medium">Conversion</div>
