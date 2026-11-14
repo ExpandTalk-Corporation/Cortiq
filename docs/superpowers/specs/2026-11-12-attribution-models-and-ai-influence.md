@@ -1,6 +1,7 @@
 # Attribution: observed journeys, AI influence and incrementality
 
-Date: 2026-11-12 · Status: layer 2 being built, layers 1 and 3 not started
+Date: 2026-11-12 · Status: layer 2 live (#144), layers 1, 1.5 and 3 not started
+Updated 2026-11-14: layer 1.5 (self-reported attribution) and journey types added.
 
 ## Problem
 
@@ -48,6 +49,39 @@ Principle: show what was observed, show what was not, and never present one mode
 - Before building: jurist review and DPA 1.6 (localStorage id = storage on the terminal equipment
   and a persistent identifier), tracker version bump.
 
+## Layer 1.5: self-reported attribution (not built)
+
+Ask the buyer. "How did you hear about us?" captures the touchpoints no tracker sees: podcasts,
+communities, a colleague, an AI assistant answer, an event. Modelled audience reports (e.g.
+SparkToro's funnel influence) estimate where buyers are; this measures what buyers say, per
+conversion. It needs no storage on the terminal equipment, so it does not wait for DPA 1.6 the
+way layer 1 does.
+
+Capture, two paths:
+- **HubSpot:** a site-configured contact property (e.g. `how_did_you_hear`), read by
+  `hubspot-lead-webhook` the same way as `hubspot_quality_property`: matched to a consented
+  `conversion_events` row by hashed email, unmatched contacts dropped.
+- **Sites without a CRM:** a select or radio field on a tracked form. Only predefined option
+  values are sent. Free-text fields are never read by the tracker.
+
+Data:
+- Answers are mapped to a fixed category set per site, defaulting to the channel taxonomy in
+  `src/ontology/traffic.ts` plus off-site categories (podcast, community, event, colleague or
+  friend, AI assistant, other). Unmapped answers become `other`; the raw HubSpot value is not stored.
+- New column `conversion_events.reported_channel` (category, nullable).
+
+View (Ads → Attribution): reported channel against the observed source of the converting visit.
+The interesting cells are the mismatches, e.g. "said AI assistant, arrived direct" or "said
+podcast, arrived via brand search". That is the dark-funnel share, shown as a percentage of
+conversions with an answer, with the answer rate always visible.
+
+Limits: answers are recall, not fact (people name the last memorable touch); low answer rates on
+small sites; one answer per conversion, not a journey.
+
+Before building: jurist review of storing the category against a conversion and of the form-field
+path, and whether answer counts can be aggregate (consent-free) on sites with aggregate
+measurement.
+
 ## Layer 2: AI influence and brand signals (being built)
 
 No new data collection. Read-only aggregation of data CortIQ already stores. Shown as signals,
@@ -87,6 +121,31 @@ Out of scope for layer 2: training crawlers (no referral value), per-visitor joi
 - A test guide: pause a campaign, or run it only in some regions, for a fixed period. Compare
   conversions against a control with a confidence interval. Small sites get wide intervals, said
   plainly.
+
+## Journey types
+
+The right model depends on what is bought, not on a global default. A per-site journey type sets
+the default model, lookback and unit in the layer 1 comparison (all models stay available):
+
+| Journey type | Typical touchpoints | Default model | Lookback | Unit |
+|---|---|---|---|---|
+| Impulse / simple service | 1–3 | last non-direct | 7 d | visitor |
+| Considered B2C (furniture, travel) | 3–10, cross-device | position-based | 30 d | visitor |
+| Self-serve SaaS | 5–15, continues in product | position-based, conversion = activation | 30 d | visitor |
+| Enterprise B2B | 13–22 across a buying group | position-based | 90 d | account (HubSpot company) |
+
+The AI-assisted journey (research in an assistant, then direct or brand-search arrival) cuts across
+all four; layer 2 and layer 1.5 are its evidence. Account-level journeys need HubSpot company
+association and are out of scope for the first layer 1 build.
+
+## Order of work
+
+1. Layer 1.5 (not blocked by DPA 1.6; jurist review only).
+2. Layer 3 prerequisite: store Google Ads cost per campaign and day.
+3. Layer 1 after jurist review + DPA 1.6, with journey types.
+
+On sites with few conversions, layer 1.5 and a holdout test say more than a multi-touch model
+comparison.
 
 ## Risks and open points
 
