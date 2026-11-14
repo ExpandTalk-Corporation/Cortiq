@@ -5,6 +5,20 @@ import { googleAdsOAuth, type GoogleAdsConnection } from '@/hooks/useGoogleAdsCo
 // Google redirects here after the Google Ads consent screen. The code and the signed state go
 // to google-ads-oauth, which checks the state against the signed-in user, stores the sealed
 // refresh token server-side and lists the reachable accounts.
+
+// Tabs that render the connect card; anything else returns to Integrations.
+const RETURN_TABS = new Set(['integrations', 'paid-ads', 'click-fraud', 'campaigns']);
+
+function returnTab(): string {
+  try {
+    const tab = sessionStorage.getItem('cortiq_google_ads_return_tab');
+    sessionStorage.removeItem('cortiq_google_ads_return_tab');
+    return tab && RETURN_TABS.has(tab) ? tab : 'integrations';
+  } catch {
+    return 'integrations';
+  }
+}
+
 export default function GoogleAdsCallbackPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -15,7 +29,8 @@ export default function GoogleAdsCallbackPage() {
   useEffect(() => {
     if (started.current) return; // an authorization code can be exchanged only once
     started.current = true;
-    const back = () => navigate('/dashboard?tab=integrations');
+    const tab = returnTab();
+    const back = () => navigate(`/dashboard?tab=${tab}`);
     const code = searchParams.get('code');
     const state = searchParams.get('state');
 
@@ -38,7 +53,7 @@ export default function GoogleAdsCallbackPage() {
         setStatus('success');
         setMessage(connection?.customer_id
           ? `Connected ${connection.descriptive_name ?? 'Google Ads'}. Redirecting...`
-          : `Connected. ${n} ${n === 1 ? 'account' : 'accounts'} found; pick one in Settings → Integrations. Redirecting...`);
+          : `Connected. ${n} ${n === 1 ? 'account' : 'accounts'} found; pick the one this site reports on. Redirecting...`);
         setTimeout(back, 2000);
       })
       .catch((err: unknown) => {

@@ -11,6 +11,7 @@ import { useAcquisitionReadiness } from '@/hooks/useAcquisitionReadiness';
 import { PaidAdsTab } from './PaidAdsTab';
 import { ServerSidePaidAdsTab } from './ServerSidePaidAdsTab';
 import { FilterScopeNotice } from '@/components/dashboard/FilterScopeNotice';
+import { GoogleAdsInlineSetup } from '@/components/dashboard/GoogleAdsConnectCard';
 
 const GA4_REASON = 'Google Analytics 4 does not know CortIQ visits, URLs or segments; switch to the CortIQ source to filter.';
 
@@ -66,6 +67,8 @@ export function AdsTab({ selectedSite, onNavigate }: AdsTabProps) {
           notes={{ path: GA4_REASON, segment: GA4_REASON }}
         />
       )}
+
+      <GoogleAdsInlineSetup siteId={selectedSite} />
 
       {source === null ? (
         <div className="py-12 text-center text-sm text-muted-foreground">Loading...</div>

@@ -6,6 +6,7 @@
 
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { GoogleAdsInlineSetup } from '@/components/dashboard/GoogleAdsConnectCard';
 import {
   Table,
   TableBody,
@@ -96,6 +97,8 @@ export function CampaignDashboard({ siteId, domain, onNavigate }: CampaignDashbo
 
   return (
     <div className="space-y-6">
+      <GoogleAdsInlineSetup siteId={siteId} />
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
