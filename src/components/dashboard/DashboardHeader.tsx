@@ -4,6 +4,7 @@ import { ChevronRight, Menu, Sparkles, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AIAssistantPanel } from '@/components/dashboard/AIAssistantPanel';
 import { DashboardBrand } from '@/components/dashboard/nav/DashboardBrand';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { navLocation } from '@/components/dashboard/nav/navSections';
 import { useTrackingCheckAccess } from '@/hooks/useTrackingCheck';
 import { useAIAssistantPanel } from '@/contexts/AIAssistantContext';
@@ -24,7 +25,7 @@ interface DashboardHeaderProps {
   onOpenMenu: () => void;
 }
 
-// Site, account and theme live in the sidebar; the header keeps the page location and actions.
+// Site and account live in the sidebar; the header keeps the page location, actions and theme.
 export function DashboardHeader({ selectedSite, activeTab, onOpenMenu }: DashboardHeaderProps) {
   const navigate = useNavigate();
   const aiPanel = useAIAssistantPanel();
@@ -72,6 +73,7 @@ export function DashboardHeader({ selectedSite, activeTab, onOpenMenu }: Dashboa
             <span className="hidden sm:inline">Tracking Check</span>
           </Button>
         )}
+        <ThemeToggle />
       </div>
     </div>
     {selectedSite && (
