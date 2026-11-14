@@ -35,7 +35,14 @@ test('each .htaccess with the placeholder gets the hashes of the pages it serves
 
 test('the site policy is report-only and keeps scripts restricted', () => {
   const ht = fs.readFileSync(new URL('../../public/.htaccess', import.meta.url), 'utf8');
-  const line = ht.split(/\r?\n/).find((l) => l.includes('Header always set Content-Security-Policy'));
+  const line = ht.split(/\r?\n/).find((l) => l.includes('Header always set Content-Security-Policy-Report-Only'));
   assert.match(line, /Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' __CSP_SCRIPT_HASHES__;/);
   assert.doesNotMatch(line.match(/script-src([^;]*)/)[1], /unsafe-|\*|https:/);
+});
+
+test('framing is blocked by an enforced frame-ancestors, not only the report-only policy', () => {
+  const ht = fs.readFileSync(new URL('../../public/.htaccess', import.meta.url), 'utf8');
+  assert.match(ht, /Header always set Content-Security-Policy "frame-ancestors 'self'"/);
+  assert.match(ht, /Header always set X-Frame-Options "SAMEORIGIN"/);
+  assert.match(ht, /Header always set X-Content-Type-Options "nosniff"/);
 });

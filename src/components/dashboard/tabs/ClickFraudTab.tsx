@@ -10,7 +10,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
-import { FinalUrlSuffixHint, GoogleAdsConnectHint } from '@/components/dashboard/GoogleAdsConnectCard';
+import { FinalUrlSuffixHint, GoogleAdsConnectHint, GoogleAdsInlineSetup } from '@/components/dashboard/GoogleAdsConnectCard';
 import { useAcquisitionReadiness } from '@/hooks/useAcquisitionReadiness';
 import { SetupChecklist } from '../setup/SetupChecklist';
 import { googleAdsApiStep, paidMediumStep, trackingStep } from '../setup/acquisitionSteps';
@@ -256,17 +256,16 @@ export function ClickFraudTab({ selectedSite, startDate, endDate, onNavigate }: 
   const { summary, ads } = data;
   const tzLabel = data.timezone || 'UTC';
   const adsClicks = ads.totals?.clicks ?? 0;
-  const adsHint = !ads.connected && (
+  // Not connected or no account picked: the connect card itself. Instance or credential problems: a hint.
+  const adsHint = !ads.connected && (ads.code === 'not_configured' || ads.code === 'token' ? (
     <GoogleAdsConnectHint onNavigate={onNavigate}>
       {ads.code === 'not_configured'
         ? 'Google Ads is not set up on this CortIQ instance yet (developer token missing). Scores below use CortIQ sessions only.'
-        : ads.code === 'no_customer'
-          ? 'Google Ads is connected but no account is picked for this site. Pick one under Settings → Integrations → Google Ads.'
-          : ads.code === 'token'
-            ? 'Google Ads credentials need attention. Reconnect under Settings → Integrations → Google Ads.'
-            : 'Connect Google Ads under Settings → Integrations → Google Ads to compare billed clicks with tracked sessions, see Google\'s invalid clicks, placements and location targets.'}
+        : 'Google Ads credentials need attention. Reconnect under Settings → Integrations → Google Ads.'}
     </GoogleAdsConnectHint>
-  );
+  ) : (
+    <GoogleAdsInlineSetup siteId={selectedSite} />
+  ));
 
   if (summary.total_paid_sessions === 0 && adsClicks === 0) {
     return (

@@ -64,7 +64,12 @@ export function GoogleAdsConnectCard({ siteId }: GoogleAdsConnectCardProps) {
   const connect = () => run('connect', async () => {
     const { url } = await googleAdsOAuth<{ url: string }>('authorize', { site_id: siteId });
     // Remember which site started the flow so the callback page can return to it.
-    try { sessionStorage.setItem('cortiq_google_ads_site', siteId); } catch { /* optional */ }
+    try {
+      sessionStorage.setItem('cortiq_google_ads_site', siteId);
+      // ...and the tab, so connecting from Ads, Click fraud or Campaigns lands back there.
+      const tab = new URLSearchParams(window.location.search).get('tab');
+      if (tab) sessionStorage.setItem('cortiq_google_ads_return_tab', tab);
+    } catch { /* optional */ }
     window.location.assign(url);
   });
 
@@ -268,6 +273,16 @@ export function GoogleAdsConnectCard({ siteId }: GoogleAdsConnectCardProps) {
 }
 
 /** Empty-state hint for tabs that use Google Ads data. */
+/**
+ * The connect card inline on the ad tabs (Ads, Click fraud, Campaigns) until an account is
+ * picked, so Google Ads can be set up where its data is missing. Renders nothing once ready.
+ */
+export function GoogleAdsInlineSetup({ siteId }: { siteId: string }) {
+  const { ready, isLoading } = useGoogleAdsConnection(siteId);
+  if (isLoading || ready) return null;
+  return <GoogleAdsConnectCard siteId={siteId} />;
+}
+
 export function GoogleAdsConnectHint({ onNavigate, children }: { onNavigate?: (tab: string) => void; children?: ReactNode }) {
   return (
     <Alert>
