@@ -49,6 +49,7 @@ export const NAV_SECTIONS: NavSection[] = [
 
 export const SETTINGS_ITEMS: NavItem[] = [
   { value: 'setup', label: 'Setup & tracking script' },
+  { value: 'consent', label: 'Consent & cookie banner' },
   { value: 'integrations', label: 'Integrations' },
   { value: 'cortiq-api', label: 'CortIQ API & MCP' },
   { value: 'api-keys', label: 'Third-party keys' },

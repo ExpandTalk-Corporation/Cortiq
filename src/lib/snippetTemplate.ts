@@ -9,6 +9,10 @@
  */
 export type ConsentSetup = 'own-cmp' | 'cortiq-banner' | 'none';
 
+/** Languages consent-banner.js ships. `auto` picks from <html lang> (no data-lang attribute). */
+export const BANNER_LANGUAGES = ['auto', 'sv', 'en', 'de', 'fr', 'pt'] as const;
+export type BannerLanguage = typeof BANNER_LANGUAGES[number];
+
 export interface TrackingSnippetOptions {
   apiUrl: string;
   siteId: string;
@@ -27,6 +31,8 @@ export interface TrackingSnippetOptions {
   policyVersion?: string;
   /** Banner sends Google Consent Mode v2 signals (data-consent-mode="google"). Opt-in. */
   googleConsentMode?: boolean;
+  /** sites.banner_language. A fixed language adds data-lang; `auto` (default) leaves it to <html lang>. */
+  bannerLanguage?: BannerLanguage;
   /** sites.tracking_mode. Cookieless (default) sets no cookies, keeps the session id in sessionStorage after consent and has no marketing features. */
   trackingMode?: 'cookieless' | 'full';
   /** Ask for marketing consent in the banner (click IDs, hashed email). Full mode only, ignored otherwise. */
@@ -74,7 +80,7 @@ const escapeJs = (value: string) =>
 export function renderTrackingSnippet(
   {
     apiUrl, siteId, trackingKey, scriptSrc, aggregate = false, consentSetup = 'own-cmp',
-    bannerSrc, company, policyUrl, policyVersion, googleConsentMode = false,
+    bannerSrc, company, policyUrl, policyVersion, googleConsentMode = false, bannerLanguage = 'auto',
     trackingMode = 'cookieless', marketing = false, scriptIntegrity, bannerIntegrity,
   }: TrackingSnippetOptions,
   sources: { loader: string; beacon: string },
@@ -115,6 +121,8 @@ ${beacon}
   const full = trackingMode === 'full';
   const categories = full && marketing ? 'analytics,marketing' : 'analytics';
   const bannerSri = integrity(bannerIntegrity, 'the banner');
+  // Only known codes reach the attribute; anything else falls back to <html lang>.
+  const lang = bannerLanguage !== 'auto' && (BANNER_LANGUAGES as readonly string[]).includes(bannerLanguage) ? bannerLanguage : null;
   // The banner tag comes first so the loader can read its data-policy-version.
   const banner = consentSetup === 'cortiq-banner'
     ? `<!-- CortIQ consent banner. List only the purposes you use in data-categories (analytics, marketing,
@@ -127,7 +135,7 @@ ${beacon}
   data-company="${escapeAttr(company!.trim())}"
   data-policy-url="${escapeAttr(policyUrl!.trim())}"
   data-categories="${categories}"
-  data-policy-version="${escapeAttr(policyVersion?.trim() || '1')}"${googleConsentMode ? '\n  data-consent-mode="google"' : ''}${bannerSri ? `
+  data-policy-version="${escapeAttr(policyVersion?.trim() || '1')}"${lang ? `\n  data-lang="${lang}"` : ''}${googleConsentMode ? '\n  data-consent-mode="google"' : ''}${bannerSri ? `
   integrity="${bannerSri}" crossorigin="anonymous"` : ''}
   defer></script>
 `

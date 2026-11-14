@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { supabase } from '@/integrations/supabase/client';
 import { POLICY_CHECKLIST_VERSION, policyChecklist, type TrackingMode } from '@/lib/policyChecklist';
-import { bannerDetailsProblem, buildTrackingSnippet, type ConsentSetup } from '@/lib/trackingSnippet';
+import { bannerDetailsProblem, buildTrackingSnippet, type BannerLanguage, type ConsentSetup } from '@/lib/trackingSnippet';
 import { pinnedScripts, pinStatus, type SriManifest } from '@/lib/sriPin';
 import sriManifest from '@/lib/sri-manifest.json';
 import { toast } from 'sonner';
@@ -17,6 +17,10 @@ interface TrackingSnippetSetupProps {
   aggregateMeasurement: boolean;
   /** sites.tracking_mode; the guide writes the chosen mode back when the policy is confirmed. */
   trackingMode?: TrackingMode;
+  /** sites.consent_setup (Settings → Consent & cookie banner). Wins over the latest confirmation. */
+  consentSetup?: ConsentSetup | null;
+  /** sites.banner_language; set in Settings → Consent & cookie banner. */
+  bannerLanguage?: BannerLanguage;
   apiBase: string;
   /** Origin that serves cortiq.js and consent-banner.js. */
   scriptOrigin: string;
@@ -63,8 +67,11 @@ const MODES: { value: TrackingMode; label: string; description: string }[] = [
 ];
 
 // Install snippet with the site's consent setup. Shared by the Setup tab and the onboarding wizard.
-export function TrackingSnippetSetup({ siteId, trackingKey, aggregateMeasurement, trackingMode: siteMode, apiBase, scriptOrigin }: TrackingSnippetSetupProps) {
-  const [consentSetup, setConsentSetup] = useState<ConsentSetup>('own-cmp');
+export function TrackingSnippetSetup({
+  siteId, trackingKey, aggregateMeasurement, trackingMode: siteMode, consentSetup: siteConsent, bannerLanguage = 'auto',
+  apiBase, scriptOrigin,
+}: TrackingSnippetSetupProps) {
+  const [consentSetup, setConsentSetup] = useState<ConsentSetup>(siteConsent ?? 'own-cmp');
   const [aggregateOn, setAggregateOn] = useState(aggregateMeasurement);
   const [saving, setSaving] = useState(false);
   const [company, setCompany] = useState('');
@@ -101,13 +108,13 @@ export function TrackingSnippetSetup({ siteId, trackingKey, aggregateMeasurement
       .then(({ data }) => {
         if (cancelled || !data) return;
         setConfirmation(data);
-        setConsentSetup(data.consent_setup as ConsentSetup);
+        if (!siteConsent) setConsentSetup(data.consent_setup as ConsentSetup);
         setMode(data.tracking_mode as TrackingMode);
         setMarketing(data.marketing);
         if (data.policy_url) setPolicyUrl(data.policy_url);
       });
     return () => { cancelled = true; };
-  }, [siteId]);
+  }, [siteId, siteConsent]);
 
   const withConsent = consentSetup !== 'none';
   const useMarketing = mode === 'full' && marketing;
@@ -141,6 +148,7 @@ export function TrackingSnippetSetup({ siteId, trackingKey, aggregateMeasurement
     policyUrl,
     policyVersion,
     googleConsentMode,
+    bannerLanguage,
     trackingMode: mode,
     marketing: useMarketing,
   });
@@ -193,8 +201,9 @@ export function TrackingSnippetSetup({ siteId, trackingKey, aggregateMeasurement
       toast.error('Could not save the confirmation');
       return;
     }
-    if (siteMode !== mode) {
-      const { error: modeError } = await supabase.from('sites').update({ tracking_mode: mode }).eq('id', siteId);
+    if (siteMode !== mode || siteConsent !== consentSetup) {
+      const { error: modeError } = await supabase.from('sites')
+        .update({ tracking_mode: mode, consent_setup: consentSetup }).eq('id', siteId);
       if (modeError) {
         setConfirming(false);
         console.error('Error updating tracking mode:', modeError);
@@ -370,7 +379,10 @@ export function TrackingSnippetSetup({ siteId, trackingKey, aggregateMeasurement
               and remove <code>defer</code>, so they wait for the choice (denied until then). Marketing grants the ad
               signals only if it is listed in <code>data-categories</code>.</li>
           )}
-          <li>Languages: Swedish, English, German, French, Portuguese (from <code>&lt;html lang&gt;</code>, or set <code>data-lang</code>).</li>
+          <li>Language: {bannerLanguage === 'auto'
+            ? <>picked from <code>&lt;html lang&gt;</code> (Swedish, English, German, French, Portuguese).</>
+            : <>fixed with <code>data-lang="{bannerLanguage}"</code>.</>}
+            {' '}Change it under Settings → Consent &amp; cookie banner.</li>
           <li>The banner helps you collect and document consent. You remain responsible for your policy text and the
             purposes you list.</li>
         </ul>
