@@ -28,6 +28,7 @@ const ApiKeysTab               = lazy(() => import('./tabs/ApiKeysTab').then(m =
 const ApiKeyManager            = lazy(() => import('./ApiKeyManager'));
 const MCPServerConfig          = lazy(() => import('./MCPServerConfig').then(m => ({ default: m.MCPServerConfig })));
 const GDPRTab                  = lazy(() => import('./tabs/GDPRTab').then(m => ({ default: m.GDPRTab })));
+const ConsentTab               = lazy(() => import('./tabs/ConsentTab').then(m => ({ default: m.ConsentTab })));
 const NavigationTab            = lazy(() => import('./tabs/NavigationTab').then(m => ({ default: m.NavigationTab })));
 const BehavioralAlertsTab      = lazy(() => import('./tabs/BehavioralAlertsTab').then(m => ({ default: m.BehavioralAlertsTab })));
 const UserLTVTab               = lazy(() => import('./tabs/UserLTVTab').then(m => ({ default: m.UserLTVTab })));
@@ -95,7 +96,7 @@ const FILTER_NOTES: Record<string, FilterScopeNotes> = {
 // no "does not apply the filter" notice.
 const NO_FILTER_NOTICE = new Set([
   'overview', 'realtime', 'alerts',
-  'setup', 'integrations', 'cortiq-api', 'api-keys', 'gdpr', 'notifications', 'tag-manager',
+  'setup', 'consent', 'integrations', 'cortiq-api', 'api-keys', 'gdpr', 'notifications', 'tag-manager',
   'utm-segments', 'agent-macros', 'agent-registry', 'conversion-goals', 'report-builder',
 ]);
 
@@ -274,6 +275,12 @@ function DashboardTabsInner({ selectedSite, dateRange, onSiteDeleted, onSiteUpda
       <TabsContent value="gdpr" className="space-y-6">
         <TabErrorBoundary tabName="GDPR">
           <GDPRTab selectedSite={selectedSite} onSiteUpdated={onSiteUpdated} />
+        </TabErrorBoundary>
+      </TabsContent>
+
+      <TabsContent value="consent" className="space-y-6">
+        <TabErrorBoundary tabName="Consent & cookie banner">
+          <ConsentTab key={selectedSite.id} selectedSite={selectedSite} onSiteUpdated={onSiteUpdated} onNavigate={setActiveTab} />
         </TabErrorBoundary>
       </TabsContent>
 

@@ -7310,6 +7310,9 @@ export type Database = {
           tiktok_pixel_id: string | null
           tracking_id: string
           tracking_mode: string
+          banner_language: string
+          consent_cmp: string | null
+          consent_setup: string | null
           updated_at: string
           user_id: string
         }
@@ -7381,6 +7384,9 @@ export type Database = {
           tiktok_pixel_id?: string | null
           tracking_id: string
           tracking_mode?: string
+          banner_language?: string
+          consent_cmp?: string | null
+          consent_setup?: string | null
           updated_at?: string
           user_id: string
         }
@@ -7452,6 +7458,9 @@ export type Database = {
           tiktok_pixel_id?: string | null
           tracking_id?: string
           tracking_mode?: string
+          banner_language?: string
+          consent_cmp?: string | null
+          consent_setup?: string | null
           updated_at?: string
           user_id?: string
         }

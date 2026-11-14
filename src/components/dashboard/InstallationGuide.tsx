@@ -4,6 +4,7 @@ import { Label } from '@/components/ui/label';
 import { ServerSideSetup } from '@/components/dashboard/ServerSideSetup';
 import { TrackingSnippetSetup } from '@/components/dashboard/TrackingSnippetSetup';
 import type { Site } from '@/types/dashboard';
+import type { BannerLanguage, ConsentSetup } from '@/lib/trackingSnippet';
 
 interface InstallationGuideProps {
   selectedSite: Site | null;
@@ -47,6 +48,8 @@ export function InstallationGuide({ selectedSite }: InstallationGuideProps) {
           trackingKey={selectedSite.tracking_id}
           aggregateMeasurement={(selectedSite as Site & { aggregate_measurement?: boolean }).aggregate_measurement === true}
           trackingMode={(selectedSite as Site & { tracking_mode?: string }).tracking_mode === 'cookieless' ? 'cookieless' : 'full'}
+          consentSetup={(selectedSite as Site & { consent_setup?: ConsentSetup | null }).consent_setup ?? null}
+          bannerLanguage={(selectedSite as Site & { banner_language?: BannerLanguage }).banner_language ?? 'auto'}
           apiBase={apiBase}
           scriptOrigin={window.location.origin}
         />

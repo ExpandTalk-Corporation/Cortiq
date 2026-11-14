@@ -106,3 +106,12 @@ test('Google Consent Mode v2 is opt-in in the banner snippet', () => {
   assert.match(on, /data-consent-mode="google"/);
   assert.match(on, /<head> above your Google tags/);
 });
+
+test('banner language: a fixed language adds data-lang, auto and unknown codes leave it to <html lang>', () => {
+  const banner = { ...opts, consentSetup: 'cortiq-banner', company: 'Ex AB', policyUrl: '/privacy' };
+  assert.match(renderTrackingSnippet({ ...banner, bannerLanguage: 'de' }, { loader, beacon }), /data-lang="de"/);
+  assert.equal(renderTrackingSnippet(banner, { loader, beacon }).includes('data-lang'), false);
+  assert.equal(renderTrackingSnippet({ ...banner, bannerLanguage: 'auto' }, { loader, beacon }).includes('data-lang'), false);
+  assert.equal(renderTrackingSnippet({ ...banner, bannerLanguage: 'xx"><script>' }, { loader, beacon }).includes('data-lang'), false);
+  assert.equal(renderTrackingSnippet({ ...opts, bannerLanguage: 'sv' }, { loader, beacon }).includes('data-lang'), false, 'own CMP: no banner tag');
+});
