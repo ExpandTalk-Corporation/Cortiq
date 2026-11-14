@@ -64,6 +64,16 @@ export const SETTINGS_ITEMS: NavItem[] = [
   { value: 'agent-registry', label: 'Agent registry' },
 ];
 
+// Section and item label for a tab value — the header breadcrumb.
+export function navLocation(value: string): { section: string; item: string } | null {
+  for (const s of NAV_SECTIONS) {
+    const item = s.items.find((i) => i.value === value);
+    if (item) return { section: s.label, item: item.label };
+  }
+  const setting = SETTINGS_ITEMS.find((i) => i.value === value);
+  return setting ? { section: 'Settings', item: setting.label } : null;
+}
+
 // Removed from the menu until they collect data (2026-10-15): nothing records sessions
 // (no rrweb), visitors are never assigned an A/B variant, and web vitals aggregates, cohorts
 // and segments have no writer. An old ?tab= link shows this message instead of an empty view.
