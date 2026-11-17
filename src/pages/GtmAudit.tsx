@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,20 +19,29 @@ export default function GtmAudit() {
   const [report, setReport] = useState<ReportData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [gen, setGen] = useState(0);
+  const requestId = useRef(0);
 
   const onFile = async (file: File) => {
+    const id = ++requestId.current;
     setError(null);
-    if (file.size > MAX_FILE_BYTES) { setError("The file is larger than 5 MB. Export a single container version from GTM."); return; }
+    if (file.size > MAX_FILE_BYTES) {
+      if (id === requestId.current) { setError("The file is larger than 5 MB. Export a single container version from GTM."); setReport(null); }
+      return;
+    }
     setBusy(true);
     try {
-      const result = audit(await file.text());
+      const text = await file.text();
+      const result = audit(text);
+      if (id !== requestId.current) return;
       if ("error" in result) { setError(result.message); setReport(null); return; }
       setReport(reportData(result));
+      setGen((g) => g + 1);
       void sendAuditStats(buildStats(result));
     } catch {
-      setError("The file could not be read.");
+      if (id === requestId.current) { setError("The file could not be read."); setReport(null); }
     } finally {
-      setBusy(false);
+      if (id === requestId.current) setBusy(false);
     }
   };
 
@@ -41,7 +50,7 @@ export default function GtmAudit() {
       <section className="container mx-auto max-w-5xl px-4 py-12 sm:py-16">
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">GTM container audit</h1>
         <p className="mt-3 max-w-3xl text-lg text-muted-foreground">
-          See which tags fire without a consent condition, which tools identify visitors, what is duplicated, paused or
+          See which tags have no consent condition, which tools identify visitors, what is duplicated, paused or
           years old — and which tags CortIQ already covers if you want to measure without Google Tag Manager.
         </p>
         <p className="mt-3 flex max-w-3xl items-start gap-2 text-sm text-muted-foreground">
@@ -59,7 +68,7 @@ export default function GtmAudit() {
 
       <section id="report" className="container mx-auto max-w-5xl px-4 pb-12">
         {report ? (
-          <GtmAuditReport report={report} />
+          <GtmAuditReport key={gen} report={report} />
         ) : (
           <>
             <h2 className="mb-4 text-lg font-semibold text-muted-foreground">Sample report (synthetic container)</h2>

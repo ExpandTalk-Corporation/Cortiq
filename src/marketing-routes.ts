@@ -97,7 +97,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   {
     path: '/gtm-audit/',
     title: 'Free GTM Container Audit: Consent & Cleanup — CortIQ',
-    description: 'Upload your Google Tag Manager export and see which tags fire without consent, which identify visitors and which CortIQ can replace. Runs in your browser.',
+    description: 'Upload your GTM container export and see which tags have no consent condition, which identify visitors and which CortIQ can replace. Runs in your browser.',
     published: '2026-11-17',
     changefreq: 'monthly',
     priority: 0.7,

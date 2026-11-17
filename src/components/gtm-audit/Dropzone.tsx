@@ -11,7 +11,7 @@ interface Props {
 export function Dropzone({ onFile, busy }: Props) {
   const input = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
-  const pick = (files: FileList | null) => { if (files?.[0]) onFile(files[0]); };
+  const pick = (files: FileList | null) => { if (!busy && files?.[0]) onFile(files[0]); };
   return (
     <div
       onDragOver={(e) => { e.preventDefault(); setOver(true); }}

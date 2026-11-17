@@ -8,6 +8,22 @@ import { sampleExport } from '../../scripts/gtm-audit/fixture.mjs';
 
 const read = (p) => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8');
 
+/** Recursively lists .ts files under a repo-relative directory, repo-relative paths. */
+function listTsFiles(dir) {
+  const out = [];
+  for (const entry of readdirSync(new URL(`../../${dir}`, import.meta.url), { withFileTypes: true })) {
+    const rel = `${dir}/${entry.name}`;
+    if (entry.isDirectory()) out.push(...listTsFiles(rel));
+    else if (entry.name.endsWith('.ts')) out.push(rel);
+  }
+  return out;
+}
+
+/** Strips // and /* *\/ comments so prose mentioning fetch/sendBeacon/XHR doesn't false-positive. */
+function stripComments(src) {
+  return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+}
+
 test('sendAuditStats posts only the counters, with keepalive', async () => {
   const stats = buildStats(audit(sampleExport()));
   const calls = [];
@@ -30,13 +46,15 @@ test('sendAuditStats never throws and skips without an endpoint', async () => {
   assert.equal(n, 1);
 });
 
-test('the page UI makes no network calls of its own', () => {
+test('the GTM audit engine and UI make no network calls of their own', () => {
   const files = [
     'src/pages/GtmAudit.tsx',
+    'src/lib/gtmAuditXlsx.ts',
     ...readdirSync(new URL('../../src/components/gtm-audit/', import.meta.url)).map((f) => `src/components/gtm-audit/${f}`),
+    ...listTsFiles('supabase/functions/_shared/gtm-audit'),
   ];
   for (const f of files) {
-    assert.doesNotMatch(read(f), /\bfetch\s*\(|sendBeacon|XMLHttpRequest|supabase\./, f);
+    assert.doesNotMatch(stripComments(read(f)), /\bfetch\s*\(|sendBeacon|XMLHttpRequest|supabase\./, f);
   }
 });
 
