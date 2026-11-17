@@ -106,7 +106,7 @@ export interface PolicyTemplate {
   manualItems: { key: string; label: string }[];
 }
 
-export type Scope = 'Parameters' | 'Tags' | 'CSP' | 'Consent' | 'Forms' | 'Ads/GA4' | 'Manual' | 'Coverage' | 'Scripts';
+export type Scope = 'Parameters' | 'Tags' | 'CSP' | 'Consent' | 'Forms' | 'Ads/GA4' | 'Manual' | 'Coverage' | 'Scripts' | 'GTM';
 export type FindingStatus = 'pass' | 'fail' | 'warning' | 'manual' | 'untestable';
 export type Priority = 'high' | 'medium' | 'low';
 export type Owner = 'developer' | 'gtm' | 'cmp' | 'marketing' | 'legal';

@@ -6,9 +6,9 @@ import PublicNavigation from "@/components/PublicNavigation";
 import PublicFooter from "@/components/PublicFooter";
 import { useSEO } from "@/hooks/useSEO";
 import { seoFor } from "@/marketing-routes";
-import { Shield, CheckCircle, Mail, FileText, Database, Users, BarChart3, Megaphone } from "lucide-react";
+import { Shield, CheckCircle, Mail, FileText, Database, Users, BarChart3, Megaphone, FileSearch } from "lucide-react";
 
-const LAST_UPDATED = "November 7, 2026";
+const LAST_UPDATED = "November 17, 2026";
 
 const Privacy = () => {
   useSEO(seoFor("/privacy/"));
@@ -191,6 +191,7 @@ const Privacy = () => {
                   reading information on the visitor's device.
                 </p>
               </div>
+
             </CardContent>
           </Card>
 
@@ -262,6 +263,29 @@ const Privacy = () => {
                 </p>
                 <p className="text-xs text-muted-foreground mt-2 italic">
                   <strong>Retention:</strong> see section 9.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Public Tools */}
+          <Card className="glass shadow-elegant border-primary/20">
+            <CardHeader>
+              <div className="flex items-center space-x-3 mb-2">
+                <FileSearch className="h-6 w-6 text-primary" />
+                <CardTitle>3D. Public Tools</CardTitle>
+              </div>
+              <Badge className="w-fit bg-gradient-accent text-white">No account needed</Badge>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-primary/10 p-4 rounded-lg">
+                <h4 className="font-semibold mb-2 text-foreground">GTM container audit</h4>
+                <p className="text-sm text-muted-foreground">
+                  The GTM container audit at /gtm-audit/ runs in the visitor&apos;s browser; the uploaded file is not sent
+                  to CortIQ. After each audit the page sends anonymous totals — the number of tags in a range, counts per
+                  tag type, known vendor, finding and migration class, and the audit engine version — which CortIQ adds
+                  to daily counters. No tag names, container IDs, domains, URLs, IP addresses or User-Agents are stored
+                  in the counters, and nothing is stored on the visitor&apos;s device.
                 </p>
               </div>
             </CardContent>
