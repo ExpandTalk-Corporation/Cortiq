@@ -59,3 +59,12 @@ export function pinStatus(pinned: string | null | undefined, manifest: SriManife
     securityFixes: newer.filter(v => manifest.versions[v].securityFix),
   };
 }
+
+/**
+ * Whether the install snippet starts pinned. New installs are pinned by default; a site that already
+ * copied an auto-updating snippet (a policy confirmation but no pinned version) keeps that default,
+ * so the page doesn't silently offer a different snippet than the one on the site.
+ */
+export function defaultPinned(pinnedVersion: string | null | undefined, hasConfirmation: boolean): boolean {
+  return !!pinnedVersion || !hasConfirmation;
+}

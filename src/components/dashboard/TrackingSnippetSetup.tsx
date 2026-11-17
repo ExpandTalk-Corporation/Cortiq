@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { supabase } from '@/integrations/supabase/client';
 import { POLICY_CHECKLIST_VERSION, policyChecklist, type TrackingMode } from '@/lib/policyChecklist';
 import { bannerDetailsProblem, buildTrackingSnippet, type BannerLanguage, type ConsentSetup } from '@/lib/trackingSnippet';
-import { pinnedScripts, pinStatus, type SriManifest } from '@/lib/sriPin';
+import { defaultPinned, pinnedScripts, pinStatus, type SriManifest } from '@/lib/sriPin';
 import sriManifest from '@/lib/sri-manifest.json';
 import { toast } from 'sonner';
 
@@ -82,7 +82,9 @@ export function TrackingSnippetSetup({
   const [marketing, setMarketing] = useState(false);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [confirming, setConfirming] = useState(false);
-  const [pinned, setPinned] = useState(false);
+  // Pinned by default for new installs; see defaultPinned once the site's state has loaded.
+  const [pinned, setPinned] = useState(true);
+  const pinTouched = useRef(false);
   // sites.sri_pinned_version: the version of the last pinned snippet copied for this site.
   const [pinnedVersion, setPinnedVersion] = useState<string | null>(null);
 
@@ -96,23 +98,22 @@ export function TrackingSnippetSetup({
         if (data.privacy_policy_url) setPolicyUrl(url => url || data.privacy_policy_url!);
         if (data.policy_version) setPolicyVersion(data.policy_version);
       });
-    supabase.from('sites').select('sri_pinned_version').eq('id', siteId).maybeSingle()
-      .then(({ data }) => {
-        if (cancelled || !data?.sri_pinned_version) return;
-        setPinnedVersion(data.sri_pinned_version);
-        setPinned(true);
-      });
-    supabase.from('policy_confirmations')
-      .select('consent_setup, tracking_mode, marketing, policy_url, checklist_version, confirmed_at')
-      .eq('site_id', siteId).order('confirmed_at', { ascending: false }).limit(1).maybeSingle()
-      .then(({ data }) => {
-        if (cancelled || !data) return;
-        setConfirmation(data);
-        if (!siteConsent) setConsentSetup(data.consent_setup as ConsentSetup);
-        setMode(data.tracking_mode as TrackingMode);
-        setMarketing(data.marketing);
-        if (data.policy_url) setPolicyUrl(data.policy_url);
-      });
+    Promise.all([
+      supabase.from('sites').select('sri_pinned_version').eq('id', siteId).maybeSingle(),
+      supabase.from('policy_confirmations')
+        .select('consent_setup, tracking_mode, marketing, policy_url, checklist_version, confirmed_at')
+        .eq('site_id', siteId).order('confirmed_at', { ascending: false }).limit(1).maybeSingle(),
+    ]).then(([{ data: site }, { data }]) => {
+      if (cancelled) return;
+      if (site?.sri_pinned_version) setPinnedVersion(site.sri_pinned_version);
+      if (!pinTouched.current) setPinned(defaultPinned(site?.sri_pinned_version, !!data));
+      if (!data) return;
+      setConfirmation(data);
+      if (!siteConsent) setConsentSetup(data.consent_setup as ConsentSetup);
+      setMode(data.tracking_mode as TrackingMode);
+      setMarketing(data.marketing);
+      if (data.policy_url) setPolicyUrl(data.policy_url);
+    });
     return () => { cancelled = true; };
   }, [siteId, siteConsent]);
 
@@ -341,9 +342,9 @@ export function TrackingSnippetSetup({
 
       {withConsent && (
         <label htmlFor="snippet-pinned" className="flex items-start gap-3 cursor-pointer">
-          <Checkbox id="snippet-pinned" checked={pinned} onCheckedChange={v => setPinned(v === true)} className="mt-0.5" />
+          <Checkbox id="snippet-pinned" checked={pinned} onCheckedChange={v => { pinTouched.current = true; setPinned(v === true); }} className="mt-0.5" />
           <span>
-            <span className="block text-sm font-medium">Pin version {pin.version} with Subresource Integrity (SRI)</span>
+            <span className="block text-sm font-medium">Pin version {pin.version} with Subresource Integrity (SRI) — recommended</span>
             <span className="block text-xs text-muted-foreground">The browser checks a cryptographic hash of the
               {consentSetup === 'cortiq-banner' ? ' tracker and banner' : ' tracker'} and refuses to run them if the file
               on cortiq.se has been changed. Fixes and new features then reach the site only when you replace the
