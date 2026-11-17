@@ -131,3 +131,11 @@ export function uptimeSentence(alert: Pick<UptimeAlert, 'kind' | 'detail' | 'ope
 export function hostOf(domain: string): string {
   return domain.replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
 }
+
+/** Shown in the dashboard while RESEND_API_KEY is not set: alerts then only appear there. */
+export const EMAIL_SETUP_STEPS = [
+  'In Resend, create an API key with Sending access, restricted to the cortiq.se domain.',
+  'Under Domains in Resend, add cortiq.se and add its DKIM, SPF and MX records at the DNS host (Loopia). Wait until it shows Verified.',
+  'Set the Edge Function secrets: supabase secrets set RESEND_API_KEY=re_… ALERT_EMAIL_FROM="CortIQ <alerts@cortiq.se>"',
+  'The next uptime check (within 5 minutes) picks the key up and this notice disappears. Pipeline alerts use the same key.',
+];

@@ -194,4 +194,25 @@ test('function: rejects a wrong cron secret; checks active sites and emails the 
   assert.equal(sent[0].subject, 'ekonom.biz is down');
   assert.match(sent[0].html, /Hosts suspend a site when they find malware/);
   assert.ok(db.calls.some((c) => c.table === 'uptime_alerts' && c.type === 'update' && c.payload.opened_notified_at));
+  assert.deepEqual(rpcCalls.filter(([n]) => n === 'record_alert_email_status').at(-1), ['record_alert_email_status', { p_configured: true }]);
+
+  const noKey = loadEdge('site-uptime', db.client, { env: { RESEND_API_KEY: '' }, fetch });
+  assert.equal((await (await noKey(req())).json()).emailed, 0);
+  assert.deepEqual(rpcCalls.filter(([n]) => n === 'record_alert_email_status').at(-1), ['record_alert_email_status', { p_configured: false }], 'the dashboard learns that emails are off');
+});
+
+test('PostgreSQL: alert email status is one row, readable when signed in, written by service_role only', async () => {
+  const pg = await db();
+  try {
+    await pg.query(`SELECT public.record_alert_email_status(false)`);
+    await pg.query(`SELECT public.record_alert_email_status(true)`);
+    assert.deepEqual((await pg.query(`SELECT id, configured FROM public.alert_email_status`)).rows, [{ id: 1, configured: true }]);
+    const priv = (await pg.query(`SELECT has_function_privilege('authenticated', 'public.record_alert_email_status(boolean)', 'EXECUTE') a,
+      has_function_privilege('service_role', 'public.record_alert_email_status(boolean)', 'EXECUTE') s,
+      has_table_privilege('authenticated', 'public.alert_email_status', 'SELECT') r,
+      has_table_privilege('authenticated', 'public.alert_email_status', 'UPDATE') w`)).rows[0];
+    assert.deepEqual(priv, { a: false, s: true, r: true, w: false });
+  } finally {
+    await pg.close();
+  }
 });

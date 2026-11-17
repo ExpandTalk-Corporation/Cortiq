@@ -130,6 +130,32 @@ REVOKE ALL ON FUNCTION public.uptime_alerts_to_email() FROM PUBLIC, anon, authen
 GRANT EXECUTE ON FUNCTION public.record_uptime_check(uuid, text, integer, text, boolean, timestamptz) TO service_role;
 GRANT EXECUTE ON FUNCTION public.uptime_alerts_to_email() TO service_role;
 
+-- Whether alert emails can go out (RESEND_API_KEY set on the Edge Functions), written by every site-uptime run
+-- so the dashboard can say when emails are off. One row; nothing secret in it.
+CREATE TABLE IF NOT EXISTS public.alert_email_status (
+  id         integer PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  configured boolean NOT NULL,
+  checked_at timestamptz NOT NULL
+);
+ALTER TABLE public.alert_email_status ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Signed-in users read alert email status" ON public.alert_email_status;
+CREATE POLICY "Signed-in users read alert email status" ON public.alert_email_status
+  FOR SELECT TO authenticated USING (true);
+REVOKE ALL ON public.alert_email_status FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON public.alert_email_status TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.record_alert_email_status(p_configured boolean)
+RETURNS void
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  INSERT INTO public.alert_email_status (id, configured, checked_at) VALUES (1, p_configured, now())
+  ON CONFLICT (id) DO UPDATE SET configured = EXCLUDED.configured, checked_at = EXCLUDED.checked_at
+$$;
+REVOKE ALL ON FUNCTION public.record_alert_email_status(boolean) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.record_alert_email_status(boolean) TO service_role;
+
 -- Cron auth, as for pipeline-freshness: a random secret in Vault, sent in x-cron-secret.
 DO $$
 BEGIN

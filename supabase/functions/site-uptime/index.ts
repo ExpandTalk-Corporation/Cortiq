@@ -55,6 +55,8 @@ Deno.serve(async (req) => {
   const { data: alerts } = await supabase.rpc('uptime_alerts_to_email');
   const pending = (alerts ?? []) as UptimeAlert[];
   const resendKey = Deno.env.get('RESEND_API_KEY');
+  // Lets the dashboard say that alert emails are off until Resend is set up.
+  await supabase.rpc('record_alert_email_status', { p_configured: !!resendKey });
   if (!resendKey || !pending.length) return Response.json({ checked, pending: pending.length, emailed: 0 });
 
   const from = Deno.env.get('ALERT_EMAIL_FROM') ?? 'CortIQ <alerts@cortiq.se>';

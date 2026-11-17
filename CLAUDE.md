@@ -211,6 +211,12 @@ Spec: `docs/superpowers/specs/2026-11-12-cookieless-session-stitching.md`.
   load CortIQ from their own JS bundle never get it). Bot challenges, 401 and 429 are inconclusive and change nothing.
 - Shown in Overview/Alerts (red, above pipeline alerts); emailed to the owner on open and recovery when
   `RESEND_API_KEY` (+ optional `ALERT_EMAIL_FROM`) is set — same secrets as pipeline-freshness.
+- **Emails are OFF until Resend is set up** (as of 2026-11-17). Each run writes `alert_email_status.configured`; while
+  false, the Alerts tab and every open alert show the setup steps (`EMAIL_SETUP_STEPS` in `_shared/uptime.ts`):
+  1. Resend (the SentriSK account is fine): API key with Sending access, restricted to cortiq.se.
+  2. Resend → Domains → add cortiq.se; add its DKIM/SPF/MX records at Loopia; wait for Verified.
+  3. `supabase secrets set RESEND_API_KEY=re_… ALERT_EMAIL_FROM="CortIQ <alerts@cortiq.se>"` — picked up within 5 min.
+  Free plan: 100 emails/day, shared with SentriSK.
 - The 36 h pipeline-freshness rule stays for "site up, tracking broken". An hourly data-silence rule was backtested
   2026-11-17 and rejected: ~5 false alarms/month and still 16 h late on ekonom.biz.
 
