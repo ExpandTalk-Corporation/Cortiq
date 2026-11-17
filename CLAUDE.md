@@ -222,6 +222,24 @@ Spec: `docs/superpowers/specs/2026-11-12-cookieless-session-stitching.md`.
 
 ---
 
+## GTM container audit (added 2026-11-17)
+
+Spec: `docs/superpowers/specs/2026-11-17-gtm-container-audit-design.md`.
+
+- Public page `/gtm-audit/`: the visitor drops a GTM export (JSON, ≤5 MB) and `_shared/gtm-audit/audit.ts` runs **in the
+  browser**. The file is never sent anywhere; `tests/foundation/gtm-audit-page.test.mjs` fails if the page UI calls
+  `fetch`/`sendBeacon`.
+- Engine: `parse` → `tagInfos` (vendor via the tracking-vendors registry, `gallery-map.ts`, template permissions,
+  Custom HTML URLs; consent from triggers and consent settings) → 9 rules (`gtm.*`) + a migration class per tag.
+  Evidence level is always "configuration" — never claim a tag fires.
+- Counters: `stats.ts` whitelist → `gtm-audit-stats` (public, rate-limited) → `gtm_audit_stats_daily` (service role only).
+  New keys must go through `validateStats`; never add names, IDs, domains or URLs.
+- Sample report: `node scripts/gtm-audit/sample-report.mjs` after any engine change (freshness test). The sample
+  container is synthetic — never use a real customer's export in fixtures, samples or tests.
+- New vendor in GTM: add it to `_shared/tracking-vendors.ts` (and `gallery-map.ts` for a gallery template).
+
+---
+
 ## Deployment
 
 ```bash
