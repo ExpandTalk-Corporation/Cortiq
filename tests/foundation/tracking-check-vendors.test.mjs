@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { TRACKING_VENDORS, vendorForUrl, vendorForName, cookieCategory, extractVendorIds, isGoogleHost, isGoogleDomain } from '../../supabase/functions/_shared/tracking-vendors.ts';
+import { TRACKING_VENDORS, vendorForUrl, vendorForName, cookieCategory, extractVendorIds, isGoogleHost, isGoogleDomain, sriPossibleFor, vendorById } from '../../supabase/functions/_shared/tracking-vendors.ts';
 
 test('every vendor is complete and ids are unique', () => {
   const ids = new Set();
@@ -226,4 +226,23 @@ test('HubSpot CTAs, collected forms and regional form hosts are HubSpot', () => 
   for (const url of ['https://forms-na1.hsforms.com/embed/v3/counters.gif', 'https://perf-na1.hsforms.com/embed/v3/counters.gif'])
     assert.equal(vendorForUrl(url)?.id, 'hubspot-forms', url);
   assert.equal(vendorForUrl('https://api.hubapi.com/crm/v3/objects'), null);
+});
+
+test('Optimizely is recognised by its snippet, its log endpoint and its cookies', () => {
+  assert.equal(vendorForUrl('https://cdn.optimizely.com/js/123456.js')?.id, 'optimizely');
+  assert.equal(vendorForUrl('https://logx.optimizely.com/v1/events')?.id, 'optimizely');
+  assert.equal(vendorForName('optimizelyEndUserId')?.id, 'optimizely');
+  assert.deepEqual([...extractVendorIds(['https://cdn.optimizely.com/js/123456.js']).get('optimizely')], ['123456']);
+});
+
+test('sriPossible: vendors that update files in place are flagged, with Turnstile scoped to its host', () => {
+  const flagged = (id) => vendorById(id)?.sriPossible;
+  for (const id of ['gtm', 'ga4', 'google-ads', 'hubspot', 'meta', 'linkedin', 'clarity', 'hotjar', 'cookiebot', 'cookieyes', 'onetrust', 'optimizely'])
+    assert.equal(flagged(id), false, id);
+  assert.equal(flagged('public-cdn'), undefined);
+  assert.ok(flagged('cloudflare') instanceof RegExp);
+  assert.equal(sriPossibleFor('https://challenges.cloudflare.com/turnstile/v0/api.js'), false);
+  assert.equal(sriPossibleFor('https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js'), true);
+  assert.equal(sriPossibleFor('https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js'), true);
+  for (const v of TRACKING_VENDORS) if (v.sriNote) assert.ok(v.sriNote.length > 20, v.id);
 });

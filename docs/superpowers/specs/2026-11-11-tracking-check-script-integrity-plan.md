@@ -1,6 +1,7 @@
 # Tracking Check: script integrity, CSP quality and script change monitoring — plan
 
-Status: phase A in progress (feat/tracking-check-csp-quality). 2026-11-11.
+Status: phase A shipped (#130, 2026-11-11). Phase B (script inventory, missing `integrity`) in progress
+(feat/tracking-check-scripts-sri), 2026-11-17. Phase C not started.
 
 ## Why
 

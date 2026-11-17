@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import type { FindingStatus, Mode } from '../../../supabase/functions/_shared/tracking-check/types.ts';
-import { MATRIX_MANUAL_NOTE, MATRIX_NOTE, ORIGIN_SHORT, OWNER_LABEL, STATE_LABEL, cellText, matrixStates, type ReportSummary, type VendorRow } from '../../../supabase/functions/_shared/tracking-check/report.ts';
+import { MATRIX_MANUAL_NOTE, MATRIX_NOTE, ORIGIN_SHORT, OWNER_LABEL, SCRIPTS_NOTE, STATE_LABEL, cellText, matrixStates, scriptConsentText, scriptIntegrityText, scriptPagesText, type ReportSummary, type ScriptRow, type VendorRow } from '../../../supabase/functions/_shared/tracking-check/report.ts';
 import type { DiffItem, RunDiff } from '../../../supabase/functions/_shared/tracking-check/diff.ts';
 import type { FindingRow } from '@/hooks/useTrackingCheck';
 
@@ -83,6 +83,10 @@ export function ReportView({ summary, findings, mode, baselineUrl, targetUrl, fi
       {summary.diff && <ChangesCard diff={summary.diff} onShow={showFix} />}
 
       {summary.vendors && summary.vendors.length > 0 && <VendorTable rows={summary.vendors} onShow={showFix} />}
+
+      {summary.scripts && summary.scripts.length > 0 && (
+        <ScriptTable rows={summary.scripts} findingKeys={new Set(findings.map((f) => f.checkKey))} onShow={showFix} />
+      )}
 
       <Collapsible open={listOpen} onOpenChange={setListOpen}>
         <CollapsibleTrigger asChild>
@@ -202,6 +206,71 @@ function VendorTable({ rows, onShow }: { rows: VendorRow[]; onShow: (checkKey: s
             })}
           </tbody>
         </table>
+      </CardContent>
+    </Card>
+  );
+}
+
+const SCRIPT_ROWS_SHOWN = 15;
+
+/** The finding a script row belongs to: a page-source third-party script without integrity. */
+function scriptFindingKey(r: ScriptRow): string | null {
+  if (r.firstParty || r.integrity || r.origin !== 'page') return null;
+  return r.sriPossible ? `scripts.sri.missing.${r.host}` : 'scripts.sri.unsupported';
+}
+
+function ScriptTable({ rows, findingKeys, onShow }: { rows: ScriptRow[]; findingKeys: Set<string>; onShow: (checkKey: string) => void }) {
+  const [all, setAll] = useState(false);
+  const shown = all ? rows : rows.slice(0, SCRIPT_ROWS_SHOWN);
+  const third = rows.filter((r) => !r.firstParty).length;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">Scripts</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          {rows.length} external {rows.length === 1 ? 'script' : 'scripts'}, {third} from other domains. {SCRIPTS_NOTE}
+        </p>
+      </CardHeader>
+      <CardContent className="overflow-x-auto">
+        <table className="w-full min-w-[720px] text-sm">
+          <thead>
+            <tr className="border-b text-left text-muted-foreground">
+              <th className="py-2 pr-3 font-medium">Script</th>
+              <th className="py-2 pr-3 font-medium">Loaded by</th>
+              <th className="py-2 pr-3 font-medium">First loads</th>
+              <th className="py-2 pr-3 font-medium">Integrity</th>
+              <th className="py-2 font-medium">Measured hash</th>
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map((r) => {
+              const key = scriptFindingKey(r);
+              const label = r.tool ? `${r.tool} · ${r.host}` : r.host;
+              return (
+                <tr key={r.url} className="border-b align-top last:border-0">
+                  <td className="max-w-[320px] py-2 pr-3">
+                    {key && findingKeys.has(key)
+                      ? <Button variant="link" className="h-auto p-0 text-left font-medium" onClick={() => onShow(key)}>{label}</Button>
+                      : <span className="font-medium">{label}</span>}
+                    <div className="break-all text-xs text-muted-foreground" title={r.url}>{r.url}</div>
+                    <div className="text-xs text-muted-foreground">{scriptPagesText(r, 3)}</div>
+                  </td>
+                  <td className="py-2 pr-3 text-muted-foreground">{r.firstParty ? 'Own domain' : r.origin ? ORIGIN_SHORT[r.origin] : 'Unknown'}</td>
+                  <td className="py-2 pr-3">{scriptConsentText(r)}</td>
+                  <td className="py-2 pr-3">{scriptIntegrityText(r)}</td>
+                  <td className="py-2 font-mono text-xs text-muted-foreground" title={r.sha256 ?? undefined}>
+                    {r.sha256 ? `${r.sha256.slice(0, 18)}…` : ''}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {rows.length > SCRIPT_ROWS_SHOWN && (
+          <Button variant="ghost" className="mt-2 px-0" onClick={() => setAll(!all)}>
+            {all ? 'Show fewer' : `Show all ${rows.length} scripts`}
+          </Button>
+        )}
       </CardContent>
     </Card>
   );

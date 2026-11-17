@@ -1,7 +1,8 @@
-// Tracking Check report as an Excel workbook: a summary sheet, one row per tool (newer runs) and one row per finding.
+// Tracking Check report as an Excel workbook: a summary sheet, one row per tool (newer runs), one row per finding
+// and one row per external script (runs with a script inventory).
 // exceljs is loaded on demand so it stays out of the report page bundle.
 import type { FindingStatus, Mode } from '../../supabase/functions/_shared/tracking-check/types.ts';
-import { FINDING_STATUS_LABEL, MATRIX_MANUAL_NOTE, MATRIX_NOTE, SHEET_COLUMNS, toSheetRows, toVendorSheet, type ReportSummary } from '../../supabase/functions/_shared/tracking-check/report.ts';
+import { FINDING_STATUS_LABEL, MATRIX_MANUAL_NOTE, MATRIX_NOTE, SCRIPTS_NOTE, SHEET_COLUMNS, toScriptSheet, toSheetRows, toVendorSheet, type ReportSummary } from '../../supabase/functions/_shared/tracking-check/report.ts';
 import type { FindingRow } from '@/hooks/useTrackingCheck';
 
 interface XlsxInput {
@@ -15,6 +16,7 @@ interface XlsxInput {
 
 const WIDTHS = [5, 14, 10, 12, 45, 60, 70, 22, 30, 40, 14];
 const VENDOR_WIDTHS: Record<string, number> = { Status: 14, Tool: 26, Category: 12, 'Loaded by': 14, Findings: 45, 'What to do': 70 };
+const SCRIPT_WIDTHS: Record<string, number> = { URL: 60, Host: 26, Tool: 22, 'Loaded by': 14, 'First loads': 22, States: 30, Integrity: 30, 'SHA-256 (measured)': 52, Size: 9, Pages: 40 };
 const WRAPPED =new Set(['Finding', 'Explanation', 'What to do', 'Pages', 'Evidence']);
 const STATUS_FILL: Record<FindingStatus, string> = {
   fail: 'FFFDE2E2', warning: 'FFFEF3C7', manual: 'FFDBEAFE', untestable: 'FFF3F4F6', pass: 'FFDCFCE7',
@@ -79,6 +81,23 @@ export async function trackingCheckXlsx({ summary, findings, mode, baselineUrl, 
     ws.getRow(i + 2).getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: STATUS_FILL[f.status] } };
   });
   ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: SHEET_COLUMNS.length } };
+
+  if (summary.scripts?.length) {
+    const sheet = toScriptSheet(summary.scripts);
+    const ss = wb.addWorksheet('Scripts', { views: [{ state: 'frozen', ySplit: 1, xSplit: 1 }] });
+    ss.columns = sheet.columns.map((header) => ({ header, width: SCRIPT_WIDTHS[header] ?? 16 }));
+    sheet.rows.forEach((r) => ss.addRow(r));
+    ss.columns.forEach((c) => { c.alignment = { wrapText: true, vertical: 'top' }; });
+    const sh = ss.getRow(1);
+    sh.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    sh.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } };
+    ss.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: sheet.columns.length } };
+    ss.addRow([]);
+    const note = ss.addRow([SCRIPTS_NOTE]);
+    note.font = { italic: true };
+    note.height = 60;
+    ss.mergeCells(note.number, 1, note.number, sheet.columns.length);
+  }
 
   const buffer = await wb.xlsx.writeBuffer();
   return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });

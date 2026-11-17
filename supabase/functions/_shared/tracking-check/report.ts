@@ -9,6 +9,8 @@ export interface ReportSummary {
   commitments?: string[];
   /** One row per tool with what it did in each consent state (runs since the vendor matrix was added). */
   vendors?: VendorRow[];
+  /** External scripts with integrity and measured hash (runs since the script inventory was added). */
+  scripts?: ScriptRow[];
   /** Runs of a schedule: changes since the previous finished run of the same schedule. */
   diff?: RunDiff;
 }
@@ -179,5 +181,79 @@ export function toVendorSheet(rows: VendorRow[], findings: Finding[]): { columns
         mine.find((f) => f.status !== 'pass')?.fix ?? '',
       ];
     }),
+  };
+}
+
+// Script inventory: one row per external script of the tested pages. Built by scriptInventory() in the worker.
+export interface ScriptRow {
+  /** Script URL with query parameter names only (values can hold IDs). */
+  url: string;
+  host: string;
+  /** Registry vendor id and name, when the URL belongs to a known tool. */
+  vendorId: string | null;
+  tool: string | null;
+  /** Served from the tested site's own domain (or a subdomain of it). */
+  firstParty: boolean;
+  /** What loaded it; null when the probe recorded no initiator. */
+  origin: ScriptOrigin | null;
+  /** Consent states the script loaded in, in MATRIX_STATES order. */
+  states: ConsentState[];
+  /** Loaded before the cookie choice or after "Reject all". */
+  beforeConsent: boolean;
+  /** The tag's integrity attribute; null when missing on any tested page. */
+  integrity: string | null;
+  crossorigin: string | null;
+  /** SRI-format hash of the body measured with all cookies accepted, else null. */
+  sha256: string | null;
+  bytes: number | null;
+  /** False when the vendor updates the file in place, so a fixed hash would break it. */
+  sriPossible: boolean;
+  /** Up to 10 pages the script loaded on; pageCount is the full number, of the pages with an inventory. */
+  pages: string[];
+  pageCount: number;
+  of: number;
+}
+
+export const SCRIPTS_NOTE = 'External scripts of the tested pages, seen by one headless browser in one location. Scripts that only load for some visitors (on checkout pages, in certain countries, or hidden from automated browsers) may be missing, and this is not monitoring of real visitors\' browsers. Hashes are measured on the visit with all cookies accepted. Integrity applies to scripts in the page source; scripts loaded by GTM, the cookie banner or another script are listed for the inventory only.';
+
+/** Integrity column text. */
+export function scriptIntegrityText(r: ScriptRow): string {
+  if (r.integrity) return `Yes (${r.integrity.split('-')[0]})`;
+  if (r.firstParty) return 'No (own domain)';
+  if (r.origin === 'page' && !r.sriPossible) return 'No (fixed hash not possible)';
+  return 'No';
+}
+
+/** Consent column text: the earliest point the script loaded. */
+export function scriptConsentText(r: ScriptRow): string {
+  if (r.states.includes('none')) return STATE_LABEL.none;
+  if (r.states.includes('reject')) return STATE_LABEL.reject;
+  return r.states.length ? 'Only after consent' : 'Not tested';
+}
+
+/** Pages column text: all pages, or which ones. */
+export function scriptPagesText(r: ScriptRow, maxPages = 5): string {
+  if (r.pageCount >= r.of) return `All ${r.of} ${r.of === 1 ? 'page' : 'pages'}`;
+  const more = r.pageCount > maxPages ? ` +${r.pageCount - maxPages} more` : '';
+  return `${r.pageCount} of ${r.of}: ${r.pages.slice(0, maxPages).join(', ')}${more}`;
+}
+
+/** The "Scripts" sheet: header and rows. */
+export function toScriptSheet(rows: ScriptRow[]): { columns: string[]; rows: string[][] } {
+  return {
+    columns: ['URL', 'Host', 'Tool', 'Party', 'Loaded by', 'First loads', 'States', 'Integrity', 'SHA-256 (measured)', 'Size', 'Pages'],
+    rows: rows.map((r) => [
+      r.url,
+      r.host,
+      r.tool ?? '',
+      r.firstParty ? 'First party' : 'Third party',
+      r.origin ? ORIGIN_SHORT[r.origin] : 'Unknown',
+      scriptConsentText(r),
+      r.states.map((s) => STATE_LABEL[s]).join(', '),
+      r.integrity ?? scriptIntegrityText(r),
+      r.sha256 ?? '',
+      r.bytes === null ? '' : `${Math.max(1, Math.round(r.bytes / 1024))} KB`,
+      scriptPagesText(r),
+    ]),
   };
 }
