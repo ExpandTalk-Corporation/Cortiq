@@ -186,6 +186,8 @@ Spec: `docs/superpowers/specs/2026-10-29-aggregate-measurement-and-pixel-readine
 - Violations go to the `csp-report` Edge Function (report-uri + Reporting-Endpoints) → `csp_reports`, counted per day,
   service role only, 90 days. Check it after every deploy: `select * from csp_reports order by last_seen desc`.
 
+---
+
 ## Cookieless session storage (added 2026-11-12)
 
 Spec: `docs/superpowers/specs/2026-11-12-cookieless-session-stitching.md`.
