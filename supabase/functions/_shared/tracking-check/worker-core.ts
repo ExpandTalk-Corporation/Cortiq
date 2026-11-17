@@ -2,6 +2,7 @@
 import { assess } from './assess/index.ts';
 import { summarize, type ReportSummary } from './report.ts';
 import { vendorMatrix } from './vendor-matrix.ts';
+import { scriptInventory } from './assess/scripts.ts';
 import { diffRuns, hasNewProblems, type DiffFinding } from './diff.ts';
 import type { VendorRow } from './report.ts';
 import type {
@@ -87,6 +88,8 @@ export async function processBatch(store: TrackingCheckStore, probes: Probes, li
       const { target, baseline } = buildSites(run, await store.loadResults(runId));
       const findings = assess({ mode: run.mode, target, baseline, policy: run.policy });
       const summary: ReportSummary = { ...summarize(findings, run.mode, run.policy), vendors: vendorMatrix(target, findings) };
+      const scripts = scriptInventory(target);
+      if (scripts) summary.scripts = scripts;
       const diff = await scheduleDiff(store, run, findings, summary.vendors ?? null);
       if (diff) summary.diff = diff;
       await store.saveResults(runId, findings, summary);

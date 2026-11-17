@@ -5,12 +5,12 @@ import type { FindingRow } from '@/hooks/useTrackingCheck';
 export const TRACKING_CHECK_SAMPLE: { targetUrl: string; summary: ReportSummary; findings: FindingRow[] } = {
   "targetUrl": "https://www.example.com",
   "summary": {
-    "headline": "5 problems to fix · 6 OK · 1 to review · 5 to test manually",
+    "headline": "5 problems to fix · 6 OK · 2 to review · 6 to test manually",
     "counts": {
       "pass": 6,
       "fail": 5,
-      "warning": 1,
-      "manual": 5,
+      "warning": 2,
+      "manual": 6,
       "untestable": 0
     },
     "blocking": 5,
@@ -32,13 +32,13 @@ export const TRACKING_CHECK_SAMPLE: { targetUrl: string; summary: ReportSummary;
       },
       {
         "status": "warning",
-        "text": "The site sends no Content-Security-Policy",
-        "checkKey": "csp.missing"
+        "text": "A script from cdn.jsdelivr.net loads without integrity",
+        "checkKey": "scripts.sri.missing.cdn.jsdelivr.net"
       },
       {
-        "status": "pass",
-        "text": "Ad and campaign parameters survive on all 3 tested pages",
-        "checkKey": "params.survive"
+        "status": "warning",
+        "text": "The site sends no Content-Security-Policy",
+        "checkKey": "csp.missing"
       }
     ],
     "commitments": [
@@ -54,7 +54,7 @@ export const TRACKING_CHECK_SAMPLE: { targetUrl: string; summary: ReportSummary;
         "id": "ga4",
         "name": "Google Analytics 4",
         "category": "analytics",
-        "origin": null,
+        "origin": "page",
         "states": {
           "none": {
             "pages": [
@@ -92,7 +92,7 @@ export const TRACKING_CHECK_SAMPLE: { targetUrl: string; summary: ReportSummary;
         "id": "meta",
         "name": "Meta Pixel",
         "category": "marketing",
-        "origin": null,
+        "origin": "page",
         "states": {
           "reject": {
             "pages": [
@@ -161,6 +161,126 @@ export const TRACKING_CHECK_SAMPLE: { targetUrl: string; summary: ReportSummary;
           "consent.after_reject.verify.libsyn"
         ]
       }
+    ],
+    "scripts": [
+      {
+        "url": "https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js",
+        "host": "cdn.jsdelivr.net",
+        "vendorId": "public-cdn",
+        "tool": "Public JavaScript CDN (jsDelivr, unpkg, Google Hosted Libraries)",
+        "firstParty": false,
+        "origin": "page",
+        "states": [
+          "none",
+          "reject",
+          "accept"
+        ],
+        "beforeConsent": true,
+        "integrity": null,
+        "crossorigin": null,
+        "sha256": null,
+        "bytes": 87533,
+        "sriPossible": true,
+        "pages": [
+          "/"
+        ],
+        "pageCount": 1,
+        "of": 1
+      },
+      {
+        "url": "https://connect.facebook.net/en_US/fbevents.js",
+        "host": "connect.facebook.net",
+        "vendorId": "meta",
+        "tool": "Meta Pixel",
+        "firstParty": false,
+        "origin": "page",
+        "states": [
+          "reject",
+          "accept"
+        ],
+        "beforeConsent": true,
+        "integrity": null,
+        "crossorigin": null,
+        "sha256": null,
+        "bytes": 96112,
+        "sriPossible": false,
+        "pages": [
+          "/"
+        ],
+        "pageCount": 1,
+        "of": 1
+      },
+      {
+        "url": "https://www.googletagmanager.com/gtag/js?id",
+        "host": "www.googletagmanager.com",
+        "vendorId": "ga4",
+        "tool": "Google Analytics 4",
+        "firstParty": false,
+        "origin": "page",
+        "states": [
+          "none",
+          "accept"
+        ],
+        "beforeConsent": true,
+        "integrity": null,
+        "crossorigin": null,
+        "sha256": null,
+        "bytes": 312004,
+        "sriPossible": false,
+        "pages": [
+          "/"
+        ],
+        "pageCount": 1,
+        "of": 1
+      },
+      {
+        "url": "https://cdn.jsdelivr.net/npm/swiper@11.1.4/swiper-bundle.min.js",
+        "host": "cdn.jsdelivr.net",
+        "vendorId": "public-cdn",
+        "tool": "Public JavaScript CDN (jsDelivr, unpkg, Google Hosted Libraries)",
+        "firstParty": false,
+        "origin": "page",
+        "states": [
+          "none",
+          "reject",
+          "accept"
+        ],
+        "beforeConsent": true,
+        "integrity": "sha384-sample0000000000000000000000000000000000000000000000000000000000",
+        "crossorigin": "anonymous",
+        "sha256": null,
+        "bytes": 152101,
+        "sriPossible": true,
+        "pages": [
+          "/"
+        ],
+        "pageCount": 1,
+        "of": 1
+      },
+      {
+        "url": "https://www.example.com/assets/app.js",
+        "host": "www.example.com",
+        "vendorId": null,
+        "tool": null,
+        "firstParty": true,
+        "origin": "page",
+        "states": [
+          "none",
+          "reject",
+          "accept"
+        ],
+        "beforeConsent": true,
+        "integrity": null,
+        "crossorigin": null,
+        "sha256": null,
+        "bytes": 182340,
+        "sriPossible": true,
+        "pages": [
+          "/"
+        ],
+        "pageCount": 1,
+        "of": 1
+      }
     ]
   },
   "findings": [
@@ -194,8 +314,8 @@ export const TRACKING_CHECK_SAMPLE: { targetUrl: string; summary: ReportSummary;
       "priority": "high",
       "title": "Google Analytics 4 stores data on the device before the visitor chooses",
       "explanation": "Google Analytics 4 set _ga, _ga_SAMPLE123 in the browser before the visitor chooses on /. No Consent Mode default was set, so Google's tags acted as if the visitor had accepted. After \"Reject all\" it sent nothing, so the cookie banner (Cookiebot) blocks it after an active choice, but not while the visitor has not answered yet. The visitor is tracked before saying yes or no. Storing or reading data on the device for analytics or marketing may require consent under ePrivacy rules (in Sweden: LEK 9 kap. 28 §); this is assessed by the controller.",
-      "fix": "In GTM, open the Google Analytics 4 tag → Advanced settings → Consent settings → \"Require additional consent for tag to fire\" and add analytics_storage. With Cookiebot you can instead fire the tag on the custom event cookie_consent_statistics.\n\nGoogle's built-in consent checks on their own are not enough: they let the tag send cookieless pings to Google before consent (Consent Mode advanced), and this check reports those too.\n\nCheck it yourself: in an incognito window, before answering the cookie banner, DevTools → Application → Cookies should show no _ga, _ga_SAMPLE123.\n\nExpect fewer GA4 sessions and Google Ads conversions once this is fixed: visitors who reject or never answer are no longer measured. Tell whoever reads the reports beforehand, so the drop is not mistaken for a campaign problem.",
-      "typicalOwner": "gtm",
+      "fix": "The Google Analytics 4 script is in the page source (the site's HTML or template), not loaded through Google Tag Manager, so consent settings in GTM do not affect it. Either remove it from the template and add it as a GTM tag that requires analytics_storage, or let the cookie banner block it: with Cookiebot, change the script tag to type=\"text/plain\" and add data-cookieconsent=\"statistics\".\n\nCheck it yourself: in an incognito window, before answering the cookie banner, DevTools → Application → Cookies should show no _ga, _ga_SAMPLE123.\n\nExpect fewer GA4 sessions and Google Ads conversions once this is fixed: visitors who reject or never answer are no longer measured. Tell whoever reads the reports beforehand, so the drop is not mistaken for a campaign problem.",
+      "typicalOwner": "developer",
       "evidence": {
         "pages": [
           "/"
@@ -204,7 +324,8 @@ export const TRACKING_CHECK_SAMPLE: { targetUrl: string; summary: ReportSummary;
           "requests to www.googletagmanager.com",
           "requests to region1.google-analytics.com",
           "stored _ga",
-          "stored _ga_SAMPLE123"
+          "stored _ga_SAMPLE123",
+          "script loaded from the page source"
         ]
       },
       "verifiedAt": null
@@ -216,8 +337,8 @@ export const TRACKING_CHECK_SAMPLE: { targetUrl: string; summary: ReportSummary;
       "priority": "high",
       "title": "Meta Pixel stores data on the device after \"Reject all\"",
       "explanation": "Meta Pixel set _fbp in the browser after \"Reject all\" on /. The visitor is tracked although they said no. Storing or reading data on the device for analytics or marketing may require consent under ePrivacy rules (in Sweden: LEK 9 kap. 28 §); this is assessed by the controller.",
-      "fix": "Load Meta Pixel only after consent for the \"marketing\" category: block it in the cookie banner (Cookiebot), or give its GTM tag a consent requirement.",
-      "typicalOwner": "cmp",
+      "fix": "The Meta Pixel script is in the page source (the site's HTML or template), not loaded through Google Tag Manager, so consent settings in GTM do not affect it. Either remove it from the template and add it as a GTM tag that requires ad_storage, or let the cookie banner block it: with Cookiebot, change the script tag to type=\"text/plain\" and add data-cookieconsent=\"marketing\".",
+      "typicalOwner": "developer",
       "evidence": {
         "pages": [
           "/"
@@ -225,7 +346,8 @@ export const TRACKING_CHECK_SAMPLE: { targetUrl: string; summary: ReportSummary;
         "details": [
           "requests to connect.facebook.net",
           "requests to www.facebook.com",
-          "stored _fbp"
+          "stored _fbp",
+          "script loaded from the page source"
         ]
       },
       "verifiedAt": null
@@ -269,6 +391,25 @@ export const TRACKING_CHECK_SAMPLE: { targetUrl: string; summary: ReportSummary;
       "verifiedAt": null
     },
     {
+      "scope": "Scripts",
+      "checkKey": "scripts.sri.missing.cdn.jsdelivr.net",
+      "status": "warning",
+      "priority": "medium",
+      "title": "A script from cdn.jsdelivr.net loads without integrity",
+      "explanation": "The page source loads 1 script from cdn.jsdelivr.net (Public JavaScript CDN (jsDelivr, unpkg, Google Hosted Libraries)) without an integrity attribute, so the browser runs whatever that server returns. If the file is changed on the server, by the vendor or by someone who has broken in, the change runs on the site with full access to the page, including what visitors type into forms. It loads before the visitor has made a cookie choice (or after \"Reject all\"), so it runs for every visitor.",
+      "fix": "1. Load a versioned URL whose content never changes (for example lib@3.7.1/lib.min.js rather than lib@latest), so a fixed hash stays valid.\n2. Add integrity and crossorigin to the tag:\n<script src=\"https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js\" integrity=\"sha384-…\" crossorigin=\"anonymous\"></script>\nCompute the hash from the file you have checked: curl -s https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js | openssl dgst -sha384 -binary | openssl base64 -A, then write integrity=\"sha384-<output>\". Many CDNs, such as cdnjs and jsDelivr, show the integrity value next to each file.\n3. The server must answer with Access-Control-Allow-Origin (public CDNs do). Without it the browser refuses the script once crossorigin is set.\nIf an inline snippet creates the script, set script.integrity and script.crossOrigin = 'anonymous' before the snippet adds it to the page.\nIf the vendor updates this file in place at the same URL, a fixed hash blocks it after the next update. Then limit it with the Content-Security-Policy instead: script-src with only the hosts you use, no 'unsafe-eval', and connect-src with only the hosts scripts may send data to.",
+      "typicalOwner": "developer",
+      "evidence": {
+        "pages": [
+          "/"
+        ],
+        "details": [
+          "https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"
+        ]
+      },
+      "verifiedAt": null
+    },
+    {
       "scope": "CSP",
       "checkKey": "csp.missing",
       "status": "warning",
@@ -303,6 +444,26 @@ export const TRACKING_CHECK_SAMPLE: { targetUrl: string; summary: ReportSummary;
           "/thanks?email=test@example.org"
         ],
         "details": []
+      },
+      "verifiedAt": null
+    },
+    {
+      "scope": "Scripts",
+      "checkKey": "scripts.sri.unsupported",
+      "status": "manual",
+      "priority": "medium",
+      "title": "Some third-party scripts cannot use integrity: limit them with the Content-Security-Policy",
+      "explanation": "Meta Pixel, Google Analytics 4 load from the page source without integrity. These vendors update the file in place at a fixed URL (tag managers, pixels, cookie banner loaders, testing tools), so a fixed hash would block the script after their next update. A change to the file, by the vendor or by someone who has broken into the vendor, runs on the site unchecked. Meta Pixel, Google Analytics 4 load before the visitor has made a cookie choice (or after \"Reject all\"), so they run for every visitor.",
+      "fix": "1. Keep script-src restrictive: only the hosts you use (here: connect.facebook.net, www.googletagmanager.com, *.googletagmanager.com), no wildcards such as * or https:, or a nonce with 'strict-dynamic'.\n2. Leave out 'unsafe-eval' unless a tag needs it.\n3. Limit connect-src and img-src to the hosts these tools send data to (www.facebook.com, connect.facebook.net, *.google-analytics.com, *.analytics.google.com, *.googletagmanager.com), so a modified script cannot send form data to a new domain.\n4. Remove tools nobody uses, and load the rest only after the matching consent where they need it.\n5. Run this check regularly, and add a report-to endpoint to the policy so scripts that try to load from new hosts are reported.",
+      "typicalOwner": "developer",
+      "evidence": {
+        "pages": [
+          "/"
+        ],
+        "details": [
+          "Meta Pixel: https://connect.facebook.net/en_US/fbevents.js",
+          "Google Analytics 4: https://www.googletagmanager.com/gtag/js?id"
+        ]
       },
       "verifiedAt": null
     },

@@ -94,10 +94,10 @@ export function attemptedVendors(site: SiteObservation, paths?: Set<string>): Ma
 }
 
 export type { ScriptOrigin };
-const ORIGIN_ORDER: ScriptOrigin[] = ['page', 'gtm', 'cmp', 'other'];
+export const ORIGIN_ORDER: ScriptOrigin[] = ['page', 'gtm', 'cmp', 'other'];
 
 /** Follows "what loaded this script" up through vendor loaders (HubSpot's loader, gtag.js) until the page, GTM or a CMP. */
-function traceOrigin(start: string, initiatorOf: Map<string, string>): ScriptOrigin {
+export function traceOrigin(start: string, initiatorOf: Map<string, string>): ScriptOrigin {
   let init = start;
   for (let i = 0; i < 10; i++) {
     if (init === 'page') return 'page';

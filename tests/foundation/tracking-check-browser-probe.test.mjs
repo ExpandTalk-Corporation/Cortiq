@@ -2,8 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildProbeSource, requestOrigin, pickConsentButton, inPageCollect, cmpSignal, consentSignal,
-  inPageDetectCmp, inPageApplyAdapter, inPageAdapterBannerVisible,
+  inPageDetectCmp, inPageApplyAdapter, inPageAdapterBannerVisible, joinScripts,
 } from '../../supabase/functions/_shared/tracking-check/browser-probe.js';
+import { createHash } from 'node:crypto';
 import { runBrowserProbe } from '../../supabase/functions/_shared/tracking-check/browserless.ts';
 
 test('picks reject and accept buttons in Swedish and English', () => {
@@ -100,6 +101,8 @@ test('consentSignal recognises stored consent choices', () => {
 // ── observeState through the real probe module with a fake Puppeteer ─────────────────────
 // Each load (goto, then reload) is described by: status, requests, cookies, globals (window
 // properties), banner (a visible cookie banner element) and storage (localStorage keys).
+// Script bodies read through response.buffer(), across all pages of the fake browser.
+const buffered = [];
 function fakeBrowser(loadsFor) {
   const browser = {
     agents: [],
@@ -113,7 +116,9 @@ function fakeBrowser(loadsFor) {
           let cookies = [];
           let frames = [];
           const main = { url: () => 'https://new.example/' };
+          const sub = { url: () => 'https://new.example/' };
           const listeners = [];
+          const responseListeners = [];
           const elements = (banner) => (banner ? [{ getBoundingClientRect: () => ({ width: 400, height: 120 }) }] : []);
           // spec.elements: { '<exact selector or #id>': true | { visible: false, checked: true } } — arbitrary
           // extra elements (adapter buttons, checkboxes, adapter-specific banner markup) beyond the generic
@@ -144,7 +149,16 @@ function fakeBrowser(loadsFor) {
             // spec.frames: [{ url, storage }] — embedded frames and the storage keys inside them.
             frames = (spec.frames ?? []).map((fr) => ({ url: () => fr.url, evaluate: async () => fr.storage ?? [] }));
             cookies = [...cookies.filter((c) => !(spec.cookies ?? []).some((n) => same(c, n))), ...(spec.cookies ?? [])];
-            for (const r of spec.requests ?? []) for (const fn of listeners) fn({ url: () => r.url, postData: () => r.postData ?? null, resourceType: () => 'script', ...(r.initiator ? { initiator: () => r.initiator, frame: () => ({ url: () => 'https://new.example/' }) } : {}) });
+            // spec.tags: [{ src, integrity, crossorigin }] — <script> elements in the DOM after the load.
+            win.document.scripts = (spec.tags ?? []).map((t) => ({ src: t.src, getAttribute: (n) => t[n] ?? null }));
+            // r.frame 'sub': the request comes from an embedded frame. r.body: response body (string) for script hashing;
+            // r.respStatus / r.headers: the response's status and headers.
+            for (const r of spec.requests ?? []) {
+              const request = { url: () => r.url, postData: () => r.postData ?? null, resourceType: () => 'script', frame: () => (r.frame === 'sub' ? sub : main), ...(r.initiator ? { initiator: () => r.initiator } : {}) };
+              for (const fn of listeners) fn(request);
+              const res = { request: () => request, url: () => r.url, status: () => r.respStatus ?? 200, headers: () => r.headers ?? {}, buffer: async () => { buffered.push(r.url); return Buffer.from(r.body ?? ''); } };
+              for (const fn of responseListeners) fn(res);
+            }
             return { status: () => spec.status ?? 200 };
           };
           const run = (fn, args) => {
@@ -153,7 +167,7 @@ function fakeBrowser(loadsFor) {
             try { return typeof fn === 'string' ? new Function(fn)() : fn(...args); } finally { Object.assign(globalThis, saved); }
           };
           return {
-            on(event, fn) { if (event === 'request') listeners.push(fn); },
+            on(event, fn) { if (event === 'request') listeners.push(fn); if (event === 'response') responseListeners.push(fn); },
             async authenticate() {}, async setViewport() {}, async evaluateOnNewDocument() {},
             async setUserAgent(ua) { browser.agents.push(ua); },
             async goto() { loads.push(...loadsFor()); return load(loads.shift()); },
@@ -473,4 +487,66 @@ test('observeState reads storage inside cross-origin frames, new since the choic
   assert.deepEqual(out.reject.frameStorage, [{ origin: 'https://www.youtube-nocookie.com', key: 'yt-remote-device-id' }]);
   const none = await probe(['none'], { none: [{ frames: [yt(['ytidb::LAST_RESULT_ENTRY_KEY'])] }] });
   assert.deepEqual(none.none.frameStorage.map((f) => f.key), ['ytidb::LAST_RESULT_ENTRY_KEY']);
+});
+
+// ── Script inventory (plan phase B) ───────────────────────────────────────────────────────
+const JQ = 'https://code.jquery.com/jquery-3.7.1.min.js';
+const sri256 = (body) => `sha256-${createHash('sha256').update(body).digest('base64')}`;
+
+test('inPageCollect lists external <script> tags with integrity and crossorigin', () => {
+  const el = (src, attrs = {}) => ({ src, getAttribute: (n) => attrs[n] ?? null });
+  globalThis.window = {
+    dataLayer: [], localStorage: { length: 0 }, sessionStorage: { length: 0 },
+    document: { documentElement: { outerHTML: '' }, scripts: [el(JQ, { integrity: 'sha384-x', crossorigin: 'anonymous' }), el(''), el('data:text/javascript,1'), el('https://cdn.example/a.js')] },
+  };
+  try {
+    assert.deepEqual(inPageCollect(false).scripts, [
+      { src: JQ, integrity: 'sha384-x', crossorigin: 'anonymous' },
+      { src: 'https://cdn.example/a.js', integrity: null, crossorigin: null },
+    ]);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test('joinScripts joins requests, tags and hashes, and keeps tags whose request was never seen', () => {
+  const hashes = new Map([[JQ, { sha256: 'sha256-a', bytes: 10 }], ['https://big.example/x.js', { bytes: 3e6 }]]);
+  const out = joinScripts([JQ, 'https://big.example/x.js', JQ], [{ src: JQ, integrity: 'sha384-x', crossorigin: '' }, { src: 'https://blocked.example/b.js', integrity: null, crossorigin: null }], hashes);
+  assert.deepEqual(out, [
+    { url: JQ, integrity: 'sha384-x', crossorigin: '', bytes: 10, sha256: 'sha256-a' },
+    { url: 'https://big.example/x.js', integrity: null, crossorigin: null, bytes: 3e6 },
+    { url: 'https://blocked.example/b.js', integrity: null, crossorigin: null },
+  ]);
+  assert.equal(joinScripts(Array.from({ length: 400 }, (_, i) => `https://cdn.example/${i}.js`), [], new Map()).length, 300);
+});
+
+test('observeState lists main-frame scripts with their tags, and hashes bodies only with all cookies accepted', async () => {
+  const load = { tags: [{ src: JQ, integrity: 'sha384-x', crossorigin: 'anonymous' }], requests: [
+    { url: JQ, initiator: { type: 'parser' }, body: 'jquery()' },
+    { url: 'https://embed.example/player.js', frame: 'sub', body: 'player()' },
+  ] };
+  buffered.length = 0;
+  const out = await probe(['none', 'accept'], { none: [load], accept: [load] });
+  assert.deepEqual(out.none.scripts, [{ url: JQ, integrity: 'sha384-x', crossorigin: 'anonymous' }]);
+  assert.deepEqual(out.accept.scripts, [{ url: JQ, integrity: 'sha384-x', crossorigin: 'anonymous', bytes: 8, sha256: sri256('jquery()') }]);
+  // The embedded frame's script is neither listed nor downloaded.
+  assert.deepEqual(buffered, [JQ]);
+});
+
+test('observeState skips bodies over 2 MB, non-2xx responses, and stops hashing after 150 scripts', async () => {
+  const many = Array.from({ length: 160 }, (_, i) => ({ url: `https://cdn.example/${i}.js`, body: `s${i}` }));
+  buffered.length = 0;
+  const out = await probe(['accept'], { accept: [{ requests: [
+    { url: 'https://cdn.example/huge.js', headers: { 'content-length': String(3 * 1024 * 1024) }, body: 'x' },
+    { url: 'https://cdn.example/missing.js', respStatus: 404, body: 'nope' },
+    ...many,
+  ] }] });
+  const by = Object.fromEntries(out.accept.scripts.map((s) => [s.url, s]));
+  assert.deepEqual(by['https://cdn.example/huge.js'], { url: 'https://cdn.example/huge.js', integrity: null, crossorigin: null, bytes: 3 * 1024 * 1024 });
+  assert.equal(by['https://cdn.example/missing.js'].sha256, undefined);
+  assert.equal(out.accept.scripts.length, 162);
+  // huge.js takes one of the 150 slots without being downloaded; the 404 takes none.
+  assert.equal(out.accept.scripts.filter((s) => s.sha256).length, 149);
+  assert.ok(!buffered.includes('https://cdn.example/huge.js'));
+  assert.ok(!buffered.includes('https://cdn.example/missing.js'));
 });

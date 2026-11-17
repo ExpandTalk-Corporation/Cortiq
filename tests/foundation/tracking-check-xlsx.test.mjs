@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import ExcelJS from 'exceljs';
-import { summarize, toSheetRows, SHEET_COLUMNS } from '../../supabase/functions/_shared/tracking-check/report.ts';
+import { summarize, toSheetRows, toScriptSheet, SHEET_COLUMNS } from '../../supabase/functions/_shared/tracking-check/report.ts';
 import { trackingCheckXlsx } from '../../src/lib/trackingCheckXlsx.ts';
 
 const f = (status, priority, title, extra = {}) => ({ scope: 'Consent', checkKey: title, title, status, priority, explanation: `${title} explained.`,
@@ -37,6 +37,21 @@ test('the workbook has a summary sheet and a filterable findings sheet; formulas
   assert.equal(ws.getCell('G2').alignment.wrapText, true);
   assert.ok(ws.autoFilter);
   assert.equal(ws.views[0].state, 'frozen');
+});
+
+test('runs with a script inventory get a Scripts sheet after the findings', async () => {
+  const findings = [f('warning', 'medium', 'jQuery without integrity', { checkKey: 'scripts.sri.missing.code.jquery.com' })];
+  const scripts = [{ url: 'https://code.jquery.com/jquery-3.7.1.min.js', host: 'code.jquery.com', vendorId: null, tool: null, firstParty: false, origin: 'page',
+    states: ['none', 'reject', 'accept'], beforeConsent: true, integrity: null, crossorigin: null, sha256: 'sha256-abc', bytes: 87000, sriPossible: true, pages: ['/'], pageCount: 1, of: 1 }];
+  const blob = await trackingCheckXlsx({ summary: { ...summarize(findings, 'policy'), scripts }, findings, mode: 'policy', baselineUrl: null, targetUrl: 'https://paligo.net', finishedAt: null });
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(await blob.arrayBuffer());
+  assert.deepEqual(wb.worksheets.map((w) => w.name), ['Summary', 'Findings', 'Scripts']);
+  const ws = wb.getWorksheet('Scripts');
+  assert.deepEqual(ws.getRow(1).values.slice(1), toScriptSheet(scripts).columns);
+  assert.deepEqual(ws.getRow(2).values.slice(1, 9), ['https://code.jquery.com/jquery-3.7.1.min.js', 'code.jquery.com', '', 'Third party', 'Page source', 'Before choice', 'Before choice, After "Reject all", After "Accept all"', 'No']);
+  assert.ok(ws.autoFilter);
+  assert.match(String(ws.getCell('A4').value), /one headless browser in one location/);
 });
 
 test('runs with a vendor matrix get a By tool sheet before the findings', async () => {

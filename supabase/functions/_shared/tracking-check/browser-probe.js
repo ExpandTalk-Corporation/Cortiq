@@ -204,7 +204,7 @@ export function pickConsentButton(candidates, action) {
   return null;
 }
 
-/** in-page: storage keys, gtag consent commands, Enhanced Conversions config, CSP violations, optional HTML. */
+/** in-page: storage keys, gtag consent commands, Enhanced Conversions config, CSP violations, external script tags, optional HTML. */
 export function inPageCollect(withHtml) {
   const keys = [];
   // window.* everywhere so the function also runs in Node tests with a stubbed window.
@@ -236,10 +236,23 @@ export function inPageCollect(withHtml) {
     }
     if ((a[0] === 'config' && a[2] && a[2].allow_enhanced_conversions) || (a[0] === 'set' && a[1] === 'user_data')) ec = true;
   }
+  // External <script src> tags still in the DOM, with the attributes that make Subresource Integrity work.
+  const scripts = [];
+  try {
+    const tags = (window.document && window.document.scripts) || [];
+    for (let i = 0; i < tags.length && scripts.length < 300; i++) {
+      const el = tags[i];
+      const src = el && el.src;
+      if (!src || !/^https?:/.test(src)) continue;
+      const attr = (n) => (typeof el.getAttribute === 'function' ? el.getAttribute(n) : null);
+      scripts.push({ src, integrity: attr('integrity') || null, crossorigin: attr('crossorigin') });
+    }
+  } catch (e) { /* DOM not readable */ }
   return {
     storageKeys: keys,
     consentCommands,
     ec,
+    scripts,
     csp: (window.__tcCsp || []).slice(0, 500),
     html: withHtml ? window.document.documentElement.outerHTML.slice(0, 1000000) : '',
   };
@@ -265,6 +278,25 @@ export function requestOrigin(initiator, documentUrl) {
     }
   }
   return inline ? 'page' : undefined;
+}
+
+/**
+ * External scripts of the main document: every script request (in load order) joined with its <script> tag and,
+ * when measured, its body hash. Tags whose request was never seen (blocked by CSP) are kept too.
+ * Serialised into the probe: must not reference anything outside its body.
+ */
+export function joinScripts(urls, tags, hashes) {
+  const tagOf = new Map();
+  for (const t of tags || []) if (t && t.src && !tagOf.has(t.src)) tagOf.set(t.src, t);
+  const all = [...new Set([...(urls || []), ...tagOf.keys()])].slice(0, 300);
+  return all.map((url) => {
+    const tag = tagOf.get(url);
+    const entry = { url, integrity: (tag && tag.integrity) || null, crossorigin: tag && tag.crossorigin != null ? String(tag.crossorigin) : null };
+    const h = hashes && hashes.get(url);
+    if (h && typeof h.bytes === 'number') entry.bytes = h.bytes;
+    if (h && h.sha256) entry.sha256 = h.sha256;
+    return entry;
+  });
 }
 
 async function observeState(browser, state, context, inPageSource) {
@@ -307,6 +339,44 @@ async function observeState(browser, state, context, inPageSource) {
   const snapshot = async (cdp) => new Map((await cdp.send('Network.getAllCookies')).cookies.map((c) => [cookieKey(c), cookieSig(c)]));
   // GA4 hits through server-side tagging on the site's own domain also go to Google.
   const ga4Hit = (u) => u.pathname === '/g/collect' && /[?&]tid=G-/.test(u.search);
+  // Scripts of the main document (not of embedded frames), for the script inventory. Cleared with the requests on reload.
+  const mainScripts = [];
+  const inMainFrame = (r) => {
+    try { return typeof r.frame !== 'function' || !r.frame() || typeof p.mainFrame !== 'function' || r.frame() === p.mainFrame(); } catch (e) { return false; }
+  };
+  // With all cookies accepted, hash each script body (SRI format) so a later run can tell when a vendor's file changed.
+  // Hashes survive the reload: the same URL serves the same body within one run.
+  const hashes = new Map();
+  const hashJobs = [];
+  const MAX_HASHED = 150;
+  const MAX_BYTES = 2 * 1024 * 1024;
+  const sriHash = async (buf) => {
+    const digest = new Uint8Array(await globalThis.crypto.subtle.digest('SHA-256', buf));
+    if (typeof Buffer !== 'undefined') return `sha256-${Buffer.from(digest).toString('base64')}`;
+    let bin = '';
+    for (const b of digest) bin += String.fromCharCode(b);
+    return `sha256-${btoa(bin)}`;
+  };
+  if (state === 'accept') {
+    p.on('response', (res) => {
+      let req = null;
+      let url = '';
+      try { req = res.request(); url = res.url(); } catch (e) { return; }
+      if (!req || req.resourceType() !== 'script' || !inMainFrame(req) || !/^https?:/.test(url)) return;
+      if (hashes.has(url) || hashes.size >= MAX_HASHED) return;
+      const status = res.status();
+      if (status < 200 || status >= 300) return;
+      const entry = {};
+      hashes.set(url, entry);
+      hashJobs.push((async () => {
+        const length = Number((res.headers() || {})['content-length']);
+        if (length > MAX_BYTES) { entry.bytes = length; return; }
+        const buf = await res.buffer();
+        entry.bytes = buf.length;
+        if (buf.length <= MAX_BYTES) entry.sha256 = await sriHash(buf);
+      })().catch(() => {}));
+    });
+  }
   p.on('request', (r) => {
     const url = r.url();
     if (out.requests.length >= 2000 || !/^https?:/.test(url)) return;
@@ -322,6 +392,7 @@ async function observeState(browser, state, context, inPageSource) {
       if (initiator) entry.initiator = initiator;
     }
     out.requests.push(entry);
+    if (type === 'script' && mainScripts.length < 300 && !mainScripts.includes(url) && inMainFrame(r)) mainScripts.push(url);
   });
   try {
     if (context.basicAuth) await p.authenticate(context.basicAuth);
@@ -372,6 +443,7 @@ async function observeState(browser, state, context, inPageSource) {
         await p.waitForNetworkIdle({ idleTime: 1000, timeout: 8000 }).catch(() => {});
         afterClick = await snapshot(cdp);
         out.requests.length = 0;   // observe the next page view after the choice
+        mainScripts.length = 0;
         out.enhancedConversions = false;
         const reloaded = await p.reload({ waitUntil: 'load', timeout: 30000 });
         out.status = reloaded ? reloaded.status() : 0;
@@ -396,6 +468,9 @@ async function observeState(browser, state, context, inPageSource) {
     out.consentCommands = collected.consentCommands;
     out.enhancedConversions = out.enhancedConversions || collected.ec;
     html = collected.html;
+    // Bodies still downloading get a short grace period; a script without a hash is still listed.
+    if (hashJobs.length) await Promise.race([Promise.all(hashJobs), new Promise((r) => setTimeout(r, 5000))]);
+    out.scripts = joinScripts(mainScripts, collected.scripts, hashes);
     if (done) {
       // A click or API call is not proof: keep the state only if the choice visibly took effect.
       // bannerGone only counts if the banner was actually visible before the action (not just a hidden CMP
@@ -438,6 +513,7 @@ export function buildProbeSource() {
   return [
     `const IN_PAGE = ${JSON.stringify(inPage)};`,
     requestOrigin.toString(),
+    joinScripts.toString(),
     observeState.toString(),
     probeMain.toString(),
     'export default async function ({ page, context }) { return probeMain({ page, context, inPageSource: IN_PAGE }); }',
