@@ -22,7 +22,7 @@ export function consentMissing(infos: TagInfo[]): Finding {
     return finding('gtm.consent_missing', 'Every analytics and marketing tag has a consent condition', 'pass', 'high', 'gtm', 'Each analytics and marketing tag waits for a consent condition in its triggers or consent settings.', '', []);
   }
   return finding('gtm.consent_missing', `${plural(hits.length, 'tag')} with no consent condition found`, 'fail', 'high', 'gtm',
-    'These analytics or marketing tags fire on triggers with no consent condition, and their consent settings require no consent type. A trigger can still depend on logic the audit cannot read (for example a Custom JavaScript variable), so check each tag before changing it.',
+    'These analytics or marketing tags are set to fire on triggers with no consent condition, and their consent settings require no consent type. A trigger can still depend on logic the audit cannot read (for example a Custom JavaScript variable), so check each tag before changing it.',
     "Fire each tag on your consent tool's consent event, or set Additional consent checks (ad_storage or analytics_storage) in the tag's consent settings.",
     hits.map((i) => `${tagLabel(i)}: ${i.consentEvidence}`));
 }

@@ -24,10 +24,10 @@ function stripComments(src) {
   return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 }
 
-test('sendAuditStats posts only the counters, with keepalive', async () => {
+test('sendAuditStats posts only the counters, with keepalive', async (t) => {
   const stats = buildStats(audit(sampleExport()));
   const calls = [];
-  globalThis.fetch = async (url, init) => { calls.push({ url, init }); return new Response(null, { status: 204 }); };
+  t.mock.method(globalThis, 'fetch', async (url, init) => { calls.push({ url, init }); return new Response(null, { status: 204 }); });
   await sendAuditStats(stats, 'https://fn.test/functions/v1/gtm-audit-stats');
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, 'https://fn.test/functions/v1/gtm-audit-stats');
@@ -37,9 +37,9 @@ test('sendAuditStats posts only the counters, with keepalive', async () => {
   assert.equal(calls[0].init.body.includes('GTM-SAMPLE1'), false);
 });
 
-test('sendAuditStats never throws and skips without an endpoint', async () => {
+test('sendAuditStats never throws and skips without an endpoint', async (t) => {
   let n = 0;
-  globalThis.fetch = async () => { n += 1; throw new Error('offline'); };
+  t.mock.method(globalThis, 'fetch', async () => { n += 1; throw new Error('offline'); });
   const stats = buildStats(audit(sampleExport()));
   await sendAuditStats(stats, 'https://fn.test/x');
   await sendAuditStats(stats, null);
@@ -56,6 +56,14 @@ test('the GTM audit engine and UI make no network calls of their own', () => {
   for (const f of files) {
     assert.doesNotMatch(stripComments(read(f)), /\bfetch\s*\(|sendBeacon|XMLHttpRequest|supabase\./, f);
   }
+});
+
+// M2: a finding's evidence list is capped at 10 shown lines (details.slice(1, 11)); when there are more,
+// the report must say so instead of silently dropping them.
+test('the findings list says how many more evidence lines are hidden', () => {
+  const report = read('src/components/gtm-audit/GtmAuditReport.tsx');
+  assert.match(report, /slice\(1,\s*11\)/);
+  assert.match(report, /more \(see Excel export\)/);
 });
 
 test('the page states where the file goes', () => {

@@ -55,6 +55,18 @@ test('validateStats rejects free text, unknown keys and bad counts; caps large c
   assert.equal(validateStats({ ...ok, types: { html: 1e9 } }).types.html, MAX_COUNT);
 });
 
+// T7a: a container well past the largest bucket must not push an unbounded count into the table.
+test('buildStats caps a count at MAX_COUNT and buckets a huge container as 250+', () => {
+  const li = tpl('html', '<script src="https://snap.licdn.com/li.lms-analytics/insight.min.js"></script>');
+  const tags = Array.from({ length: 501 }, (_, i) => tag(i + 1, `LI ${i}`, 'html', [li]));
+  const r = audit(exportOf({ tags }));
+  const s = buildStats(r);
+  assert.equal(s.bucket, '250+');
+  assert.equal(s.types.html, MAX_COUNT);
+  assert.equal(s.vendors.linkedin, MAX_COUNT);
+  assert.deepEqual(validateStats(JSON.parse(JSON.stringify(s))), s);
+});
+
 test('statsRows: one row per counter, keys match the table check', () => {
   const { keys, counts } = statsRows(buildStats(result()));
   assert.equal(keys.length, counts.length);

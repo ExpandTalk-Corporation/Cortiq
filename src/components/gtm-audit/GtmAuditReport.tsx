@@ -100,6 +100,7 @@ export function GtmAuditReport({ report, sample }: Props) {
               {f.fix && <p className="text-sm"><strong>What to do:</strong> {f.fix}</p>}
               <ul className="ml-4 list-disc text-sm text-muted-foreground">
                 {f.evidence.details.slice(1, 11).map((d, i) => <li key={`${i}-${d}`} className="break-words">{d}</li>)}
+                {f.evidence.details.length - 1 > 10 && <li>and {f.evidence.details.length - 1 - 10} more (see Excel export)</li>}
               </ul>
             </CardContent>
           </Card>

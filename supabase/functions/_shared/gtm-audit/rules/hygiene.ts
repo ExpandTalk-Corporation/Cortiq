@@ -5,10 +5,14 @@ import { finding, isActive, plural, tagLabel } from './finding.ts';
 
 const DAY = 86_400_000;
 const STALE_DAYS = 730;
-const ID_KEYS = ['tagId', 'measurementIdOverride', 'measurementId', 'conversionId', 'pixelId', 'pixel_id', 'partnerId', 'trackingId'];
-const EVENT_KEYS = ['eventName', 'standardEventName', 'event', 'conversionLabel', 'eventType'];
+const ID_KEYS = ['tagId', 'measurementIdOverride', 'measurementId', 'conversionId', 'pixelId', 'pixelIds', 'pixel_id', 'partnerId', 'trackingId'];
+// Meta's eventName is always the literal 'standard' for standard events — the real event lives in
+// standardEventName, so the key must join every field, not just the first truthy one (same approach as
+// migrate.ts's eventText), or PageView and ViewContent on the same pixel/trigger look identical.
+const EVENT_KEYS = ['eventName', 'standardEventName', 'event', 'conversionLabel', 'eventType', 'customEventName'];
 const text = (v: ParamValue | undefined): string => (typeof v === 'string' ? v : '');
 const firstOf = (i: TagInfo, keys: string[]): string => keys.map((k) => text(i.tag.params[k])).find(Boolean) ?? '';
+const eventKey = (i: TagInfo): string => EVENT_KEYS.map((k) => text(i.tag.params[k])).filter(Boolean).join(' ');
 const hostsOf = (urls: string[]): string => [...new Set(urls.map((u) => { try { return new URL(u).hostname; } catch { return u; } }))].join(', ');
 
 export function unknownCustomHtml(infos: TagInfo[]): Finding {
@@ -34,7 +38,7 @@ export function duplicateGroups(infos: TagInfo[]): TagInfo[][] {
   const groups = new Map<string, TagInfo[]>();
   for (const i of infos) {
     if (i.tag.paused || !i.ident.vendorId) continue;
-    const id = firstOf(i, ID_KEYS), ev = firstOf(i, EVENT_KEYS);
+    const id = firstOf(i, ID_KEYS), ev = eventKey(i);
     if (!id && !ev) continue;
     for (const trig of i.tag.firingTriggerIds) {
       const key = `${i.ident.vendorId}|${id}|${ev}|${trig}`;

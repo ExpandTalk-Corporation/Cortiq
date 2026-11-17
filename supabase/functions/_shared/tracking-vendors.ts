@@ -299,7 +299,7 @@ export const TRACKING_VENDORS: Vendor[] = [
     impact: 'CortIQ records no visits.',
     sriNote: 'CortIQ\'s install snippet has a pinned option that loads a versioned copy with integrity and crossorigin already set.',
   },
-  // B2B visitor identification. Verified 2026-11-06 against www.paligo.net (GTM-THF7LWZ).
+  // B2B visitor identification. Verified 2026-11-06 against a production site's GTM container.
   {
     id: 'leadfeeder', name: 'Leadfeeder (Dealfront)', category: 'marketing', googleTag: false, sriPossible: false, identifiesVisitors: true,
     requests: [{ host: /(^|\.)lfeeder\.com$/ }],

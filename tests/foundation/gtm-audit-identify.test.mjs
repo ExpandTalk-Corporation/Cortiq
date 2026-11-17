@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parse } from '../../supabase/functions/_shared/gtm-audit/parse.ts';
-import { identify, urlsInHtml } from '../../supabase/functions/_shared/gtm-audit/identify.ts';
-import { galleryEntry } from '../../supabase/functions/_shared/gtm-audit/gallery-map.ts';
+import { identify, urlsInHtml, vendorForPattern } from '../../supabase/functions/_shared/gtm-audit/identify.ts';
+import { galleryEntry, GALLERY } from '../../supabase/functions/_shared/gtm-audit/gallery-map.ts';
+import { TRACKING_VENDORS } from '../../supabase/functions/_shared/tracking-vendors.ts';
 import { tag, tpl, template, tplType, exportOf } from '../../scripts/gtm-audit/fixture.mjs';
 
 const one = (t, templates = []) => {
@@ -60,4 +61,27 @@ test('skips infrastructure URLs and resolves wildcard hosts', () => {
   assert.equal(li.vendorId, 'linkedin');
   const cdnOnly = one(tag(1, 'CDN', tplType(28)), [template(28, 'CDN', { permissions: { inject_script: ['https://cdn.jsdelivr.net/*'] } })]);
   assert.equal(cdnOnly.vendorId, null);
+});
+
+// I1: vendorForPattern's wildcard fallback must not match shared hosting/infra domains, bare TLDs, or
+// unrelated Google products, but must still resolve a genuine vendor's own wildcarded domain, including
+// protocol-relative patterns.
+test('wildcard fallback rejects shared infra and bare TLDs, resolves real vendor domains', () => {
+  const idOf = (pattern) => vendorForPattern(pattern)?.id ?? null;
+  assert.equal(idOf('https://*.amazonaws.com/*'), null);
+  assert.equal(idOf('https://*.cloudfront.net/*'), null);
+  assert.equal(idOf('https://*.net/*'), null);
+  assert.equal(idOf('https://*.google.com/*'), null);
+  assert.equal(idOf('https://*.linkedin.com/*'), 'linkedin');
+  assert.equal(idOf('//*.linkedin.com/*'), 'linkedin');
+});
+
+// T3b: every GALLERY entry must point at a vendor the registry actually knows, or the audit silently
+// attributes tags to a vendor id that resolves to nothing everywhere else.
+test('every gallery vendorId exists in TRACKING_VENDORS', () => {
+  const ids = new Set(TRACKING_VENDORS.map((v) => v.id));
+  for (const [key, entry] of Object.entries(GALLERY)) {
+    if (entry.vendorId === null) continue;
+    assert.ok(ids.has(entry.vendorId), `${key} -> ${entry.vendorId} not in TRACKING_VENDORS`);
+  }
 });

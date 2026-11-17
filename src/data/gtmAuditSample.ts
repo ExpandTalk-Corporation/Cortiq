@@ -28,7 +28,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "title": "3 tags with no consent condition found",
       "status": "fail",
       "priority": "high",
-      "explanation": "These analytics or marketing tags fire on triggers with no consent condition, and their consent settings require no consent type. A trigger can still depend on logic the audit cannot read (for example a Custom JavaScript variable), so check each tag before changing it.",
+      "explanation": "These analytics or marketing tags are set to fire on triggers with no consent condition, and their consent settings require no consent type. A trigger can still depend on logic the audit cannot read (for example a Custom JavaScript variable), so check each tag before changing it.",
       "fix": "Fire each tag on your consent tool's consent event, or set Additional consent checks (ad_storage or analytics_storage) in the tag's consent settings.",
       "typicalOwner": "gtm",
       "evidence": {

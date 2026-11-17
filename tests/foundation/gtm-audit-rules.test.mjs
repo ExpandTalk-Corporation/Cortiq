@@ -46,6 +46,8 @@ test('gtm.consent_missing: marketing tag and third-party Custom HTML without a c
   assert.match(f.evidence.details[1], /^LinkedIn \(LinkedIn Insight Tag\): No consent condition found/);
   assert.match(f.evidence.details[2], /^Chat widget \(Custom HTML\)/);
   assert.doesNotMatch(JSON.stringify(f), /fires without consent/i);
+  // M3: "fire on triggers" (bare) reads as a claim they do fire; must read as a configuration fact.
+  assert.match(f.explanation, /are set to fire on triggers with no consent condition/);
   assert.equal(run({ tags: [tag(3, 'LI', 'html', [liHtml], { consent: needed('ad_storage') })] }).byKey['gtm.consent_missing'].status, 'pass');
 });
 
@@ -103,6 +105,20 @@ test('gtm.duplicate: same vendor, ID and event on the same trigger', () => {
   const { byKey, infos } = run(spec);
   assert.deepEqual([byKey['gtm.duplicate'].status, byKey['gtm.duplicate'].priority], ['warning', 'medium']);
   assert.deepEqual(duplicateGroups(infos).map((g) => g.map((i) => i.tag.id)), [['1', '2']]);
+});
+
+// I2: Meta's shared eventName='standard' field must not mask standardEventName — two different standard
+// events (PageView, ViewContent) on the same pixel and trigger are not duplicates.
+test('gtm.duplicate: Meta standard events with the same pixel and trigger are not duplicates', () => {
+  const meta = (id, event) => tag(id, `Meta ${event}`, tplType(20), [tpl('eventName', 'standard'), tpl('standardEventName', event), tpl('pixelId', '{{Meta Pixel ID}}')], { fire: [10] });
+  const spec = {
+    tags: [meta(1, 'PageView'), meta(2, 'ViewContent')],
+    triggers: [trigger(10, 'All Pages', 'PAGEVIEW')],
+    templates: [template(20, 'Meta Pixel', { permissions: { inject_script: ['https://connect.facebook.net/*'] }, gallery: ['facebookarchive', 'GoogleTagManager-WebTemplate-For-FacebookPixel'] })],
+  };
+  const { byKey, infos } = run(spec);
+  assert.equal(byKey['gtm.duplicate'].status, 'pass');
+  assert.deepEqual(duplicateGroups(infos), []);
 });
 
 test('gtm.dead: paused tags, tags without triggers, unused triggers and variables', () => {

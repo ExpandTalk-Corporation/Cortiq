@@ -22,13 +22,21 @@ export function urlsInHtml(html: string): string[] {
   return [...out];
 }
 
+// Shared hosting/CDN/cloud suffixes (and Google's own umbrella domain) host too many unrelated services to
+// identify a vendor on their own — amazonaws.com/cloudfront.net alone would otherwise match rb2b, google.com
+// alone would match ga4 via its analytics.google.com CSP entry, etc.
+const SHARED_INFRA_SUFFIXES = ['amazonaws.com', 'cloudfront.net', 'googleapis.com', 'azureedge.net', 'akamaihd.net', 'fastly.net', 'google.com'];
+
 /** Permission URLs may use wildcards: https://*.cookiebot.com/* — try a concrete host, then CSP domains. */
-function vendorForPattern(pattern: string): Vendor | null {
+export function vendorForPattern(pattern: string): Vendor | null {
   const concrete = pattern.replace(/\*\./g, 'x.').replace(/\*/g, '');
   const direct = vendorForUrl(concrete);
   if (direct) return direct;
-  const base = pattern.match(/^https?:\/\/\*\.([^/:]+)/)?.[1]?.toLowerCase();
-  if (!base) return null;
+  // https://*.x/* (scheme required) or protocol-relative //*.x/* and //x/* (no scheme, wildcard optional).
+  const base = (pattern.match(/^https?:\/\/\*\.([^/:]+)/)?.[1]
+    ?? pattern.match(/^\/\/(?:\*\.)?([^/:*]+)/)?.[1])?.toLowerCase();
+  if (!base || !base.includes('.')) return null;
+  if (SHARED_INFRA_SUFFIXES.some((s) => base === s || base.endsWith(`.${s}`))) return null;
   return TRACKING_VENDORS.find((v) => Object.values(v.csp).flatMap((d) => d ?? [])
     .some((d) => { const host = d.replace(/^\*\./, ''); return host === base || host.endsWith(`.${base}`); })) ?? null;
 }

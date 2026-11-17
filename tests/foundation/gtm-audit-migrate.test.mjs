@@ -4,7 +4,7 @@ import { parse } from '../../supabase/functions/_shared/gtm-audit/parse.ts';
 import { tagInfos } from '../../supabase/functions/_shared/gtm-audit/info.ts';
 import { migrate, migrationContext, MIGRATION_LABEL } from '../../supabase/functions/_shared/gtm-audit/migrate.ts';
 import { MIGRATION_CLASSES } from '../../supabase/functions/_shared/gtm-audit/types.ts';
-import { tag, tpl, trigger, customEvent, template, tplType, exportOf, ALL_PAGES } from '../../scripts/gtm-audit/fixture.mjs';
+import { tag, tpl, trigger, customEvent, template, tplType, exportOf } from '../../scripts/gtm-audit/fixture.mjs';
 
 const html = (src) => tpl('html', `<script src="${src}"></script>`);
 const triggers = [

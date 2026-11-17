@@ -7,9 +7,23 @@ import type { ReportData } from './report.ts';
 const DROPPED = ['Pages', 'Verified manually'];
 export const GTM_FINDING_COLUMNS = SHEET_COLUMNS.filter((c) => !DROPPED.includes(c));
 const KEEP = SHEET_COLUMNS.map((c, i) => (DROPPED.includes(c) ? -1 : i)).filter((i) => i >= 0);
+const EVIDENCE_INDEX = GTM_FINDING_COLUMNS.indexOf('Evidence');
+
+// Excel's hard cell limit is 32,767 characters — a finding with many detail lines (e.g. one row per tag in a
+// large container) can exceed it. Cut at ~32,000 and say how much was dropped, rather than let the export fail.
+const EVIDENCE_LIMIT = 32_000;
+export function truncateEvidence(cell: string | number): string | number {
+  if (typeof cell !== 'string' || cell.length <= EVIDENCE_LIMIT) return cell;
+  const cut = cell.slice(0, EVIDENCE_LIMIT);
+  const lastBreak = cut.lastIndexOf('\n');
+  const kept = lastBreak > 0 ? cut.slice(0, lastBreak) : cut;
+  const more = cell.length - kept.length;
+  return `${kept}\n… (${more} more)`;
+}
 
 export function toGtmFindingRows(findings: Finding[]): (string | number)[][] {
-  return toSheetRows(findings).map((row) => KEEP.map((i) => row[i]));
+  return toSheetRows(findings).map((row) => KEEP.map((i) => row[i]))
+    .map((row) => row.map((cell, i) => (i === EVIDENCE_INDEX ? truncateEvidence(cell) : cell)));
 }
 
 export const CONSENT_LABEL: Record<ConsentStatus, string> = {

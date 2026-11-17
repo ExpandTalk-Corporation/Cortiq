@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
   if (!stats) return reply(400);
 
   const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-  // One global bucket: the endpoint is public, and a flood must not inflate the counters.
+  // One global bucket: the endpoint is public; this limits how fast a flood can inflate the counters.
   const { data: allowed, error: rlError } = await supabase.rpc('check_rate_limit', {
     p_key: 'gtm-audit-stats', p_max_count: REQUESTS_PER_MINUTE, p_window_sec: 60,
   });

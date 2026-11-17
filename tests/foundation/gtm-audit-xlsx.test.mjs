@@ -21,6 +21,24 @@ test('finding rows drop the page and manual-verification columns (no pages in a 
   assert.match(evidence, /^Evidence level: configuration/);
 });
 
+// M1: Excel enforces a 32,767-char cell limit. A finding with enough detail lines to blow past it must be
+// truncated, not dropped or left to break the export.
+test('finding rows truncate an Evidence cell that would exceed Excel\'s cell limit', () => {
+  const details = Array.from({ length: 2000 }, (_, i) => `Detail line number ${i} with some filler text`);
+  const finding = {
+    scope: 'GTM', checkKey: 'gtm.test', title: 'Test', status: 'warning', priority: 'medium', typicalOwner: 'gtm',
+    explanation: 'x', fix: 'y', evidence: { pages: [], details: ['Evidence level: configuration', ...details] },
+  };
+  const full = finding.evidence.details.join('\n');
+  assert.ok(full.length > 32_767);
+  const rows = toGtmFindingRows([finding]);
+  const evidence = rows[0][GTM_FINDING_COLUMNS.indexOf('Evidence')];
+  assert.ok(evidence.length < full.length);
+  assert.ok(evidence.length <= 32_767);
+  assert.match(evidence, /… \(\d+ more\)$/);
+  assert.ok(full.startsWith(evidence.slice(0, 100)));
+});
+
 test('tag rows: one per tag with consent and migration in words', () => {
   const s = buildSample();
   const rows = toTagRows(s.tags);
