@@ -178,6 +178,16 @@ Spec: `docs/superpowers/specs/2026-10-29-aggregate-measurement-and-pixel-readine
 
 ---
 
+## CSP on cortiq.se (added 2026-11-17)
+
+- `public/.htaccess` and `public/api-docs/.htaccess` send an **enforced** Content-Security-Policy. `script-src` is `'self'` +
+  build-time hashes of inline scripts (`scripts/csp-hashes.mjs`); never add `'unsafe-eval'`, `'strict-dynamic'` or a
+  third-party script host without SRI. A new external `fetch` target needs a `connect-src` entry.
+- Violations go to the `csp-report` Edge Function (report-uri + Reporting-Endpoints) → `csp_reports`, counted per day,
+  service role only, 90 days. Check it after every deploy: `select * from csp_reports order by last_seen desc`.
+
+---
+
 ## Cookieless session storage (added 2026-11-12)
 
 Spec: `docs/superpowers/specs/2026-11-12-cookieless-session-stitching.md`.
