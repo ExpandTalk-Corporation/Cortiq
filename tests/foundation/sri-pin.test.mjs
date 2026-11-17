@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import { renderTrackingSnippet } from '../../src/lib/snippetTemplate.ts';
-import { compareVersions, pinnedScripts, pinStatus } from '../../src/lib/sriPin.ts';
+import { compareVersions, defaultPinned, pinnedScripts, pinStatus } from '../../src/lib/sriPin.ts';
 
 // Pinned installs (Subresource Integrity): the snippet loads /v/<version>/ files with an integrity hash,
 // so a pinned file that changes after release blocks tracking on every site pinned to it.
@@ -96,4 +96,10 @@ test('/security/sri/ shows the latest pinned version and hashes, and its claims 
   assert.match(readFileSync(url('src/pages/Installation.tsx'), 'utf8'), />Install tracking</);
   // "The WordPress plugin … no longer falls back to cortiq.se"
   assert.equal(/https?:\/\/cortiq\.se\/[^'"]*\.js/.test(readFileSync(url('wordpress-plugin/cortiq-analytics.php'), 'utf8')), false);
+});
+
+test('new installs start pinned; a site with an auto-updating snippet keeps it until the owner opts in', () => {
+  assert.equal(defaultPinned(null, false), true);
+  assert.equal(defaultPinned('5.5.14', true), true);
+  assert.equal(defaultPinned(null, true), false);
 });
