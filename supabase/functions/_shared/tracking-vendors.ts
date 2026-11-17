@@ -29,6 +29,8 @@ export interface Vendor {
   sriPossible?: false | RegExp;
   /** Vendor-specific sentence for the script integrity findings. */
   sriNote?: string;
+  /** Identifies people or companies behind a visit (B2B reveal tools). Shown as a legal finding in the GTM audit. */
+  identifiesVisitors?: boolean;
 }
 
 const param = (name: string, prefix: string) => (u: URL): string | null => {
@@ -299,14 +301,14 @@ export const TRACKING_VENDORS: Vendor[] = [
   },
   // B2B visitor identification. Verified 2026-11-06 against www.paligo.net (GTM-THF7LWZ).
   {
-    id: 'leadfeeder', name: 'Leadfeeder (Dealfront)', category: 'marketing', googleTag: false, sriPossible: false,
+    id: 'leadfeeder', name: 'Leadfeeder (Dealfront)', category: 'marketing', googleTag: false, sriPossible: false, identifiesVisitors: true,
     requests: [{ host: /(^|\.)lfeeder\.com$/ }],
     cookies: [/^_lfa/],
     csp: { 'script-src': ['sc.lfeeder.com'], 'connect-src': ['*.lfeeder.com'] },
     impact: 'Leadfeeder cannot identify visiting companies.',
   },
   {
-    id: 'zoominfo', name: 'ZoomInfo WebSights', category: 'marketing', googleTag: false, sriPossible: false,
+    id: 'zoominfo', name: 'ZoomInfo WebSights', category: 'marketing', googleTag: false, sriPossible: false, identifiesVisitors: true,
     // Clickagy is ZoomInfo's intent data service; zi-tag.js loads it (seen 2026-11-12 on xensam.com).
     requests: [{ host: /(^|\.)zi-scripts\.com$|(^|\.)zoominfo\.com$|(^|\.)clickagy\.com$/ }],
     cookies: [/^_zitok$/],
@@ -314,18 +316,94 @@ export const TRACKING_VENDORS: Vendor[] = [
     impact: 'ZoomInfo cannot identify visiting companies.',
   },
   {
-    id: 'claydar', name: 'Claydar', category: 'marketing', googleTag: false, sriPossible: false,
+    id: 'claydar', name: 'Claydar', category: 'marketing', googleTag: false, sriPossible: false, identifiesVisitors: true,
     requests: [{ host: /(^|\.)claydar\.com$/ }],
     cookies: [],
     csp: { 'script-src': ['static.claydar.com'], 'connect-src': ['*.claydar.com'] },
     impact: 'Claydar cannot identify visiting companies.',
   },
   {
-    id: 'inzynk', name: 'Inzynk', category: 'marketing', googleTag: false, sriPossible: false,
+    id: 'inzynk', name: 'Inzynk', category: 'marketing', googleTag: false, sriPossible: false, identifiesVisitors: true,
     requests: [{ host: /(^|\.)inzynk\.io$/ }],
     cookies: [/^izcid$/, /^iztid$/],
     csp: { 'script-src': ['tags.inzynk.io'], 'connect-src': ['*.inzynk.io'] },
     impact: 'Inzynk cannot identify visiting companies.',
+  },
+  // Verified 2026-11-17 from vendor install docs. RB2B loads from a CloudFront distribution or its S3 bucket.
+  {
+    id: 'rb2b', name: 'RB2B', category: 'marketing', googleTag: false, sriPossible: false, identifiesVisitors: true,
+    requests: [
+      { host: /^ddwl4m2hdecbv\.cloudfront\.net$/, path: /^\/b\// },
+      { host: /^s3-us-west-2\.amazonaws\.com$/, path: /^\/b2bjsstore\// },
+      { host: /^b2bjsstore\.s3\.us-west-2\.amazonaws\.com$/ },
+    ],
+    cookies: [],
+    csp: { 'script-src': ['ddwl4m2hdecbv.cloudfront.net', 's3-us-west-2.amazonaws.com', 'b2bjsstore.s3.us-west-2.amazonaws.com'], 'connect-src': ['*.rb2b.com'] },
+    impact: 'RB2B cannot identify visiting people.',
+  },
+  {
+    id: 'apollo', name: 'Apollo.io website tracker', category: 'marketing', googleTag: false, sriPossible: false, identifiesVisitors: true,
+    requests: [{ host: /^assets\.apollo\.io$/, path: /^\/micro\/website-tracker/ }],
+    cookies: [],
+    csp: { 'script-src': ['assets.apollo.io'], 'connect-src': ['*.apollo.io'] },
+    impact: 'Apollo cannot identify visiting companies.',
+  },
+  // Ad pixels. Hosts must not overlap the embed entries (www.tiktok.com, assets|widgets.pinterest.com).
+  {
+    id: 'tiktok-pixel', name: 'TikTok Pixel', category: 'marketing', googleTag: false, sriPossible: false,
+    requests: [{ host: /^analytics\.tiktok\.com$/ }],
+    cookies: [/^_ttp$/],
+    csp: { 'script-src': ['analytics.tiktok.com'], 'connect-src': ['analytics.tiktok.com'] },
+    impact: 'TikTok Ads receives no page views or conversions.',
+  },
+  {
+    id: 'pinterest-pixel', name: 'Pinterest Tag', category: 'marketing', googleTag: false, sriPossible: false,
+    requests: [{ host: /^s\.pinimg\.com$/, path: /^\/ct\// }, { host: /^ct\.pinterest\.com$/ }],
+    cookies: [/^_pin_unauth$/, /^_epik$/],
+    csp: { 'script-src': ['s.pinimg.com'], 'connect-src': ['ct.pinterest.com'], 'img-src': ['ct.pinterest.com'] },
+    impact: 'Pinterest Ads receives no page views or conversions.',
+  },
+  {
+    id: 'snap-pixel', name: 'Snap Pixel', category: 'marketing', googleTag: false, sriPossible: false,
+    requests: [{ host: /^sc-static\.net$/ }, { host: /^tr\.snapchat\.com$/ }],
+    cookies: [/^_scid/],
+    csp: { 'script-src': ['sc-static.net'], 'connect-src': ['tr.snapchat.com'], 'img-src': ['tr.snapchat.com'] },
+    impact: 'Snapchat Ads receives no page views or conversions.',
+  },
+  {
+    id: 'x-pixel', name: 'X (Twitter) Pixel', category: 'marketing', googleTag: false, sriPossible: false,
+    requests: [{ host: /^static\.ads-twitter\.com$/ }, { host: /^analytics\.twitter\.com$/ }],
+    cookies: [/^personalization_id$/],
+    csp: { 'script-src': ['static.ads-twitter.com'], 'connect-src': ['analytics.twitter.com'], 'img-src': ['analytics.twitter.com', 't.co'] },
+    impact: 'X Ads receives no page views or conversions.',
+  },
+  {
+    id: 'criteo', name: 'Criteo OneTag', category: 'marketing', googleTag: false, sriPossible: false,
+    requests: [{ host: /(^|\.)criteo\.(com|net)$/ }],
+    cookies: [/^cto_/],
+    csp: { 'script-src': ['dynamic.criteo.com', 'static.criteo.net'], 'connect-src': ['*.criteo.com'], 'img-src': ['*.criteo.com'] },
+    impact: 'Criteo receives no product views or sales for retargeting.',
+  },
+  {
+    id: 'g2', name: 'G2 / Capterra tracking', category: 'marketing', googleTag: false, sriPossible: false,
+    requests: [{ host: /^(tr|ct)\.capterra\.com$/ }],
+    cookies: [],
+    csp: { 'script-src': ['ct.capterra.com'], 'connect-src': ['tr.capterra.com'], 'img-src': ['tr.capterra.com'] },
+    impact: 'G2 and Capterra cannot attribute visits or conversions from their listings.',
+  },
+  {
+    id: 'openai-ads', name: 'OpenAI Ads pixel', category: 'marketing', googleTag: false, sriPossible: false,
+    requests: [{ host: /^bzrcdn\.openai\.com$/ }],
+    cookies: [],
+    csp: { 'script-src': ['bzrcdn.openai.com'], 'connect-src': ['*.openai.com'] },
+    impact: 'OpenAI Ads receives no conversions.',
+  },
+  {
+    id: 'vwo', name: 'VWO', category: 'analytics', googleTag: false, sriPossible: false,
+    requests: [{ host: /(^|\.)visualwebsiteoptimizer\.com$|(^|\.)wingify\.net$/ }],
+    cookies: [/^_vwo/, /^_vis_opt/],
+    csp: { 'script-src': ['dev.visualwebsiteoptimizer.com'], 'connect-src': ['*.visualwebsiteoptimizer.com', '*.wingify.net'] },
+    impact: 'VWO runs no experiments, so visitors see the original page.',
   },
   // Functional widgets: whether they need consent depends on what they store and send.
   {
@@ -495,6 +573,20 @@ export const TRACKING_VENDORS: Vendor[] = [
     requests: [{ host: ANY, path: /\/Admin\/Public\/CookieOptInLevelConfig/ }],
     cookies: [/^Dynamicweb\.CookieOptInLevel$/],
     csp: {},
+    impact: 'The cookie banner does not appear, so consent cannot be collected.',
+  },
+  {
+    id: 'usercentrics', kind: 'cmp', name: 'Usercentrics', category: 'necessary', googleTag: false, sriPossible: false,
+    requests: [{ host: /(^|\.)usercentrics\.eu$/ }],
+    cookies: [/^uc_/],
+    csp: { 'script-src': ['web.cmp.usercentrics.eu', 'app.usercentrics.eu'], 'connect-src': ['*.usercentrics.eu'] },
+    impact: 'The cookie banner does not appear, so consent cannot be collected.',
+  },
+  {
+    id: 'cookie-information', kind: 'cmp', name: 'Cookie Information', category: 'necessary', googleTag: false, sriPossible: false,
+    requests: [{ host: /(^|\.)cookieinformation\.com$/ }],
+    cookies: [/^CookieInformationConsent$/],
+    csp: { 'script-src': ['policy.app.cookieinformation.com'], 'connect-src': ['*.cookieinformation.com'] },
     impact: 'The cookie banner does not appear, so consent cannot be collected.',
   },
   // Infrastructure that is neither a tag nor an unknown third party
