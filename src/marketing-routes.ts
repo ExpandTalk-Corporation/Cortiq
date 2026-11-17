@@ -95,6 +95,16 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
     footer: { group: 'product', label: 'Tracking Check' },
   },
   {
+    path: '/gtm-audit/',
+    title: 'Free GTM Container Audit: Consent & Cleanup — CortIQ',
+    description: 'Upload your Google Tag Manager export and see which tags fire without consent, which identify visitors and which CortIQ can replace. Runs in your browser.',
+    published: '2026-11-17',
+    changefreq: 'monthly',
+    priority: 0.7,
+    source: 'src/pages/GtmAudit.tsx',
+    footer: { group: 'product', label: 'GTM container audit' },
+  },
+  {
     path: '/cookie-consent-checker/',
     title: 'Cookie Checker: Scan Before & After Consent — CortIQ',
     description: 'Free cookie checker: a real browser visits your pages before the banner is answered, after "Reject all" and "Accept all", and lists cookies, pixels and tags.',

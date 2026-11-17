@@ -26,6 +26,7 @@ import GoogleAdsCallbackPage from "./pages/auth/GoogleAdsCallbackPage";
 import Navigation from "./pages/Navigation";
 import TrackingCheck from "./pages/TrackingCheck";
 import TrackingCheckLanding from "./pages/TrackingCheckLanding";
+import GtmAudit from "./pages/GtmAudit";
 import CookieConsentChecker from "./pages/CookieConsentChecker";
 import WebsiteMigrationCheck from "./pages/WebsiteMigrationCheck";
 import TrackingCheckRun from "./pages/TrackingCheckRun";
@@ -99,6 +100,7 @@ const App = () => (
               } />
               <Route path="/tracking-check" element={<TrackingCheckLanding />} />
               <Route path="/cookie-consent-checker" element={<CookieConsentChecker />} />
+              <Route path="/gtm-audit" element={<GtmAudit />} />
               <Route path="/website-migration-check" element={<WebsiteMigrationCheck />} />
               <Route path="/tracking-check/new" element={
                 <ProtectedRoute>
