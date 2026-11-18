@@ -19,6 +19,43 @@ A customer must not be able to switch on a function that is not allowed for a vi
 | Inputs to every decision | 1) visitor country and region, 2) the customer's country of establishment and the laws that apply to its business, 3) purpose of the processing, 4) consent state, GPC and other privacy signals, 5) approved exceptions and legal bases. |
 | Fail mode | Unknown or untrusted input → the strictest rule set among the customer's markets (fail closed). |
 
+## Legal review and approval — budget-conscious model
+
+CortIQ uses a staged review process. External legal counsel is not required for the initial phases; the
+architecture lets counsel review be added later without changes to the rule engine.
+
+| Status | Review | What it may do |
+|---|---|---|
+| `draft` | AI identifies rules and legal sources | Unit tests and test sites flagged by the CortIQ admin only. Never on customer sites. (There is no separate test environment; the dev server uses the cloud project.) |
+| `reviewed_agent` | Jurist agent has reviewed the primary sources and the technique | Nothing new in production. Not activated automatically. |
+| `approved_internal` | An authorized CortIQ administrator has approved explicitly, after the agent review and with automated compliance tests passing | Production, within the documented legal and technical constraints. Existing, well-founded measurement methods inside the safeguards. |
+| `reviewed_counsel` | Qualified outside counsel has reviewed | Also more complex exceptions and new legal interpretations. |
+| `suspended` | Disabled because of legal uncertainty, conflicting sources or an identified compliance risk | Nothing; the engine falls back to the conservative baseline. |
+
+Requirements:
+1. **Source-based rules:** every rule records primary legal sources (statute, regulation, regulator
+   guidance), jurisdiction, effective date, technical scope and documented uncertainties — not only an AI
+   assessment.
+2. **Explicit vs interpreted:** the AI review separates explicit legal requirements from interpretations
+   and uncertain exemptions. An uncertain exemption is never enabled because an agent considers it
+   plausible.
+3. **Conservative fallback:** where the legal position is uncertain, the method requires consent or is
+   off. High-risk or materially uncertain processing stays off or consent-gated until reviewed enough.
+4. **No automatic unlocking:** the jurist agent may propose changes; production activation requires an
+   explicit internal approval and passing automated compliance tests. The approval screen shows the
+   documented uncertainties next to the approve button.
+5. **Full traceability:** stored per rule version: legal sources, rule version, the AI assessment, who
+   approved and when.
+6. **Re-evaluation:** a scheduled agent run every quarter re-checks each pack's sources against current
+   legislation and regulator guidance and proposes `suspended` or a new review where something changed;
+   relevant changes found in between trigger the same. Packs not reviewed for 12 months show a warning.
+7. **Meaning of approval:** internal approval records operational accountability; it is not an
+   independent legal certification. Customer-facing text says so ("CortIQ's technical defaults, not legal
+   advice").
+
+When paying customers justify it, buy targeted counsel review of the packs with the most business value
+rather than a broad international study up front.
+
 ## Baseline 2026-11-18 (prod DB, test sites only)
 
 The seven active sites are internal test sites; their volumes do not set market priorities. The findings
@@ -127,26 +164,31 @@ Requirements:
   `geo-check`) so the tracker and banner behave correctly; every ingest function evaluates again and drops
   what is not allowed. The client is never trusted.
 - **Customer can tighten:** per site and per purpose. The UI shows the effective result per market.
-- **Exceptions:** the customer is the controller, so the customer approves. Table
-  `jurisdiction_exceptions` (site, jurisdiction, purpose, legal basis, assessment document or reference,
-  approved_by = the customer's named accountable person, default the site's web owner, approved_at,
-  expires_at ≤ 12 months). Every approval is logged and shown in the site's audit trail. Expired exceptions
-  stop applying automatically.
+- **Exceptions:** the customer is the controller, so the customer activates — but only by **choosing
+  among rule variants CortIQ has already approved** (`approved_internal` or higher, marked `relaxable`,
+  with its required legal basis stated, e.g. a Brazil variant on legitimate interest that needs the
+  customer's own balancing test). The customer can never define a new variant; their approval does not
+  make anything lawful by itself, it records which approved option they take responsibility for. Table
+  `jurisdiction_exceptions` (site, rule variant id, jurisdiction, purpose, legal basis, assessment document
+  or reference, approved_by = the customer's named accountable person, default the site's web owner,
+  approved_at, expires_at ≤ 12 months). Every approval is logged and shown in the site's audit trail.
+  Expired exceptions, and exceptions whose variant becomes `suspended`, stop applying automatically.
 - **Hard floors:** each pack marks which rules are `relaxable` and which are hard floors that no exception
   can lift (e.g. honouring an opt-out preference signal where a state law requires it, opt-in for
   cross-site identifiers in the EU). This keeps ADR-1: the customer can make documented, accountable
   choices, but cannot switch off a legal minimum.
 - **Decision log:** daily counts per site × rule id × outcome. No personal data. Feeds phase 6.
-- **Rule status:** each rule has a status: `draft`, `reviewed_agent` (jurist agent, primary sources
-  cited) or `reviewed_counsel` (outside counsel, later when the project has budget). A rule that is
-  **less** restrictive than the baseline applies from `reviewed_agent`; a draft rule falls back to opt-in.
-  The admin view shows which rules are agent-reviewed only.
+- **Rule status:** see "Legal review and approval" below. The engine only applies rules at
+  `approved_internal` or `reviewed_counsel` on customer sites; any other status falls back to the
+  conservative baseline (opt-in or off). Rule status lives in the pack data, so adding counsel review
+  later changes data, not the engine.
 
 Acceptance criteria:
 1. The old `jurisdiction.ts` rules and `effective_pipeline_mode` are removed or call the new engine;
    `companies.jurisdiction` is migrated into the profile.
-2. Table-driven tests: ≥ 1 case per pack × purpose, plus unknown geo, spoofed header, expired exception
-   and GPC + later consent.
+2. Table-driven tests: ≥ 1 case per pack × purpose, plus unknown geo, spoofed header, expired exception,
+   suspended rule, draft rule on a customer site, and GPC + later consent. Named must-pass cases: EU
+   visitor without consent, California visitor with GPC, Québec visitor with identifying technique.
 3. Ingest functions (track-event, visitor-identification, store-consent, aggregate-hit, server-hit,
    ai-bot-tracker, record-conversion, google-ads-quality-upload) call `decide` and log the outcome.
 4. An attempt to relax a rule without an exception has no effect, and the UI explains why.
@@ -170,14 +212,15 @@ same interaction never overrides GPC on its own.
 
 Acceptance criteria:
 1. Every pack has a source list (law, article, regulation, guidance, date checked) and a review record.
-2. Jurist agent review for every pack, against primary sources (statute, regulation, regulator guidance)
-   fetched and cited with date — not from model memory. The jurist agent is strongest on SE/EU; for UK,
-   US, CA and BR its review must list what it could not verify. Outside counsel is a later upgrade
-   (`reviewed_counsel`), not a blocker.
+2. Every rule passes the review model in "Legal review and approval": jurist agent review against
+   primary sources (statute, regulation, regulator guidance) fetched and cited with date — not from
+   model memory — then explicit internal approval. The jurist agent is strongest on SE/EU; for UK, US, CA
+   and BR its review must list what it could not verify. Outside counsel is a later upgrade, not a blocker.
 3. Customer-facing text says the rules are CortIQ's technical defaults, not legal advice.
 4. Public copy follows the CLAUDE.md copy rules (never "no consent needed", "GDPR-compliant without
    consent", "no banner needed"); jurist review before publishing, DPA version bump where needed.
 5. Packs have a "last reviewed" date; a pack older than 12 months shows a warning in admin.
+6. The quarterly re-evaluation (see "Legal review and approval") runs and its first report exists.
 
 ### Phase 5 — Bot Intelligence by country
 
@@ -213,7 +256,8 @@ consent), with the expected coverage gain shown as a range and the rule id that 
 Acceptance criteria:
 1. Every percentage links to its definition and denominator source.
 2. Each "missing" item has a reason code from the rule engine (consent refused, GPC, rule, not installed).
-3. The Maximizer never suggests a method whose rule is `draft` for the visitor's market.
+3. The Maximizer never suggests a method whose rule is below `approved_internal` (or `suspended`) for
+   the visitor's market.
 
 ## Out of scope
 
@@ -227,7 +271,8 @@ CAPI; storing raw IPs for geo; country blocking by CortIQ itself.
 | Who approves exceptions | The customer's named accountable person (default: the site's web owner), within hard floors set by the pack. DPA text on this split: jurist agent review in phase 3. |
 | Geo source | Cloudflare Worker, free plan, signed header (phase 2). |
 | Customer profile | Self-declared, guided, logged; `don't know` = the law applies. |
-| Legal review | Jurist agent now (`reviewed_agent`); outside counsel when the project has budget. |
+| Legal review | Budget-conscious staged model (see "Legal review and approval"): jurist agent + explicit internal approval now; outside counsel per pack when a paying customer justifies the cost. |
+| Customer exceptions | Only a choice among CortIQ-approved relaxable variants; never self-defined. |
 
 ## Open questions
 
