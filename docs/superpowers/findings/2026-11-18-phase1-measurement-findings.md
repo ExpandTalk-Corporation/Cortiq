@@ -3,10 +3,10 @@
 Data: prod DB, test sites only. Not representative of customer volumes.
 
 Note: the diagnostic queries were re-run live against prod on 2026-11-18. Counts for GPC+marketing and
-the no-referrer share came out higher than the numbers quoted in the spec's baseline table (test-site
-traffic — Daniel's own browsing and automated probes — kept landing between when the baseline was taken
-and this re-run, same day). The conclusions are unchanged; the numbers below are what the re-run actually
-returned.
+the no-referrer share came out higher than the numbers quoted in the spec's baseline table. The cause of
+that disagreement is **not established** — see each section below for what was checked and why a
+same-day-traffic explanation does not hold up. The numbers below are what the re-run actually returned;
+treat the baseline table in the spec as stale until reconciled.
 
 ## Conversions (AC1)
 - `conversion_events` has had 0 rows ever.
@@ -21,15 +21,24 @@ returned.
 - UTM ingest works: `ingest_pageview` stores first-touch `utm_*` on session INSERT. 3 of 9,039 sessions
   in the last 90 days carry UTM, all three on båtguide (`utm_source=chatgpt.com`, 2026-08-21 and
   2026-11-03) — stored correctly.
-- Re-run totals (90 days, 7 active sites): 8,555 of 9,039 sessions (94.6 %) have no referrer. This is
-  higher than the baseline's 74 % because of continued test traffic on vikingage.se since the baseline
-  was taken; the underlying picture is unchanged:
+- Re-run totals (90 days, 7 active sites): 8,555 of 9,039 sessions (94.6 %) have no referrer — higher
+  than the baseline's 74 %. **Cause of the disagreement with the baseline: not established.** It is not
+  same-day test traffic: a follow-up query shows vikingage.se's 6,180 no-referrer sessions all date
+  between 2026-08-20 and 2026-10-02 — entirely historical, none from today or the last few days — so
+  nothing "landed" between the baseline and this re-run to explain the jump. The 90-day rolling window
+  could in principle explain a small drift (the cutoff moves forward each day, and vikingage's earliest
+  session, 2026-08-20, sits right at roughly that boundary), but that would only add or drop a single
+  day's sessions, not move the overall share by 20 points. Possible causes not ruled out: the baseline was
+  computed with a differently scoped query (e.g. fewer sites, a narrower window, or a different referrer
+  definition) than the one in this brief, or the baseline figure was simply stale by the time it was
+  written into the spec. Left unresolved here rather than guessed at.
   - **vikingage.se: 6,180 of 6,180 sessions (100 %) have no referrer** — not just admin paths, every
     session, spread across real content pages (`/inscription`, `/explore`, `/sv`, `/excursions`, root,
-    `/utflykter`, `/en`, `/carvers`, …). This is disproportionate enough that it is not fully explained
-    by "internal traffic" and needs its own look in Task 2 — candidates are Referrer-Policy stripping on
-    whatever refers to it, direct/QR access (plausible for a tourism site), or bot/crawler traffic being
-    recorded as sessions. Left open here, not claimed as solved.
+    `/utflykter`, `/en`, `/carvers`, …), all dated 2026-08-20 to 2026-10-02. This is disproportionate
+    enough that it is not fully explained by "internal traffic" and needs its own look in Task 2 —
+    candidates are Referrer-Policy stripping on whatever refers to it, direct/QR access (plausible for a
+    tourism site), or bot/crawler traffic being recorded as sessions. Left open here, not claimed as
+    solved.
   - **ekonom.biz: 895 of 1,013 sessions (88.3 %) have no referrer**, and `/admin` is the single largest
     landing path among them (557 of 895, 62 %) — this part *is* internal traffic (no `excludePaths`
     configured).
@@ -65,12 +74,16 @@ returned.
   site context; the warning lives in snippet setup and the Alerts tab instead.
 
 ## GPC (AC6)
-- Re-run count: 84 rows have `gpc_signal = true` and `marketing = true` (not the baseline's 14 — see the
-  note at the top; same two sites, more rows accumulated since). Per site: itsäkerhet 52 rows
-  (2026-07-07 → 2026-11-16), båtguide 32 rows (2026-07-07 → 2026-11-09). All 84 have `source =
-  'cookie_banner'` — `cookie_consents.source` has no other value in the table today, so the
-  `cookie_banner | consent_banner` distinction does not currently apply; both banners referred to in the
-  spec write through the same `source` value.
+- Re-run count: 84 rows have `gpc_signal = true` and `marketing = true` — not the baseline's 14. **Cause
+  of the disagreement: not established.** It is not same-day traffic: the newest of these 84 rows are
+  dated 2026-11-16 (itsäkerhet) and 2026-11-09 (båtguide) — both before today, 2026-11-18 — so a baseline
+  taken earlier today, using the brief's query (no date filter), would already have counted them. Possible
+  causes not ruled out: the spec's baseline number came from a differently scoped query (e.g. a narrower
+  time window, a specific site, or a stricter definition of "GPC"), or the baseline figure was stale by
+  the time it was written into the spec. Per site: itsäkerhet 52 rows (2026-07-07 → 2026-11-16), båtguide
+  32 rows (2026-07-07 → 2026-11-09). All 84 have `source = 'cookie_banner'` — `cookie_consents.source`
+  has no other value in the table today, so the `cookie_banner | consent_banner` distinction does not
+  currently apply; both banners referred to in the spec write through the same `source` value.
 - Real visitors (or Daniel's own repeated test visits) pressed "Accept all"; the banner recorded GPC but
   ignored it for every one of these rows.
 - Fix: Tasks 5–7. Until phase 4 decides otherwise, GPC wins over any checkbox.
