@@ -18,3 +18,22 @@ export function useAggregateStats(siteId: string, from: string, to: string, enab
     },
   });
 }
+
+/**
+ * Latest UTC day with any aggregate page view for the site ('YYYY-MM-DD'), or null if it has never
+ * counted one. Separates "never worked" (snippet without the beacon) from "stopped" or "quiet period".
+ */
+export function useLastAggregateDay(siteId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['aggregate-last-day', siteId],
+    enabled: enabled && !!siteId,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async (): Promise<string | null> => {
+      // aggregate_pages_daily is newer than the generated Supabase types; owner-read RLS applies.
+      const { data, error } = await (supabase as any).from('aggregate_pages_daily')
+        .select('day').eq('site_id', siteId).order('day', { ascending: false }).limit(1).maybeSingle();
+      if (error) throw new Error(error.message);
+      return (data?.day as string | undefined) ?? null;
+    },
+  });
+}

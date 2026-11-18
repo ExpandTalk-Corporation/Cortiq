@@ -21,7 +21,9 @@ import {
   Target,
   FileText
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useCookiefreeAnalytics } from '@/hooks/useCookiefreeAnalytics';
+import { bannerEmptyState, MIN_BANNER_ANSWERS_FOR_INSIGHT, type BannerEmptyState } from '@/lib/cookiefreeSummary';
 import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
 import { ServerLogImporter } from '@/components/dashboard/ServerLogImporter';
 import { ServerLogAnalytics } from '@/components/dashboard/ServerLogAnalytics';
@@ -29,9 +31,34 @@ import type { Site } from '@/types/dashboard';
 
 interface CookiefreeAnalyticsTabProps {
   selectedSite: Site;
+  onNavigate?: (tab: string) => void;
 }
 
-export function CookiefreeAnalyticsTab({ selectedSite }: CookiefreeAnalyticsTabProps) {
+type BannerSite = Site & { consent_setup?: string | null; consent_cmp?: string | null };
+
+/** Compact notice instead of a row of zeros: says why there are no banner answers and what to do. */
+function BannerEmptyNotice({ state, onNavigate }: { state: BannerEmptyState; onNavigate?: (tab: string) => void }) {
+  return (
+    <div className="flex flex-wrap items-start gap-3 rounded-lg border px-4 py-3 text-sm" role="status">
+      <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+      <div className="min-w-0 flex-1 space-y-1">
+        <p className="font-medium">{state.title}</p>
+        <p className="text-muted-foreground">{state.body}</p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {onNavigate && (
+          <Button size="sm" variant="outline" onClick={() => onNavigate(state.action.tab)}>{state.action.label}</Button>
+        )}
+        {state.trackingCheck && (
+          <Button size="sm" variant="outline" asChild><Link to="/tracking-check/new">Run Tracking Check</Link></Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function CookiefreeAnalyticsTab({ selectedSite, onNavigate }: CookiefreeAnalyticsTabProps) {
+  const site = selectedSite as BannerSite;
   // Date range: the dashboard filters (URL from/to), read inside the hook.
   const { dateRange: filterRange } = useDashboardFilters();
   const { data: analytics, isLoading, error } = useCookiefreeAnalytics(selectedSite?.id);
@@ -213,68 +240,80 @@ export function CookiefreeAnalyticsTab({ selectedSite }: CookiefreeAnalyticsTabP
 
         {/* Cookie Banner Tab */}
         <TabsContent value="banner" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Banner Views</CardTitle>
-                <MousePointer className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatNumber(analytics.totalBannerViews)}</div>
+          {analytics.totalBannerViews === 0 ? (
+            <BannerEmptyNotice state={bannerEmptyState(site.consent_setup, site.consent_cmp)} onNavigate={onNavigate} />
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Banner answers</CardTitle>
+                    <MousePointer className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{formatNumber(analytics.totalBannerViews)}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Visitors who answered the CortIQ banner
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Accept All</CardTitle>
+                    <Badge variant="default" className="bg-green-100 text-green-800">
+                      {analytics.acceptanceRate}%
+                    </Badge>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{formatNumber(analytics.acceptedAll)}</div>
+                    <Progress value={analytics.acceptanceRate} className="mt-2" />
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Reject All</CardTitle>
+                    <Badge variant="destructive">
+                      {analytics.rejectionRate}%
+                    </Badge>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{formatNumber(analytics.rejectedAll)}</div>
+                    <Progress value={analytics.rejectionRate} className="mt-2" />
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Custom Choices</CardTitle>
+                    <Badge variant="outline">
+                      {analytics.selectiveRate}%
+                    </Badge>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{formatNumber(analytics.selectiveAccept)}</div>
+                    <Progress value={analytics.selectiveRate} className="mt-2" />
+                  </CardContent>
+                </Card>
+              </div>
+
+              {analytics.totalBannerViews >= MIN_BANNER_ANSWERS_FOR_INSIGHT ? (
+                <Alert>
+                  <Target className="h-4 w-4" />
+                  <AlertDescription>
+                    <strong>Cookie Banner Insights:</strong> {analytics.acceptanceRate}% of users accept all cookies,
+                    while {analytics.rejectionRate}% reject. {analytics.selectiveRate}% make custom choices.
+                    This affects the quality of traditional analytics data.
+                  </AlertDescription>
+                </Alert>
+              ) : (
                 <p className="text-xs text-muted-foreground">
-                  {((analytics.totalBannerViews / analytics.totalSessions) * 100).toFixed(1)}% of sessions
+                  Shares are shown, but with fewer than {MIN_BANNER_ANSWERS_FOR_INSIGHT} answers they say little. Widen the date range for a steadier picture.
                 </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Accept All</CardTitle>
-                <Badge variant="default" className="bg-green-100 text-green-800">
-                  {analytics.acceptanceRate}%
-                </Badge>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatNumber(analytics.acceptedAll)}</div>
-                <Progress value={analytics.acceptanceRate} className="mt-2" />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Reject All</CardTitle>
-                <Badge variant="destructive">
-                  {analytics.rejectionRate}%
-                </Badge>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatNumber(analytics.rejectedAll)}</div>
-                <Progress value={analytics.rejectionRate} className="mt-2" />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Custom Choices</CardTitle>
-                <Badge variant="outline">
-                  {analytics.selectiveRate}%
-                </Badge>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatNumber(analytics.selectiveAccept)}</div>
-                <Progress value={analytics.selectiveRate} className="mt-2" />
-              </CardContent>
-            </Card>
-          </div>
-
-          <Alert>
-            <Target className="h-4 w-4" />
-            <AlertDescription>
-              <strong>Cookie Banner Insights:</strong> {analytics.acceptanceRate}% of users accept all cookies,
-              while {analytics.rejectionRate}% reject. {analytics.selectiveRate}% make custom choices.
-              This affects the quality of traditional analytics data.
-            </AlertDescription>
-          </Alert>
+              )}
+            </>
+          )}
         </TabsContent>
 
         {/* Audience Tab */}

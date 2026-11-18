@@ -41,10 +41,10 @@ export function OverviewTab({ selectedSite, onNavigate }: { selectedSite: Site; 
         lastPageViewAt={m.lastPageViewAt} lastServerHitAt={m.lastServerHitAt} aggregateOnly={aggregateOnly} onNavigate={onNavigate} />
       <PipelineAlerts siteId={selectedSite.id} />
       <TrackingCheckAlerts />
-      {aggregateOnly && <AggregateOverview siteId={selectedSite.id} from={filters.from} to={filters.to} />}
+      {aggregateOnly && <AggregateOverview siteId={selectedSite.id} from={filters.from} to={filters.to} onNavigate={onNavigate} />}
       <KpiRow m={m} from={filters.from} to={filters.to} segmented={!!filters.segmentId} aggregateOnly={aggregateOnly} />
       {!aggregateOnly && <DataCoverage siteId={selectedSite.id} from={filters.from} to={filters.to} />}
-      {aggregateOn && !aggregateOnly && <AggregateOverview siteId={selectedSite.id} from={filters.from} to={filters.to} />}
+      {aggregateOn && !aggregateOnly && <AggregateOverview siteId={selectedSite.id} from={filters.from} to={filters.to} onNavigate={onNavigate} />}
       <ModuleCards m={m} goalCount={goals.length} goalIssues={goalIssues} keyPages={keyPages.data ?? []} onNavigate={onNavigate} />
       {/* AI suggestions live in the header AI panel; this line opens it and runs them for the period. */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3">

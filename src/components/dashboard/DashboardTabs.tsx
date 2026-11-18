@@ -249,7 +249,7 @@ function DashboardTabsInner({ selectedSite, dateRange, onSiteDeleted, onSiteUpda
 
       <TabsContent value="cookiefree" className="space-y-6">
         <TabErrorBoundary tabName="Cookie-Free">
-          <CookiefreeAnalyticsTab selectedSite={selectedSite} />
+          <CookiefreeAnalyticsTab selectedSite={selectedSite} onNavigate={setActiveTab} />
         </TabErrorBoundary>
       </TabsContent>
 
