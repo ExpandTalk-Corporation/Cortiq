@@ -5,11 +5,13 @@ import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 
 const source = readFileSync(new URL('../../src/lib/aggregate-beacon.js', import.meta.url), 'utf8');
+const ENDPOINT = readFileSync('workers/geo-edge/ENDPOINT', 'utf8');
+const DIRECT = 'https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1';
 const settle = async () => { for (let i = 0; i < 8; i++) await new Promise((r) => setImmediate(r)); };
 
 function browser({ config = { siteId: 'site-1', apiKey: 'tk_key', aggregate: true }, stored = null, gpc = false,
                    cookiebot, dataLayer, referrer = 'https://www.linkedin.com/feed/', search = '?utm_source=linkedin&utm_campaign=q4',
-                   goals = [{ id: 'g-form', selector: '#demo' }], pathname = '/start', visibility } = {}) {
+                   goals = [{ id: 'g-form', selector: '#demo' }], pathname = '/start', visibility, workerDown = false } = {}) {
   const calls = [];
   const storageTouches = [];
   const listeners = new Map();
@@ -49,8 +51,9 @@ function browser({ config = { siteId: 'site-1', apiKey: 'tk_key', aggregate: tru
     sessionStorage: { getItem: (k) => { storageTouches.push(['sget', k]); return null; }, setItem: (k) => storageTouches.push(['sset', k]) },
     fetch: async (url, opts) => {
       calls.push({ url, opts, body: JSON.parse(opts.body) });
+      if (workerDown && url.startsWith(ENDPOINT)) throw new TypeError('blocked');
       const pageview = JSON.parse(opts.body).kind === 'pageview';
-      return { status: pageview ? 200 : 204, json: async () => ({ goals }) };
+      return { status: pageview ? 200 : 204, headers: { get: () => null }, json: async () => ({ goals }) };
     },
   };
   ctx.window.window = ctx.window;
@@ -72,7 +75,8 @@ test('sends one pageview with referrer and UTM, no storage writes, no session re
   await settle();
   assert.equal(b.calls.length, 1);
   const { url, opts, body } = b.calls[0];
-  assert.equal(url, 'https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1/aggregate-hit');
+  // Default route: the CortIQ geo Worker (workers/geo-edge/ENDPOINT), direct on failure.
+  assert.equal(url, `${ENDPOINT}/aggregate-hit`);
   assert.equal(opts.keepalive, true);
   assert.equal(opts.credentials, 'omit');
   assert.equal(opts.headers.Authorization, 'Bearer tk_key');
@@ -80,6 +84,24 @@ test('sends one pageview with referrer and UTM, no storage writes, no session re
     utm: { utm_source: 'linkedin', utm_campaign: 'q4' }, siteId: 'site-1' });
   assert.equal(b.storageTouches.some(([op]) => op !== 'get'), false, 'only reads the consent record');
   assert.deepEqual(b.storageTouches.filter(([op]) => op === 'get').map(([, k]) => k), ['site_cookie_consent']);
+});
+
+test('Worker blocked: the hit is resent directly and the page load stays direct', async () => {
+  const b = browser({ workerDown: true });
+  await settle();
+  b.ctx.history.pushState({}, '', '/pricing');
+  await settle();
+  assert.deepEqual(b.calls.map((c) => c.url),
+    [`${ENDPOINT}/aggregate-hit`, `${DIRECT}/aggregate-hit`, `${DIRECT}/aggregate-hit`]);
+  assert.equal(b.calls[1].body.url, 'https://shop.test/start');
+});
+
+test('own apiUrl or geoUrl: false never goes through the Worker', async () => {
+  for (const extra of [{ apiUrl: 'https://proxy.shop.test/fn' }, { geoUrl: false }]) {
+    const b = browser({ config: { siteId: 'site-1', apiKey: 'tk_key', aggregate: true, ...extra } });
+    await settle();
+    assert.equal(b.calls[0].url, `${extra.apiUrl || DIRECT}/aggregate-hit`, JSON.stringify(extra));
+  }
 });
 
 test('SPA navigation sends a pageview per new path, without the original referrer', async () => {

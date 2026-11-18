@@ -31,6 +31,9 @@
  *                                then browser)
  *   data-position="bottom"       | "top"   (default: bottom)
  *   data-theme="light"           | "dark"  (default: auto)
+ *   data-geo-url="false"         Send the consent record directly to CortIQ instead of through
+ *                                CortIQ's geo edge (default: through the edge unless
+ *                                data-api-url points elsewhere; direct if the edge fails)
  *   data-consent-mode="google"   Opt in to Google Consent Mode v2 signals (default: off) —
  *                                denied by default, then analytics → analytics_storage,
  *                                marketing → ad_storage/ad_user_data/ad_personalization,
@@ -211,6 +214,9 @@
     }
   };
 
+  var DIRECT_URL = 'https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1';
+  var GEO_URL = 'https://cortiq-geo.cortiq.workers.dev';
+
   var cfg = {
     position      : attr('data-position') || 'bottom',
     theme         : attr('data-theme') || 'auto',
@@ -221,7 +227,8 @@
     categories    : parseCategories(attr('data-categories')),
     lang          : pickLang(),
     siteId        : attr('data-site-id'),
-    apiUrl        : attr('data-api-url') || 'https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1',
+    apiUrl        : attr('data-api-url') || DIRECT_URL,
+    geoUrl        : attr('data-geo-url') === 'false' ? false : (attr('data-geo-url') || null),
   };
 
   function t() { return T[cfg.lang] || T.en; }
@@ -257,7 +264,8 @@
   // GPC wins over whatever was stored before this visit (saved pre-5.5.15, or before the
   // browser turned GPC on): every reader of a stored choice — consentAlreadyGiven, the
   // reopened settings panel, the initial render, the startup Consent Mode replay — gets
-  // marketing already forced false. localStorage itself is left untouched.
+  // marketing already forced false. localStorage is not rewritten here; the next write (a new
+  // choice, or postConsent saving the ledger id) stores the forced value.
   function readStored() {
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
@@ -326,12 +334,19 @@
       };
       if (/^tk_/.test(cfg.siteId)) body.tracking_id = cfg.siteId;
       else body.site_id = cfg.siteId;
-      fetch(cfg.apiUrl + '/store-consent', {
+      var opts = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
         keepalive: true
-      }).then(function (res) { return res.json(); }).then(function (json) {
+      };
+      // Through the CortIQ geo Worker (signed country) unless the site has its own apiUrl or
+      // data-geo-url="false"; if the Worker fails, the same post goes directly once.
+      var primary = cfg.geoUrl === false ? cfg.apiUrl : (cfg.geoUrl || (cfg.apiUrl === DIRECT_URL ? GEO_URL : cfg.apiUrl));
+      var direct = function () { return fetch(cfg.apiUrl + '/store-consent', opts); };
+      (primary === cfg.apiUrl ? direct() : fetch(primary + '/store-consent', opts).then(function (res) {
+        return res.headers.get('x-cortiq-geo-proxy') === 'error' ? direct() : res;
+      }, direct)).then(function (res) { return res.json(); }).then(function (json) {
         if (!json || typeof json.consent_id !== 'string') return;
         var saved = readStored();
         if (!saved || saved.consentId !== payload.consentId) return; // a newer choice was made

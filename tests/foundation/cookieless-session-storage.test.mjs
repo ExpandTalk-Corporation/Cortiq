@@ -71,7 +71,7 @@ function load(tab, { config = {}, attributes = {}, search = '' } = {}) {
     setTimeout, setInterval: () => 0, clearInterval() {}, requestAnimationFrame: fn => fn(),
     fetch: async (url, options) => {
       calls.push({ url, body: JSON.parse(options.body) });
-      return { ok: true, json: async () => ({ success: true, visitor: { visitorId: 'visitor-1', visitorType: 'human' } }) };
+      return { ok: true, headers: { get: () => null }, json: async () => ({ success: true, visitor: { visitorId: 'visitor-1', visitorType: 'human' } }) };
     },
   });
   const choose = (analytics, marketing = false) => window.dispatchEvent({ type: 'siteConsentUpdated', detail: { analytics, marketing } });

@@ -3,7 +3,7 @@
  * Plugin Name: CortIQ Analytics
  * Plugin URI: https://cortiq.se
  * Description: Analytics for the agentic web. Classifies AI crawlers and agent fetches (GPTBot, ClaudeBot, ChatGPT-User, PerplexityBot…) and measures human visitors after consent — cookieless mode, heatmaps, conversions and a built-in consent banner.
- * Version: 5.5.15
+ * Version: 5.5.16
  * Author: CortIQ
  * Author URI: https://cortiq.se
  * Requires at least: 5.6
@@ -21,10 +21,11 @@ if ( defined( 'CORTIQ_LOADED' ) ) return;
 define( 'CORTIQ_LOADED', true );
 
 // Shared with public/spa-tracking.js (CORTIQ_VERSION) — also the ?ver= cache-bust for it.
-define( 'CORTIQ_VERSION',    '5.5.15' );
+define( 'CORTIQ_VERSION',    '5.5.16' );
 define( 'CORTIQ_OPTION_KEY', 'cortiq_options' );
 // Supabase Edge Functions base — used for the GDPR consent ledger (store-consent).
 define( 'CORTIQ_API',        'https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1' );
+define( 'CORTIQ_GEO_API',    'https://cortiq-geo.cortiq.workers.dev' );
 // Server-side agent measurement: honeypot path and AI-bot pre-filter (CortIQ's registry).
 // Keep CORTIQ_AGENT_UA in sync with AGENT_UA in public/cortiq-server.mjs (test-enforced).
 define( 'CORTIQ_TRAP_PATH',  '/cortiq-trap/' );
@@ -543,6 +544,13 @@ function cortiq_cookie_banner() {
 <script>
 (function(){
   var CQ_API = '<?php echo esc_js( CORTIQ_API ); ?>';
+  var CQ_GEO = '<?php echo esc_js( CORTIQ_GEO_API ); ?>';
+  // Through the CortIQ geo Worker (signed country); direct if it fails.
+  function cqFetch(path, init){
+    var direct = function(){ CQ_GEO = CQ_API; return fetch(CQ_API + path, init); };
+    if (CQ_GEO === CQ_API) { return fetch(CQ_API + path, init); }
+    return fetch(CQ_GEO + path, init).then(function(r){ return r.headers.get('x-cortiq-geo-proxy') === 'error' ? direct() : r; }, direct);
+  }
   var CQ_SITE_ID = '<?php echo esc_js( $opts['site_id'] ); ?>';
   var CQ_TRACKING_ID = '<?php echo esc_js( $opts['tracking_id'] ); ?>';
   var CQ_T = <?php echo wp_json_encode( array(
@@ -607,7 +615,7 @@ function cortiq_cookie_banner() {
     // GDPR Art. 7: record server-side proof of consent. The backend resolves the site
     // by page domain, so this lands under the right site.
     try {
-      fetch(CQ_API + '/store-consent', {
+      cqFetch('/store-consent', {
         method:'POST', headers:{'Content-Type':'application/json'}, keepalive:true,
         body: JSON.stringify({
           site_id: CQ_SITE_ID || undefined, tracking_id: CQ_TRACKING_ID || undefined,
@@ -677,7 +685,7 @@ function cortiq_cookie_banner() {
     if(!GEO_GATING){ overlay.style.display='flex'; return; }
     // Geo-gated: only show inside the EEA/UK/CH; elsewhere no cookie banner is required.
     // Fail-safe: show the banner on any error.
-    fetch(CQ_API + '/geo-check').then(function(r){ return r.json(); }).then(function(g){
+    cqFetch('/geo-check').then(function(r){ return r.json(); }).then(function(g){
       if(g && g.in_scope === false){ reopen.style.display='block'; }
       else { overlay.style.display='flex'; }
     }).catch(function(){ overlay.style.display='flex'; });
