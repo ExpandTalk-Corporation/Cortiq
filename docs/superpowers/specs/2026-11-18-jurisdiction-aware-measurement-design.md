@@ -14,7 +14,7 @@ A customer must not be able to switch on a function that is not allowed for a vi
 
 | | |
 |---|---|
-| Decision | CortIQ selects the applicable rules automatically. The customer can only make them stricter. A less restrictive setting needs a documented legal assessment and an approval recorded by CortIQ. |
+| Decision | CortIQ selects the applicable rules automatically. The customer can only make them stricter. A less restrictive setting needs a documented legal assessment and a logged approval by the customer's accountable person, and is only possible for rules the pack marks as relaxable (never for hard floors). |
 | Rejected | B (customer picks the mode per market): high risk of misconfiguration. C (customer may relax freely): moves legal risk to an unreviewed checkbox. |
 | Inputs to every decision | 1) visitor country and region, 2) the customer's country of establishment and the laws that apply to its business, 3) purpose of the processing, 4) consent state, GPC and other privacy signals, 5) approved exceptions and legal bases. |
 | Fail mode | Unknown or untrusted input → the strictest rule set among the customer's markets (fail closed). |
@@ -57,8 +57,10 @@ Acceptance criteria:
    `aggregate_sources_daily` (when enabled). Test covers SPA navigation and a full page load.
 3. **Referrer / direct:** the 74 % "direct/none" is explained by data (own-site referrers, stripped
    referrers, Referrer-Policy) or the bug is fixed. Self-referrals never count as a source.
-4. **Aggregate installs:** **not** switched on automatically anywhere. sentrisk.se sends hits. The snippet
-   setup and Tracking Check warn when `aggregate_measurement = true` but no hit has arrived in 24 h.
+4. **Aggregate installs:** **not** switched on automatically anywhere. Every site with
+   `aggregate_measurement = true` sends hits (today one test site has the flag on and has never sent one —
+   find out why in CortIQ's snippet/install flow). The snippet setup and Tracking Check warn when the flag
+   is on but no hit has arrived in 24 h. cortiq.se is the reference site for end-to-end tests in every phase.
 5. **Consent log:** every new `cookie_consents` row has `geo_country` (time zone now; IP-based after
    phase 2) and a `geo_source` (`ip` | `timezone` | `unknown`).
 6. **GPC:** defined, tested banner behaviour: with GPC present the banner pre-sets marketing/sale/sharing
@@ -77,7 +79,9 @@ derived from the IP at the edge. The IP itself is not stored for this purpose.
 
 Candidates (decided in the phase plan):
 - **a)** Cloudflare Worker in front of ingest endpoints, forwarding `request.cf.country` / `regionCode` in
-  a signed header — trusted, no database to maintain. Recommended.
+  a signed header — trusted, no database to maintain. **Chosen**, on the Workers free plan (100,000
+  requests/day per account). Monitor daily volume; move to the paid plan before customer traffic reaches
+  the limit. On Worker failure, ingest keeps working with `source = 'timezone'`.
 - **b)** IP database lookup inside the Edge Functions (GeoLite2 / IPinfo Lite) — check licence, size
   and update cadence.
 - **c)** Time zone only (today) — not trusted, no US state, kept only as a fallback.
@@ -113,21 +117,30 @@ decide({
 
 Requirements:
 - **Customer profile:** sites are linked to a company with establishment country, target markets, and
-  per-law applicability (e.g. whether the business meets a US state law's thresholds). Sites without a
-  profile get the strictest pack among EU, UK, Québec.
+  per-law applicability (e.g. whether the business meets a US state law's thresholds). Self-declared in a
+  guided onboarding step (plain questions, each answer `yes` / `no` / `don't know`), logged with who and
+  when. `don't know` counts as `yes` (the law applies). Sites without a profile get the strictest pack
+  among EU, UK, Québec. No manual review by CortIQ.
 - **Technique, not only geography:** rules match on what the technique does (storage, identifiers,
   location, profiling). Required for Québec (see phase 4) and for aggregate mode.
 - **Server decides:** the browser gets the decision for the page load from a policy endpoint (extends
   `geo-check`) so the tracker and banner behave correctly; every ingest function evaluates again and drops
   what is not allowed. The client is never trusted.
 - **Customer can tighten:** per site and per purpose. The UI shows the effective result per market.
-- **Exceptions:** table `jurisdiction_exceptions` (site, jurisdiction, purpose, legal basis, reference to
-  the assessment document, customer attestation, approved_by, approved_at, expires_at). Created by CortIQ
-  (service role) only — not self-serve. Expired exceptions stop applying automatically.
+- **Exceptions:** the customer is the controller, so the customer approves. Table
+  `jurisdiction_exceptions` (site, jurisdiction, purpose, legal basis, assessment document or reference,
+  approved_by = the customer's named accountable person, default the site's web owner, approved_at,
+  expires_at ≤ 12 months). Every approval is logged and shown in the site's audit trail. Expired exceptions
+  stop applying automatically.
+- **Hard floors:** each pack marks which rules are `relaxable` and which are hard floors that no exception
+  can lift (e.g. honouring an opt-out preference signal where a state law requires it, opt-in for
+  cross-site identifiers in the EU). This keeps ADR-1: the customer can make documented, accountable
+  choices, but cannot switch off a legal minimum.
 - **Decision log:** daily counts per site × rule id × outcome. No personal data. Feeds phase 6.
-- **Rule status:** each rule has a status: `draft`, `reviewed_eu` (jurist agent) or
-  `reviewed_counsel` (outside counsel). A rule that is **less** restrictive than the baseline only
-  applies at a reviewed status; a draft rule falls back to opt-in.
+- **Rule status:** each rule has a status: `draft`, `reviewed_agent` (jurist agent, primary sources
+  cited) or `reviewed_counsel` (outside counsel, later when the project has budget). A rule that is
+  **less** restrictive than the baseline applies from `reviewed_agent`; a draft rule falls back to opt-in.
+  The admin view shows which rules are agent-reviewed only.
 
 Acceptance criteria:
 1. The old `jurisdiction.ts` rules and `effective_pipeline_mode` are removed or call the new engine;
@@ -157,11 +170,14 @@ same interaction never overrides GPC on its own.
 
 Acceptance criteria:
 1. Every pack has a source list (law, article, regulation, guidance, date checked) and a review record.
-2. Jurist agent review for EU/SE; outside counsel for UK, US, CA, BR before any rule there is less
-   restrictive than opt-in.
-3. Public copy follows the CLAUDE.md copy rules (never "no consent needed", "GDPR-compliant without
+2. Jurist agent review for every pack, against primary sources (statute, regulation, regulator guidance)
+   fetched and cited with date — not from model memory. The jurist agent is strongest on SE/EU; for UK,
+   US, CA and BR its review must list what it could not verify. Outside counsel is a later upgrade
+   (`reviewed_counsel`), not a blocker.
+3. Customer-facing text says the rules are CortIQ's technical defaults, not legal advice.
+4. Public copy follows the CLAUDE.md copy rules (never "no consent needed", "GDPR-compliant without
    consent", "no banner needed"); jurist review before publishing, DPA version bump where needed.
-4. Packs have a "last reviewed" date; a pack older than 12 months shows a warning in admin.
+5. Packs have a "last reviewed" date; a pack older than 12 months shows a warning in admin.
 
 ### Phase 5 — Bot Intelligence by country
 
@@ -204,10 +220,16 @@ Acceptance criteria:
 Legal advice to customers; consent-management for third-party tags (GTM audit covers that); server-side
 CAPI; storing raw IPs for geo; country blocking by CortIQ itself.
 
+## Decisions 2026-11-18
+
+| Question | Decision |
+|---|---|
+| Who approves exceptions | The customer's named accountable person (default: the site's web owner), within hard floors set by the pack. DPA text on this split: jurist agent review in phase 3. |
+| Geo source | Cloudflare Worker, free plan, signed header (phase 2). |
+| Customer profile | Self-declared, guided, logged; `don't know` = the law applies. |
+| Legal review | Jurist agent now (`reviewed_agent`); outside counsel when the project has budget. |
+
 ## Open questions
 
-1. Who at CortIQ approves exceptions, and how is liability split in the DPA (customer attestation vs
-   CortIQ review)?
-2. Geo source for phase 2 (Worker vs IP database) — cost, licence, subprocessor list.
-3. Customer profile data entry: self-declared at onboarding, or reviewed?
-4. Outside counsel for UK/US/CA/BR: who, and budget per pack.
+1. Should the approver role be limited further (e.g. must also hold a role such as DPO or management
+   when the site's web owner is an outside agency)?
