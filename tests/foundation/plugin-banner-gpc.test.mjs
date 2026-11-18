@@ -74,6 +74,19 @@ test('plugin banner: replay of a pre-GPC stored marketing grant is masked in the
   assert.equal(b.saved().marketing, true);
 });
 
+test('plugin banner: replay of a pre-GPC stored marketing grant is masked in details/reopen icon too', () => {
+  const stored = { necessary: true, preferences: false, analytics: false, marketing: true,
+    timestamp: Date.now(), expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+    consentId: 'prior-id', policyVersion: 'x' };
+  const b = run({ gpc: true, existing: stored });
+  // showDetails(existing) must not list marketing (CQ_T.mark stubbed as 'M') in the cats <dd>.
+  const catsMatch = b.els['cq-details'].innerHTML.match(/<dt>c<\/dt><dd>([^<]*)<\/dd>/);
+  assert.ok(catsMatch, 'cats row not found in details output');
+  assert.doesNotMatch(catsMatch[1], /M/);
+  // iconState(existing) must not treat this as a full-consent visit (reopen icon stays hollow).
+  assert.equal(b.els['cq-reopen'].className, 'cq-min');
+});
+
 test('plugin banner: every language has a GPC note', () => {
   const langs = [...php.matchAll(/'(en|sv|de|fr|pt)' => array\(/g)].map((m) => m[1]);
   assert.ok(langs.length >= 3);

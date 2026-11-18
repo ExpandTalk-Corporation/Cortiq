@@ -687,10 +687,17 @@ function cortiq_cookie_banner() {
   } else {
     chkPref.checked=!!existing.preferences;
     if(chkAnal){ chkAnal.checked=!!existing.analytics; }
-    // GPC: never show a pre-GPC stored marketing grant as checked; localStorage itself is untouched.
-    chkMark.checked = GPC ? false : !!existing.marketing;
+    // GPC: never replay a pre-GPC stored marketing grant anywhere in the UI — checkbox,
+    // details list, or reopen icon. Build a masked copy; existing and localStorage are untouched.
+    var display = existing;
+    if (GPC) {
+      display = {};
+      for (var k in existing) { if (existing.hasOwnProperty(k)) { display[k] = existing[k]; } }
+      display.marketing = false;
+    }
+    chkMark.checked = !!display.marketing;
     reopen.style.display='block';
-    iconState(existing); showDetails(existing);
+    iconState(display); showDetails(display);
   }
 })();
 </script>
