@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useSites } from '@/hooks/useSites';
+import { isOnSite, siteHomeUrl } from '@/lib/siteUrl';
 import { GSCAIPerformanceSection } from '@/components/dashboard/GSCAIPerformanceSection';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -56,6 +56,8 @@ interface PageSummary {
 
 interface AIVisibilityTabProps {
   siteId: string;
+  /** The selected site's domain: the default audit URL, and which audits are shown first. */
+  siteDomain: string;
   onNavigateToIntegrations?: () => void;
 }
 
@@ -81,11 +83,8 @@ const CRAWLER_ICON = (status: string) =>
 // The crawlers that feed AI search answers (geo-analyze CITATION_CRAWLERS).
 const KEY_CRAWLERS = ['OAI-SearchBot', 'ChatGPT-User', 'PerplexityBot', 'ClaudeBot', 'GPTBot', 'Google-Extended'];
 
-export function AIVisibilityTab({ siteId, onNavigateToIntegrations }: AIVisibilityTabProps) {
-  const { selectedSite } = useSites();
-  const defaultUrl = selectedSite?.domain
-    ? (selectedSite.domain.startsWith('http') ? selectedSite.domain : `https://${selectedSite.domain}`)
-    : '';
+export function AIVisibilityTab({ siteId, siteDomain, onNavigateToIntegrations }: AIVisibilityTabProps) {
+  const defaultUrl = siteHomeUrl(siteDomain);
 
   const [audit, setAudit] = useState<GeoAudit | null>(null);
   const [pages, setPages] = useState<PageSummary[]>([]);
@@ -94,23 +93,27 @@ export function AIVisibilityTab({ siteId, onNavigateToIntegrations }: AIVisibili
   const [expanded, setExpanded] = useState<string | null>(null);
   const [auditUrl, setAuditUrl] = useState(defaultUrl);
 
+  // The URL field follows the site picker.
+  useEffect(() => { setAuditUrl(defaultUrl); }, [defaultUrl]);
+
   const fetchLatest = useCallback(async () => {
     setLoading(true);
-    const [{ data: latestAudit }, { data: allAudits }] = await Promise.all([
+    const [{ data: recentAudits }, { data: allAudits }] = await Promise.all([
       supabase
         .from('geo_audits')
         .select('*')
         .eq('site_id', siteId)
         .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle(),
+        .limit(50),
       supabase
         .from('geo_audits')
         .select('url, overall_score, freshness_score, page_last_modified, created_at')
         .eq('site_id', siteId)
         .order('created_at', { ascending: false }),
     ]);
-    setAudit(latestAudit ?? null);
+    // Audits of other domains (competitor checks) are kept, but the site's own page is shown first.
+    const recent = (recentAudits ?? []) as unknown as GeoAudit[];
+    setAudit(recent.find((a) => isOnSite(a.url, siteDomain)) ?? recent[0] ?? null);
     // Deduplicate: keep latest audit per URL
     const seen = new Set<string>();
     const deduped: PageSummary[] = [];
@@ -122,7 +125,7 @@ export function AIVisibilityTab({ siteId, onNavigateToIntegrations }: AIVisibili
     }
     setPages(deduped);
     setLoading(false);
-  }, [siteId]);
+  }, [siteId, siteDomain]);
 
   useEffect(() => { fetchLatest(); }, [fetchLatest]);
 
@@ -180,7 +183,7 @@ export function AIVisibilityTab({ siteId, onNavigateToIntegrations }: AIVisibili
         </div>
         <div className="flex gap-2">
           <Input
-            placeholder="https://example.com/sidan-att-analysera"
+            placeholder={defaultUrl || 'https://example.com/page-to-analyze'}
             value={auditUrl}
             onChange={e => setAuditUrl(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !running && runAudit()}
@@ -204,6 +207,10 @@ export function AIVisibilityTab({ siteId, onNavigateToIntegrations }: AIVisibili
         </Card>
       ) : (
         <>
+          <p className="text-sm text-muted-foreground">
+            Results for <span className="font-mono">{audit.url}</span>
+            {!isOnSite(audit.url, siteDomain) && ' (not this site: run an audit to see your own page)'}
+          </p>
           {/* Score cards */}
           <div className="grid grid-cols-2 lg:grid-cols-7 gap-4">
             <Card className="col-span-2 lg:col-span-1 bg-card border-border">
@@ -440,6 +447,9 @@ export function AIVisibilityTab({ siteId, onNavigateToIntegrations }: AIVisibili
                           <span className="truncate">{page.url.replace(/^https?:\/\//, '')}</span>
                           <ExternalLink className="h-3 w-3 shrink-0 opacity-60" />
                         </a>
+                        {!isOnSite(page.url, siteDomain) && (
+                          <Badge variant="outline" className="mt-1 text-[10px]">Other site</Badge>
+                        )}
                       </td>
                       <td className="px-4 py-2.5 text-center">
                         <span className={`font-semibold ${SCORE_COLOR(page.overall_score)}`}>{page.overall_score}</span>
