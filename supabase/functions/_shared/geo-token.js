@@ -16,7 +16,7 @@ function hmacKey(secret, usage) {
   return crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, [usage]);
 }
 
-function normalize(claims) {
+export function normalizeGeoClaims(claims) {
   const c = typeof claims.c === 'string' && /^[A-Z]{2}$/.test(claims.c) && claims.c !== 'XX' && claims.c !== 'T1' ? claims.c : null;
   const r = c && REGION_COUNTRIES.has(c) && typeof claims.r === 'string' && /^[A-Z0-9]{1,3}$/.test(claims.r) ? claims.r : null;
   const ip = typeof claims.ip === 'string' && claims.ip.length <= 45 && /^[0-9a-fA-F.:]+$/.test(claims.ip) ? claims.ip : null;
@@ -25,7 +25,7 @@ function normalize(claims) {
 
 export async function signGeo({ country, region, ip }, secret, nowSec) {
   if (typeof secret !== 'string' || secret.length < MIN_KEY) return null;
-  const claims = normalize({ c: country ? String(country).toUpperCase() : null, r: region ? String(region).toUpperCase() : null, ip });
+  const claims = normalizeGeoClaims({ c: country ? String(country).toUpperCase() : null, r: region ? String(region).toUpperCase() : null, ip });
   const payload = b64url(enc.encode(JSON.stringify({ ...claims, ts: Math.floor(nowSec) })));
   const sig = await crypto.subtle.sign('HMAC', await hmacKey(secret, 'sign'), enc.encode(`v1.${payload}`));
   return `v1.${payload}.${b64url(new Uint8Array(sig))}`;
@@ -42,7 +42,7 @@ export async function verifyGeo(token, secret, nowSec) {
     const claims = JSON.parse(new TextDecoder().decode(fromB64url(m[1])));
     const ts = Number(claims?.ts);
     if (!Number.isFinite(ts) || ts < nowSec - MAX_AGE_SEC || ts > nowSec + MAX_SKEW_SEC) return null;
-    return { ...normalize(claims), ts };
+    return { ...normalizeGeoClaims(claims), ts };
   } catch {
     return null;
   }

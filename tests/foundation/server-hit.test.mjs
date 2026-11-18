@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { loadEdge, mockDatabase } from './edge-harness.mjs';
 
 const SITE = '11111111-1111-4111-8111-111111111111';
@@ -116,4 +117,20 @@ test('older base64 site keys are accepted', async () => {
   const res = await handler(post([{ url: 'https://shop.test/', userAgent: 'GPTBot' }], '7wU' + 'A'.repeat(40) + '='));
   assert.equal(res.status, 200);
   assert.equal((await res.json()).stored, 1);
+});
+
+test('server-hit stores the adapter country (alpha-2) and US/CA region only', async () => {
+  const { handler, calls } = setup();
+  await handler(post([
+    { url: 'https://www.shop.test/a', userAgent: 'Mozilla/5.0 (compatible; GPTBot/1.2)', country: 'us', region: 'ca' },
+    { url: 'https://www.shop.test/b', userAgent: 'Mozilla/5.0 (compatible; GPTBot/1.2)', country: 'BR', region: 'SP' },
+    { url: 'https://www.shop.test/c', userAgent: 'Mozilla/5.0 (compatible; GPTBot/1.2)', country: 'XX' },
+  ]));
+  assert.deepEqual(inserted(calls).map((r) => [r.country_code, r.region_code]), [['US', 'CA'], ['BR', null], [null, null]]);
+});
+
+test('Cloudflare adapter sends request.cf country and region', () => {
+  const src = readFileSync('public/cloudflare-worker.js', 'utf8');
+  assert.match(src, /country: request\.cf\?\.country \|\| undefined,/);
+  assert.match(src, /region: request\.cf\?\.regionCode \|\| undefined,/);
 });

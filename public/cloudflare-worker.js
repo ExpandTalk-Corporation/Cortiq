@@ -88,6 +88,8 @@ async function report(request, url, status, key, env) {
         userAgent: (request.headers.get('User-Agent') || '').slice(0, 512),
         referrer: cleanReferrer(request.headers.get('Referer')),
         ip: truncateIp(request.headers.get('CF-Connecting-IP')) || undefined,
+        country: request.cf?.country || undefined,
+        region: request.cf?.regionCode || undefined,
       }] }),
     });
   } catch (_) { /* never surface measurement errors to visitors */ }
