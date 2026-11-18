@@ -9,12 +9,21 @@ const escape = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': 
 
 function emailBody(domain: string, opened: PipelineAlert[], resolved: PipelineAlert[]): { subject: string; html: string } {
   const now = new Date();
+  // aggregate_never resolves either because a hit arrived or because the flag was turned off, so
+  // "is arriving again" (true for every other pipeline, which only ever resolve on a fresh hit)
+  // would be wrong half the time here.
   const items = [
     ...opened.map((a) => `<li><strong>${escape(alertSentence(a, now))}</strong><br>${escape(PIPELINES[a.pipeline as Pipeline]?.check ?? '')}</li>`),
-    ...resolved.map((a) => `<li>${escape(pipelineLabel(a.pipeline))} is arriving again.</li>`),
+    ...resolved.map((a) => a.pipeline === 'aggregate_never'
+      ? `<li>Aggregate measurement: the alert cleared — a hit arrived, or it was turned off.</li>`
+      : `<li>${escape(pipelineLabel(a.pipeline))} is arriving again.</li>`),
   ];
+  // aggregate_never never "stopped arriving" — it never started. Give it its own subject clause
+  // so it doesn't get glued to the generic "stopped arriving" suffix used for the other pipelines.
   const subject = opened.length
-    ? `${domain}: ${opened.map((a) => pipelineLabel(a.pipeline).toLowerCase()).join(', ')} stopped arriving`
+    ? `${domain}: ${opened.map((a) => a.pipeline === 'aggregate_never'
+        ? 'aggregate measurement never sent a hit'
+        : `${pipelineLabel(a.pipeline).toLowerCase()} stopped arriving`).join(', ')}`
     : `${domain}: data is arriving again`;
   const html = `<p>CortIQ checks every hour that data still arrives for ${escape(domain)}.</p><ul>${items.join('')}</ul>`
     + `<p><a href="https://cortiq.se/dashboard">Open the dashboard</a></p>`;
