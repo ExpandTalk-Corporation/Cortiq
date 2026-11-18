@@ -64,7 +64,7 @@ function browser({ config = {}, consent = null, timeoutResponse, start = Date.UT
       calls.push({ url, body });
       const extra = url.endsWith('/track-event') && body.event_type === 'view' && timeoutResponse !== undefined
         ? { session_timeout_minutes: timeoutResponse } : {};
-      return { ok: true, json: async () => ({ success: true, visitor: { visitorId: 'visitor-1', visitorType: 'human' }, ...extra }) };
+      return { ok: true, headers: { get: () => null }, json: async () => ({ success: true, visitor: { visitorId: 'visitor-1', visitorType: 'human' }, ...extra }) };
     },
   });
   const choose = (analytics, marketing = false) => window.dispatchEvent({ type: 'siteConsentUpdated', detail: { analytics, marketing } });

@@ -13,6 +13,7 @@ function bannerScript() {
   // Replace PHP echoes with test values.
   return body
     .replace(/<\?php echo esc_js\( CORTIQ_API \); \?>/, 'https://api.test')
+    .replace(/<\?php echo esc_js\( CORTIQ_GEO_API \); \?>/, 'https://api.test')
     .replace(/<\?php echo wp_json_encode\([\s\S]*?\) \); \?>/, '{"show":"s","hide":"h","nec":"N","pref":"P","stat":"S","mark":"M","cdate":"d","cid":"i","cats":"c","gpc":"GPC note"}')
     .replace(/<\?php echo max\( 1, intval\( \$opts\['reprompt_cooldown_days'\] \) \); \?>/, '365')
     .replace(/<\?php echo max\( 1, intval\( \$opts\['reprompt_reject_days'\] \) \); \?>/, '180')

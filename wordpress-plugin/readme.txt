@@ -3,7 +3,7 @@ Contributors: cortiq
 Tags: analytics, ai-tracking, heatmap, cookie-free, gdpr, chatgpt, ai-bots
 Requires at least: 5.6
 Tested up to: 6.8
-Stable tag: 5.5.15
+Stable tag: 5.5.16
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -86,6 +86,9 @@ All data is stored in the EU (AWS eu-north-1 via Supabase).
 The tracking script is loaded with `defer` so it does not block rendering.
 
 == Changelog ==
+
+= 5.5.16 =
+* Tracking and consent requests go through CortIQ's Cloudflare edge, which adds the visitor's country (and US state / Canadian province). If the edge is unreachable, requests go directly to CortIQ as before.
 
 = 5.5.15 =
 * Consent banner: with Global Privacy Control (GPC) on, marketing stays off and the banner says why.

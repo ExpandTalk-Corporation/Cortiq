@@ -55,7 +55,10 @@ function page({ attrs = {}, stored = null, htmlLang = '', hostname = 'www.viking
     sessionStorage: { getItem: () => null, setItem() {} },
     CustomEvent: class { constructor(name, init) { this.detail = init.detail; } },
     crypto: { randomUUID: () => '00000000-0000-4000-8000-000000000001' },
-    fetch: (url, init) => { posts.push({ url, body: JSON.parse(init.body) }); return Promise.resolve({ json: () => ({ consent_id: 'ledger-1' }) }); },
+    fetch: (url, init) => {
+      if (String(url).endsWith('/store-consent')) posts.push({ url, body: JSON.parse(init.body) });
+      return Promise.resolve({ headers: { get: () => null }, json: () => ({ consent_id: 'ledger-1' }) });
+    },
     setTimeout: fn => timers.push(fn), Date, JSON, Math, String, Array, Promise,
   };
   runInNewContext(source, context);

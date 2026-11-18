@@ -50,7 +50,7 @@ function browser(config = {}, storedConsent = null, identifyResponse = null, pag
     fetch: async (url, options) => {
       calls.push({ url, body: JSON.parse(options.body) });
       if (url.endsWith('/visitor-identification') && identifyResponse) return identifyResponse;
-      return { ok: true, json: async () => ({ success: true, visitor: { visitorId: 'visitor-1', visitorType: 'human' } }) };
+      return { ok: true, headers: { get: () => null }, json: async () => ({ success: true, visitor: { visitorId: 'visitor-1', visitorType: 'human' } }) };
     },
   });
   const choose = (analytics, marketing = false) => window.dispatchEvent({ type: 'siteConsentUpdated', detail: { analytics, marketing } });
@@ -199,7 +199,7 @@ test('in-flight identification cannot restore a revoked identity or start page t
   const b = browser({}, null, response);
   b.choose(true);
   b.choose(false);
-  finish({ ok: true, json: async () => ({ success: true, visitor: { visitorId: 'stale' } }) });
+  finish({ ok: true, headers: { get: () => null }, json: async () => ({ success: true, visitor: { visitorId: 'stale' } }) });
   await settle();
   assert.equal(b.window.CortIQ.getVisitorId(), null);
   assert.equal(b.calls.length, 1); // only the request already sent before withdrawal

@@ -1,7 +1,7 @@
 /**
  * CortIQ Advanced Tracking Script
  * Unified visitor profiling with AI agent detection
- * Version: 5.5.15 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
+ * Version: 5.5.16 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
  *
  * Usage:
  * <script>
@@ -17,7 +17,7 @@
   'use strict';
 
   // Keep in sync with wordpress-plugin/cortiq-analytics.php (CORTIQ_VERSION).
-  const CORTIQ_VERSION = '5.5.15';
+  const CORTIQ_VERSION = '5.5.16';
 
   // Configuration: window.cortiqConfig, overridden by data-* attributes on this script
   // tag, so a single-tag install (<script src=… data-site-id=…>) works and a tag that
@@ -37,7 +37,27 @@
     if (el.getAttribute('data-session-storage') === 'false') out.sessionStorage = false;
     return out;
   }
-  const API_URL = config.apiUrl || 'https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1';
+  // --- API routing (spec 2026-11-18 phase 2): send through the CortIQ geo Worker, which adds
+  // signed Cloudflare country/region. If it fails (blocked, over quota, outage), resend that
+  // request directly and stay direct for this page load. A site with its own apiUrl, or
+  // geoUrl: false, never goes through the Worker. Nothing is stored.
+  var DIRECT_URL = 'https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1';
+  var GEO_URL = 'https://cortiq-geo.cortiq.workers.dev';
+  var API_DIRECT = config.apiUrl || DIRECT_URL;
+  var API_URL = config.geoUrl === false ? API_DIRECT
+    : (config.geoUrl || (API_DIRECT === DIRECT_URL ? GEO_URL : API_DIRECT));
+  // credentials: 'omit' on every call: the direct supabase.co host can set a __cf_bm cookie,
+  // which browsers only store for credentialed requests (legal review 2026-11, point 4a).
+  function apiFetch(path, init) {
+    init = Object.assign({}, init, { credentials: 'omit' });
+    var base = API_URL;
+    var direct = function () { API_URL = API_DIRECT; return fetch(API_DIRECT + path, init); };
+    if (base === API_DIRECT) return fetch(base + path, init);
+    return fetch(base + path, init).then(function (res) {
+      return res.headers.get('x-cortiq-geo-proxy') === 'error' ? direct() : res;
+    }, direct);
+  }
+  // --- end API routing
   const SITE_ID = config.siteId || config.companyId;
   const API_KEY = config.apiKey;
   const CONTENT_TYPE = config.contentType || 'page';
@@ -277,7 +297,7 @@
         // No canvas/WebGL fingerprinting in any mode.
       };
 
-      const response = await fetch(`${API_URL}/visitor-identification`, {
+      const response = await apiFetch('/visitor-identification', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -371,7 +391,7 @@
         timestamp: Date.now()
       };
 
-      const response = await fetch(`${API_URL}/track-event`, {
+      const response = await apiFetch('/track-event', {
         method: 'POST',
         headers: API_KEY ? {
           'Authorization': `Bearer ${API_KEY}`,
@@ -486,7 +506,7 @@
       if (generation !== consentGeneration || !hasInteractionConsent()) return;
       if (!hasMarketingConsent()) hashedEmail = null;
       const valueAttr = form.getAttribute('data-wfa-value');
-      await fetch(`${API_URL}/record-conversion`, {
+      await apiFetch('/record-conversion', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -653,7 +673,7 @@
       const items = queue.splice(0, 50);
       const apiKey = API_KEY || SITE_ID;
       try {
-        fetch(`${API_URL}/track-event`, {
+        apiFetch('/track-event', {
           method: 'POST',
           headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -727,7 +747,7 @@
           reached.add(m);
           const siteId = SITE_ID;
           const apiKey = API_KEY || SITE_ID;
-          fetch(`${API_URL}/track-event`, {
+          apiFetch('/track-event', {
             method: 'POST',
             headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -845,7 +865,7 @@
 
       try {
         const apiKey = API_KEY || SITE_ID;
-        fetch(API_URL + '/link-click-counter', {
+        apiFetch('/link-click-counter', {
           method: 'POST',
           headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -879,7 +899,7 @@
       const vw = window.innerWidth, vh = window.innerHeight;
       const x = Math.round(e.pageX), y = Math.round(e.pageY);
       try {
-        fetch(API_URL + '/track-event', {
+        apiFetch('/track-event', {
           method: 'POST',
           headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -950,7 +970,7 @@
       });
       const apiKey = API_KEY || SITE_ID;
       try {
-        fetch(API_URL + '/track-event', {
+        apiFetch('/track-event', {
           method: 'POST',
           headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1039,7 +1059,7 @@
   // E-commerce purchase — fired from data-wfa-value conversions.
   function trackEcommercePurchase(id, value, currency) {
     try {
-      fetch(API_URL + '/ecommerce-tracking', {
+      apiFetch('/ecommerce-tracking', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1081,7 +1101,7 @@
       if (dur < 1) return;
       const apiKey = API_KEY || SITE_ID;
       try {
-        fetch(API_URL + '/track-event', {
+        apiFetch('/track-event', {
           method: 'POST',
           headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1177,7 +1197,7 @@
     if (!platform) return false;
     const p = new URLSearchParams(window.location.search);
     try {
-      fetch(API_URL + '/ai-search-tracker', {
+      apiFetch('/ai-search-tracker', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           siteId: SITE_ID, sessionId: SECURITY_SESSION_ID, userHash: SECURITY_SESSION_ID, aiPlatform: platform,
@@ -1196,7 +1216,7 @@
       if (!hasAnalyticsConsent()) return;
       const secs = Math.round((Date.now() - start) / 1000);
       try {
-        fetch(API_URL + '/ai-search-tracker', {
+        apiFetch('/ai-search-tracker', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ siteId: SITE_ID, sessionId: SECURITY_SESSION_ID, update: { sessionDuration: secs, engaged: secs > 10, bounce: secs < 10 } }),
           keepalive: true,
@@ -1208,14 +1228,19 @@
     return true;
   }
 
+  // Plain-text keepalive fetch instead of sendBeacon: no CORS preflight, no cookies, and a
+  // blocked Worker falls back to the direct endpoint (sendBeacon could not detect that).
+  function postBotEvent(payload) {
+    apiFetch('/ai-bot-tracker', { method: 'POST', body: payload, keepalive: true }).catch(function () {});
+  }
+
   function trackAICitation() {
     const p = new URLSearchParams(window.location.search);
     const src = p.get('utm_source') || '';
     if (!detectAIReferrer()) return;
     const payload = JSON.stringify({ siteId: SITE_ID, url: window.location.href, referrer: document.referrer, userAgent: navigator.userAgent, sessionId: SECURITY_SESSION_ID, citationData: { url: window.location.href, utm_source: src, utm_medium: p.get('utm_medium'), utm_campaign: p.get('utm_campaign') } });
     try {
-      if (navigator.sendBeacon) navigator.sendBeacon(API_URL + '/ai-bot-tracker', payload);
-      else fetch(API_URL + '/ai-bot-tracker', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true }).catch(function () {});
+      postBotEvent(payload);
     } catch (_) { /* Storage or browser capability unavailable. */ }
   }
 
@@ -1239,15 +1264,14 @@
       probeData: { jsExecuted: true, signals: signals, capScore: capScore, isLikelyBot: true, knownAgent: known !== null, renderMs: Math.round(performance.now() - t0) },
     });
     try {
-      if (navigator.sendBeacon) navigator.sendBeacon(API_URL + '/ai-bot-tracker', payload);
-      else fetch(API_URL + '/ai-bot-tracker', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true }).catch(function () {});
+      postBotEvent(payload);
     } catch (_) { /* Storage or browser capability unavailable. */ }
     // Canary only for suspected bots: a canary fetched by a normal consented visitor
     // would be logged (and alerted) as scraping.
     try { setupCanary(); } catch (_) {}
     setTimeout(function () {
       const rms = Math.round(performance.now() - t0);
-      if (rms < 200 && navigator.sendBeacon) navigator.sendBeacon(API_URL + '/ai-bot-tracker', JSON.stringify({ siteId: SITE_ID, sessionId: SECURITY_SESSION_ID, agentFingerprint: fp, update: { renderMs: rms, fastRender: true } }));
+      if (rms < 200) postBotEvent(JSON.stringify({ siteId: SITE_ID, sessionId: SECURITY_SESSION_ID, agentFingerprint: fp, update: { renderMs: rms, fastRender: true } }));
     }, 500);
   }
 
@@ -1255,8 +1279,7 @@
     if (!hasAnalyticsConsent()) return;
     try {
       const payload = JSON.stringify({ siteId: SITE_ID, url: window.location.href, referrer: document.referrer || null, userAgent: navigator.userAgent, sessionId: SECURITY_SESSION_ID, probeData: { jsExecuted: true, signals: { honeypotTriggered: true, honeypotTrigger: trigger, webdriver: navigator.webdriver === true, headless: /HeadlessChrome/.test(navigator.userAgent) } } });
-      if (navigator.sendBeacon) navigator.sendBeacon(API_URL + '/ai-bot-tracker', payload);
-      else fetch(API_URL + '/ai-bot-tracker', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true }).catch(function () {});
+      postBotEvent(payload);
     } catch (_) { /* Storage or browser capability unavailable. */ }
   }
 

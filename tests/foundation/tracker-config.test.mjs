@@ -36,7 +36,7 @@ function run({ attrs = {}, cortiqConfig } = {}) {
     CustomEvent: class { constructor(type, options) { this.type = type; this.detail = options.detail; } },
     console: { log() {}, warn() {}, error: (...a) => errors.push(a.join(' ')) },
     setTimeout: () => 0, setInterval: () => 0, clearInterval() {}, requestAnimationFrame: fn => fn(),
-    fetch: async (url, options) => { requests.push({ url, body: JSON.parse(options.body) }); return { ok: true, json: async () => ({ success: true }) }; },
+    fetch: async (url, options) => { requests.push({ url, body: JSON.parse(options.body) }); return { ok: true, headers: { get: () => null }, json: async () => ({ success: true }) }; },
   });
   window.dispatchEvent({ type: 'siteConsentUpdated', detail: { analytics: true, marketing: false } });
   return { requests, errors };

@@ -69,7 +69,7 @@ function browser(userAgent, human = false) {
     setTimeout: () => 0, setInterval: () => 0, clearInterval() {}, requestAnimationFrame: fn => fn(),
     fetch: async (url, options) => {
       requests.push({ url, body: options?.body });
-      return { ok: true, json: async () => ({ success: true, visitor: null }) };
+      return { ok: true, headers: { get: () => null }, json: async () => ({ success: true, visitor: null }) };
     },
   });
   const choose = (analytics) => window.dispatchEvent({ type: 'siteConsentUpdated', detail: { analytics, marketing: false } });
