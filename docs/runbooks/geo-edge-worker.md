@@ -10,7 +10,11 @@ Code: workers/geo-edge/, supabase/functions/_shared/geo-token.js, _shared/geo.ts
 3. Supabase FIRST: `supabase secrets set GEO_SIGNING_KEY=<key>`. Until the Worker has the same key,
    functions ignore tokens (time zone fallback) — nothing breaks.
 4. Worker: `cd workers/geo-edge && npx wrangler secret put GEO_SIGNING_KEY` (same key) → `npx wrangler deploy`.
+   Type the key at the prompt; never pipe it from PowerShell 5.1 (`$key | wrangler secret put` stores a
+   trailing CRLF, the HMACs never match and geo-check silently returns `country: null`).
 5. Record the printed origin in workers/geo-edge/ENDPOINT (no trailing slash, no newline) and commit.
+   Done 2026-11-18: workers.dev subdomain `cortiq` (registered via API — "geo-edge" was taken),
+   origin `https://cortiq-geo.cortiq.workers.dev`.
 
 ## 2. Rotating the key
 Same order: Supabase, then Worker, within a few minutes. During the gap geo_source is 'timezone'
