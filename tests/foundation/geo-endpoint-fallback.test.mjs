@@ -99,5 +99,5 @@ test('no sendBeacon in the tracker; banner, beacon and WP banner omit credential
   assert.doesNotMatch(tracker, /navigator.sendBeacon/);
   assert.match(banner, /credentials: 'omit'/);
   assert.match(beacon, /credentials: 'omit'/);
-  assert.match(plugin, /function cqFetch\(path, init\)\{\n\s+init = Object\.assign\(\{\}, init, \{ credentials: 'omit' \}\);/);
+  assert.match(plugin, /function cqFetch\(path, init\)\{\r?\n\s+init = Object\.assign\(\{\}, init, \{ credentials: 'omit' \}\);/);
 });
