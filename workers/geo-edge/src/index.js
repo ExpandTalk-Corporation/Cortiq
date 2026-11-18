@@ -35,13 +35,20 @@ export default {
     if (token) headers.set(GEO_HEADER, token);
 
     const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
+    let upstream;
     try {
-      return await fetch(new Request(`${env.SUPABASE_URL}/functions/v1/${path}${url.search}`, {
+      upstream = await fetch(new Request(`${env.SUPABASE_URL}/functions/v1/${path}${url.search}`, {
         method: request.method, headers, body: hasBody ? request.body : undefined, redirect: 'manual',
         ...(hasBody ? { duplex: 'half' } : {}),
       }));
     } catch {
       return proxyError();
     }
+    // Supabase's Cloudflare zone sets __cf_bm (Domain=supabase.co). Browsers would reject it on this
+    // host anyway; dropping it keeps "the Worker sets no cookies" literally true (legal review, Q4).
+    if (!upstream.headers.has('set-cookie')) return upstream;
+    const out = new Headers(upstream.headers);
+    out.delete('set-cookie');
+    return new Response(upstream.body, { status: upstream.status, statusText: upstream.statusText, headers: out });
   },
 };

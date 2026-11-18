@@ -79,3 +79,16 @@ test('missing signing key → proxied without a token (functions fall back to ti
   const res = await worker.fetch(req, { SUPABASE_URL: env.SUPABASE_URL });
   assert.equal(res.headers.get('seen'), '0');
 });
+
+test('upstream Set-Cookie (Supabase __cf_bm) is dropped; the Worker sets no cookies', async () => {
+  const { res } = await call('/geo-check', {
+    method: 'GET',
+    upstream: () => new Response('{}', { status: 200, headers: {
+      'access-control-allow-origin': '*', 'set-cookie': '__cf_bm=x; Domain=supabase.co; Path=/; Secure; HttpOnly',
+    } }),
+  });
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get('set-cookie'), null);
+  assert.equal(res.headers.get('access-control-allow-origin'), '*');
+  assert.equal(await res.text(), '{}');
+});
