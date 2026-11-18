@@ -4,8 +4,9 @@ Spec: docs/superpowers/specs/2026-11-18-jurisdiction-aware-measurement-design.md
 Code: workers/geo-edge/, supabase/functions/_shared/geo-token.js, _shared/geo.ts.
 
 ## 1. One-time setup (Daniel)
-1. Cloudflare account: Daniel's existing account `965167b0273f7357cf036e3fffcd825a` (free plan; set as
-   `account_id` in wrangler.toml). `npx wrangler login` with that account's login.
+1. Cloudflare account `965167b0273f7357cf036e3fffcd825a`, named Expandtalk Corporation AB since 2026-11-18
+   (Workers Free; set as `account_id` in wrangler.toml). `npx wrangler login` with that account's login.
+   DPA: incorporated in the Self-Serve Subscription Agreement; PDF copies kept outside the repo (TIA §4).
 2. Generate a key: `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`.
 3. Supabase FIRST: `supabase secrets set GEO_SIGNING_KEY=<key>`. Until the Worker has the same key,
    functions ignore tokens (time zone fallback) — nothing breaks.
@@ -52,9 +53,22 @@ or an ad blocker list includes workers.dev.
    is part of this gate: customer notice (30 days, 14 days to object) or per-site opt-in, Cloudflare account
    owned by Expandtalk Corporation AB with the DPA acceptance recorded, observability off in the dashboard,
    a TIA for Cloudflare, and outside counsel before the US/UK/Québec/BR rules go live.
+   Gate status 2026-11-18:
+   - Customer notice: not sent, none needed. Expandtalk Corporation AB is the only controller: read-only check
+     2026-11-18 found 7 auth users, of which only one (Expandtalk) owns sites, and all 7 sites belong to
+     Expandtalk Corporation AB (confirmed by Daniel); the other 6 accounts are test accounts with no sites.
+     Re-check before the first external customer — from then on, a subprocessor change needs the notice.
+   - Account renamed and DPA recorded (section 1); Workers Logs/Traces off, no Logpush (checked 2026-11-18);
+     TIA §4 complete (DPF listing checked 2026-11-18).
+   - Expandtalk's own sites' privacy policies name Cloudflare (Art. 13.1 e–f). Branch `docs/privacy-cloudflare`
+     (local, 2026-11-18) in expandtalk-web and sentrisk adds the text + the Worker in CSP connect-src (without it
+     the browser blocks the Worker and every request goes direct); publish with the 5.5.16 dist. ekonom.biz serves
+     a vendored spa-tracking 5.5.6, so its branch waits for the vendor update to 5.5.16 + CSP. vikingage inlines an
+     old aggregate beacon straight to supabase.co: no Cloudflare, no change until its snippet is replaced.
+     itsäkerhet.com and båtguide.nu have no local repo: Daniel updates them by hand.
 2. Update the DPA subprocessor list (next DPA version) and the privacy policy page; copy rules in CLAUDE.md apply.
 3. Daniel approves → status approved_internal. Record date and DPA version here.
-   - Approved: ____ (date) · DPA version: ____
+   - Approved: 2026-11-18 (Daniel) · DPA version: 1.6 (status approved_internal)
 4. Only then release (section 3 step 4).
 
 ## 6. Volume
