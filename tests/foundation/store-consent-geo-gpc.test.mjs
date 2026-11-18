@@ -8,12 +8,9 @@ import { consentGeo, gpcRequested } from '../../supabase/functions/_shared/conse
 
 const SITE = '11111111-1111-4111-8111-111111111111';
 
-test('consentGeo: IANA zone → country; bogus or missing → unknown', () => {
-  assert.deepEqual(consentGeo('Europe/Stockholm'), { geo_country: 'SE', geo_source: 'timezone' });
-  assert.deepEqual(consentGeo('America/Los_Angeles'), { geo_country: 'US', geo_source: 'timezone' });
-  assert.deepEqual(consentGeo('Not/AZone'), { geo_country: null, geo_source: 'unknown' });
-  assert.deepEqual(consentGeo(undefined), { geo_country: null, geo_source: 'unknown' });
-  assert.deepEqual(consentGeo({ toString: () => 'Europe/Stockholm' }), { geo_country: null, geo_source: 'unknown' });
+test('consentGeo: copies the resolved geo', () => {
+  assert.deepEqual(consentGeo({ country: 'SE', region: null, source: 'timezone', ip: null }), { geo_country: 'SE', geo_region: null, geo_source: 'timezone' });
+  assert.deepEqual(consentGeo({ country: null, region: null, source: 'unknown', ip: null }), { geo_country: null, geo_region: null, geo_source: 'unknown' });
 });
 
 test('gpcRequested: body flag or Sec-GPC header', () => {

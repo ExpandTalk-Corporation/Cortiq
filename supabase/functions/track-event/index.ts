@@ -1,6 +1,6 @@
 import { createClient } from '../_shared/supabase.ts';
 import { anonymizeIP } from '../_shared/jurisdiction.ts';
-import { countryFromTimeZone } from '../_shared/tz-country.js';
+import { resolveGeo, geoKey } from '../_shared/geo.ts';
 import { storedReferrer } from '../_shared/referrer.js';
 import { normalizeGoals, clientGoals, matchPageVisitGoals } from '../_shared/conversion-goals.js';
 import { normalizeSessionTimeout } from '../_shared/session-timeout.js';
@@ -487,17 +487,18 @@ Deno.serve(async (req) => {
         if (domainSiteId) {
           viewSiteId = domainSiteId;
           const ua = browserAndOs(req.headers.get('user-agent'));
+          const geo = await resolveGeo(req, { key: geoKey(), timeZone: body.metadata?.timezone });
           await supabase.rpc('ingest_pageview', {
             p_url: pageUrl,
             p_session: body.session_id ?? null,
             p_device: metadata.device_type ?? null,
             p_referrer: metadata.referrer ?? null,
             p_viewed_at: body.timestamp ? new Date(body.timestamp).toISOString() : new Date().toISOString(),
-            // Country only (ISO alpha-2). Supabase Edge no longer forwards CF-IPCountry
-            // (checked 2026-10-15), so the browser time zone the tracker sends is the
-            // estimate; the header still wins if it comes back. ingest_pageview drops
-            // XX/T1/non-ISO values.
-            p_country: req.headers.get('cf-ipcountry') ?? countryFromTimeZone(body.metadata?.timezone),
+            // Signed Cloudflare geo via the CortIQ Worker, else the browser time zone
+            // (resolveGeo, spec 2026-11-18 phase 2). Region only for US/CA; no IP is stored.
+            p_country: geo.country,
+            p_region: geo.region,
+            p_geo_source: geo.source,
             // Browser and OS families only (no versions); the User-Agent itself is not stored.
             p_browser: ua.browser,
             p_os: ua.os,

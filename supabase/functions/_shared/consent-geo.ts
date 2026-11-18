@@ -1,12 +1,12 @@
-// Country and GPC for the consent ledger (spec 2026-11-18 phase 1 AC5/AC6).
-// Phase 1 uses the browser time zone; phase 2 replaces this with signed edge geo (source 'ip').
-import { countryFromTimeZone } from './tz-country.js';
+// Country/region and GPC for the consent ledger (spec 2026-11-18 phase 1 AC5/AC6, phase 2 AC1).
+// Phase 2: geo comes from resolveGeo (signed edge IP country, else the browser time zone).
+import type { Geo } from './geo.ts';
 
-export type ConsentGeo = { geo_country: string | null; geo_source: 'timezone' | 'unknown' };
+export type ConsentGeo = { geo_country: string | null; geo_region: string | null; geo_source: Geo['source'] };
 
-export function consentGeo(timeZone: unknown): ConsentGeo {
-  const country = typeof timeZone === 'string' ? countryFromTimeZone(timeZone.slice(0, 64)) : null;
-  return country ? { geo_country: country, geo_source: 'timezone' } : { geo_country: null, geo_source: 'unknown' };
+/** Consent ledger geo from the resolved request geo (signed edge IP country, else time zone). */
+export function consentGeo(geo: Geo): ConsentGeo {
+  return { geo_country: geo.country, geo_region: geo.region, geo_source: geo.source };
 }
 
 /** Global Privacy Control: the banner's flag or the browser's Sec-GPC request header. */

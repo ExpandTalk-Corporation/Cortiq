@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from '../_shared/supabase.ts';
 import { anonymizeIP } from "../_shared/jurisdiction.ts";
 import { consentGeo, gpcRequested } from "../_shared/consent-geo.ts";
+import { resolveGeo, geoKey } from "../_shared/geo.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -168,6 +169,9 @@ serve(async (req) => {
         { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': '60' } });
     }
 
+    // Signed edge geo via the CortIQ Worker, else the browser time zone (spec 2026-11-18 phase 2).
+    const geo = await resolveGeo(req, { key: geoKey(), timeZone: requestData.time_zone });
+
     // Prepare consent data with sanitized inputs.
     // consent_given reflects the actual decision (opt-in to analytics/marketing), not a
     // hardcoded true — a reject-all banner must be recorded as consent_given = false.
@@ -176,12 +180,12 @@ serve(async (req) => {
       session_id: session_id.substring(0, 255), // Limit length to prevent overflow
       consent_given: !!(requestData.consent_types.analytics || requestData.consent_types.marketing || requestData.consent_types.preferences),
       consent_types: requestData.consent_types,
-      ip_address: anonymizeIP(requestData.ip_address ?? null), // host portion zeroed — matches "IP anonymized" claim
+      ip_address: anonymizeIP(geo.ip ?? requestData.ip_address ?? null), // host portion zeroed — matches "IP anonymized" claim
       user_agent: requestData.user_agent ? requestData.user_agent.substring(0, 500) : null, // Reasonable limit
       source: requestData.source ? requestData.source.substring(0, 50) : 'cookie_banner',
       locale: requestData.locale ? requestData.locale.substring(0, 10) : 'sv',
       gpc_signal: gpc,
-      ...consentGeo(requestData.time_zone),
+      ...consentGeo(geo),
       policy_version: requestData.policy_version ? requestData.policy_version.substring(0, 20) : '1.0',
       expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year
     };
@@ -210,6 +214,7 @@ serve(async (req) => {
           source: consentData.source,
           locale: consentData.locale,
           geo_country: consentData.geo_country,
+          geo_region: consentData.geo_region,
           geo_source: consentData.geo_source,
         })
         .eq('id', existingConsent.id)

@@ -5,6 +5,7 @@ import { anonymizeIP } from "../_shared/jurisdiction.ts";
 // and server-log paths classify identically. See _shared/ai-bot-registry.ts.
 import { classifyBot, storedBotCategory, type BotCategory } from "../_shared/ai-bot-registry.ts";
 import { resolveSite } from "../_shared/resolve-site.ts";
+import { resolveGeo, geoKey } from "../_shared/geo.ts";
 import { skipTrackingCheck } from '../_shared/tracking-check-ua.ts';
 
 const corsHeaders = {
@@ -23,13 +24,6 @@ async function checkRateLimit(supabase: ReturnType<typeof createClient>, key: st
   });
   if (error) return true; // fail open rather than drop legitimate traffic
   return data === true;
-}
-
-// Best-effort client IP from the edge proxy headers.
-function clientIp(req: Request): string {
-  const xff = req.headers.get('x-forwarded-for');
-  if (xff) return xff.split(',')[0].trim();
-  return req.headers.get('x-real-ip') || 'unknown';
 }
 
 // Asset file patterns
@@ -120,7 +114,9 @@ serve(async (req) => {
 
     // Two-dimensional throttle: per-site (blunt dashboard pollution) AND per-IP
     // (stop one source rotating siteId to flood many tenants). Either tripping = 429.
-    const ip = clientIp(req);
+    // Bots have no meaningful browser time zone; geo here is IP-only.
+    const geo = await resolveGeo(req, { key: geoKey(), timeZone: null });
+    const ip = geo.ip ?? 'unknown';
     const [siteOk, ipOk] = await Promise.all([
       checkRateLimit(supabase, `aibot:${siteId}`, 600),
       checkRateLimit(supabase, `aibot-ip:${ip}`, 1200),
@@ -191,11 +187,13 @@ serve(async (req) => {
         url,
         referrer,
         session_id: sessionId,
-        ip_address: anonymizeIP(req.headers.get('x-forwarded-for')) || 'unknown',
+        ip_address: anonymizeIP(geo.ip) || 'unknown',
         js_executed: probeData?.jsExecuted || false,
         probe_triggered: !!probeData,
         request_type: requestType,
         bot_category: storedBotCategory(classification),
+        country_code: geo.country,
+        region_code: geo.region,
       })
       .select()
       .single();

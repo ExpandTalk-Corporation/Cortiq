@@ -23,7 +23,8 @@ import { createClient } from '../_shared/supabase.ts';
 import { classifyBot, GENERIC_BOT_PATTERN } from '../_shared/ai-bot-registry.ts';
 import { normalizeGoals, matchPageVisitGoals } from '../_shared/conversion-goals.js';
 import { normHost, ownsHost } from '../_shared/site-host.ts';
-import { cleanPath, referrerSource, utmFrom, fallbackGoal, deviceFromUA, clientIp, visitorHash } from '../_shared/aggregate.js';
+import { cleanPath, referrerSource, utmFrom, fallbackGoal, deviceFromUA, visitorHash } from '../_shared/aggregate.js';
+import { resolveGeo, geoKey } from '../_shared/geo.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -111,7 +112,9 @@ Deno.serve(async (req) => {
     console.error('aggregate-hit: salt unavailable');
     return skipped('unavailable');
   }
-  const hash = await visitorHash(salt, site.id, clientIp(req.headers), ua);
+  // The Worker hides the visitor's IP behind its own; the signed geo carries it (in transit only).
+  const geo = await resolveGeo(req, { key: geoKey(), timeZone: body.tz });
+  const hash = await visitorHash(salt, site.id, geo.ip ?? '', ua);
 
   const base = { p_site_id: site.id, p_hash: hash, p_path: cleanPath(pageUrl), p_device: deviceFromUA(ua) };
   const noSource = { p_referrer_domain: '', p_utm_source: '', p_utm_medium: '', p_utm_campaign: '' };
@@ -128,6 +131,8 @@ Deno.serve(async (req) => {
     // false = dropped as part of a burst of new direct visitors (likely a crawler). A page-visit
     // goal would otherwise create the visitor the burst filter just refused.
     if (counted === false) return skipped('burst');
+    const { error: geoError } = await supabase.rpc('ingest_aggregate_country', { p_site_id: site.id, p_country: geo.country });
+    if (geoError) console.error('aggregate-hit: country ingest failed:', geoError.message);
     for (const goal of matchPageVisitGoals(goals, pageUrl.href)) {
       await ingest({ ...base, ...noSource, p_kind: 'goal', p_goal_id: goal.id, p_goal_name: goal.name, p_value: num(goal.value) });
     }
