@@ -60,7 +60,7 @@ export const SECURITY: ContentPageData = {
           items: [
             'Visitor analytics start only after analytics consent. Ad click IDs are stored only with marketing consent, which is checked on the server, not just in the browser.',
             'Heatmap points are stored without IP address or user agent, and with the page URL stripped of query strings.',
-            'The [Cloudflare Worker](/integrations/cloudflare/) sends only requests from known crawler user agents, requests for robots.txt and llms.txt, and hits on its hidden honeypot link, with the IP address truncated before it leaves Cloudflare. CortIQ stores only those from classified AI bots and honeypot hits.',
+            'The optional [Cloudflare Worker adapter](/integrations/cloudflare/) on your own Cloudflare account sends only requests from known crawler user agents, requests for robots.txt and llms.txt, and hits on its hidden honeypot link, with the IP address truncated before it leaves Cloudflare. CortIQ stores only those from classified AI bots and honeypot hits.',
             'Data is deleted automatically after the retention period set for each site. See the [privacy policy](/privacy/) for every retention period.',
           ],
         },
@@ -77,14 +77,14 @@ export const SECURITY: ContentPageData = {
           items: [
             '**Supabase** (on AWS, Stockholm, EU): database, authentication and server functions.',
             '**Loopia** (Sweden): hosting of cortiq.se, the dashboard and the tracking script file.',
-            '**Cloudflare** (USA, Standard Contractual Clauses and EU-US Data Privacy Framework): the geo edge Worker that script and banner requests pass through on their way to Supabase; it derives the country from the IP address and stores nothing.',
+            '**Cloudflare** (USA, Standard Contractual Clauses and EU-US Data Privacy Framework): the geo edge Worker that script and banner requests pass through on their way to Supabase. It derives the country from the IP address (in the United States and Canada also the state or province); nothing is stored in it.',
           ],
         },
         { type: 'p', text: 'Used only when you use the related feature:' },
         {
           type: 'list',
           items: [
-            '**Cloudflare** (USA): edge analytics and geo lookup, with the Cloudflare log integration.',
+            '**Cloudflare** (USA): edge analytics and geo lookup, with the Cloudflare integration.',
             '**Resend** (USA, EU-US Data Privacy Framework): when you send a report export by email.',
             '**Anthropic** (USA, Standard Contractual Clauses): AI insights on the dashboard, which receive aggregated statistics only.',
           ],

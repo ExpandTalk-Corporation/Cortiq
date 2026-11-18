@@ -228,7 +228,7 @@ const Privacy = () => {
                   <li>• Parts of the page address, UTM values and form names that look like an email address, a long number or an ID are replaced (for example <code>/order/:id</code>) or dropped before anything is counted.</li>
                   <li>• For the current day, the hash is used to count visits (a new visit starts after 30 minutes of inactivity or when you arrive from a new referrer or campaign): entry page, referrer domain, UTM values, device type, goals reached, number of page views and time in the foreground.</li>
                   <li>• Once the day has ended, the daily value and these visit records are deleted, normally within an hour after midnight UTC. After that, the hash cannot be recomputed or linked across days.</li>
-                  <li>• Only daily totals are kept: page views per page, and visits, visitors, engagement and conversions per traffic source and device type.</li>
+                  <li>• Only daily totals are kept: page views per page and per country, and visits, visitors, engagement and conversions per traffic source and device type. The country is derived from the IP address when the request passes through CortIQ&apos;s Cloudflare Worker (section 5); otherwise no country is recorded.</li>
                 </ul>
                 <p className="text-sm text-muted-foreground mt-3">
                   <strong className="text-foreground">What is not done:</strong> no cookies or other storage on your
@@ -367,7 +367,7 @@ const Privacy = () => {
                   'Page views and most visited pages',
                   'AI referrals — when a visit arrives from an AI service such as ChatGPT or Perplexity (referring site, landing page with UTM parameters only, device type, time on page)',
                   'Referrers and traffic sources (including UTM parameters)',
-                  'Sessions, device type, browser and country (for the United States and Canada also state or province), derived from the IP address',
+                  'Sessions, device type, browser and country (for the United States and Canada also state or province), derived from the IP address or, if that is unavailable, estimated from the browser time zone',
                   'Clicks and link clicks',
                   'Scroll depth and heatmaps',
                   'Form interactions (field content is not captured) and form submissions',
@@ -507,7 +507,7 @@ const Privacy = () => {
               </ul>
               <p className="text-sm">
                 We also limit what is transferred, for example by hashing email addresses and truncating IP
-                addresses. AI and advertising features and the Cloudflare log integration are optional and enabled by the
+                addresses. AI and advertising features and the Cloudflare integration are optional and enabled by the
                 site operator; advertising transfers additionally require the visitor&apos;s marketing consent.
               </p>
             </CardContent>
@@ -554,7 +554,10 @@ const Privacy = () => {
                 </ul>
               </div>
               <p className="text-sm text-muted-foreground">
-                The CortIQ tracking script and the CortIQ consent banner set no cookies, in either mode. In both modes
+                The CortIQ tracking script and the CortIQ consent banner set no cookies, in either mode. Tracker versions up to 5.5.15 send some requests directly to our server
+                functions at supabase.co after analytics consent; that host, run by our provider Supabase behind Cloudflare,
+                can then set a <code>__cf_bm</code> bot-protection cookie (HttpOnly, limited to the site you visit, 30 minutes).
+                CortIQ does not read or use it. In both modes
                 the script keeps a session identifier in sessionStorage after analytics consent. A Cookieless site can choose
                 memory only; the script then stores nothing for human visitors, and only clients classified as automated get
                 the <code>_ciq_adp</code> counter. The
@@ -645,7 +648,7 @@ const Privacy = () => {
                 <ul className="text-sm text-muted-foreground space-y-1 ml-4">
                   <li>• <strong>Daily value and visit records (hash):</strong> deleted once the UTC day has ended, normally within an hour after midnight UTC, so no more than about 25 hours after creation</li>
                   <li>• <strong>IP address and User-Agent:</strong> not stored by CortIQ; only the device type is kept</li>
-                  <li>• <strong>Daily totals (page views, visits, sources, conversions):</strong> the value in the site's GDPR settings (default 365 days), and deleted when the site is deleted from CortIQ</li>
+                  <li>• <strong>Daily totals (page views, visits, sources, countries, conversions):</strong> the value in the site's GDPR settings (default 365 days), and deleted when the site is deleted from CortIQ</li>
                 </ul>
               </div>
 
