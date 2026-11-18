@@ -77,13 +77,14 @@ export const SECURITY: ContentPageData = {
           items: [
             '**Supabase** (on AWS, Stockholm, EU): database, authentication and server functions.',
             '**Loopia** (Sweden): hosting of cortiq.se, the dashboard and the tracking script file.',
+            '**Cloudflare** (USA, Standard Contractual Clauses and EU-US Data Privacy Framework): the geo edge Worker that script and banner requests pass through on their way to Supabase; it derives the country from the IP address and stores nothing.',
           ],
         },
         { type: 'p', text: 'Used only when you use the related feature:' },
         {
           type: 'list',
           items: [
-            '**Cloudflare** (USA, EU-US Data Privacy Framework): edge analytics and geo lookup.',
+            '**Cloudflare** (USA): edge analytics and geo lookup, with the Cloudflare log integration.',
             '**Resend** (USA, EU-US Data Privacy Framework): when you send a report export by email.',
             '**Anthropic** (USA, Standard Contractual Clauses): AI insights on the dashboard, which receive aggregated statistics only.',
           ],
