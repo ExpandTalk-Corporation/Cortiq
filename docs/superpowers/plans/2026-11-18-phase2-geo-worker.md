@@ -414,6 +414,7 @@ export default {
 ```toml
 # CortIQ geo edge — see docs/runbooks/geo-edge-worker.md
 name = "cortiq-geo"
+account_id = "965167b0273f7357cf036e3fffcd825a"
 main = "src/index.js"
 compatibility_date = "2026-11-01"
 workers_dev = true
@@ -1318,7 +1319,8 @@ Spec: docs/superpowers/specs/2026-11-18-jurisdiction-aware-measurement-design.md
 Code: workers/geo-edge/, supabase/functions/_shared/geo-token.js, _shared/geo.ts.
 
 ## 1. One-time setup (Daniel)
-1. Cloudflare account: use the Expandtalk account (free plan). `npx wrangler login`.
+1. Cloudflare account: Daniel's existing account `965167b0273f7357cf036e3fffcd825a` (free plan; set as
+   `account_id` in wrangler.toml). `npx wrangler login` with that account's login.
 2. Generate a key: `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`.
 3. Supabase FIRST: `supabase secrets set GEO_SIGNING_KEY=<key>`. Until the Worker has the same key,
    functions ignore tokens (time zone fallback) — nothing breaks.
