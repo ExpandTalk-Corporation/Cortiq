@@ -87,6 +87,16 @@ export function TrackingSnippetSetup({
   const pinTouched = useRef(false);
   // sites.sri_pinned_version: the version of the last pinned snippet copied for this site.
   const [pinnedVersion, setPinnedVersion] = useState<string | null>(null);
+  // Flag on for 24 h and no aggregate hit since: the installed snippet/plugin lacks the beacon.
+  const [installStatus, setInstallStatus] = useState<{ missing: boolean; last_hit_day: string | null } | null>(null);
+  useEffect(() => {
+    let live = true;
+    // get_aggregate_install_status is newer than the generated types.
+    (supabase as any).rpc('get_aggregate_install_status', { p_site_id: siteId }).then(({ data }: { data: unknown }) => {
+      if (live && data) setInstallStatus(data as { missing: boolean; last_hit_day: string | null });
+    });
+    return () => { live = false; };
+  }, [siteId, aggregateOn]);
 
   // Prefill the banner's policy link and version from the site's GDPR settings, and the choices
   // from the latest policy confirmation, so a returning owner sees the snippet they confirmed.
@@ -238,6 +248,14 @@ export function TrackingSnippetSetup({
         <div className="rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm space-y-2">
           <p>Aggregate measurement is off for this site, so this snippet would count nothing.</p>
           <Button size="sm" onClick={enableAggregate} disabled={saving}>Turn on aggregate measurement</Button>
+        </div>
+      )}
+
+      {aggregateOn && installStatus?.missing && (
+        <div className="rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm">
+          Aggregate measurement has been on for more than 24 hours, but no aggregate hit has arrived.
+          The snippet installed on the site does not include the aggregate beacon: copy the snippet below
+          again, or update the WordPress plugin. A custom loader must include the beacon too.
         </div>
       )}
 

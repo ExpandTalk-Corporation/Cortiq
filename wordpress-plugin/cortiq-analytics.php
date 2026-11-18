@@ -3,7 +3,7 @@
  * Plugin Name: CortIQ Analytics
  * Plugin URI: https://cortiq.se
  * Description: Analytics for the agentic web. Classifies AI crawlers and agent fetches (GPTBot, ClaudeBot, ChatGPT-User, PerplexityBot…) and measures human visitors after consent — cookieless mode, heatmaps, conversions and a built-in consent banner.
- * Version: 5.5.14
+ * Version: 5.5.15
  * Author: CortIQ
  * Author URI: https://cortiq.se
  * Requires at least: 5.6
@@ -21,7 +21,7 @@ if ( defined( 'CORTIQ_LOADED' ) ) return;
 define( 'CORTIQ_LOADED', true );
 
 // Shared with public/spa-tracking.js (CORTIQ_VERSION) — also the ?ver= cache-bust for it.
-define( 'CORTIQ_VERSION',    '5.5.14' );
+define( 'CORTIQ_VERSION',    '5.5.15' );
 define( 'CORTIQ_OPTION_KEY', 'cortiq_options' );
 // Supabase Edge Functions base — used for the GDPR consent ledger (store-consent).
 define( 'CORTIQ_API',        'https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1' );
@@ -109,6 +109,7 @@ function cortiq_banner_strings( $lang ) {
             'consent_id'     => 'Consent ID',
             'categories'     => 'Categories',
             'close'          => 'Close',
+            'gpc'            => 'Your browser sends Global Privacy Control (GPC), so marketing is turned off here.',
         ),
         'sv' => array(
             'title'          => '🍪 Cookie-inställningar',
@@ -131,6 +132,7 @@ function cortiq_banner_strings( $lang ) {
             'consent_id'     => 'Samtyckes-ID',
             'categories'     => 'Kategorier',
             'close'          => 'Stäng',
+            'gpc'            => 'Din webbläsare skickar Global Privacy Control (GPC). Därför är marknadsföring avstängd här.',
         ),
         'de' => array(
             'title'          => '🍪 Cookie-Einstellungen',
@@ -153,6 +155,7 @@ function cortiq_banner_strings( $lang ) {
             'consent_id'     => 'Einwilligungs-ID',
             'categories'     => 'Kategorien',
             'close'          => 'Schließen',
+            'gpc'            => 'Ihr Browser sendet Global Privacy Control (GPC). Marketing ist deshalb hier deaktiviert.',
         ),
         'fr' => array(
             'title'          => '🍪 Paramètres des cookies',
@@ -175,6 +178,7 @@ function cortiq_banner_strings( $lang ) {
             'consent_id'     => 'ID de consentement',
             'categories'     => 'Catégories',
             'close'          => 'Fermer',
+            'gpc'            => 'Votre navigateur envoie le signal Global Privacy Control (GPC) : le marketing est donc désactivé ici.',
         ),
         'pt' => array(
             'title'          => '🍪 Definições de cookies',
@@ -197,6 +201,7 @@ function cortiq_banner_strings( $lang ) {
             'consent_id'     => 'ID de consentimento',
             'categories'     => 'Categorias',
             'close'          => 'Fechar',
+            'gpc'            => 'O seu navegador envia o sinal Global Privacy Control (GPC), por isso o marketing está desativado aqui.',
         ),
     );
     return isset( $s[ $lang ] ) ? $s[ $lang ] : $s['en'];
@@ -516,6 +521,7 @@ function cortiq_cookie_banner() {
         <div class="cq-cat-info">
           <div class="cq-cat-name"><?php echo esc_html( $t['marketing'] ); ?></div>
           <div class="cq-cat-desc"><?php echo esc_html( $t['marketing_desc'] ); ?></div>
+          <div class="cq-cat-desc" id="cq-gpc-note" style="display:none"><?php echo esc_html( $t['gpc'] ); ?></div>
         </div>
         <label class="cq-toggle"><input type="checkbox" id="cq-marketing"><span class="cq-slider"></span></label>
       </div>
@@ -544,6 +550,7 @@ function cortiq_cookie_banner() {
     'nec'   => $t['necessary'],    'pref' => $t['preferences'],
     'stat'  => $t['statistics'],   'mark' => $t['marketing'],
     'cdate' => $t['consent_date'], 'cid'  => $t['consent_id'], 'cats' => $t['categories'],
+    'gpc'   => $t['gpc'],
   ) ); ?>;
   var POLICY_VERSION = '<?php echo esc_js( $opts['policy_version'] ); ?>';
   var MAX_AGE = <?php echo max( 1, intval( $opts['reprompt_cooldown_days'] ) ); ?>*24*60*60*1000; // re-ask after an accepted choice
@@ -559,6 +566,14 @@ function cortiq_cookie_banner() {
   var reopen  = document.getElementById('cq-reopen');
   var dToggle = document.getElementById('cq-details-toggle');
   var locale  = (navigator.language || 'sv');
+
+  // Global Privacy Control (spec 2026-11-18 AC6): marketing stays refused while GPC is on.
+  var GPC = navigator.globalPrivacyControl === true;
+  function tz(){ try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch(e){ return ''; } }
+  if (GPC) {
+    chkMark.checked = false; chkMark.disabled = true;
+    var gpcNote = document.getElementById('cq-gpc-note'); if (gpcNote) { gpcNote.style.display = 'block'; }
+  }
 
   function genId(){
     var arr=new Uint8Array(33);
@@ -580,6 +595,7 @@ function cortiq_cookie_banner() {
   }
 
   function save(pref,anal,mark){
+    if (GPC) { mark = false; }
     var now=Date.now();
     // spa-tracking.js only honours a stored choice with a future expiresAt.
     var c={ necessary:true, preferences:pref, analytics:anal, marketing:mark,
@@ -597,7 +613,7 @@ function cortiq_cookie_banner() {
           site_id: CQ_SITE_ID || undefined, tracking_id: CQ_TRACKING_ID || undefined,
           session_id: c.consentId, page_url: location.href,
           consent_types:{ necessary:true, analytics:anal, marketing:mark, preferences:pref },
-          source:'cookie_banner', gpc_signal:(navigator.globalPrivacyControl===true),
+          source:'cookie_banner', gpc_signal:GPC, time_zone:tz(),
           policy_version: POLICY_VERSION, locale: locale.substring(0,10)
         })
       }).catch(function(){});
@@ -626,7 +642,7 @@ function cortiq_cookie_banner() {
   }; }
 
   document.getElementById('cq-accept-all').onclick=function(){
-    chkPref.checked=true; if(chkAnal){ chkAnal.checked=true; } chkMark.checked=true;
+    chkPref.checked=true; if(chkAnal){ chkAnal.checked=true; } chkMark.checked=!GPC;
     save(true, !!chkAnal, true);
   };
   document.getElementById('cq-reject').onclick=function(){
@@ -671,9 +687,17 @@ function cortiq_cookie_banner() {
   } else {
     chkPref.checked=!!existing.preferences;
     if(chkAnal){ chkAnal.checked=!!existing.analytics; }
-    chkMark.checked=!!existing.marketing;
+    // GPC: never replay a pre-GPC stored marketing grant anywhere in the UI — checkbox,
+    // details list, or reopen icon. Build a masked copy; existing and localStorage are untouched.
+    var display = existing;
+    if (GPC) {
+      display = {};
+      for (var k in existing) { if (existing.hasOwnProperty(k)) { display[k] = existing[k]; } }
+      display.marketing = false;
+    }
+    chkMark.checked = !!display.marketing;
     reopen.style.display='block';
-    iconState(existing); showDetails(existing);
+    iconState(display); showDetails(display);
   }
 })();
 </script>

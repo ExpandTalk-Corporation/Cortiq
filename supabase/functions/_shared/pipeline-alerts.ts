@@ -1,7 +1,7 @@
 // Wording for pipeline freshness alerts (migration 20261115000001_pipeline_freshness.sql).
 // Shared by the pipeline-freshness Edge Function (email) and the dashboard (src/lib/pipelineAlerts.ts).
 
-export type Pipeline = 'page_views' | 'consents' | 'ai_bots_server' | 'link_clicks' | 'aggregate';
+export type Pipeline = 'page_views' | 'consents' | 'ai_bots_server' | 'link_clicks' | 'aggregate' | 'aggregate_never';
 
 export const PIPELINES: Record<Pipeline, { label: string; check: string }> = {
   page_views: {
@@ -24,6 +24,10 @@ export const PIPELINES: Record<Pipeline, { label: string; check: string }> = {
     label: 'Aggregate measurement',
     check: 'Check that the aggregate beacon is still in the install snippet or the WordPress plugin.',
   },
+  aggregate_never: {
+    label: 'Aggregate measurement (no hits yet)',
+    check: 'Aggregate measurement is on, but the install never sent a hit. Copy the install snippet again (it includes the aggregate beacon) or update the WordPress plugin. Custom loaders must include the beacon too.',
+  },
 };
 
 export interface PipelineAlert {
@@ -44,5 +48,8 @@ export function pipelineLabel(pipeline: string): string {
 export function alertSentence(alert: Pick<PipelineAlert, 'pipeline' | 'last_seen_at' | 'expected'>, now = new Date()): string {
   const hours = Math.max(0, (now.getTime() - Date.parse(alert.last_seen_at)) / 3_600_000);
   const ago = hours < 48 ? `${Math.round(hours)} hours` : `${Math.round(hours / 24)} days`;
+  if (alert.pipeline === 'aggregate_never') {
+    return `Aggregate measurement was turned on ${ago} ago and no hit has arrived since.`;
+  }
   return `${pipelineLabel(alert.pipeline)} stopped arriving ${ago} ago; about ${alert.expected} were expected since, going by the last 28 days.`;
 }

@@ -22,8 +22,9 @@
  */
 import { createClient } from "../_shared/supabase.ts";
 import { anonymizeIP } from "../_shared/jurisdiction.ts";
-import { classifyBot } from "../_shared/ai-bot-registry.ts";
+import { classifyBot, storedBotCategory } from "../_shared/ai-bot-registry.ts";
 import { normHost, ownsHost } from "../_shared/site-host.ts";
+import { normalizeGeoClaims } from "../_shared/geo-token.js";
 
 export { normHost };
 
@@ -121,6 +122,8 @@ Deno.serve(async (req) => {
     // (a hidden, robots.txt-disallowed URL no human navigates to).
     if (!bot.registryMatch && signal !== 'honeypot') { ignored++; continue; }
 
+    const g = normalizeGeoClaims({ c: typeof raw.country === 'string' ? raw.country.toUpperCase() : null, r: typeof raw.region === 'string' ? raw.region.toUpperCase() : null, ip: null });
+
     rows.push({
       site_id: site.id,
       bot_type: bot.botType,
@@ -134,8 +137,11 @@ Deno.serve(async (req) => {
       // Only registry bots get a category; the generic fallback would mislabel an unknown
       // honeypot visitor as a citation crawler.
       request_type: bot.registryMatch ? (bot.botCategory ?? 'unknown') : 'unknown',
+      bot_category: storedBotCategory(bot),
       source: 'server_log',
       server_signal: signal,
+      country_code: g.c,
+      region_code: g.r,
     });
   }
 

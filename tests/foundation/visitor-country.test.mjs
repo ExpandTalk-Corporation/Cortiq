@@ -2,11 +2,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { loadEdge, mockDatabase } from './edge-harness.mjs';
+import { signGeo, GEO_HEADER } from '../../supabase/functions/_shared/geo-token.js';
 
 const site = '11111111-1111-4111-8111-111111111111';
 const consent = { consent_given: true, consent_types: { analytics: true, marketing: false }, expires_at: '2099-01-01T00:00:00Z' };
 
-async function upsertCountry(body, headers = {}) {
+async function upsertCountry(body, headers = {}, env) {
   const rpcCalls = [];
   const rpc = async (name, args) => {
     rpcCalls.push({ name, args });
@@ -17,7 +18,7 @@ async function upsertCountry(body, headers = {}) {
     if (op.table === 'cookie_consents') return { data: consent, error: null };
     return { data: null, error: null };
   }, rpc);
-  const handler = loadEdge('visitor-identification', db.client);
+  const handler = loadEdge('visitor-identification', db.client, env ? { env } : undefined);
   await handler(new Request('https://example.test/visitor-identification', {
     method: 'POST',
     headers,
@@ -41,10 +42,14 @@ test('visitor country is null for a missing or unknown time zone', async () => {
   assert.equal(await upsertCountry({ timeZone: 'Mars/Olympus' }), null);
 });
 
-test('a valid cf-ipcountry header wins, XX and T1 fall back to the time zone', async () => {
-  assert.equal(await upsertCountry({ timeZone: 'Europe/Stockholm' }, { 'cf-ipcountry': 'no' }), 'NO');
-  assert.equal(await upsertCountry({ timeZone: 'Europe/Stockholm' }, { 'cf-ipcountry': 'XX' }), 'SE');
-  assert.equal(await upsertCountry({ timeZone: 'Europe/Stockholm' }, { 'cf-ipcountry': 'T1' }), 'SE');
+test('a signed edge geo header wins; an unsigned/missing header falls back to the time zone', async () => {
+  const KEY = 'k'.repeat(32);
+  const token = await signGeo({ country: 'NO', region: null, ip: '203.0.113.4' }, KEY, Math.floor(Date.now() / 1000));
+  assert.equal(await upsertCountry({ timeZone: 'Europe/Stockholm' }, { [GEO_HEADER]: token }, { GEO_SIGNING_KEY: KEY }), 'NO');
+  // Raw cf-ipcountry is never read directly — it has no effect, signed or not.
+  assert.equal(await upsertCountry({ timeZone: 'Europe/Stockholm' }, { 'cf-ipcountry': 'NO' }, { GEO_SIGNING_KEY: KEY }), 'SE');
+  // A header that doesn't verify against the signing key falls back to the time zone.
+  assert.equal(await upsertCountry({ timeZone: 'Europe/Stockholm' }, { [GEO_HEADER]: 'garbage' }, { GEO_SIGNING_KEY: KEY }), 'SE');
 });
 
 test('the tracker sends the IANA time zone to visitor-identification', () => {

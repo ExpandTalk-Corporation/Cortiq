@@ -20,6 +20,7 @@
 import type { SupabaseClient } from './supabase.ts';
 import type { PipelineMode } from './jurisdiction.ts';
 import { anonymizeIP } from './jurisdiction.ts';
+import { resolveGeo, geoKey } from './geo.ts';
 
 export interface BotMatch {
   botCatalogId: string | null;
@@ -59,18 +60,6 @@ export function deriveUACategory(ua: string | null): string | null {
     'Desktop';
 
   return `${device} ${browser}`;
-}
-
-/**
- * Extract the client IP from the request.
- * Cloudflare injects CF-Connecting-IP. Falls back to X-Forwarded-For.
- */
-function getClientIP(req: Request): string | null {
-  return (
-    req.headers.get('cf-connecting-ip') ??
-    req.headers.get('x-forwarded-for')?.split(',')[0].trim() ??
-    null
-  );
 }
 
 /**
@@ -235,12 +224,11 @@ export async function detectAndRecordBot(
 ): Promise<BotMatch | null> {
   try {
     const rawUA  = req.headers.get('user-agent');
-    const rawIP  = getClientIP(req);
-    const country = (
-      req.headers.get('cf-ipcountry') ??
-      req.headers.get('x-country') ??
-      null
-    );
+    // No live caller today (grep -rn detectAndRecordBot supabase/functions shows only this
+    // file); resolved once so a future caller gets signed edge geo into bot_detections.country.
+    const geo = await resolveGeo(req, { key: geoKey(), timeZone: null });
+    const rawIP = geo.ip;
+    const country = geo.country;
 
     // Layers 1 + 2 via DB function
     let match = await matchBot(supabase, rawUA, rawIP);
