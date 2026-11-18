@@ -9,3 +9,7 @@ workers_dev = true
 SUPABASE_URL = "https://cxmkdtgfocgbfizawlwa.supabase.co"
 
 # GEO_SIGNING_KEY is a secret: npx wrangler secret put GEO_SIGNING_KEY
+
+# No request logs at Cloudflare (docs/legal/2026-11-geo-worker-review.md): IPs pass through, nothing is kept.
+[observability]
+enabled = false
