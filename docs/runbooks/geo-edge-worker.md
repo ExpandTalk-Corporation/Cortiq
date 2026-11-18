@@ -68,7 +68,7 @@ or an ad blocker list includes workers.dev.
      itsäkerhet.com and båtguide.nu have no local repo: Daniel updates them by hand.
 2. Update the DPA subprocessor list (next DPA version) and the privacy policy page; copy rules in CLAUDE.md apply.
 3. Daniel approves → status approved_internal. Record date and DPA version here.
-   - Approved: ____ (date) · DPA version: ____
+   - Approved: 2026-11-18 (Daniel) · DPA version: 1.6 (status approved_internal)
 4. Only then release (section 3 step 4).
 
 ## 6. Volume

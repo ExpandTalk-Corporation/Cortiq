@@ -1,6 +1,6 @@
 # Juridisk granskning: geo-Workern "cortiq-geo" (Cloudflare) före release
 
-**Status: reviewed_agent** · Granskad 18 november 2026 av jurist-agenten · Inte juridisk rådgivning i ett enskilt ärende och ersätter inte advokat.
+**Status: approved_internal** (Daniel, 2026-11-18; earlier reviewed_agent) · Granskad 18 november 2026 av jurist-agenten · Inte juridisk rådgivning i ett enskilt ärende och ersätter inte advokat.
 Underlag: `workers/geo-edge/src/index.js`, `workers/geo-edge/wrangler.toml`, `supabase/functions/_shared/geo-token.js`, `_shared/geo.ts`, `supabase/functions/geo-check/index.ts`, runbook `docs/runbooks/geo-edge-worker.md` (avsnitt 5), spec `2026-11-18-jurisdiction-aware-measurement-design.md`, `DPA.md` (version 1.5), `src/pages/Privacy.tsx`, `src/content/legal.ts`, `docs/legal/TIA-2026-10-14.md`.
 
 ---

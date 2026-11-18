@@ -6,7 +6,7 @@
 
 - **Data Processor:** Expandtalk Corporation AB, org. nr. 559358-8824, registered office Göteborg, VAT no. SE559358882401, Parmmätaregatan 4B, 417 04 Göteborg, Sweden ("CortIQ").
 
-**Version:** 1.6, dated [DATE] 2026.
+**Version:** 1.6, dated 18 November 2026.
 
 This Data Processing Agreement ("DPA") governs the processing of personal data by CortIQ on behalf of the Customer, in accordance with Article 28 of the General Data Protection Regulation (EU) 2016/679 ("GDPR"). It forms part of the CortIQ Terms of Service (https://cortiq.se/terms/) and is accepted together with them when the Customer creates an account. Installing the tracking script, plugin, Worker or a server-side adapter with the Customer's keys also confirms acceptance of the version then in force. In case of conflict regarding personal data, this DPA prevails over the Terms of Service.
 
@@ -190,7 +190,7 @@ For all GDPR and data protection enquiries: [info@expandtalk.se](mailto:info@exp
 
 ---
 
-*Version: 1.6, dated [DATE] 2026 (replaces version 1.5 of 7 November 2026). Changes to this DPA follow the change procedure in section 12 of the Terms of Service.*
+*Version: 1.6, dated 18 November 2026 (replaces version 1.5 of 7 November 2026). Changes to this DPA follow the change procedure in section 12 of the Terms of Service.*
 
 *Changes in 1.6: Cloudflare's role as sub-processor extended to the geo edge – CortIQ's Cloudflare Worker, through which the tracking script, aggregate script and consent banner reach CortIQ, and which derives country and US/Canadian region from the IP address; country added to the data categories for visitor analytics, consent records and aggregate measurement; transfer basis for Cloudflare stated as SCCs Module 3 first.*
 

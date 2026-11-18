@@ -8,7 +8,7 @@ import { useSEO } from "@/hooks/useSEO";
 import { seoFor } from "@/marketing-routes";
 import { Shield, CheckCircle, Mail, FileText, Database, Users, BarChart3, Megaphone, FileSearch } from "lucide-react";
 
-const LAST_UPDATED = "[DATE], 2026";
+const LAST_UPDATED = "November 18, 2026";
 
 const Privacy = () => {
   useSEO(seoFor("/privacy/"));
