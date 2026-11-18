@@ -1,0 +1,11 @@
+# CortIQ geo edge — see docs/runbooks/geo-edge-worker.md
+name = "cortiq-geo"
+account_id = "965167b0273f7357cf036e3fffcd825a"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+workers_dev = true
+
+[vars]
+SUPABASE_URL = "https://cxmkdtgfocgbfizawlwa.supabase.co"
+
+# GEO_SIGNING_KEY is a secret: npx wrangler secret put GEO_SIGNING_KEY
