@@ -60,7 +60,12 @@ or an ad blocker list includes workers.dev.
      Re-check before the first external customer — from then on, a subprocessor change needs the notice.
    - Account renamed and DPA recorded (section 1); Workers Logs/Traces off, no Logpush (checked 2026-11-18);
      TIA §4 complete (DPF listing checked 2026-11-18).
-   - Expandtalk's own sites' privacy policies name Cloudflare (Art. 13.1 e–f): ____
+   - Expandtalk's own sites' privacy policies name Cloudflare (Art. 13.1 e–f). Branch `docs/privacy-cloudflare`
+     (local, 2026-11-18) in expandtalk-web and sentrisk adds the text + the Worker in CSP connect-src (without it
+     the browser blocks the Worker and every request goes direct); publish with the 5.5.16 dist. ekonom.biz serves
+     a vendored spa-tracking 5.5.6, so its branch waits for the vendor update to 5.5.16 + CSP. vikingage inlines an
+     old aggregate beacon straight to supabase.co: no Cloudflare, no change until its snippet is replaced.
+     itsäkerhet.com and båtguide.nu have no local repo: Daniel updates them by hand.
 2. Update the DPA subprocessor list (next DPA version) and the privacy policy page; copy rules in CLAUDE.md apply.
 3. Daniel approves → status approved_internal. Record date and DPA version here.
    - Approved: ____ (date) · DPA version: ____
