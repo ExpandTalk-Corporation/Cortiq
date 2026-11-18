@@ -117,3 +117,57 @@ export function buildCookiefreeAnalytics(raw: Partial<CookiefreeRaw> | null | un
     period: { startDate, endDate, days: periodDays(startDate, endDate) },
   };
 }
+
+/** Below this many banner answers the accept/reject shares are noise, so the summary sentence is hidden. */
+export const MIN_BANNER_ANSWERS_FOR_INSIGHT = 20;
+
+const CMP_LABELS: Record<string, string> = {
+  cookiebot: 'Cookiebot', cookieyes: 'CookieYes', onetrust: 'OneTrust', 'google-consent-mode': 'Google Consent Mode',
+};
+
+export type BannerEmptyState = {
+  title: string;
+  body: string;
+  /** Dashboard tab for the primary action. */
+  action: { tab: 'consent' | 'setup'; label: string };
+  /** Only when the CortIQ banner should be recording answers: offer a Tracking Check. */
+  trackingCheck: boolean;
+};
+
+/**
+ * What the Cookie Banner view says when there are no banner answers. Only the CortIQ banner writes
+ * cookie_consents (store-consent), so with an own CMP or no banner zero is expected, not a fault.
+ */
+export function bannerEmptyState(setup: string | null | undefined, cmp: string | null | undefined): BannerEmptyState {
+  if (setup === 'own-cmp') {
+    const name = (cmp && CMP_LABELS[cmp]) || 'its own consent tool';
+    return {
+      title: 'Banner answers are recorded only by the CortIQ banner',
+      body: `This site uses ${name}, so its accept and reject answers are not stored in CortIQ.`,
+      action: { tab: 'consent', label: 'Consent settings' },
+      trackingCheck: false,
+    };
+  }
+  if (setup === 'none') {
+    return {
+      title: 'This site has no consent banner',
+      body: 'It runs aggregate measurement only, so there are no banner answers to show.',
+      action: { tab: 'consent', label: 'Consent settings' },
+      trackingCheck: false,
+    };
+  }
+  if (setup === 'cortiq-banner') {
+    return {
+      title: 'No banner answers in this period',
+      body: 'The CortIQ banner is chosen for this site, but no visitor answered it in this period. If the snippet was copied before the banner was chosen, copy it again; otherwise check that the banner loads.',
+      action: { tab: 'setup', label: 'Copy the snippet' },
+      trackingCheck: true,
+    };
+  }
+  return {
+    title: 'No consent setup chosen',
+    body: 'Choose how this site collects consent. Banner answers are recorded when you use the CortIQ banner.',
+    action: { tab: 'consent', label: 'Choose consent setup' },
+    trackingCheck: false,
+  };
+}
