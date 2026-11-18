@@ -11,9 +11,10 @@ COMMENT ON COLUMN public.sites.aggregate_enabled_at IS
 
 UPDATE public.sites SET aggregate_enabled_at = now() WHERE aggregate_measurement AND aggregate_enabled_at IS NULL;
 
--- Stamps now() when the flag turns true, unless the same statement also set aggregate_enabled_at
--- explicitly (used to backdate it, e.g. in tests or a data fix) — detected by comparing against OLD,
--- since a column left out of an UPDATE's SET list keeps NEW equal to OLD.
+-- Always stamps now() when the flag turns true (INSERT with it true, or UPDATE false->true), and
+-- always clears it when the flag turns false. Backdating aggregate_enabled_at for a test or a data
+-- fix needs its own separate UPDATE afterwards, since this trigger only fires on a change to
+-- aggregate_measurement and always wins over whatever the same statement set the column to.
 CREATE OR REPLACE FUNCTION public.sites_set_aggregate_enabled_at()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -21,9 +22,7 @@ SET search_path = ''
 AS $$
 BEGIN
   IF NEW.aggregate_measurement AND (TG_OP = 'INSERT' OR NOT coalesce(OLD.aggregate_measurement, false)) THEN
-    IF TG_OP = 'INSERT' OR NEW.aggregate_enabled_at IS NOT DISTINCT FROM OLD.aggregate_enabled_at THEN
-      NEW.aggregate_enabled_at := now();
-    END IF;
+    NEW.aggregate_enabled_at := now();
   ELSIF NOT NEW.aggregate_measurement THEN
     NEW.aggregate_enabled_at := NULL;
   END IF;

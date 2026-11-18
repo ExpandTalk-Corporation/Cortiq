@@ -49,7 +49,8 @@ test('PostgreSQL: enabling sets aggregate_enabled_at; disabling clears it', asyn
 test('PostgreSQL: no hit 24 h after enabling opens one aggregate_never alert; a hit resolves it', async () => {
   const pg = await db();
   try {
-    await pg.exec(`UPDATE sites SET aggregate_measurement = true, aggregate_enabled_at = '2026-11-20 08:00Z' WHERE id IN ('${S1}', '${S2}')`);
+    await pg.exec(`UPDATE sites SET aggregate_measurement = true WHERE id IN ('${S1}', '${S2}')`);
+    await pg.exec(`UPDATE sites SET aggregate_enabled_at = '2026-11-20 08:00Z' WHERE id IN ('${S1}', '${S2}')`);
     await pg.exec(`INSERT INTO aggregate_pages_daily VALUES ('${S2}', '2026-11-20')`);
     await check(pg, '2026-11-21 07:00Z');           // 23 h: too early
     assert.deepEqual(await open(pg), []);
@@ -66,7 +67,8 @@ test('PostgreSQL: no hit 24 h after enabling opens one aggregate_never alert; a 
 test('PostgreSQL: flag off resolves the alert; on again later starts a new 24 h window', async () => {
   const pg = await db();
   try {
-    await pg.exec(`UPDATE sites SET aggregate_measurement = true, aggregate_enabled_at = '2026-11-20 08:00Z' WHERE id = '${S1}'`);
+    await pg.exec(`UPDATE sites SET aggregate_measurement = true WHERE id = '${S1}'`);
+    await pg.exec(`UPDATE sites SET aggregate_enabled_at = '2026-11-20 08:00Z' WHERE id = '${S1}'`);
     await check(pg, '2026-11-21 09:00Z');
     assert.equal((await open(pg)).length, 1);
     await pg.exec(`UPDATE sites SET aggregate_measurement = false WHERE id = '${S1}'`);
@@ -82,7 +84,8 @@ test('PostgreSQL: flag off resolves the alert; on again later starts a new 24 h 
 test('PostgreSQL: install status for the owner only', async () => {
   const pg = await db();
   try {
-    await pg.exec(`UPDATE sites SET aggregate_measurement = true, aggregate_enabled_at = now() - interval '2 days' WHERE id = '${S1}'`);
+    await pg.exec(`UPDATE sites SET aggregate_measurement = true WHERE id = '${S1}'`);
+    await pg.exec(`UPDATE sites SET aggregate_enabled_at = now() - interval '2 days' WHERE id = '${S1}'`);
     await pg.query(`SELECT set_config('request.jwt.claim.sub', $1, false)`, [OWNER]);
     const s = (await pg.query(`SELECT public.get_aggregate_install_status($1) AS s`, [S1])).rows[0].s;
     assert.equal(s.enabled, true);
