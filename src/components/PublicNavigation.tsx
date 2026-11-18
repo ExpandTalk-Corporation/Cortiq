@@ -5,25 +5,49 @@ import { BarChart3, Menu, ChevronDown, Github } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
-const FEATURES_LINKS = [
-  { to: "/features/ai/", label: "AI Agent Analytics" },
-  { to: "/features/analytics/", label: "Analytics & Heatmaps" },
-  { to: "/features/cyber/", label: "Cyber & Bot Security" },
-  { to: "/cmp/", label: "CMP Solution" },
+type NavLink = { to: string; label: string; note?: string };
+type NavItem = { label: string; to: string; children?: NavLink[] };
+
+// One row on desktop: five items, three of them menus. Child links stay in the prerendered HTML
+// (menus are hidden with CSS, not unmounted) so crawlers still find them.
+const NAV: NavItem[] = [
+  {
+    label: "Features",
+    to: "/features/",
+    children: [
+      { to: "/features/", label: "All features" },
+      { to: "/features/ai/", label: "AI Agent Analytics" },
+      { to: "/features/analytics/", label: "Analytics & Heatmaps" },
+      { to: "/features/cyber/", label: "Cyber & Bot Security" },
+      { to: "/cmp/", label: "CMP Solution" },
+    ],
+  },
+  {
+    label: "Tools",
+    to: "/tracking-check/",
+    children: [
+      { to: "/tracking-check/", label: "Tracking Check", note: "What your site sends, before and after consent" },
+      { to: "/gtm-audit/", label: "GTM Audit", note: "Audit a GTM export in your browser" },
+    ],
+  },
+  {
+    label: "Docs",
+    to: "/docs/",
+    children: [
+      { to: "/docs/", label: "Documentation" },
+      { to: "/integrations/", label: "Integrations" },
+    ],
+  },
+  { label: "Pricing", to: "/pricing/" },
+  { label: "Contact", to: "/contact/" },
 ];
 
-const TOP_NAV = [
-  { to: "/tracking-check/", label: "Tracking Check" },
-  { to: "/gtm-audit/", label: "GTM Audit" },
-  { to: "/integrations/", label: "Integrations" },
-  { to: "/docs/", label: "Docs" },
-  { to: "/pricing/", label: "Pricing" },
-  { to: "/contact/", label: "Contact" },
-];
+const isActive = (item: NavItem, path: string) =>
+  path === item.to || (item.children ?? []).some((c) => path === c.to);
 
 export default function PublicNavigation() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [featuresOpen, setFeaturesOpen] = useState(false);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const location = useLocation();
 
@@ -34,68 +58,61 @@ export default function PublicNavigation() {
 
   return (
     <nav className="glass border-b border-border/20 sticky top-0 z-50">
-      <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-        <Link to="/" className="flex items-center space-x-3">
-          <div className="relative">
-            <BarChart3 className="h-10 w-10 text-primary animate-pulse-glow" />
-            <div className="absolute inset-0 h-10 w-10 text-primary opacity-30 animate-ping"></div>
-          </div>
-          <span className="text-2xl font-bold text-gradient-primary">CortIQ</span>
+      <div className="container mx-auto px-4 py-3 flex justify-between items-center gap-4">
+        <Link to="/" className="flex items-center gap-2 shrink-0" aria-label="CortIQ home">
+          <BarChart3 className="h-7 w-7 text-primary" />
+          <span className="text-xl font-bold text-gradient-primary">CortIQ</span>
         </Link>
 
         {/* Desktop Navigation */}
-        <div className="hidden md:flex items-center space-x-8">
-          <Link to="/" className="text-foreground hover:text-primary transition-colors font-medium">
-            Home
-          </Link>
-
-          {/* Features dropdown */}
-          <div
-            className="relative"
-            onMouseEnter={() => setFeaturesOpen(true)}
-            onMouseLeave={() => setFeaturesOpen(false)}
-          >
-            <button className="flex items-center gap-1 text-foreground hover:text-primary transition-colors font-medium">
-              Features <ChevronDown className="h-4 w-4" />
-            </button>
-            {/* Always rendered (hidden via CSS) so the links exist in the prerendered HTML for crawlers. */}
-            <div className={`${featuresOpen ? "block" : "hidden"} absolute top-full left-0 mt-1 w-52 rounded-lg border border-border bg-background shadow-lg py-1 z-50`}>
-              <Link
-                to="/features/"
-                className="block px-4 py-2 text-sm text-muted-foreground hover:text-primary hover:bg-muted/50 transition-colors font-medium"
+        <div className="hidden lg:flex items-center gap-1 whitespace-nowrap">
+          {NAV.map((item) => {
+            const active = isActive(item, location.pathname);
+            const itemClass = `flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+              active ? "text-primary" : "text-foreground hover:text-primary"
+            }`;
+            if (!item.children) {
+              return <Link key={item.label} to={item.to} className={itemClass}>{item.label}</Link>;
+            }
+            const open = openMenu === item.label;
+            return (
+              <div
+                key={item.label}
+                className="relative"
+                onMouseEnter={() => setOpenMenu(item.label)}
+                onMouseLeave={() => setOpenMenu(null)}
               >
-                All Features
-              </Link>
-              <div className="my-1 border-t border-border/50" />
-              {FEATURES_LINKS.map((link) => (
-                <Link
-                  key={link.to}
-                  to={link.to}
-                  className="block px-4 py-2 text-sm text-foreground hover:text-primary hover:bg-muted/50 transition-colors"
+                <button
+                  type="button"
+                  className={itemClass}
+                  aria-expanded={open}
+                  onClick={() => setOpenMenu(open ? null : item.label)}
                 >
-                  {link.label}
-                </Link>
-              ))}
-            </div>
-          </div>
-
-          {TOP_NAV.map((link) => (
-            <Link
-              key={link.to}
-              to={link.to}
-              className={`font-medium transition-colors ${
-                location.pathname === link.to
-                  ? "text-primary"
-                  : "text-foreground hover:text-primary"
-              }`}
-            >
-              {link.label}
-            </Link>
-          ))}
+                  {item.label} <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
+                </button>
+                {/* Always rendered (hidden via CSS) so the links exist in the prerendered HTML for crawlers. */}
+                <div className={`${open ? "block" : "hidden"} absolute top-full left-0 pt-1 z-50`}>
+                  <div className="min-w-56 rounded-lg border border-border bg-background shadow-lg py-1">
+                    {item.children.map((link) => (
+                      <Link
+                        key={link.to + link.label}
+                        to={link.to}
+                        onClick={() => setOpenMenu(null)}
+                        className="block px-4 py-2 text-sm hover:bg-muted/50 transition-colors"
+                      >
+                        <span className={location.pathname === link.to ? "text-primary" : "text-foreground"}>{link.label}</span>
+                        {link.note && <span className="block text-xs text-muted-foreground whitespace-normal">{link.note}</span>}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         {/* Desktop Actions */}
-        <div className="hidden md:flex items-center space-x-4">
+        <div className="hidden lg:flex items-center gap-3 shrink-0">
           <a
             href="https://github.com/ExpandTalk-Corporation/Cortiq"
             target="_blank"
@@ -106,15 +123,15 @@ export default function PublicNavigation() {
           </a>
           <ThemeToggle />
           <Link to="/auth">
-            <Button variant="ghost" className="hover-lift">Log in</Button>
+            <Button variant="ghost" size="sm">Log in</Button>
           </Link>
           <Link to="/auth">
-            <Button className="bg-gradient-primary hover-scale hover-glow">Request Invitation</Button>
+            <Button size="sm" className="bg-gradient-primary">Request invitation</Button>
           </Link>
         </div>
 
         {/* Mobile Menu */}
-        <div className="flex md:hidden items-center space-x-2">
+        <div className="flex lg:hidden items-center space-x-2">
           <ThemeToggle />
           {mounted ? (
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
@@ -131,45 +148,30 @@ export default function PublicNavigation() {
                 </div>
 
                 <nav className="flex flex-col space-y-1">
-                  <Link
-                    to="/"
-                    className="text-lg font-medium text-foreground hover:text-primary transition-colors py-2"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Home
-                  </Link>
-
-                  <div className="py-2">
-                    <p className="text-lg font-medium text-foreground mb-1">Features</p>
-                    <div className="pl-4 flex flex-col space-y-1">
-                      <Link
-                        to="/features/"
-                        className="text-sm text-muted-foreground hover:text-primary transition-colors py-1"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        All Features
-                      </Link>
-                      {FEATURES_LINKS.map((link) => (
-                        <Link
-                          key={link.to}
-                          to={link.to}
-                          className="text-sm text-foreground hover:text-primary transition-colors py-1"
-                          onClick={() => setMobileMenuOpen(false)}
-                        >
-                          {link.label}
-                        </Link>
-                      ))}
+                  {NAV.map((item) => item.children ? (
+                    <div key={item.label} className="py-2">
+                      <p className="text-lg font-medium text-foreground mb-1">{item.label}</p>
+                      <div className="pl-4 flex flex-col space-y-1">
+                        {item.children.map((link) => (
+                          <Link
+                            key={link.to + link.label}
+                            to={link.to}
+                            className="text-sm text-foreground hover:text-primary transition-colors py-1"
+                            onClick={() => setMobileMenuOpen(false)}
+                          >
+                            {link.label}
+                          </Link>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-
-                  {TOP_NAV.map((link) => (
+                  ) : (
                     <Link
-                      key={link.to}
-                      to={link.to}
+                      key={item.label}
+                      to={item.to}
                       className="text-lg font-medium text-foreground hover:text-primary transition-colors py-2"
                       onClick={() => setMobileMenuOpen(false)}
                     >
-                      {link.label}
+                      {item.label}
                     </Link>
                   ))}
                 </nav>
@@ -189,7 +191,7 @@ export default function PublicNavigation() {
                     <Button variant="outline" className="w-full">Log in</Button>
                   </Link>
                   <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
-                    <Button className="w-full bg-gradient-primary">Request Invitation</Button>
+                    <Button className="w-full bg-gradient-primary">Request invitation</Button>
                   </Link>
                 </div>
               </div>
