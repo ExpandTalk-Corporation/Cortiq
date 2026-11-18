@@ -50,6 +50,8 @@
 
   // Global Privacy Control (spec 2026-11-18 AC6): marketing/sale/sharing stays refused while the
   // browser sends GPC. No checkbox can override it in this version.
+  // Read once at load on purpose: navigator.globalPrivacyControl is a static browser/extension
+  // setting for the session, not something that changes mid-page.
   var GPC = (function () { try { return navigator.globalPrivacyControl === true; } catch (e) { return false; } })();
   function timeZone() {
     try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) { return ''; }
@@ -252,10 +254,16 @@
     });
   }
 
+  // GPC wins over whatever was stored before this visit (saved pre-5.5.15, or before the
+  // browser turned GPC on): every reader of a stored choice — consentAlreadyGiven, the
+  // reopened settings panel, the initial render, the startup Consent Mode replay — gets
+  // marketing already forced false. localStorage itself is left untouched.
   function readStored() {
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : null;
+      var saved = raw ? JSON.parse(raw) : null;
+      if (saved && GPC) saved.marketing = false;
+      return saved;
     } catch (e) { return null; }
   }
 

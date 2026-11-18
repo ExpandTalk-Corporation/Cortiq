@@ -18,8 +18,8 @@
     "5.5.15": {
       "securityFix": false,
       "files": {
-        "cortiq.js": "sha384-rcWLXvCcATt9KPD6I7bPnmWY7EsafOP8+wbufHRYcqcpAAtQv5BzeY41bbSOnODB",
-        "consent-banner.js": "sha384-3jk2OX4V1jGw6sp5sfXnCsRgQmZl5XQsZtBAbiTUg/TUuO6HiFYieqZBPRMZLbUJ"
+        "cortiq.js": "sha384-B648pAqEQjjBskQBwZDEP51cRkqIrkQZQEd8pxqkCuxk/O8k8d0H+QwOxidgKkKc",
+        "consent-banner.js": "sha384-g+KE8/5XuONFzD0GLWu+MlAbwqeMbUYrBz/p28l3AcVRRGSLdq7tu+4uwTr+e6eP"
       }
     }
   }

@@ -185,6 +185,9 @@
   // Check if visitor has given marketing/advertising consent
   function hasMarketingConsent() {
     if (COOKIELESS) return false;
+    // GPC wins (spec 2026-11-18 AC6): overrides consentOverride, Cookiebot, stored consent and
+    // Google consent, even when one of those says marketing was granted.
+    try { if (navigator.globalPrivacyControl === true) return false; } catch (_) {}
     if (consentOverride) return consentOverride.marketing === true;
     if (window.Cookiebot) return window.Cookiebot.consent?.marketing === true;
     try {

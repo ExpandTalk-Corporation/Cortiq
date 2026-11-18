@@ -215,6 +215,17 @@ test('Google Consent Mode v2: a stored choice is replayed as an update on the ne
   assert.equal(bumped.consent().length, 1, 'a bumped policy version replays nothing');
 });
 
+test('GPC: a stored marketing=true choice from before GPC (or before 5.5.15) is replayed with ads denied', () => {
+  const stored = { necessary: true, analytics: true, marketing: true, preferences: false, policyVersion: '1',
+    expiresAt: '2099-01-01T00:00:00Z' };
+  const p = page({ stored, attrs: { 'data-categories': 'analytics,marketing', 'data-consent-mode': 'google' }, nav: { globalPrivacyControl: true } });
+  const [def, update] = p.consent();
+  assert.equal(def[1], 'default');
+  assert.equal(update[1], 'update');
+  assert.equal(update[2].analytics_storage, 'granted');
+  for (const k of ['ad_storage', 'ad_user_data', 'ad_personalization']) assert.equal(update[2][k], 'denied', k);
+});
+
 test('Google Consent Mode v2 is opt-in, and another CMP keeps it off', () => {
   assert.deepEqual(page().consent(), [], 'off by default');
   const accepted = page();
