@@ -108,7 +108,7 @@
       reopen     : 'Cookieinställningar',
       dialog     : 'Samtycke till cookies',
       storage    : ' Sparas på din enhet bara under besöket. Hur länge webbplatsen sparar uppgifterna står i integritetspolicyn.',
-      gpc        : 'Din webbläsare skickar Global Privacy Control (GPC). Därför är marknadsföring avstängd.',
+      gpc        : 'Din webbläsare skickar Global Privacy Control (GPC). Därför är marknadsföring avstängd här.',
       cats: {
         necessary    : ['Nödvändiga',     'Sparar dina val i den här rutan i 12 månader på din enhet. Valet loggas också hos CortIQ som bevis på samtycket. Alltid på.'],
         analytics    : ['Statistik',      'Mäter hur webbplatsen används: vilka sidor du besöker, klick och var på sidan du klickar, scrollning, hur formulär används (inte vad du skriver) och varifrån besöket kom. För att känna igen återkommande besök används uppgifter om din webbläsare och enhet, till exempel webbläsartyp, skärmstorlek, språk och tidszon. Uppgifterna innehåller inte ditt namn men är personuppgifter. CortIQ behandlar dem på uppdrag av webbplatsen.'],
@@ -131,7 +131,7 @@
       reopen     : 'Cookie settings',
       dialog     : 'Cookie consent',
       storage    : ' Kept on your device only during the visit. How long the site keeps the data is stated in the privacy policy.',
-      gpc        : 'Your browser sends Global Privacy Control (GPC), so marketing is turned off.',
+      gpc        : 'Your browser sends Global Privacy Control (GPC), so marketing is turned off here.',
       cats: {
         necessary    : ['Necessary',   'Stores your choices in this box on your device for 12 months. The choice is also logged by CortIQ as proof of consent. Always on.'],
         analytics    : ['Statistics',  'Measures how the site is used: pages you visit, clicks and where on the page you click, scrolling, how forms are used (not what you type) and where the visit came from. To recognise returning visits, information about your browser and device is used, such as browser type, screen size, language and time zone. The data does not include your name but is personal data. CortIQ processes it on behalf of the site.'],
@@ -154,7 +154,7 @@
       reopen     : 'Cookie-Einstellungen',
       dialog     : 'Einwilligung zu Cookies',
       storage    : ' Wird auf Ihrem Gerät nur während des Besuchs gespeichert. Wie lange die Website die Daten speichert, steht in der Datenschutzerklärung.',
-      gpc        : 'Ihr Browser sendet Global Privacy Control (GPC). Marketing ist deshalb deaktiviert.',
+      gpc        : 'Ihr Browser sendet Global Privacy Control (GPC). Marketing ist deshalb hier deaktiviert.',
       cats: {
         necessary    : ['Notwendig',   'Speichert Ihre Auswahl in diesem Fenster für 12 Monate auf Ihrem Gerät. Die Auswahl wird außerdem bei CortIQ als Nachweis der Einwilligung protokolliert. Immer aktiv.'],
         analytics    : ['Statistik',   'Misst, wie die Website genutzt wird: welche Seiten Sie besuchen, Klicks und wohin Sie auf der Seite klicken, Scrollen, wie Formulare genutzt werden (nicht, was Sie eingeben) und woher der Besuch kam. Um wiederkehrende Besuche zu erkennen, werden Angaben zu Ihrem Browser und Gerät verwendet, z. B. Browsertyp, Bildschirmgröße, Sprache und Zeitzone. Die Daten enthalten nicht Ihren Namen, sind aber personenbezogene Daten. CortIQ verarbeitet sie im Auftrag der Website.'],
@@ -177,7 +177,7 @@
       reopen     : 'Paramètres des cookies',
       dialog     : 'Consentement aux cookies',
       storage    : ' Conservé sur votre appareil uniquement pendant la visite. La durée de conservation des données par le site est indiquée dans la politique de confidentialité.',
-      gpc        : 'Votre navigateur envoie le signal Global Privacy Control (GPC) : le marketing est donc désactivé.',
+      gpc        : 'Votre navigateur envoie le signal Global Privacy Control (GPC) : le marketing est donc désactivé ici.',
       cats: {
         necessary    : ['Nécessaires',  'Enregistre vos choix dans cette fenêtre sur votre appareil pendant 12 mois. Le choix est également journalisé par CortIQ comme preuve du consentement. Toujours actifs.'],
         analytics    : ['Statistiques', 'Mesure l’utilisation du site : pages consultées, clics et endroit où vous cliquez, défilement, utilisation des formulaires (pas ce que vous saisissez) et provenance de la visite. Pour reconnaître les visites répétées, des informations sur votre navigateur et votre appareil sont utilisées, comme le type de navigateur, la taille de l’écran, la langue et le fuseau horaire. Les données ne contiennent pas votre nom mais sont des données personnelles. CortIQ les traite pour le compte du site.'],
@@ -200,7 +200,7 @@
       reopen     : 'Definições de cookies',
       dialog     : 'Consentimento de cookies',
       storage    : ' Guardado no seu dispositivo apenas durante a visita. O tempo durante o qual o site guarda os dados consta da política de privacidade.',
-      gpc        : 'O seu navegador envia Global Privacy Control (GPC), por isso o marketing está desativado.',
+      gpc        : 'O seu navegador envia o sinal Global Privacy Control (GPC), por isso o marketing está desativado aqui.',
       cats: {
         necessary    : ['Necessários',  'Guarda as suas escolhas nesta janela no seu dispositivo durante 12 meses. A escolha é também registada pela CortIQ como prova do consentimento. Sempre ativos.'],
         analytics    : ['Estatísticas', 'Mede como o site é usado: páginas que visita, cliques e onde clica na página, deslocamento, como os formulários são usados (não o que escreve) e a origem da visita. Para reconhecer visitas repetidas, são usadas informações sobre o seu navegador e dispositivo, como tipo de navegador, tamanho do ecrã, idioma e fuso horário. Os dados não incluem o seu nome, mas são dados pessoais. A CortIQ trata-os em nome do site.'],

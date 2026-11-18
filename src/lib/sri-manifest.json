@@ -19,7 +19,7 @@
       "securityFix": false,
       "files": {
         "cortiq.js": "sha384-B648pAqEQjjBskQBwZDEP51cRkqIrkQZQEd8pxqkCuxk/O8k8d0H+QwOxidgKkKc",
-        "consent-banner.js": "sha384-g+KE8/5XuONFzD0GLWu+MlAbwqeMbUYrBz/p28l3AcVRRGSLdq7tu+4uwTr+e6eP"
+        "consent-banner.js": "sha384-hgbeTFOyI/lzxbH9m/H65rwAb7Yd6jcYYJdcfaezPOtUuszzetfdg9AETu2UZJng"
       }
     }
   }
