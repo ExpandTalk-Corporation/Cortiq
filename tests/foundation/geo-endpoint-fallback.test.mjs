@@ -84,3 +84,20 @@ test('banner and beacon use the same rule and fallback', () => {
   assert.match(plugin, /CQ_GEO\s*=/);
   assert.match(plugin, /x-cortiq-geo-proxy/);
 });
+
+// Legal review 2026-11 point 4a: the direct supabase.co host can set __cf_bm, which browsers only
+// store for credentialed requests. No CortIQ call may send credentials, and sendBeacon (always
+// credentialed, and blind to a blocked Worker) is not used.
+test('credentials omitted on every call, Worker and direct fallback alike', async () => {
+  const seen = [];
+  const r = routing({}, (url, init) => { seen.push(init.credentials); return seen.length === 1 ? Promise.reject(new TypeError('blocked')) : ok(); });
+  await r.apiFetch('/ai-bot-tracker', { method: 'POST', body: '{}', keepalive: true });
+  assert.deepEqual(seen, ['omit', 'omit']);
+});
+
+test('no sendBeacon in the tracker; banner, beacon and WP banner omit credentials', () => {
+  assert.doesNotMatch(tracker, /navigator.sendBeacon/);
+  assert.match(banner, /credentials: 'omit'/);
+  assert.match(beacon, /credentials: 'omit'/);
+  assert.match(plugin, /function cqFetch\(path, init\)\{\n\s+init = Object\.assign\(\{\}, init, \{ credentials: 'omit' \}\);/);
+});

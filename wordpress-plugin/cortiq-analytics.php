@@ -547,6 +547,7 @@ function cortiq_cookie_banner() {
   var CQ_GEO = '<?php echo esc_js( CORTIQ_GEO_API ); ?>';
   // Through the CortIQ geo Worker (signed country); direct if it fails.
   function cqFetch(path, init){
+    init = Object.assign({}, init, { credentials: 'omit' });
     var direct = function(){ CQ_GEO = CQ_API; return fetch(CQ_API + path, init); };
     if (CQ_GEO === CQ_API) { return fetch(CQ_API + path, init); }
     return fetch(CQ_GEO + path, init).then(function(r){ return r.headers.get('x-cortiq-geo-proxy') === 'error' ? direct() : r; }, direct);

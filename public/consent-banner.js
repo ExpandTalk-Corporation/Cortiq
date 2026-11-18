@@ -338,7 +338,8 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
-        keepalive: true
+        keepalive: true,
+        credentials: 'omit'
       };
       // Through the CortIQ geo Worker (signed country) unless the site has its own apiUrl or
       // data-geo-url="false"; if the Worker fails, the same post goes directly once.

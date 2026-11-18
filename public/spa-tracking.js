@@ -46,7 +46,10 @@
   var API_DIRECT = config.apiUrl || DIRECT_URL;
   var API_URL = config.geoUrl === false ? API_DIRECT
     : (config.geoUrl || (API_DIRECT === DIRECT_URL ? GEO_URL : API_DIRECT));
+  // credentials: 'omit' on every call: the direct supabase.co host can set a __cf_bm cookie,
+  // which browsers only store for credentialed requests (legal review 2026-11, point 4a).
   function apiFetch(path, init) {
+    init = Object.assign({}, init, { credentials: 'omit' });
     var base = API_URL;
     var direct = function () { API_URL = API_DIRECT; return fetch(API_DIRECT + path, init); };
     if (base === API_DIRECT) return fetch(base + path, init);
@@ -1225,14 +1228,19 @@
     return true;
   }
 
+  // Plain-text keepalive fetch instead of sendBeacon: no CORS preflight, no cookies, and a
+  // blocked Worker falls back to the direct endpoint (sendBeacon could not detect that).
+  function postBotEvent(payload) {
+    apiFetch('/ai-bot-tracker', { method: 'POST', body: payload, keepalive: true }).catch(function () {});
+  }
+
   function trackAICitation() {
     const p = new URLSearchParams(window.location.search);
     const src = p.get('utm_source') || '';
     if (!detectAIReferrer()) return;
     const payload = JSON.stringify({ siteId: SITE_ID, url: window.location.href, referrer: document.referrer, userAgent: navigator.userAgent, sessionId: SECURITY_SESSION_ID, citationData: { url: window.location.href, utm_source: src, utm_medium: p.get('utm_medium'), utm_campaign: p.get('utm_campaign') } });
     try {
-      if (navigator.sendBeacon) navigator.sendBeacon(API_URL + '/ai-bot-tracker', payload);
-      else apiFetch('/ai-bot-tracker', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true }).catch(function () {});
+      postBotEvent(payload);
     } catch (_) { /* Storage or browser capability unavailable. */ }
   }
 
@@ -1256,15 +1264,14 @@
       probeData: { jsExecuted: true, signals: signals, capScore: capScore, isLikelyBot: true, knownAgent: known !== null, renderMs: Math.round(performance.now() - t0) },
     });
     try {
-      if (navigator.sendBeacon) navigator.sendBeacon(API_URL + '/ai-bot-tracker', payload);
-      else apiFetch('/ai-bot-tracker', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true }).catch(function () {});
+      postBotEvent(payload);
     } catch (_) { /* Storage or browser capability unavailable. */ }
     // Canary only for suspected bots: a canary fetched by a normal consented visitor
     // would be logged (and alerted) as scraping.
     try { setupCanary(); } catch (_) {}
     setTimeout(function () {
       const rms = Math.round(performance.now() - t0);
-      if (rms < 200 && navigator.sendBeacon) navigator.sendBeacon(API_URL + '/ai-bot-tracker', JSON.stringify({ siteId: SITE_ID, sessionId: SECURITY_SESSION_ID, agentFingerprint: fp, update: { renderMs: rms, fastRender: true } }));
+      if (rms < 200) postBotEvent(JSON.stringify({ siteId: SITE_ID, sessionId: SECURITY_SESSION_ID, agentFingerprint: fp, update: { renderMs: rms, fastRender: true } }));
     }, 500);
   }
 
@@ -1272,8 +1279,7 @@
     if (!hasAnalyticsConsent()) return;
     try {
       const payload = JSON.stringify({ siteId: SITE_ID, url: window.location.href, referrer: document.referrer || null, userAgent: navigator.userAgent, sessionId: SECURITY_SESSION_ID, probeData: { jsExecuted: true, signals: { honeypotTriggered: true, honeypotTrigger: trigger, webdriver: navigator.webdriver === true, headless: /HeadlessChrome/.test(navigator.userAgent) } } });
-      if (navigator.sendBeacon) navigator.sendBeacon(API_URL + '/ai-bot-tracker', payload);
-      else apiFetch('/ai-bot-tracker', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true }).catch(function () {});
+      postBotEvent(payload);
     } catch (_) { /* Storage or browser capability unavailable. */ }
   }
 
