@@ -54,7 +54,11 @@ export function ConversionGoalsConfig({ selectedSite, onUpdate }: ConversionGoal
   }, [selectedSite.id]);
 
   const hint = conversionSetupHint({ completedForms30d, goals });
-  const addAnyFormGoal = () => setGoals([...goals, { id: `goal_${Date.now()}`, ...ANY_FORM_GOAL, is_primary: goals.length === 0 }]);
+  // 'form' matches any <form> on the page — including search/login forms that aren't
+  // conversions — so this one-click goal is added as an observation goal, never primary.
+  // Primary drives pixel readiness and Smart Bidding signal; the site owner opts a goal
+  // into Primary explicitly once they've confirmed it tracks a real conversion.
+  const addAnyFormGoal = () => setGoals([...goals, { id: `goal_${Date.now()}`, ...ANY_FORM_GOAL, is_primary: false }]);
 
   const loadGoals = async () => {
     try {
@@ -162,10 +166,10 @@ export function ConversionGoalsConfig({ selectedSite, onUpdate }: ConversionGoal
         {hint !== 'ok' && (
           <div className="rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm space-y-2">
             <p>
-              {completedForms30d} forms were completed on this site in the last 30 days, but no conversion was recorded:{' '}
+              {completedForms30d} forms were completed on this site in the last 30 days, but{' '}
               {hint === 'no_goals'
-                ? 'the site has no conversion goals.'
-                : 'the goals still use the example selectors, which match no form on the site.'}
+                ? 'the site has no conversion goals, so none of them count as conversions.'
+                : 'the goals still use the example selectors, which likely match no form on this site.'}
             </p>
             <Button size="sm" onClick={addAnyFormGoal}>Add goal: any form submission</Button>
             <p className="text-xs text-muted-foreground">Then press Save. You can narrow the selector later.</p>

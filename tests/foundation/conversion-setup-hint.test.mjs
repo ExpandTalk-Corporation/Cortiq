@@ -30,3 +30,19 @@ test('Goals view uses the lib and counts completed forms server-side', () => {
   assert.match(ui, /\.not\('completed_at', 'is', null\)/);
   assert.doesNotMatch(ui, /const predefinedGoals = \[/);
 });
+test('the one-click goal is added as an observation goal, never primary', () => {
+  // 'form' matches any form on the page, including search/login forms that aren't
+  // conversions — is_primary must not be true just because it's the first goal added.
+  const ui = readFileSync('src/components/dashboard/ConversionGoalsConfig.tsx', 'utf8');
+  assert.match(ui, /addAnyFormGoal = \(\) => setGoals\(\[\.\.\.goals, \{ id: `goal_\$\{Date\.now\(\)\}`, \.\.\.ANY_FORM_GOAL, is_primary: false \}\]\)/);
+  assert.doesNotMatch(ui, /addAnyFormGoal[\s\S]{0,120}is_primary: goals\.length === 0/);
+});
+test('the setup hint copy does not overclaim what was verified', () => {
+  const ui = readFileSync('src/components/dashboard/ConversionGoalsConfig.tsx', 'utf8');
+  // Must not claim certainty the code never checked: whether a conversion fired, or
+  // that the example selectors definitely match nothing on this particular site.
+  assert.doesNotMatch(ui, /no conversion was recorded/);
+  assert.doesNotMatch(ui, /match no form on the site/);
+  assert.match(ui, /none of them count as conversions/);
+  assert.match(ui, /likely match no form on this site/);
+});

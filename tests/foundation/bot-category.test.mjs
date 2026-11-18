@@ -29,12 +29,16 @@ test('all three ai_bot_traffic writers set bot_category through storedBotCategor
 test('PostgreSQL: backfill maps request_type for registry rows, leaves others as other', async () => {
   const pg = new PGlite();
   try {
-    await pg.exec(`CREATE TABLE public.ai_bot_traffic (id serial, bot_name text, request_type text, bot_category text DEFAULT 'other');
-      INSERT INTO ai_bot_traffic (bot_name, request_type) VALUES
-        ('GPTBot','training'), ('ChatGPT-User','agentic'), ('PerplexityBot','citation'),
-        ('Honeypot visitor','unknown'), ('X','unknown'), ('Y', NULL);`);
+    await pg.exec(`CREATE TABLE public.ai_bot_traffic (id serial, bot_type text, bot_name text, request_type text, bot_category text DEFAULT 'other');
+      INSERT INTO ai_bot_traffic (bot_type, bot_name, request_type) VALUES
+        ('chatgpt', 'GPTBot','training'), ('chatgpt', 'ChatGPT-User','agentic'), ('perplexity', 'PerplexityBot','citation'),
+        ('other', 'Honeypot visitor','unknown'), ('other', 'X','unknown'), ('other', 'Y', NULL),
+        -- fallback (non-registry) rows that ai-bot-tracker's old signal-based requestType logic
+        -- could still have stamped as 'citation'/'agentic' — must stay 'other', never mapped.
+        ('other', 'Other Bot', 'citation'), ('other', 'Unknown Bot', 'agentic');`);
     await pg.exec(readFileSync('supabase/migrations/20261202000004_bot_category_backfill.sql', 'utf8'));
     const rows = (await pg.query(`SELECT bot_name, bot_category FROM ai_bot_traffic ORDER BY id`)).rows;
-    assert.deepEqual(rows.map((r) => r.bot_category), ['training', 'agentic', 'citation', 'other', 'other', 'other']);
+    assert.deepEqual(rows.map((r) => r.bot_category),
+      ['training', 'agentic', 'citation', 'other', 'other', 'other', 'other', 'other']);
   } finally { await pg.close(); }
 });

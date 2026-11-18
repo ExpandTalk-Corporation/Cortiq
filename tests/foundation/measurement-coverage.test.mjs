@@ -27,7 +27,10 @@ test('PostgreSQL: coverage v0 counts per site in range, service role only', asyn
         ('00000000-0000-4000-8000-000000000002', '${S1}', '2026-11-02', 'https://site.se/a', NULL),
         ('00000000-0000-4000-8000-000000000003', '${S1}', '2026-10-01', NULL, NULL);
       INSERT INTO cookie_consents VALUES ('${S1}', '2026-11-02', '{"analytics":true,"marketing":false}'),
-                                         ('${S1}', '2026-11-03', '{"analytics":false,"marketing":false}');
+                                         ('${S1}', '2026-11-03', '{"analytics":false,"marketing":false}'),
+                                         -- non-boolean consent_types payload (in range): must not throw,
+                                         -- and must not count as analytics or marketing consent.
+                                         ('${S1}', '2026-11-03', '{"analytics":"yes","marketing":{}}');
       INSERT INTO aggregate_sources_daily VALUES ('${S1}', '2026-11-02', 7), ('${S1}', '2026-11-03', 5);
       INSERT INTO ai_bot_traffic VALUES ('${S1}', 'server_log', '2026-11-02'), ('${S1}', 'js_tag', '2026-11-02');
       INSERT INTO conversion_events VALUES ('${S1}', '00000000-0000-4000-8000-000000000001', '2026-11-02'),
@@ -38,8 +41,10 @@ test('PostgreSQL: coverage v0 counts per site in range, service role only', asyn
     const r = (await pg.query(`SELECT * FROM public.measurement_coverage_v0('2026-11-01', '2026-11-30')`)).rows[0];
     assert.deepEqual(
       [r.consent_rows, r.consents_analytics, r.consents_marketing, r.consented_sessions, r.aggregate_visits, r.server_bot_hits, r.conversions, r.conversions_with_source].map(Number),
-      [2, 1, 0, 2, 12, 1, 2, 1]);
+      [3, 1, 0, 2, 12, 1, 2, 1]);
     const grants = (await pg.query(`SELECT has_function_privilege('authenticated', 'public.measurement_coverage_v0(date,date)', 'EXECUTE') a`)).rows[0].a;
     assert.equal(grants, false);
+    const anonGrants = (await pg.query(`SELECT has_function_privilege('anon', 'public.measurement_coverage_v0(date,date)', 'EXECUTE') a`)).rows[0].a;
+    assert.equal(anonGrants, false);
   } finally { await pg.close(); }
 });
