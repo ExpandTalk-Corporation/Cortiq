@@ -19,7 +19,7 @@ function makeElement(id) {
   };
 }
 
-function page({ attrs = {}, stored = null, htmlLang = '', hostname = 'www.vikingage.se', cortiqConfig, extraWindow = {} } = {}) {
+function page({ attrs = {}, stored = null, htmlLang = '', hostname = 'www.vikingage.se', cortiqConfig, extraWindow = {}, nav = {} } = {}) {
   const store = new Map(stored ? [['site_cookie_consent', JSON.stringify(stored)]] : []);
   const byId = new Map();
   const events = [];
@@ -34,6 +34,7 @@ function page({ attrs = {}, stored = null, htmlLang = '', hostname = 'www.viking
       for (const m of el.innerHTML.matchAll(/<(button|input)[^>]*id="([^"]+)"([^>]*)>/g)) {
         const child = makeElement(m[2]);
         child.checked = /\schecked/.test(m[0]);
+        child.disabled = /\sdisabled/.test(m[0]);
         byId.set(m[2], child);
       }
     },
@@ -48,7 +49,8 @@ function page({ attrs = {}, stored = null, htmlLang = '', hostname = 'www.viking
   };
   const window = { cortiqConfig, dispatchEvent: e => events.push(e.detail), matchMedia: () => ({ matches: false }), ...extraWindow };
   const context = {
-    window, document, navigator: { language: 'en-US' }, location: { hostname },
+    window, document, navigator: { language: 'en-US', ...nav }, location: { hostname },
+    Intl: { DateTimeFormat: () => ({ resolvedOptions: () => ({ timeZone: nav.timeZone ?? 'Europe/Stockholm' }) }) },
     localStorage: { getItem: k => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) },
     sessionStorage: { getItem: () => null, setItem() {} },
     CustomEvent: class { constructor(name, init) { this.detail = init.detail; } },
@@ -220,4 +222,39 @@ test('Google Consent Mode v2 is opt-in, and another CMP keeps it off', () => {
   assert.equal(accepted.window.dataLayer, undefined, 'no dataLayer touched without opt-in');
   assert.deepEqual(page({ attrs: { 'data-consent-mode': 'off' } }).consent(), []);
   assert.deepEqual(page({ attrs: { 'data-consent-mode': 'google' }, extraWindow: { Cookiebot: {} } }).consent(), []);
+});
+
+test('consent record carries the browser time zone', async () => {
+  const p = page({ attrs: { 'data-site-id': 'site-uuid' }, nav: { timeZone: 'America/Toronto' } });
+  p.byId.get('crtq-cb-accept').click();
+  await p.flush();
+  assert.equal(p.posts[0].body.time_zone, 'America/Toronto');
+});
+
+test('GPC: accept all keeps marketing refused everywhere, other categories granted', async () => {
+  const p = page({ attrs: { 'data-site-id': 'site-uuid', 'data-categories': 'analytics,marketing' }, nav: { globalPrivacyControl: true } });
+  const banner = p.byId.get('crtq-consent-banner');
+  assert.match(banner.innerHTML, /Global Privacy Control/);
+  assert.equal(p.byId.get('crtq-toggle-marketing').checked, false);
+  assert.equal(p.byId.get('crtq-toggle-marketing').disabled, true);
+  p.byId.get('crtq-cb-accept').click();
+  await p.flush();
+  assert.deepEqual({ a: p.saved().analytics, m: p.saved().marketing }, { a: true, m: false });
+  assert.equal(p.posts[0].body.consent_types.marketing, false);
+  assert.equal(p.posts[0].body.gpc_signal, true);
+  assert.equal(p.events[0].marketing, false);
+});
+
+test('GPC: a checked marketing toggle (tampered DOM) is still saved as refused', () => {
+  const p = page({ attrs: { 'data-site-id': 'site-uuid', 'data-categories': 'analytics,marketing' }, nav: { globalPrivacyControl: true } });
+  p.byId.get('crtq-toggle-marketing').checked = true;
+  p.byId.get('crtq-cb-save').click();
+  assert.equal(p.saved().marketing, false);
+});
+
+test('no GPC: marketing toggle is a normal choice', () => {
+  const p = page({ attrs: { 'data-site-id': 'site-uuid', 'data-categories': 'analytics,marketing' } });
+  assert.equal(p.byId.get('crtq-toggle-marketing').disabled, false);
+  p.byId.get('crtq-cb-accept').click();
+  assert.equal(p.saved().marketing, true);
 });

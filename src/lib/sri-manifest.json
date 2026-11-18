@@ -1,5 +1,5 @@
 {
-  "latest": "5.5.14",
+  "latest": "5.5.15",
   "versions": {
     "5.5.13": {
       "securityFix": false,
@@ -13,6 +13,13 @@
       "files": {
         "cortiq.js": "sha384-y4y4XBb9pn3VYZavtnyDTwibEDzqHANTfcwWHIwlT27Ovco8rm1Yd8/xmWxLp5to",
         "consent-banner.js": "sha384-GSIAtZ2qcSnLQOngYax7JbC8x/fsChkMIKV+p9Zud6O0QdWj/Qwfafx12tc9OAEt"
+      }
+    },
+    "5.5.15": {
+      "securityFix": false,
+      "files": {
+        "cortiq.js": "sha384-rcWLXvCcATt9KPD6I7bPnmWY7EsafOP8+wbufHRYcqcpAAtQv5BzeY41bbSOnODB",
+        "consent-banner.js": "sha384-3jk2OX4V1jGw6sp5sfXnCsRgQmZl5XQsZtBAbiTUg/TUuO6HiFYieqZBPRMZLbUJ"
       }
     }
   }
