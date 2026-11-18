@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "../_shared/supabase.ts";
 // Canonical AI-bot classifier — shared with ai-bot-tracker so server-log hits are
 // classified identically to JS-tag hits and merge cleanly in the dashboard.
-import { classifyBot } from "../_shared/ai-bot-registry.ts";
+import { classifyBot, storedBotCategory } from "../_shared/ai-bot-registry.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -281,6 +281,7 @@ serve(async (req) => {
         url:             path,
         referrer:        (referrer ?? '').slice(0, 500),
         request_type:    ai.botCategory,
+        bot_category:    storedBotCategory(ai),
         js_executed:     false,
         probe_triggered: false,
         ip_address:      ipSubnet ?? null,   // already /24-anonymised by the Worker

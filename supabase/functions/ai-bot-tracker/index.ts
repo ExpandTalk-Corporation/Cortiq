@@ -3,7 +3,7 @@ import { createClient } from "../_shared/supabase.ts";
 import { anonymizeIP } from "../_shared/jurisdiction.ts";
 // Canonical AI-bot classification — shared with cloudflare-ingest so both the JS-tag
 // and server-log paths classify identically. See _shared/ai-bot-registry.ts.
-import { classifyBot, type BotCategory } from "../_shared/ai-bot-registry.ts";
+import { classifyBot, storedBotCategory, type BotCategory } from "../_shared/ai-bot-registry.ts";
 import { resolveSite } from "../_shared/resolve-site.ts";
 import { skipTrackingCheck } from '../_shared/tracking-check-ua.ts';
 
@@ -141,7 +141,8 @@ serve(async (req) => {
     // the body is trivially forgeable (POST {userAgent:"GPTBot"}), the request header
     // is not settable from browser fetch. Fall back to the body only if absent.
     const ua = req.headers.get('user-agent') || userAgent || '';
-    const { botType, botName, botCategory }: { botType: string; botName: string; botCategory: BotCategory | null } = classifyBot(ua);
+    const classification = classifyBot(ua);
+    const { botType, botName, botCategory }: { botType: string; botName: string; botCategory: BotCategory | null } = classification;
 
     // Detect asset type
     const { isAsset, assetType } = detectAssetType(url);
@@ -194,6 +195,7 @@ serve(async (req) => {
         js_executed: probeData?.jsExecuted || false,
         probe_triggered: !!probeData,
         request_type: requestType,
+        bot_category: storedBotCategory(classification),
       })
       .select()
       .single();
