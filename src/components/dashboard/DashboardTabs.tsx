@@ -194,7 +194,7 @@ function DashboardTabsInner({ selectedSite, dateRange, onSiteDeleted, onSiteUpda
 
       <TabsContent value="ai-visibility" className="space-y-6">
         <TabErrorBoundary tabName="AI Visibility">
-          <AIVisibilityTab siteId={selectedSite.id} onNavigateToIntegrations={() => setActiveTab('integrations')} />
+          <AIVisibilityTab siteId={selectedSite.id} siteDomain={selectedSite.domain} onNavigateToIntegrations={() => setActiveTab('integrations')} />
         </TabErrorBoundary>
       </TabsContent>
 
