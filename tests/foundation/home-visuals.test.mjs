@@ -85,3 +85,15 @@ test('tool previews cannot be focused or read out (they are pictures of the tool
   assert.match(src, /inert: ""/);
   assert.match(src, /aria-hidden="true"/);
 });
+
+test('the banner example is the real banner in a sandbox without same-origin access', () => {
+  const src = read(HOME + 'ConsentSection.tsx');
+  assert.match(src, /src=\{`\/banner-demo\/index\.html\?lang=\$\{lang\}`\}/);
+  assert.match(src, /sandbox="allow-scripts"/);
+  assert.doesNotMatch(src, /allow-same-origin/);
+});
+
+test('reviewed legal text sits in details, measurement modes keep their full text', () => {
+  assert.match(read(HOME + 'LegalSection.tsx'), /<Faq\b/);
+  assert.match(read(HOME + 'ModesSection.tsx'), /<details\b[\s\S]*\{m\.text\}/);
+});

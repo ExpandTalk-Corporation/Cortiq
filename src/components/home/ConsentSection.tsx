@@ -1,10 +1,31 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Link } from "react-router-dom";
-import { Languages, ShieldCheck, Scale, FileText } from "lucide-react";
+import { useState } from "react";
+import { EyeOff, Languages, Puzzle, RotateCcw, Scale, ScrollText, Settings2, type LucideIcon } from "lucide-react";
+import { BANNER_POINTS } from "./copy";
 import { SectionHeader } from "./SectionHeader";
-import { BANNER_POINTS, MODES, LEGAL_BASES, LEGAL_DOCS, LEGAL_NOTES } from "./copy";
+
+const DEMO_LANGS = [
+  { code: "en", label: "English" },
+  { code: "sv", label: "Svenska" },
+  { code: "de", label: "Deutsch" },
+  { code: "fr", label: "Français" },
+  { code: "pt", label: "Português" },
+] as const;
+type DemoLang = (typeof DEMO_LANGS)[number]["code"];
+
+// Icon per BANNER_POINTS title (not by position — titles in copy.ts can be reordered safely).
+// "Reject is as easy as accept" has no dedicated icon in the set below, so it falls back to Scale.
+const POINT_ICONS: Record<string, LucideIcon> = {
+  "Five languages": Languages, // languages
+  "Consent log": ScrollText, // consent log (also covers the 12/6 month re-ask mentioned in its text)
+  "Global Privacy Control": EyeOff, // GPC
+  "Google Consent Mode v2": Settings2, // Consent Mode v2
+  "Your own CMP works too": Puzzle, // Cookiebot / CMP
+};
 
 export function ConsentSection() {
+  const [lang, setLang] = useState<DemoLang>("en");
+  const [run, setRun] = useState(0);
+
   return (
     <section className="py-20 px-4">
       <div className="container mx-auto max-w-6xl">
@@ -13,67 +34,55 @@ export function ConsentSection() {
           title="Consent built in, in five languages"
           intro="Browser analytics waits for consent, unless you switch on aggregate mode. The banner, the consent log and the policy texts are part of the product, so the measurement and the legal side are set up together."
         />
-
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-          {BANNER_POINTS.map((p, i) => (
-            <div key={p.title} className="rounded-lg border p-5">
-              <div className="flex items-center gap-2 mb-2">
-                {i === 0 ? <Languages className="h-5 w-5 text-primary" aria-hidden="true" /> : <ShieldCheck className="h-5 w-5 text-primary" aria-hidden="true" />}
-                <h3 className="font-semibold">{p.title}</h3>
-              </div>
-              <p className="text-sm text-muted-foreground">{p.text}</p>
-            </div>
-          ))}
-        </div>
-
-        <h3 className="text-xl font-bold mb-4 text-center">Three ways to measure visitors</h3>
-        <div className="grid md:grid-cols-3 gap-6 mb-12">
-          {MODES.map((m) => (
-            <Card key={m.title}>
-              <CardHeader>
-                <CardTitle className="text-lg">{m.title}</CardTitle>
-                <CardDescription className="text-sm">{m.text}</CardDescription>
-              </CardHeader>
-            </Card>
-          ))}
-        </div>
-
-        <Card className="border-primary/20">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Scale className="h-5 w-5 text-primary" aria-hidden="true" />
-              <CardTitle className="text-xl">How we read the rules</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid md:grid-cols-3 gap-6">
-              {LEGAL_BASES.map((b) => (
-                <div key={b.title}>
-                  <h4 className="font-semibold mb-2">{b.title}</h4>
-                  <p className="text-sm text-muted-foreground">{b.text}</p>
+        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+          <div>
+            <div className="overflow-hidden rounded-xl border bg-background shadow-xl">
+              <div className="flex flex-wrap items-center gap-2 border-b bg-muted/40 px-3 py-2">
+                <div role="group" aria-label="Banner language" className="flex flex-wrap gap-1">
+                  {DEMO_LANGS.map((l) => (
+                    <button
+                      key={l.code}
+                      type="button"
+                      lang={l.code}
+                      aria-pressed={lang === l.code}
+                      onClick={() => setLang(l.code)}
+                      className={`rounded px-2 py-1 text-xs font-medium ${lang === l.code ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
+                    >
+                      {l.label}
+                    </button>
+                  ))}
                 </div>
-              ))}
+                <button type="button" onClick={() => setRun((r) => r + 1)} className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+                  <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+                  Show again
+                </button>
+              </div>
+              <iframe
+                key={`${lang}-${run}`}
+                src={`/banner-demo/index.html?lang=${lang}`}
+                title="Live example of the CortIQ consent banner"
+                sandbox="allow-scripts"
+                loading="lazy"
+                className="block h-[520px] w-full sm:h-[460px]"
+              />
             </div>
-            <div className="rounded-lg bg-muted/40 p-4 text-sm text-muted-foreground space-y-2">
-              {LEGAL_NOTES.map((n) => (
-                <p key={n.text}>{n.lead && <strong className="text-foreground">{n.lead}</strong>} {n.text}</p>
-              ))}
-            </div>
-            <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
-              {LEGAL_DOCS.map((d) =>
-                d.to ? (
-                  <Link key={d.label} to={d.to} className="inline-flex items-center text-primary hover:underline">
-                    <FileText className="mr-1.5 h-4 w-4" aria-hidden="true" />{d.label}
-                  </Link>
-                ) : (
-                  <a key={d.label} href={d.href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center text-primary hover:underline">
-                    <FileText className="mr-1.5 h-4 w-4" aria-hidden="true" />{d.label}
-                  </a>
-                ),
-              )}
-            </div>
-          </CardContent>
-        </Card>
+            <p className="mt-2 text-xs text-muted-foreground">The real banner script. Choices made in this example are not saved or sent.</p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {BANNER_POINTS.map((p) => {
+              const Icon = POINT_ICONS[p.title] ?? Scale;
+              return (
+                <div key={p.title} className="rounded-lg border p-4">
+                  <div className="mb-1.5 flex items-center gap-2">
+                    <Icon className="h-5 w-5 text-primary" aria-hidden="true" />
+                    <h3 className="font-semibold">{p.title}</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{p.text}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </section>
   );

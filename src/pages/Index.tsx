@@ -6,6 +6,8 @@ import { HeroSection } from "@/components/home/HeroSection";
 import { AiTrafficSection } from "@/components/home/AiTrafficSection";
 import { ToolsSection } from "@/components/home/ToolsSection";
 import { ConsentSection } from "@/components/home/ConsentSection";
+import { ModesSection } from "@/components/home/ModesSection";
+import { LegalSection } from "@/components/home/LegalSection";
 import { AttributionSection } from "@/components/home/AttributionSection";
 import { OperationsSection } from "@/components/home/OperationsSection";
 import { ClosingCta } from "@/components/home/ClosingCta";
@@ -20,6 +22,8 @@ const Index = () => {
       <AiTrafficSection />
       <ToolsSection />
       <ConsentSection />
+      <ModesSection />
+      <LegalSection />
       <AttributionSection />
       <OperationsSection />
       <ClosingCta />
