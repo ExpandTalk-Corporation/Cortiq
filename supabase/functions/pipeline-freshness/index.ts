@@ -1,11 +1,15 @@
 import { createClient } from '../_shared/supabase.ts';
 import { PIPELINES, alertSentence, pipelineLabel, type Pipeline, type PipelineAlert } from '../_shared/pipeline-alerts.ts';
+import { conversionEmailBody, type ConversionAlert } from '../_shared/conversion-alerts.ts';
+import { escapeHtml as escape, sendAlertEmail } from '../_shared/resend.ts';
 
 // Hourly from pg_cron (x-cron-secret, checked against a vault secret; verify_jwt is off in config.toml).
-// check_pipeline_freshness() opens and resolves alerts; open alerts show in the dashboard regardless.
-// With RESEND_API_KEY set, the site owner also gets one email when an alert opens and one when it resolves.
+// check_pipeline_freshness() opens and resolves pipeline alerts; check_conversion_alerts() does the same for
+// goals and forms (spec 2026-11-19 §2). Open alerts show in the dashboard regardless. With RESEND_API_KEY set,
+// the site owner also gets one email when an alert opens and one when it resolves, per kind of check.
 
-const escape = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
+type Alert = { id: string; site_id: string; resolved_at: string | null };
+type Supabase = ReturnType<typeof createClient>;
 
 function emailBody(domain: string, opened: PipelineAlert[], resolved: PipelineAlert[]): { subject: string; html: string } {
   const now = new Date();
@@ -30,6 +34,31 @@ function emailBody(domain: string, opened: PipelineAlert[], resolved: PipelineAl
   return { subject, html };
 }
 
+/** Emails each site owner once for the pending alerts of one table; returns how many emails went out. */
+async function emailOwners<T extends Alert>(
+  supabase: Supabase, apiKey: string, table: 'pipeline_alerts' | 'conversion_alerts', pending: T[],
+  body: (domain: string, opened: T[], resolved: T[]) => { subject: string; html: string },
+): Promise<number> {
+  const bySite = Map.groupBy(pending, (a) => a.site_id);
+  const { data: sites } = await supabase.from('sites').select('id, domain, user_id').in('id', [...bySite.keys()]);
+  let emailed = 0;
+  for (const site of sites ?? []) {
+    const { data: owner } = await supabase.auth.admin.getUserById(site.user_id);
+    const to = owner?.user?.email;
+    if (!to) continue;
+    const siteAlerts = bySite.get(site.id) ?? [];
+    const opened = siteAlerts.filter((a) => !a.resolved_at);
+    const resolved = siteAlerts.filter((a) => a.resolved_at);
+    const { subject, html } = body(site.domain.replace(/^https?:\/\//, '').replace(/\/$/, ''), opened, resolved);
+    if (!(await sendAlertEmail({ apiKey, to, subject, html }))) continue;
+    const sentAt = new Date().toISOString();
+    if (opened.length) await supabase.from(table).update({ opened_notified_at: sentAt }).in('id', opened.map((a) => a.id));
+    if (resolved.length) await supabase.from(table).update({ resolved_notified_at: sentAt }).in('id', resolved.map((a) => a.id));
+    emailed++;
+  }
+  return emailed;
+}
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
   const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
@@ -42,35 +71,18 @@ Deno.serve(async (req) => {
     console.error('check_pipeline_freshness', error);
     return Response.json({ error: 'check failed' }, { status: 500 });
   }
-  const pending = (alerts ?? []) as PipelineAlert[];
-  const resendKey = Deno.env.get('RESEND_API_KEY');
-  if (!resendKey || !pending.length) return Response.json({ pending: pending.length, emailed: 0 });
+  // A failing conversion check must not stop pipeline alerts; it is reported in the response.
+  const { data: conversionRows, error: conversionError } = await supabase.rpc('check_conversion_alerts');
+  if (conversionError) console.error('check_conversion_alerts', conversionError);
 
-  const from = Deno.env.get('ALERT_EMAIL_FROM') ?? 'CortIQ <alerts@cortiq.se>';
-  const bySite = Map.groupBy(pending, (a) => a.site_id);
-  const { data: sites } = await supabase.from('sites').select('id, domain, user_id').in('id', [...bySite.keys()]);
-  let emailed = 0;
-  for (const site of sites ?? []) {
-    const { data: owner } = await supabase.auth.admin.getUserById(site.user_id);
-    const to = owner?.user?.email;
-    if (!to) continue;
-    const siteAlerts = bySite.get(site.id) ?? [];
-    const opened = siteAlerts.filter((a) => !a.resolved_at);
-    const resolved = siteAlerts.filter((a) => a.resolved_at);
-    const { subject, html } = emailBody(site.domain.replace(/^https?:\/\//, '').replace(/\/$/, ''), opened, resolved);
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from, to: [to], subject, html }),
-    });
-    if (!res.ok) {
-      console.error('pipeline-freshness email', site.id, res.status, await res.text());
-      continue;
-    }
-    const sentAt = new Date().toISOString();
-    if (opened.length) await supabase.from('pipeline_alerts').update({ opened_notified_at: sentAt }).in('id', opened.map((a) => a.id));
-    if (resolved.length) await supabase.from('pipeline_alerts').update({ resolved_notified_at: sentAt }).in('id', resolved.map((a) => a.id));
-    emailed++;
-  }
-  return Response.json({ pending: pending.length, emailed });
+  const pending = (alerts ?? []) as PipelineAlert[];
+  const conversions = (conversionRows ?? []) as ConversionAlert[];
+  const resendKey = Deno.env.get('RESEND_API_KEY');
+  const emailed = resendKey && pending.length ? await emailOwners(supabase, resendKey, 'pipeline_alerts', pending, emailBody) : 0;
+  const conversionEmailed = resendKey && conversions.length
+    ? await emailOwners(supabase, resendKey, 'conversion_alerts', conversions, conversionEmailBody) : 0;
+  return Response.json({
+    pending: pending.length, emailed,
+    conversions: { pending: conversions.length, emailed: conversionEmailed, ...(conversionError ? { error: 'check failed' } : {}) },
+  });
 });

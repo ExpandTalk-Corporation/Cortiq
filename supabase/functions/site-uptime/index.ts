@@ -1,13 +1,12 @@
 import { createClient } from '../_shared/supabase.ts';
 import { UPTIME_KINDS, checkSite, hostOf, siteUrl, uptimeSentence, type UptimeAlert, type UptimeKind } from '../_shared/uptime.ts';
+import { escapeHtml as escape, sendAlertEmail } from '../_shared/resend.ts';
 
 // Every 5 minutes from pg_cron (x-cron-secret, checked against a vault secret; verify_jwt is off in config.toml).
 // Fetches every active site's home page, records the result with record_uptime_check() (which opens and
 // resolves alerts), and with RESEND_API_KEY set emails the owner once when an alert opens and once when it resolves.
 
 const CONCURRENCY = 8;
-
-const escape = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 
 function emailBody(host: string, opened: UptimeAlert[], resolved: UptimeAlert[]): { subject: string; html: string } {
   const items = [
@@ -59,7 +58,6 @@ Deno.serve(async (req) => {
   await supabase.rpc('record_alert_email_status', { p_configured: !!resendKey });
   if (!resendKey || !pending.length) return Response.json({ checked, pending: pending.length, emailed: 0 });
 
-  const from = Deno.env.get('ALERT_EMAIL_FROM') ?? 'CortIQ <alerts@cortiq.se>';
   const bySite = Map.groupBy(pending, (a) => a.site_id);
   let emailed = 0;
   for (const site of targets.filter((s) => bySite.has(s.id))) {
@@ -70,15 +68,7 @@ Deno.serve(async (req) => {
     const opened = siteAlerts.filter((a) => !a.resolved_at);
     const resolved = siteAlerts.filter((a) => a.resolved_at);
     const { subject, html } = emailBody(hostOf(site.domain), opened, resolved);
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from, to: [to], subject, html }),
-    });
-    if (!res.ok) {
-      console.error('site-uptime email', site.id, res.status, await res.text());
-      continue;
-    }
+    if (!(await sendAlertEmail({ apiKey: resendKey, to, subject, html }))) continue;
     const sentAt = new Date().toISOString();
     if (opened.length) await supabase.from('uptime_alerts').update({ opened_notified_at: sentAt }).in('id', opened.map((a) => a.id));
     if (resolved.length) await supabase.from('uptime_alerts').update({ resolved_notified_at: sentAt }).in('id', resolved.map((a) => a.id));
