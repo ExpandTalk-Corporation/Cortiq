@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
       const result = await checkSite(site.url);
       const { error: recordError } = await supabase.rpc('record_uptime_check', {
         p_site_id: site.id, p_problem: result.problem, p_status: result.status,
-        p_detail: result.detail, p_snippet_found: result.snippetFound,
+        p_detail: result.detail, p_snippet_found: result.snippetFound, p_snippet_version: result.snippetVersion,
       });
       if (recordError) console.error('record_uptime_check', site.id, recordError);
       else checked++;

@@ -11,6 +11,8 @@ export interface UptimeCheck {
   detail: string | null;
   /** The loaded page contains the CortIQ snippet; null when it did not load. */
   snippetFound: boolean | null;
+  /** x.y.z tracker version read from the page; null when it did not load or no version was found. */
+  snippetVersion: string | null;
 }
 
 export interface UptimeAlert {
@@ -49,13 +51,22 @@ export function hasSnippet(html: string): boolean {
   return SNIPPET.test(html);
 }
 
+// Tracker version in the home page HTML: a pinned SRI install loads /v/<x.y.z>/cortiq.js, the WordPress
+// plugin adds ?ver=<x.y.z> to its cortiq*.js. An auto-updating snippet has no version → null.
+const PINNED_VERSION = /\/v\/(\d{1,4}\.\d{1,4}\.\d{1,4})\/cortiq\.js/i;
+const WP_VERSION = /cortiq[\w.-]*\.js\?(?:[^"'\s>]*&(?:amp;)?)?ver=(\d{1,4}\.\d{1,4}\.\d{1,4})/i;
+
+export function snippetVersion(html: string): string | null {
+  return html.match(PINNED_VERSION)?.[1] ?? html.match(WP_VERSION)?.[1] ?? null;
+}
+
 /** Judges the final response of a check. */
 export function classify(status: number, body: string): UptimeCheck {
-  if (CHALLENGE.test(body)) return { problem: 'inconclusive', status, detail: 'Bot challenge', snippetFound: null };
-  if (status >= 200 && status < 300) return { problem: null, status, detail: null, snippetFound: hasSnippet(body) };
+  if (CHALLENGE.test(body)) return { problem: 'inconclusive', status, detail: 'Bot challenge', snippetFound: null, snippetVersion: null };
+  if (status >= 200 && status < 300) return { problem: null, status, detail: null, snippetFound: hasSnippet(body), snippetVersion: snippetVersion(body) };
   // Basic auth (staging) or rate limiting says nothing about whether visitors reach the site.
-  if (status === 401 || status === 429) return { problem: 'inconclusive', status, detail: `HTTP ${status}`, snippetFound: null };
-  return { problem: 'down', status, detail: `HTTP ${status}`, snippetFound: null };
+  if (status === 401 || status === 429) return { problem: 'inconclusive', status, detail: `HTTP ${status}`, snippetFound: null, snippetVersion: null };
+  return { problem: 'down', status, detail: `HTTP ${status}`, snippetFound: null, snippetVersion: null };
 }
 
 async function readCapped(res: Response): Promise<string> {
@@ -88,14 +99,14 @@ export async function checkSite(url: string, opts: { fetchImpl?: typeof fetch; r
     try {
       await assertSafeUrl(current, opts.resolve);
     } catch {
-      return { problem: 'inconclusive', status: null, detail: 'Blocked address', snippetFound: null };
+      return { problem: 'inconclusive', status: null, detail: 'Blocked address', snippetFound: null, snippetVersion: null };
     }
     let res: Response;
     try {
       res = await doFetch(current, { redirect: 'manual', headers: { 'User-Agent': USER_AGENT }, signal: AbortSignal.timeout(TIMEOUT_MS) });
     } catch (e) {
       const timeout = e instanceof Error && (e.name === 'TimeoutError' || e.name === 'AbortError');
-      return { problem: 'down', status: null, detail: timeout ? 'No answer within 15 seconds' : 'No connection', snippetFound: null };
+      return { problem: 'down', status: null, detail: timeout ? 'No answer within 15 seconds' : 'No connection', snippetFound: null, snippetVersion: null };
     }
     const location = res.headers.get('location');
     if (res.status >= 300 && res.status < 400 && location) {
@@ -107,7 +118,7 @@ export async function checkSite(url: string, opts: { fetchImpl?: typeof fetch; r
     try { body = await readCapped(res); } catch { /* judged on the status alone */ }
     return classify(res.status, body);
   }
-  return { problem: 'down', status: null, detail: 'Redirect loop', snippetFound: null };
+  return { problem: 'down', status: null, detail: 'Redirect loop', snippetFound: null, snippetVersion: null };
 }
 
 export const UPTIME_KINDS: Record<UptimeKind, { title: (host: string) => string; check: string }> = {
