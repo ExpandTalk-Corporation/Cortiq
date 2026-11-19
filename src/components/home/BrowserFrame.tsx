@@ -15,9 +15,9 @@ export function BrowserFrame({ title, className = "", children }: { title?: stri
   return (
     <figure className={`overflow-hidden rounded-xl border bg-background shadow-xl ${className}`}>
       <div className="flex items-center gap-1.5 border-b bg-muted/40 px-3 py-2">
-        <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-red-400" />
-        <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-amber-400" />
-        <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-green-500" />
+        <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-muted-foreground/25" />
+        <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-muted-foreground/25" />
+        <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-muted-foreground/25" />
         {title && <span className="ml-2 truncate text-xs text-muted-foreground">{title}</span>}
         <ExampleTag className="ml-auto shrink-0" />
       </div>
