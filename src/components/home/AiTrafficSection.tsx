@@ -9,6 +9,7 @@ import { HERO_DAYS } from "@/data/homeSample";
 import { CATEGORY_COLORS } from "./categoryColors";
 import { Sparkline } from "./Sparkline";
 import { ExampleTag } from "./BrowserFrame";
+import { HeroDashboardMock } from "./HeroDashboardMock";
 
 // Bot names on this page come from the ingest registry, so the page only names bots CortIQ classifies.
 const CATEGORY_STYLE: Record<BotCategory, { icon: LucideIcon; tag: string }> = {
@@ -26,6 +27,9 @@ export function AiTrafficSection() {
           title="Not all AI traffic is equal"
           intro="A training crawler and ChatGPT fetching your page for a real user look alike in a server log. CortIQ sorts every AI visit into one of three groups, server-side from the request or in the browser after consent."
         />
+        <div className="mx-auto mb-12 max-w-3xl">
+          <HeroDashboardMock />
+        </div>
         <div className="grid md:grid-cols-3 gap-6">
           {BOT_CATEGORIES.map((category) => {
             const style = CATEGORY_STYLE[category];

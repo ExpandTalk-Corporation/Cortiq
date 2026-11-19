@@ -9,13 +9,12 @@ import heroMobileAvif from "@/assets/hero/hero-mobile-900.avif";
 import heroMobileWebp from "@/assets/hero/hero-mobile-900.webp";
 import heroMobileJpg from "@/assets/hero/hero-mobile-900.jpg";
 import { ArrowRight, ShieldCheck, Shield, Cookie, Code } from "lucide-react";
-import { HeroDashboardMock } from "./HeroDashboardMock";
 
 // Hero: one full-bleed photo. Its left edge fades to #f7f9fc, so the light-mode
 // background matches it and a gradient in the same colour keeps the copy readable.
 export function HeroSection() {
   return (
-    <section className="relative overflow-hidden bg-[#f7f9fc] dark:bg-background flex flex-col xl:flex-row xl:items-center xl:min-h-[600px]">
+    <section className="relative overflow-hidden bg-[#f7f9fc] dark:bg-background flex flex-col xl:flex-row xl:items-center xl:min-h-[640px]">
       {/* Below xl: text, then the photo. From xl the photo is the backdrop. */}
       <picture className="order-last xl:order-none">
         <source media="(min-width: 1280px)" type="image/avif" srcSet={`${heroAvif1280} 1280w, ${heroAvif1983} 1983w`} sizes="100vw" />
@@ -37,7 +36,7 @@ export function HeroSection() {
         className="pointer-events-none absolute inset-y-0 left-0 hidden xl:block w-[50%] bg-gradient-to-r from-[#f7f9fc] via-[#f7f9fc]/90 to-transparent dark:from-background dark:via-background/90"
       />
 
-      <div className="container mx-auto relative z-10 w-full px-4 pt-12 pb-12 xl:py-16 xl:grid xl:grid-cols-[34rem_minmax(0,1fr)] xl:items-center xl:gap-12">
+      <div className="container mx-auto relative z-10 w-full px-4 pt-12 pb-12 xl:py-20">
         <div className="max-w-2xl xl:max-w-[34rem] text-center xl:text-left mx-auto xl:mx-0">
           <Badge className="mb-6 bg-gradient-primary text-white border-0">Free during beta</Badge>
           <h1 className="text-4xl md:text-6xl xl:text-5xl font-black mb-4 text-gradient-primary leading-tight">
@@ -71,9 +70,6 @@ export function HeroSection() {
             <li className="flex items-center"><Cookie className="h-4 w-4 mr-2 text-primary" aria-hidden="true" />Cookieless mode</li>
             <li className="flex items-center"><Code className="h-4 w-4 mr-2 text-primary" aria-hidden="true" />REST API + MCP</li>
           </ul>
-        </div>
-        <div className="mt-10 xl:mt-0 mx-auto w-full max-w-xl xl:max-w-none">
-          <HeroDashboardMock />
         </div>
       </div>
     </section>
