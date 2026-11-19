@@ -48,3 +48,32 @@ test('every homepage component that uses sample data shows the Example data labe
 test('sample data names no bots (names come from the registry)', () => {
   assert.doesNotMatch(read('src/data/homeSample.ts'), /[A-Za-z]Bot\b|-User\b/);
 });
+
+// Jurist-reviewed and sourced statements. They may move (e.g. into <details>), never change.
+const REVIEWED = [
+  "Storing information on the visitor's device, or gaining access to information already there, needs consent unless it is strictly necessary to transmit a communication or to provide a service the visitor explicitly asked for. Regulators generally do not treat analytics for the site owner as strictly necessary, so CortIQ's browser tracking waits for consent (EDPB Guidelines 2/2023). National laws implement the rule and differ in detail.",
+  "Server-side request data (truncated IP, user agent, path) is still personal data. Legitimate interest can support measuring bots and protecting the site when the site owner's balancing test shows the processing is proportionate and minimal.",
+  "Server-side adapters truncate IPs on your server and send only bot-like requests. Truncated IPs are cleared after 30 days and records follow the site's retention (default 365 days). EU-hosted.",
+  "No cookies, no device fingerprint, no cross-visit profile. A per-tab session ID in sessionStorage after analytics consent.",
+  "Adds a salted device hash for a visitor profile and, with marketing consent, ad click IDs. Starts only after analytics consent.",
+  "Daily counts of page views, visits and sources. Nothing is stored on the device and no identifier is set. Designed to not require consent, but regulators may treat the script's request as access under ePrivacy Art. 5(3). Whether you need consent where you operate is your assessment.",
+  "the site owner confirms a checklist of what the privacy policy must cover. The confirmation is logged with its version and asked again when the checklist changes.",
+  "CortIQ already records which country each consent was given from.",
+  "CortIQ gives you the tools. The site operator makes the final legal assessment.",
+  "Source: TollBit, State of the Bots, Q4 2025, across its publisher network (up from 1 in 200 in Q1 2025).",
+  "AI bots (excluding Googlebot) made up 4.2% of HTML requests in 2025 (Cloudflare Radar 2025 Year in Review), and training accounts for nearly 80% of AI crawling (Cloudflare, The crawl-to-click gap).",
+  "gclid, fbclid, msclkid, ttclid and li_fat_id are kept only with marketing consent.",
+  "Only visits with marketing consent are uploaded.",
+  "The file is read in your browser and never uploaded.",
+];
+
+test('the homepage keeps every reviewed statement word for word', () => {
+  const all = homeFiles().map(read).join('\n').replace(/\s+/g, ' ');
+  for (const s of REVIEWED) assert.ok(all.includes(s), `missing or changed: ${s.slice(0, 70)}…`);
+});
+
+test('Index.tsx only composes sections', () => {
+  const src = read('src/pages/Index.tsx');
+  assert.ok(src.split('\n').length < 60, 'Index.tsx should stay a thin composition');
+  assert.doesNotMatch(src, /LEGAL_BASES|BANNER_POINTS|<section/);
+});
