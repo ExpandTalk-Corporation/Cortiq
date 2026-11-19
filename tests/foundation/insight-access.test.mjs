@@ -9,19 +9,26 @@ const source = readFileSync(new URL('../../supabase/functions/generate-dashboard
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
 const siteId = '11111111-1111-4111-8111-111111111111';
 
+const factsCompiled = ts.transpileModule(readFileSync(new URL('../../supabase/functions/_shared/insight-facts.ts', import.meta.url), 'utf8'),
+  { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+function insightFacts() { const exports = {}; runInNewContext(factsCompiled, { exports }); return exports; }
+
 function endpoint({ validUser = true, allowedSite = true, siteError = null, summaryError = null, sourceError = null,
-  providerStatus = 200, aiInsights = [], insertError = null } = {}) {
+  providerStatus = 200, aiInsights = [], aiReplies = [aiInsights], insertError = null } = {}) {
   let handler;
-  const calls = { service: [], ai: 0, siteFilters: [], prompt: '', inserts: [], summaryArgs: null };
+  const calls = { service: [], ai: 0, siteFilters: [], prompt: '', inserts: [], summaryArgs: null, updates: [], prompts: [], summaryCalls: [] };
   const service = {
     from(table) {
       calls.service.push(table);
-      const result = { data: [], error: sourceError, count: table === 'heatmap_data' ? 2500 : 42 };
+      const result = (table === 'form_sessions' || table === 'conversion_events')
+        ? { data: [], error: null }
+        : { data: [], error: sourceError, count: table === 'heatmap_data' ? 2500 : 42 };
       let insert = false;
       const query = {
         select() { return query; }, eq() { return query; }, gte() { return query; }, lte() { return query; }, order() { return query; },
         limit() { return Promise.resolve(result); },
-        insert(payload) { insert = true; calls.inserts.push({ table, payload }); return query; }, update() { return query; },
+        insert(payload) { insert = true; calls.inserts.push({ table, payload }); return query; },
+        update(payload) { calls.updates.push({ table, payload }); return query; },
         single() { return Promise.resolve({ data: { id: 'run-1' }, error: null }); },
         then(resolve, reject) { return Promise.resolve(insert && table === 'dashboard_insights' ? { error: insertError } : result).then(resolve, reject); },
       };
@@ -30,8 +37,10 @@ function endpoint({ validUser = true, allowedSite = true, siteError = null, summ
   };
   const userClient = {
     rpc: async (name, args) => {
+      if (name === 'get_measurement_health') return { error: null, data: { status: 'warning', checks: [{ key: 'uptime', status: 'ok' }, { key: 'pipelines', status: 'warning' }] } };
       assert.equal(name, 'get_analytics_summary');
-      calls.summaryArgs = args;
+      calls.summaryCalls.push(args);
+      calls.summaryArgs ??= args;   // the current period is requested first
       return { error: summaryError, data: { total_page_views: 12345, total_sessions: 4567,
         top_pages: [{ url: 'https://example.test/path?email=private@example.test#token', views: 4321 }], device_breakdown: { desktop: 4567 } } };
     },
@@ -56,12 +65,16 @@ function endpoint({ validUser = true, allowedSite = true, siteError = null, summ
         assert.equal(options.global.headers.Authorization, 'Bearer session');
         return userClient;
       } };
+      if (name.endsWith('/_shared/insight-facts.ts')) return insightFacts();
       return {};
     },
     fetch: async (_url, options) => {
+      const body = JSON.parse(options.body);
+      calls.prompt ||= body.messages[0].content;
+      calls.prompts.push(body.messages);
+      const reply = aiReplies[Math.min(calls.ai, aiReplies.length - 1)];
       calls.ai++;
-      calls.prompt = JSON.parse(options.body).messages[0].content;
-      return Response.json({ content: [{ type: 'text', text: JSON.stringify({ insights: aiInsights }) }], stop_reason: 'end_turn', usage: {} }, { status: providerStatus });
+      return Response.json({ content: [{ type: 'text', text: JSON.stringify({ insights: reply }) }], stop_reason: 'end_turn', usage: { input_tokens: 10, output_tokens: 5 } }, { status: providerStatus });
     },
   });
   return { handler, calls };
@@ -140,7 +153,7 @@ test('provider limit does not fabricate or save a website recommendation', async
   assert.equal(calls.inserts.some(c => c.table === 'dashboard_insights'), false);
 });
 
-const suggestion = { title: 'Review page', description: 'Inspect the page', actionItems: ['Check content'], priority: 'low', type: 'traffic', confidence: 99 };
+const suggestion = { title: 'Review page', description: 'Page views reached {{m1}} this period', actionItems: ['Check content'], priority: 'low', type: 'traffic', confidence: 99 };
 test('model confidence is not stored as a measured probability', async () => {
   const { handler, calls } = endpoint({ aiInsights: [suggestion] });
   assert.equal((await handler(request())).status, 200);
@@ -171,10 +184,53 @@ test('the dashboard period reaches the summary RPC, the prompt and the audit rec
   const body = await response.json();
   assert.equal(calls.summaryArgs.p_from, '2026-09-01T00:00:00.000Z');
   assert.equal(calls.summaryArgs.p_to, '2026-09-30T23:59:59.999Z');
+  assert.equal(calls.summaryCalls[1].p_to, '2026-08-31T23:59:59.999Z', 'the previous period ends just before the selected one');
   assert.match(calls.prompt, /2026-09-01 to 2026-09-30 \(30 days/);
   assert.deepEqual(body.period, { from: '2026-09-01', to: '2026-09-30', days: 30 });
   assert.equal(body.runId, 'run-1', 'the panel links the result to its agent_runs record');
   const runUpdate = calls.inserts.find(c => c.table === 'agent_runs');
   assert.ok(runUpdate, 'agent_runs is still written');
   assert.equal(calls.inserts.find(c => c.table === 'dashboard_insights').payload[0].run_id, 'run-1');
+});
+
+test('the prompt lists facts by id and forbids bare numbers', async () => {
+  const { handler, calls } = endpoint({ aiInsights: [suggestion] });
+  assert.equal((await handler(request())).status, 200);
+  assert.match(calls.prompt, /m1 \| Page views \| 12345 count \|/);
+  assert.match(calls.prompt, /\{\{mN\}\}/);
+  const snapshot = calls.updates.find((u) => u.table === 'agent_runs' && u.payload.data_snapshot?.facts).payload.data_snapshot;
+  assert.equal(snapshot.facts[0].id, 'm1');
+  assert.equal(snapshot.facts[0].source, 'get_analytics_summary');
+});
+
+test('stored insights carry their fact ids', async () => {
+  const { handler, calls } = endpoint({ aiInsights: [suggestion] });
+  await handler(request());
+  // Spread into a plain array first: data_points was built inside a separately-sandboxed
+  // vm context (insight-facts.ts loaded via its own runInNewContext), so it is a same-shape
+  // but cross-realm Array whose prototype differs from this file's — deepEqual (strict) treats
+  // that as unequal even though the values match.
+  assert.deepEqual([...calls.inserts.find((c) => c.table === 'dashboard_insights').payload[0].data_points], ['m1']);
+  assert.equal(calls.inserts.find((c) => c.table === 'dashboard_insights').payload[0].description, 'Page views reached {{m1}} this period', 'text is stored with tokens');
+});
+
+test('a bare number triggers one retry with the errors; the fixed insight is stored', async () => {
+  const bad = { ...suggestion, description: 'Page views reached 12345' };
+  const { handler, calls } = endpoint({ aiReplies: [[bad], [suggestion]] });
+  assert.equal((await handler(request())).status, 200);
+  assert.equal(calls.ai, 2);
+  assert.match(calls.prompts[1].at(-1).content, /number "12345" written without a fact token/);
+  assert.equal(calls.inserts.find((c) => c.table === 'dashboard_insights').payload.length, 1);
+});
+
+test('insights still invalid after the retry are dropped and counted', async () => {
+  const bad = { ...suggestion, description: 'About 41% of visitors leave' };
+  const { handler, calls } = endpoint({ aiReplies: [[bad], [bad]] });
+  const res = await handler(request());
+  assert.equal(res.status, 200);
+  assert.deepEqual((await res.json()).insights, []);
+  assert.equal(calls.inserts.some((c) => c.table === 'dashboard_insights'), false);
+  const done = calls.updates.find((u) => u.table === 'agent_runs' && u.payload.status === 'completed').payload;
+  assert.equal(done.data_snapshot.rejected, 1);
+  assert.equal(done.input_tokens, 20, 'usage of both calls is recorded');
 });
