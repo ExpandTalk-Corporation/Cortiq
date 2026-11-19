@@ -31,14 +31,12 @@ export function AttributionSection() {
             </ol>
             <dl className="space-y-2">
               {CONVERSION_BARS.map((b) => (
-                <div key={b.label}>
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <dt>{b.label}</dt>
-                    <dd className="tabular-nums">{b.value.toLocaleString("en-US")}</dd>
-                  </div>
-                  <div className="mt-1 h-2 rounded bg-muted">
+                <div key={b.label} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-2 text-xs text-muted-foreground">
+                  <dt>{b.label}</dt>
+                  <dd className="tabular-nums">{b.value.toLocaleString("en-US")}</dd>
+                  <dd className="col-span-2 mt-1 h-2 rounded bg-muted" aria-hidden="true">
                     <div className="h-2 rounded bg-primary" style={{ width: `${(b.value / CONVERSION_BARS[0].value) * 100}%` }} />
-                  </div>
+                  </dd>
                 </div>
               ))}
             </dl>
