@@ -10,5 +10,7 @@
   script.src = '/consent-banner.js';
   script.setAttribute('data-lang', lang);
   script.setAttribute('data-company', 'Example Company AB');
+  script.setAttribute('data-policy-url', '/privacy/');
+  script.setAttribute('data-theme', 'light');
   document.body.appendChild(script);
 })();

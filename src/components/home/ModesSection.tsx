@@ -16,8 +16,8 @@ export function ModesSection() {
                 <Icon className="mb-3 h-6 w-6 text-primary" aria-hidden="true" />
                 <h4 className="mb-1 font-semibold">{m.title}</h4>
                 <p className="text-sm text-muted-foreground">{m.short}</p>
-                <details className="group mt-3 text-sm">
-                  <summary className="cursor-pointer font-medium text-primary">Details</summary>
+                <details className="mt-3 text-sm">
+                  <summary className="cursor-pointer font-medium text-primary">Details<span className="sr-only">: {m.title}</span></summary>
                   <p className="mt-2 text-muted-foreground">{m.text}</p>
                 </details>
               </div>

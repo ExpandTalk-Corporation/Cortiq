@@ -40,7 +40,7 @@ export const CONVERSION_BARS = [
 export const STATUS_ROWS = [
   { label: "Site", value: "Up · checked 2 min ago" },
   { label: "CortIQ snippet", value: "Found on the home page" },
-  { label: "Script integrity", value: "Pinned version, SRI hash matches" },
+  { label: "Script version", value: "Pinned to v5.5.16 with SRI" },
 ];
 
 export const PLATFORMS = ["WordPress", "Next.js", "Netlify", "Cloudflare", "Node", "PHP", "GTM"];

@@ -46,7 +46,7 @@ export function ConsentSection() {
                       lang={l.code}
                       aria-pressed={lang === l.code}
                       onClick={() => setLang(l.code)}
-                      className={`rounded px-2 py-1 text-xs font-medium ${lang === l.code ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
+                      className={`rounded px-2 py-1.5 text-xs font-medium ${lang === l.code ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
                     >
                       {l.label}
                     </button>

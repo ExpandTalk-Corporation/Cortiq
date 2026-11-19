@@ -14,7 +14,7 @@ export function AttributionSection() {
           title="Conversions you can trust, from consented visits"
           intro="Paid traffic is measured with the same consent rules as everything else, and the data that goes back to Google Ads is the data your CRM qualified."
         />
-        <BrowserFrame title="Lead quality pipeline" className="mb-8">
+        <BrowserFrame title="Lead quality pipeline" className="mb-2">
           <div className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-center">
             <ol className="flex flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center">
               {ATTRIBUTION_FLOW.map((step, i) => (
@@ -42,6 +42,7 @@ export function AttributionSection() {
             </dl>
           </div>
         </BrowserFrame>
+        <p className="mb-8 text-center text-xs text-muted-foreground">Only visits with marketing consent are uploaded.</p>
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {ATTRIBUTION.map((a) => (
             <Card key={a.title}>

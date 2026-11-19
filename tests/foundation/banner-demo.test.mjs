@@ -40,6 +40,8 @@ test('demo.js loads the real banner with a whitelisted language', () => {
   assert.equal(script.src, '/consent-banner.js');
   assert.equal(script.attrs['data-lang'], 'de');
   assert.equal(script.attrs['data-company'], 'Example Company AB');
+  assert.equal(script.attrs['data-policy-url'], '/privacy/');
+  assert.equal(script.attrs['data-theme'], 'light');
   assert.equal(lang, 'de');
   assert.equal('data-site-id' in script.attrs, false);
 });
