@@ -10,6 +10,8 @@ const root = new URL('../../', import.meta.url);
 const files = [
   ...readdirSync(new URL('src/pages/', root)).filter(f => f.endsWith('.tsx')).map(f => `src/pages/${f}`),
   ...readdirSync(new URL('src/content/', root)).filter(f => f.endsWith('.ts')).map(f => `src/content/${f}`),
+  ...readdirSync(new URL('src/components/home/', root)).filter(f => /\.tsx?$/.test(f)).map(f => `src/components/home/${f}`),
+  'src/data/homeSample.ts',
   'public/llms.txt',
   'public/llms-full.txt',
 ];
