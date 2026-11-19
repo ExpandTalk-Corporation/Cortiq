@@ -5,12 +5,16 @@ import { ArrowRight, Zap, Globe, Server, type LucideIcon } from "lucide-react";
 import { BOT_CATEGORIES, BOT_CATEGORY_META, type BotCategory } from "@/lib/aiBotRegistry";
 import { SectionHeader } from "./SectionHeader";
 import { examplesFor } from "./botNames";
+import { HERO_DAYS } from "@/data/homeSample";
+import { CATEGORY_COLORS } from "./categoryColors";
+import { Sparkline } from "./Sparkline";
+import { ExampleTag } from "./BrowserFrame";
 
 // Bot names on this page come from the ingest registry, so the page only names bots CortIQ classifies.
-const CATEGORY_STYLE: Record<BotCategory, { icon: LucideIcon; tone: string; tag: string }> = {
-  training: { icon: Server, tone: "text-red-500", tag: "Infrastructure cost" },
-  agentic: { icon: Zap, tone: "text-green-600 dark:text-green-400", tag: "Real user intent" },
-  citation: { icon: Globe, tone: "text-blue-600 dark:text-blue-400", tag: "Visibility signal" },
+const CATEGORY_STYLE: Record<BotCategory, { icon: LucideIcon; tag: string }> = {
+  training: { icon: Server, tag: "Infrastructure cost" },
+  agentic: { icon: Zap, tag: "Real user intent" },
+  citation: { icon: Globe, tag: "Visibility signal" },
 };
 
 export function AiTrafficSection() {
@@ -27,16 +31,24 @@ export function AiTrafficSection() {
             const style = CATEGORY_STYLE[category];
             const Icon = style.icon;
             return (
-              <Card key={category}>
+              <Card key={category} className="border-t-4" style={{ borderTopColor: CATEGORY_COLORS[category].hex }}>
                 <CardHeader>
                   <div className="flex items-center justify-between mb-2">
-                    <Icon className={`h-6 w-6 ${style.tone}`} aria-hidden="true" />
+                    <Icon className={`h-6 w-6 ${CATEGORY_COLORS[category].text}`} aria-hidden="true" />
                     <Badge variant="secondary">{style.tag}</Badge>
                   </div>
                   <CardTitle className="text-xl">{BOT_CATEGORY_META[category].label}</CardTitle>
                   <CardDescription className="text-base">{BOT_CATEGORY_META[category].description}</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-3">
+                  <div className="flex items-end justify-between gap-3">
+                    <Sparkline
+                      values={HERO_DAYS.map((d) => d[category])}
+                      color={CATEGORY_COLORS[category].hex}
+                      label={`Example trend for ${BOT_CATEGORY_META[category].label}`}
+                    />
+                    <ExampleTag />
+                  </div>
                   <p className="text-sm text-muted-foreground">
                     <span className="font-medium text-foreground">For example:</span> {examplesFor(category)}
                   </p>
