@@ -1,7 +1,9 @@
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Target } from "lucide-react";
+import { ArrowDown, ArrowRight } from "lucide-react";
 import { SectionHeader } from "./SectionHeader";
+import { BrowserFrame } from "./BrowserFrame";
 import { ATTRIBUTION } from "./copy";
+import { ATTRIBUTION_FLOW, CONVERSION_BARS } from "@/data/homeSample";
 
 export function AttributionSection() {
   return (
@@ -12,12 +14,41 @@ export function AttributionSection() {
           title="Conversions you can trust, from consented visits"
           intro="Paid traffic is measured with the same consent rules as everything else, and the data that goes back to Google Ads is the data your CRM qualified."
         />
+        <BrowserFrame title="Lead quality pipeline" className="mb-8">
+          <div className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-center">
+            <ol className="flex flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+              {ATTRIBUTION_FLOW.map((step, i) => (
+                <li key={step} className="flex flex-col items-center gap-2 sm:flex-row">
+                  <span className="rounded-lg border bg-muted/30 px-3 py-2 text-center text-sm font-medium">{step}</span>
+                  {i < ATTRIBUTION_FLOW.length - 1 && (
+                    <>
+                      <ArrowRight className="hidden h-4 w-4 text-muted-foreground sm:block" aria-hidden="true" />
+                      <ArrowDown className="h-4 w-4 text-muted-foreground sm:hidden" aria-hidden="true" />
+                    </>
+                  )}
+                </li>
+              ))}
+            </ol>
+            <dl className="space-y-2">
+              {CONVERSION_BARS.map((b) => (
+                <div key={b.label}>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <dt>{b.label}</dt>
+                    <dd className="tabular-nums">{b.value.toLocaleString("en-US")}</dd>
+                  </div>
+                  <div className="mt-1 h-2 rounded bg-muted">
+                    <div className="h-2 rounded bg-primary" style={{ width: `${(b.value / CONVERSION_BARS[0].value) * 100}%` }} />
+                  </div>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </BrowserFrame>
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {ATTRIBUTION.map((a) => (
             <Card key={a.title}>
               <CardHeader>
-                <Target className="h-6 w-6 text-primary mb-2" aria-hidden="true" />
-                <CardTitle className="text-lg">{a.title}</CardTitle>
+                <CardTitle className="text-base">{a.title}</CardTitle>
                 <CardDescription className="text-sm">{a.text}</CardDescription>
               </CardHeader>
             </Card>
