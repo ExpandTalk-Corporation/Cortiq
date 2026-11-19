@@ -115,6 +115,7 @@ export function bareNumbers(text: string): string[] {
     if (!/\p{Nd}/u.test(word)) continue;
     const core = word.replace(/^[^\p{L}\p{Nd}/]+/u, '').replace(/[^\p{L}\p{Nd}]+$/u, '');
     if (core.startsWith('/')) continue;
+    if (/^m\d+$/i.test(core)) { out.push(word); continue; }
     if (/^\p{L}[\p{L}\p{Nd}_-]*$/u.test(core)) continue;
     out.push(word);
   }

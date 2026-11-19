@@ -14,7 +14,7 @@ const factsCompiled = ts.transpileModule(readFileSync(new URL('../../supabase/fu
 function insightFacts() { const exports = {}; runInNewContext(factsCompiled, { exports }); return exports; }
 
 function endpoint({ validUser = true, allowedSite = true, siteError = null, summaryError = null, sourceError = null,
-  providerStatus = 200, aiInsights = [], aiReplies = [aiInsights], insertError = null } = {}) {
+  providerStatus = 200, providerStatuses = null, aiInsights = [], aiReplies = [aiInsights], insertError = null } = {}) {
   let handler;
   const calls = { service: [], ai: 0, siteFilters: [], prompt: '', inserts: [], summaryArgs: null, updates: [], prompts: [], summaryCalls: [] };
   const service = {
@@ -73,8 +73,9 @@ function endpoint({ validUser = true, allowedSite = true, siteError = null, summ
       calls.prompt ||= body.messages[0].content;
       calls.prompts.push(body.messages);
       const reply = aiReplies[Math.min(calls.ai, aiReplies.length - 1)];
+      const status = providerStatuses ? providerStatuses[Math.min(calls.ai, providerStatuses.length - 1)] : providerStatus;
       calls.ai++;
-      return Response.json({ content: [{ type: 'text', text: JSON.stringify({ insights: reply }) }], stop_reason: 'end_turn', usage: { input_tokens: 10, output_tokens: 5 } }, { status: providerStatus });
+      return Response.json({ content: [{ type: 'text', text: JSON.stringify({ insights: reply }) }], stop_reason: 'end_turn', usage: { input_tokens: 10, output_tokens: 5 } }, { status });
     },
   });
   return { handler, calls };
@@ -231,6 +232,39 @@ test('insights still invalid after the retry are dropped and counted', async () 
   assert.deepEqual((await res.json()).insights, []);
   assert.equal(calls.inserts.some((c) => c.table === 'dashboard_insights'), false);
   const done = calls.updates.find((u) => u.table === 'agent_runs' && u.payload.status === 'completed').payload;
-  assert.equal(done.data_snapshot.rejected, 1);
+  // Not the old wholesale-replace count (which only looked at the retry's single insight):
+  // the first-pass rejection (not recovered) plus the retry's own failed insight = 2.
+  assert.equal(done.data_snapshot.rejected, 2);
   assert.equal(done.input_tokens, 20, 'usage of both calls is recorded');
+});
+
+test('valid first-pass insights survive the retry; only the rejected slot is replaced', async () => {
+  const good1 = { title: 'Traffic up', description: 'Page views reached {{m1}} this period', actionItems: ['Check content'], priority: 'low', type: 'traffic' };
+  const good2 = { title: 'Session volume', description: 'Sessions reached {{m2}} this period', actionItems: ['Check content'], priority: 'medium', type: 'traffic' };
+  const bad = { title: 'Bad one', description: 'About 41% of visitors leave', actionItems: ['Fix it'], priority: 'low', type: 'traffic' };
+  const retryGood = { title: 'New insight from retry', description: 'Pages per session reached {{m7}}', actionItems: ['Check content'], priority: 'low', type: 'traffic' };
+  const { handler, calls } = endpoint({ aiReplies: [[good1, good2, bad], [retryGood]] });
+  const res = await handler(request());
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(calls.ai, 2, 'the retry was attempted');
+  assert.deepEqual(body.insights.map((i) => i.title).sort(), ['New insight from retry', 'Session volume', 'Traffic up']);
+  const stored = calls.inserts.find((c) => c.table === 'dashboard_insights').payload;
+  assert.equal(stored.length, 3, 'the two valid first-pass insights plus the retry replacement');
+  const done = calls.updates.find((u) => u.table === 'agent_runs' && u.payload.status === 'completed').payload;
+  assert.equal(done.data_snapshot.rejected, 0);
+});
+
+test('a failed or non-OK retry keeps the valid first-pass insights and does not fail the run', async () => {
+  const good1 = { title: 'Traffic up', description: 'Page views reached {{m1}} this period', actionItems: ['Check content'], priority: 'low', type: 'traffic' };
+  const good2 = { title: 'Session volume', description: 'Sessions reached {{m2}} this period', actionItems: ['Check content'], priority: 'medium', type: 'traffic' };
+  const bad = { title: 'Bad one', description: 'About 41% of visitors leave', actionItems: ['Fix it'], priority: 'low', type: 'traffic' };
+  const { handler, calls } = endpoint({ aiReplies: [[good1, good2, bad]], providerStatuses: [200, 500] });
+  const res = await handler(request());
+  assert.equal(res.status, 200, 'a broken retry call does not fail the whole run');
+  const body = await res.json();
+  assert.equal(calls.ai, 2, 'the retry was attempted even though it failed');
+  assert.deepEqual(body.insights.map((i) => i.title).sort(), ['Session volume', 'Traffic up']);
+  const stored = calls.inserts.find((c) => c.table === 'dashboard_insights').payload;
+  assert.equal(stored.length, 2, 'only the two valid first-pass insights are stored');
 });

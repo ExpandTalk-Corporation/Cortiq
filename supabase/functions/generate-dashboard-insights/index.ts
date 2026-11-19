@@ -255,23 +255,37 @@ Return JSON format:
     };
 
     const first = await ask([{ role: 'user', content: prompt }]);
-    let checked = first.insights.map((insight) => ({ insight, result: validateInsight(insight, facts) }));
-    if (checked.some((c) => !c.result.ok)) {
-      // One retry with the errors; insights that still break the rules are dropped.
-      const errors = checked.flatMap((c, n) => c.result.errors.map((e) => `Insight ${n + 1}: ${e}`));
+    const firstChecked = first.insights.map((insight) => ({ insight, result: validateInsight(insight, facts) }));
+    let accepted = firstChecked.filter((c) => c.result.ok);
+    let rejected = firstChecked.length - accepted.length;
+    if (rejected > 0) {
+      // One retry with the errors. Keep every first-pass insight that already validated; only the
+      // rejected slots get replaced, by retry insights that validate and are not a title duplicate
+      // (case-insensitive) of one already accepted. Anything still broken, in either pass, is dropped.
+      const errors = firstChecked.flatMap((c, n) => c.result.errors.map((e) => `Insight ${n + 1}: ${e}`));
       try {
         const retry = await ask([
           { role: 'user', content: prompt },
           { role: 'assistant', content: first.text },
           { role: 'user', content: `These insights broke the rules:\n${errors.join('\n')}\nReturn the full JSON again with every number written as a fact token.` },
         ]);
-        checked = retry.insights.map((insight) => ({ insight, result: validateInsight(insight, facts) }));
+        const retryChecked = retry.insights.map((insight) => ({ insight, result: validateInsight(insight, facts) }));
+        const titles = new Set(accepted.map((c) => c.insight.title.toLowerCase()));
+        const recovered: typeof accepted = [];
+        let retryFailed = 0;
+        for (const c of retryChecked) {
+          if (!c.result.ok) { retryFailed++; continue; }
+          const title = c.insight.title.toLowerCase();
+          if (titles.has(title)) continue;
+          titles.add(title);
+          recovered.push(c);
+        }
+        rejected = (rejected - Math.min(rejected, recovered.length)) + retryFailed;
+        accepted = [...accepted, ...recovered];
       } catch (retryError) {
         console.error('insight retry failed', retryError);
       }
     }
-    const accepted = checked.filter((c) => c.result.ok);
-    const rejected = checked.length - accepted.length;
     const insights = { insights: accepted.map((c) => c.insight) };
 
     // Store insights in database

@@ -50,6 +50,7 @@ test('bareNumbers: catches digits outside tokens, allows names and URL paths', (
   assert.deepEqual(bareNumbers('about 3.5 times, 1,200 views, 5x more, the 3rd page'), ['3.5', '1,200', '5x', '3rd']);
   assert.deepEqual(bareNumbers('see {{m1} and {m2}}'), ['{{m1}', '{m2}}'], 'broken braces are never allowed');
   assert.deepEqual(bareNumbers('(/pricing-2) works'), []);
+  assert.deepEqual(bareNumbers('see m5 and {{m5}}'), ['m5'], 'an un-braced fact id is still a bare number');
 });
 
 test('validateInsight: accepts tokenised text, rejects bare digits, unknown ids and no tokens', () => {

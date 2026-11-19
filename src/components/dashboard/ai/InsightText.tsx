@@ -1,5 +1,5 @@
-// Insight text with fact tokens: each {{mN}} shows the server-computed value; clicking or focusing it
-// opens the fact's label, source, period, formula and row count (spec 2026-11-19 §3.4).
+// Insight text with fact tokens: each {{mN}} shows the server-computed value; clicking it (or
+// Enter/Space when focused) opens the fact's label, source, period, formula and row count (spec 2026-11-19 §3.4).
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { formatFact, splitTokens, type Fact } from '../../../../supabase/functions/_shared/insight-facts.ts';
 
