@@ -50,7 +50,7 @@ async function emailOwners<T extends Alert>(
     const opened = siteAlerts.filter((a) => !a.resolved_at);
     const resolved = siteAlerts.filter((a) => a.resolved_at);
     const { subject, html } = body(site.domain.replace(/^https?:\/\//, '').replace(/\/$/, ''), opened, resolved);
-    if (!(await sendAlertEmail({ apiKey, to, subject, html }))) continue;
+    if (!(await sendAlertEmail({ apiKey, to, subject, html, context: site.id }))) continue;
     const sentAt = new Date().toISOString();
     if (opened.length) await supabase.from(table).update({ opened_notified_at: sentAt }).in('id', opened.map((a) => a.id));
     if (resolved.length) await supabase.from(table).update({ resolved_notified_at: sentAt }).in('id', resolved.map((a) => a.id));

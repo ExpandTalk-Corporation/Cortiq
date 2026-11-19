@@ -68,6 +68,22 @@ test('form_zero_completions: ≥5 starts, 0 completions, ≥1 completion before;
   } finally { await pg.close(); }
 });
 
+test('an inactive site keeps its open alerts open instead of silently "resolving" them', async () => {
+  const pg = await measurementDb();
+  try {
+    await forms(pg, S1, 'contact', 4, 2, 30 * 24, 8 * 24);
+    await forms(pg, S1, 'contact', 0, 4, 6 * 24, 1);
+    await forms(pg, S1, 'contact', 0, 1, 2, 1);
+    await check(pg);
+    const zero = (await open(pg)).find((r) => r.kind === 'form_zero_completions');
+    assert.ok(zero, 'alert opened while the site was active');
+    await pg.query(`UPDATE sites SET is_active = false WHERE id = $1`, [S1]);
+    await check(pg);
+    const stillOpen = (await open(pg)).find((r) => r.kind === 'form_zero_completions');
+    assert.ok(stillOpen, 'the alert stays open once the site is deactivated: no stats row, no resolve, no email');
+  } finally { await pg.close(); }
+});
+
 test('form_abandon_spike: +25 pp opens, staying 15–25 pp above keeps it open, below 15 pp resolves', async () => {
   const pg = await measurementDb();
   try {

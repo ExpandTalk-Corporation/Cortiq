@@ -128,6 +128,10 @@ BEGIN
   WITH st AS (SELECT * FROM public.conversion_alert_stats(p_now))
   UPDATE public.conversion_alerts a SET resolved_at = p_now
    WHERE a.resolved_at IS NULL
+     -- An inactive site has no rows in st (conversion_alert_stats filters to active sites), so its
+     -- open alerts would otherwise look unconditionally resolved. Leave them open instead: no stats,
+     -- no resolve, no "fixed" email for a site nobody is tracking anymore.
+     AND EXISTS (SELECT 1 FROM public.sites s WHERE s.id = a.site_id AND s.is_active IS NOT FALSE)
      AND NOT EXISTS (SELECT 1 FROM st
                       WHERE st.site_id = a.site_id AND st.kind = a.kind AND st.subject = a.subject
                         AND NOT st.should_resolve);

@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
     const opened = siteAlerts.filter((a) => !a.resolved_at);
     const resolved = siteAlerts.filter((a) => a.resolved_at);
     const { subject, html } = emailBody(hostOf(site.domain), opened, resolved);
-    if (!(await sendAlertEmail({ apiKey: resendKey, to, subject, html }))) continue;
+    if (!(await sendAlertEmail({ apiKey: resendKey, to, subject, html, context: site.id }))) continue;
     const sentAt = new Date().toISOString();
     if (opened.length) await supabase.from('uptime_alerts').update({ opened_notified_at: sentAt }).in('id', opened.map((a) => a.id));
     if (resolved.length) await supabase.from('uptime_alerts').update({ resolved_notified_at: sentAt }).in('id', resolved.map((a) => a.id));
