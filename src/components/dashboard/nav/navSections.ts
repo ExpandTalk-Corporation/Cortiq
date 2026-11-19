@@ -43,7 +43,7 @@ export const NAV_SECTIONS: NavSection[] = [
     { value: 'kpi', label: 'KPI dashboard' },
     { value: 'kpi-catalog', label: 'AI KPI overview' },
     { value: 'report-builder', label: 'Report builder' },
-    { value: 'alerts', label: 'Alerts' },
+    { value: 'alerts', label: 'Measurement health' },
   ] },
 ];
 
