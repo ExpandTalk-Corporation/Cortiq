@@ -1,26 +1,49 @@
+import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "react-router-dom";
-import { ArrowRight, ShieldCheck, FileSearch } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { ReportView } from "@/components/tracking-check/ReportView";
+import { GtmAuditReport } from "@/components/gtm-audit/GtmAuditReport";
+import { TRACKING_CHECK_SAMPLE } from "@/data/trackingCheckSample";
+import { GTM_AUDIT_SAMPLE } from "@/data/gtmAuditSample";
 import { SectionHeader } from "./SectionHeader";
+import { BrowserFrame } from "./BrowserFrame";
+
+/** The real report component at 60 % scale, cropped and faded. Not interactive: the tool page is one click away. */
+function ToolPreview({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <BrowserFrame title={title}>
+      {/* React 18 passes inert through only as a string attribute. */}
+      <div className="relative h-72 overflow-hidden" aria-hidden="true" {...({ inert: "" } as Record<string, string>)}>
+        <div className="w-[166.667%] origin-top-left scale-[0.6] p-4">{children}</div>
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-background to-transparent" />
+      </div>
+    </BrowserFrame>
+  );
+}
 
 export function ToolsSection() {
   return (
     <section className="py-20 px-4 bg-muted/30">
-      <div className="container mx-auto max-w-5xl">
+      <div className="container mx-auto max-w-6xl">
         <SectionHeader
           eyebrow="Free tools"
           title="Check any site, with or without CortIQ installed"
           intro="Two tools that answer the questions that come up before an audit, a relaunch or a new tag."
         />
         <div className="grid gap-6 md:grid-cols-2">
-          <Card className="flex flex-col">
+          <Card className="flex flex-col overflow-hidden">
+            <div className="p-4 pb-0">
+              <ToolPreview title="Tracking Check · example report">
+                <ReportView summary={TRACKING_CHECK_SAMPLE.summary} findings={TRACKING_CHECK_SAMPLE.findings} mode="policy"
+                  baselineUrl={null} targetUrl={TRACKING_CHECK_SAMPLE.targetUrl} finishedAt={null} collapsed />
+              </ToolPreview>
+            </div>
             <CardHeader>
-              <ShieldCheck className="h-8 w-8 text-primary mb-2" aria-hidden="true" />
               <CardTitle>Tracking Check</CardTitle>
               <CardDescription className="text-base">
                 A real browser visits the site before and after the cookie banner is answered and records every request and cookie.
-                See what loads before the visitor answers, what still loads after "Necessary only", and compare an old site with its replacement before launch.
               </CardDescription>
             </CardHeader>
             <CardContent className="mt-auto">
@@ -30,9 +53,13 @@ export function ToolsSection() {
               </Link>
             </CardContent>
           </Card>
-          <Card className="flex flex-col">
+          <Card className="flex flex-col overflow-hidden">
+            <div className="p-4 pb-0">
+              <ToolPreview title="GTM Audit · example container">
+                <GtmAuditReport report={GTM_AUDIT_SAMPLE} sample />
+              </ToolPreview>
+            </div>
             <CardHeader>
-              <FileSearch className="h-8 w-8 text-primary mb-2" aria-hidden="true" />
               <CardTitle>GTM Audit</CardTitle>
               <CardDescription className="text-base">
                 Drop a Google Tag Manager export and get a report of every tag, which vendor it sends to and which consent it is set to wait for.

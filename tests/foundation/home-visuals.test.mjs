@@ -77,3 +77,11 @@ test('Index.tsx only composes sections', () => {
   assert.ok(src.split('\n').length < 60, 'Index.tsx should stay a thin composition');
   assert.doesNotMatch(src, /LEGAL_BASES|BANNER_POINTS|<section/);
 });
+
+test('tool previews cannot be focused or read out (they are pictures of the tools)', () => {
+  const src = read(HOME + 'ToolsSection.tsx');
+  const previews = src.match(/<ToolPreview\b/g) ?? [];
+  assert.equal(previews.length, 2, 'both tools use ToolPreview');
+  assert.match(src, /inert: ""/);
+  assert.match(src, /aria-hidden="true"/);
+});
