@@ -28,3 +28,14 @@ test('PipelineAlerts reads open conversion alerts for the site', () => {
   assert.match(src, /from\('conversion_alerts'\)/);
   assert.match(src, /conversionAlertSentence/);
 });
+
+test('the all-clear only renders when the pipeline, uptime and conversion alert queries all succeeded', () => {
+  const src = read('src/components/dashboard/overview/PipelineAlerts.tsx');
+  assert.match(src, /if \(!showAllClear \|\| !isSuccess \|\| !uptimeSuccess \|\| !conversionsSuccess\) return null;/);
+});
+
+test('the Fix button does not crash on a check key missing from CHECKS', () => {
+  const src = read('src/components/dashboard/health/MeasurementHealth.tsx');
+  assert.match(src, /const fixTab = CHECKS\[c\.key\]\?\.fixTab;/);
+  assert.doesNotMatch(src, /onNavigate\(CHECKS\[c\.key\]\.fixTab\)/);
+});

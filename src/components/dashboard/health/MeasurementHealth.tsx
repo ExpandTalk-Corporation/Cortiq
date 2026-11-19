@@ -47,9 +47,12 @@ export function HealthSummary({ siteId, onNavigate }: { siteId: string; onNaviga
               <p className="font-medium">{CHECKS[c.key]?.label ?? c.key}</p>
               <p className="text-muted-foreground">{checkSentence(c)}</p>
             </div>
-            {(c.status === 'warning' || c.status === 'broken') && onNavigate && (
-              <button className="shrink-0 self-start text-xs underline" onClick={() => onNavigate(CHECKS[c.key].fixTab)}>Fix</button>
-            )}
+            {(() => {
+              const fixTab = CHECKS[c.key]?.fixTab;
+              return (c.status === 'warning' || c.status === 'broken') && onNavigate && fixTab ? (
+                <button className="shrink-0 self-start text-xs underline" onClick={() => onNavigate(fixTab)}>Fix</button>
+              ) : null;
+            })()}
           </li>
         ))}
         {tracker && (

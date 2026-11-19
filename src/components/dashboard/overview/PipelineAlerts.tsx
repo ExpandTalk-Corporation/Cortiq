@@ -28,7 +28,7 @@ export function PipelineAlerts({ siteId, showAllClear = false }: { siteId: strin
     },
     staleTime: 5 * 60_000,
   });
-  const { data: uptime } = useQuery({
+  const { data: uptime, isSuccess: uptimeSuccess } = useQuery({
     queryKey: ['uptime-alerts', siteId],
     queryFn: async (): Promise<(UptimeAlert & { sites: { domain: string } | null })[]> => {
       // uptime_alerts is newer than the generated types.
@@ -44,7 +44,7 @@ export function PipelineAlerts({ siteId, showAllClear = false }: { siteId: strin
     staleTime: 60_000,
     refetchInterval: 5 * 60_000,
   });
-  const { data: conversions } = useQuery({
+  const { data: conversions, isSuccess: conversionsSuccess } = useQuery({
     queryKey: ['conversion-alerts', siteId],
     queryFn: async (): Promise<ConversionAlert[]> => {
       // conversion_alerts is newer than the generated types.
@@ -58,6 +58,7 @@ export function PipelineAlerts({ siteId, showAllClear = false }: { siteId: strin
       return data ?? [];
     },
     staleTime: 5 * 60_000,
+    refetchInterval: 5 * 60_000,
   });
   const { data: email } = useQuery({
     queryKey: ['alert-email-status'],
@@ -121,7 +122,7 @@ export function PipelineAlerts({ siteId, showAllClear = false }: { siteId: strin
     </div>
   ) : null;
   if (!uptimeBox && !pipelineBox && !conversionBox) {
-    if (!showAllClear || !isSuccess) return null;
+    if (!showAllClear || !isSuccess || !uptimeSuccess || !conversionsSuccess) return null;
     return (
       <>
         <div className="flex gap-2 rounded-lg border p-4 text-sm text-muted-foreground">
