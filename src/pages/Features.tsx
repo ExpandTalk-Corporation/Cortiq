@@ -227,8 +227,8 @@ export default function Features() {
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold mb-4">🤖 AI Bot Intelligence</h2>
             <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-              By Q4 2025 there was one AI bot visit for every 31 human visits (TollBit, State of the Bots,
-              Q4 2025). CortIQ tells you which ones matter — and which are just cost.
+              In the first half of 2026 the median European site saw one AI bot visit for every 33 human visits
+              (TollBit, State of the Bots H1 2026). CortIQ tells you which ones matter — and which are just cost.
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">

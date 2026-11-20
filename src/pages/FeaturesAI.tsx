@@ -79,9 +79,9 @@ const STATS = [
     source: "Akamai SOTI, 2025",
   },
   {
-    value: "1 : 31",
-    label: "AI bot visits per human visits on TollBit's network, up from 1 : 200 in Q1",
-    source: "TollBit, Q4 2025",
+    value: "1 : 33",
+    label: "AI bot visits per human visit on the median European site (North America 1 : 93)",
+    source: "TollBit, H1 2026",
   },
   {
     value: "4.2%",
@@ -225,7 +225,7 @@ export default function FeaturesAI() {
           </h1>
 
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            By late 2025 there was one AI bot visit for every 31 human visits (TollBit). But lumping them all into "block or allow" ignores the
+            In the first half of 2026 the median European site saw one AI bot visit for every 33 human visits (TollBit). But lumping them all into "block or allow" ignores the
             only question that matters for your business: which ones are actually valuable?
           </p>
 
