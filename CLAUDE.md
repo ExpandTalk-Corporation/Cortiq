@@ -255,7 +255,9 @@ Spec: `docs/superpowers/specs/2026-11-18-jurisdiction-aware-measurement-design.m
   Hard floors never relax: GPC stops sharing purposes, EU cross-site identifiers need opt-in.
 - **The customer's own Off applies now** (decided 2026-11-20; GDPR art. 28(3)(a) instruction): a purpose set to `off`
   drops that purpose's data in every wired function whatever `JURISDICTION_ENFORCE` says (logged `enforced = true`).
-  Sites without an Off wait only for the policy RPC; ledger, decide and log stay in the background.
+  Unwired collectors are listed under "Not yet wired" in the runbook; the dashboard copy names only the wired paths.
+  Off is read from the policy (not decide()'s reason) and fails closed if decide() throws. The policy is cached 60 s
+  per isolate with a 1.5 s RPC timeout (failure = safe default, no Off); ledger, decide and log stay in the background.
 - **Opt-in and market rules stay shadow:** every ingest function logs its decision to `jurisdiction_decisions_daily`
   (daily counts only, country from signed edge geo only, 400 days). `JURISDICTION_ENFORCE` (`all` or a comma list of
   function names) turns dropping on for them. store-consent always logs, never blocks, not even on Off. Flip only per

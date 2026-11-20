@@ -17,6 +17,17 @@ Technical defaults, not legal advice. Every step that changes what is measured n
 3. `npm run build` (shared version 5.5.20, pinned `public/v/5.5.20/`), dist FTP, then publish WP plugin 5.5.20 so
    WordPress sites forward `Sec-GPC`. Customers using `cortiq-server.mjs`, the Worker or the PHP adapter re-copy the file.
 
+The ingest functions cache each site's policy for 60 s per isolate, so a new Off can take up to a minute to apply.
+A policy load that fails or takes more than 1.5 s falls back to the safe default, which applies no Off for that request.
+
+## Not yet wired
+These collectors receive data for the same purposes but do not call the gate, so a customer Off does not reach them
+yet and the dashboard copy does not claim it does. Wire each through `jurisdictionGate` (or `decideAndLog`) and add it
+to the copy in `RulesByMarketTab.tsx` when it is done.
+- statistics, called by `spa-tracking.js`: `ai-search-tracker`, `link-click-counter`, `ecommerce-tracking`, `canary-tracker`.
+- statistics, other: `track-web-vitals`, `pixel-tracking`, `content-tracking`, `media-analytics`, `agent-telemetry`.
+- agent_measurement (`ai_bot_traffic`): `cloudflare-ingest`, `import-server-logs`. Neither honours `Sec-GPC` either.
+
 ## Before turning on enforcement for a function
 1. Run in shadow for at least 14 days after deploy.
 2. Check `select * from coverage_by_country('<site>', current_date - 14, current_date)` for each active site: the

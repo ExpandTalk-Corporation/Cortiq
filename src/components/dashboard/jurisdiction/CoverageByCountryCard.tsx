@@ -36,7 +36,7 @@ export function CoverageByCountryCard({ selectedSite }: { selectedSite: Site | n
                   <td>{pct(r.missing, r.decisions)}</td><td>{pct(r.refused + r.gpc, r.decisions)}</td><td>{r.enforcedDrops}</td></tr>))}
               </tbody>
             </table></div>)}
-          <p className="mt-1 text-xs text-muted-foreground">Counts only your own Off settings until the market rules are switched on.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Counts only your own Off settings, which apply now to page views, events, aggregate counts and visitor profiles. Some other collectors do not check Off yet, and the market rules are not switched on.</p>
         </section>
 
         <section>

@@ -36,12 +36,13 @@ test('CMPDashboard registers the tab', () => {
 
 test('Off applies now, opt-in and market rules are recorded only; Stopped column explains what it counts', () => {
   const tab = read('RulesByMarketTab.tsx');
-  assert.match(tab, /"Off" is applied now: it stops data for that purpose on this site\./);
+  assert.match(tab, /"Off" is applied now to page views and events, aggregate counts, AI-bot detection in the browser, conversions, click IDs, server-side AI-agent requests and ad-platform uploads\. Some other collectors do not check it yet\./);
+  assert.doesNotMatch(tab, /stops data for that purpose on this site/, 'Off is not wired into every collector yet');
   assert.match(tab, /"Require opt-in" and the market rules are recorded only, not yet applied/);
-  assert.match(tab, /your own Off is applied now/);
+  assert.match(tab, /your own Off is applied now to the data listed above/);
   assert.doesNotMatch(tab, /data for every purpose is collected as before|nothing is stopped yet/);
   assert.ok(tab.indexOf('{NOT_YET_APPLIED}') < tab.indexOf('Make it stricter'), 'notice sits above the tighten controls');
-  assert.match(read('CoverageByCountryCard.tsx'), /Counts only your own Off settings until the market rules are switched on\./);
+  assert.match(read('CoverageByCountryCard.tsx'), /Counts only your own Off settings, which apply now to page views, events, aggregate counts and visitor profiles\. Some other collectors do not check Off yet, and the market rules are not switched on\./);
   assert.match(read('LegalProfileForm.tsx'), /Visitors whose country we cannot verify are treated by the strictest of the markets you select\./);
 });
 
