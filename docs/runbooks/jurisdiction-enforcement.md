@@ -21,6 +21,9 @@ Technical defaults, not legal advice. Every step that changes what is measured n
 The ingest functions cache each site's policy for 60 s per isolate, so a new Off can take up to a minute to apply.
 A policy load that fails or takes more than 1.5 s falls back to the safe default, which applies no Off for that request.
 
+The server adapters (5.5.20+) do not send a request that carries `Sec-GPC: 1`, so server-hit's GPC skip count and its
+`agent_measurement` decisions only see GPC from older adapters and own integrations. A near-zero count is expected.
+
 ## Not yet wired
 These collectors receive data for the same purposes but do not call the gate, so a customer Off does not reach them
 yet and the dashboard copy does not claim it does. Wire each through `jurisdictionGate` (or `decideAndLog`) and add it

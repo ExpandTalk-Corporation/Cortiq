@@ -259,7 +259,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   {
     path: '/integrations/cloudflare/',
     title: 'Track AI Crawlers Server-Side with Cloudflare — CortIQ',
-    description: 'A paste-ready Cloudflare Worker that reports GPTBot, ClaudeBot and other AI crawlers that never run JavaScript. Human requests never leave Cloudflare.',
+    description: 'A paste-ready Cloudflare Worker that reports GPTBot, ClaudeBot and other AI crawlers that never run JavaScript. Ordinary page views stay in Cloudflare.',
     published: '2026-10-03',
     changefreq: 'monthly',
     priority: 0.7,

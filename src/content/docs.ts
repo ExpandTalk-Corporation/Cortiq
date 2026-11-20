@@ -385,7 +385,7 @@ export const CLOUDFLARE: ContentPageData = {
           type: 'list',
           items: [
             'It passes every request on to your site and reports in the background, so visitors do not wait for CortIQ.',
-            'It reports only requests with a bot or agent user agent, fetches of `robots.txt` / `llms.txt`, and hits on the honeypot link. Human requests never leave Cloudflare.',
+            'It reports only requests with a bot or agent user agent, fetches of `robots.txt` / `llms.txt`, and hits on the honeypot link. Ordinary human page requests never leave Cloudflare (a person who opens the honeypot link is counted as a signal only, without IP or user agent); a request that carries `Sec-GPC: 1` is not sent.',
             'It adds a hidden honeypot link to HTML pages and `Disallow: /cortiq-trap/` to every group in `robots.txt` (or serves a minimal `robots.txt` if your site has none), and answers the honeypot URL with a 404.',
             'It marks requests to your site so the CortIQ WordPress plugin does not report them a second time.',
             'Each request still runs the Worker, so it counts toward your Cloudflare Workers request quota.',

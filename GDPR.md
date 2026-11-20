@@ -152,7 +152,7 @@ This website uses CortIQ Analytics to understand how visitors use the site.
 
 Our server analyses technical data from incoming requests (user agent, requested page, referrer and a shortened IP address) to count and classify visits by bots and AI agents. Only requests that look automated are sent to CortIQ, our processor. Nothing is stored on or read from your device. [Adjust to your own assessment.]
 
-The legal basis is our legitimate interest (Art. 6(1)(f) GDPR) in statistics on visits to our site by bots and AI agents: which agents visit, which pages they fetch and how often. **You have the right to object** to this processing at any time on grounds relating to your particular situation (Art. 21 GDPR); contact [CONTACT EMAIL]. You can also object automatically: if your browser or agent sends the Global Privacy Control signal (`Sec-GPC: 1`), we treat the request as an objection and it is not sent to CortIQ, so nothing from it is stored. The shortened IP address is deleted after 30 days; other request data is kept for [X] days.
+The legal basis is our legitimate interest (Art. 6(1)(f) GDPR) in statistics on visits to our site by bots and AI agents: which agents visit, which pages they fetch and how often. **You have the right to object** to this processing at any time on grounds relating to your particular situation (Art. 21 GDPR); contact [CONTACT EMAIL]. You can also object automatically: if your browser or agent sends the Global Privacy Control signal (`Sec-GPC: 1`), we treat the request as an objection and we do not send it to CortIQ, so it is not included in these statistics. The shortened IP address is deleted after 30 days; other request data is kept for [X] days.
 
 **Analytics (only after consent)**
 
