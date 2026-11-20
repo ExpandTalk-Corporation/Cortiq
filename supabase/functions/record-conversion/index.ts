@@ -14,6 +14,8 @@ import { createClient } from '../_shared/supabase.ts';
 import { getSessionConsent } from '../_shared/session-consent.ts';
 import { resolveSite } from "../_shared/resolve-site.ts";
 import { skipTrackingCheck } from '../_shared/tracking-check-ua.ts';
+import { resolveGeo, geoKey } from '../_shared/geo.ts';
+import { loadSitePolicy, decideAndLog, signalsFrom, readLedger, visitorFrom } from '../_shared/jurisdiction-edge.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -62,6 +64,18 @@ Deno.serve(async (req) => {
     const currentConsent = await getSessionConsent(supabase, site.id, sessionId);
     if (!currentConsent.analytics) return json({ error: 'Analytics consent required' }, 403);
 
+    // Jurisdiction rules on top of the consent gate above. Ledger evidence only: this endpoint
+    // already requires a ledger row.
+    const policy = await loadSitePolicy(supabase, site.id);
+    const flag = Deno.env.get('JURISDICTION_ENFORCE');
+    const visitorGeo = visitorFrom(await resolveGeo(req, { key: geoKey(), timeZone: null }));
+    const ledgerSignals = signalsFrom(await readLedger(supabase, site.id, sessionId), { trackerGate: [], gpcHeader: req.headers.get('sec-gpc') === '1' });
+    const conversionDecision = await decideAndLog(supabase, 'record-conversion', site.id, {
+      visitor: visitorGeo, purpose: 'conversion', signals: ledgerSignals,
+      technique: { storage: 'session', identifiers: 'session' },
+    }, policy, flag);
+    if (conversionDecision.drop) return json({ success: true, skipped: 'jurisdiction' });
+
     // SECURITY: per-site rate limit to blunt anonymous conversion-injection / dashboard pollution.
     const { data: underLimit, error: rlErr } = await supabase.rpc('check_rate_limit', {
       p_key: `conv:${site.id}`,
@@ -96,12 +110,21 @@ Deno.serve(async (req) => {
       visitor = data;
     }
 
-    const consent = currentConsent.marketing && visitor?.click_id_consent_given === true;
-    const gclid: string | null = consent ? visitor?.gclid ?? null : null;
+    let consent = currentConsent.marketing && visitor?.click_id_consent_given === true;
+    let gclid: string | null = consent ? visitor?.gclid ?? null : null;
+    let jurisdictionBlocked = false;
+    if (gclid) {
+      const attribution = await decideAndLog(supabase, 'record-conversion', site.id, {
+        visitor: visitorGeo, purpose: 'attribution', signals: ledgerSignals,
+        technique: { storage: 'session', identifiers: 'cross_site' },
+      }, policy, flag);
+      if (attribution.drop) { jurisdictionBlocked = true; consent = false; gclid = null; }
+    }
 
     // State machine: only rows with BOTH a gclid AND consent become uploadable.
     let uploadStatus: string;
-    if (!gclid) uploadStatus = 'skipped_no_gclid';
+    if (jurisdictionBlocked) uploadStatus = 'skipped_jurisdiction';
+    else if (!gclid) uploadStatus = 'skipped_no_gclid';
     else if (!consent) uploadStatus = 'skipped_no_consent';
     else uploadStatus = 'pending';
 

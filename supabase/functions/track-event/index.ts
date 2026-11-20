@@ -7,6 +7,7 @@ import { normalizeSessionTimeout } from '../_shared/session-timeout.js';
 import { browserAndOs } from '../_shared/user-agent.js';
 import { skipTrackingCheck } from '../_shared/tracking-check-ua.ts';
 import { sanitizeInteraction } from '../_shared/interaction.js';
+import { loadSitePolicy, decideAndLog, signalsFrom, readLedger, visitorFrom } from '../_shared/jurisdiction-edge.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -155,6 +156,26 @@ Deno.serve(async (req) => {
       if (touchError) console.error('touch_tracking_session failed (non-fatal):', touchError);
     };
 
+    // One decision per request and site (memoized). The tracker sends only after its analytics
+    // gate; the ledger can only tighten that (spec ADR-1, Review Focus 1).
+    let geoMemo: Awaited<ReturnType<typeof resolveGeo>> | null = null;
+    const requestGeo = async () => (geoMemo ??= await resolveGeo(req, { key: geoKey(), timeZone: body.metadata?.timezone }));
+    const gateMemo = new Map<string, boolean>();
+    const gate = async (siteId: string | null | undefined): Promise<boolean> => {
+      if (!siteId) return false;
+      const hit = gateMemo.get(siteId);
+      if (hit !== undefined) return hit;
+      const d = await decideAndLog(supabase, 'track-event', siteId, {
+        visitor: visitorFrom(await requestGeo()), purpose: 'statistics',
+        signals: signalsFrom(await readLedger(supabase, siteId, body.session_id), { trackerGate: ['analytics'], gpcHeader: req.headers.get('sec-gpc') === '1' }),
+        technique: { storage: 'session', identifiers: 'session' },
+      }, await loadSitePolicy(supabase, siteId), Deno.env.get('JURISDICTION_ENFORCE'));
+      gateMemo.set(siteId, d.drop);
+      return d.drop;
+    };
+    const skippedJurisdiction = () => new Response(JSON.stringify({ success: true, skipped: 'jurisdiction' }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
     // Click/scroll heatmap points go to heatmap_data, which the dashboard, REST API and
     // MCP server read. Until 2026-10 this event type fell through the allow-list above
     // and was silently dropped, so heatmaps stopped receiving data after June 2026.
@@ -174,6 +195,7 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ success: false, error: 'Invalid heatmap event' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
+      if (await gate(site.id)) return skippedJurisdiction();
       const { error: heatmapError } = await supabase.from('heatmap_data').insert({
         site_id: site.id,
         url,
@@ -217,6 +239,7 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ success: false, error: 'Invalid form_session event' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
+      if (await gate(siteId)) return skippedJurisdiction();
       const fieldData = Array.isArray(m.field_data) ? m.field_data : [];
       const { error: formError } = await supabase.rpc('record_form_session', {
         p_site_id: siteId,
@@ -255,6 +278,7 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ success: false, error: 'Invalid interaction event' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
+      if (await gate(siteId)) return skippedJurisdiction();
       const at = body.timestamp ? new Date(body.timestamp) : new Date();
       const { data: interactionId, error: interactionError } = await supabase.rpc('record_user_interaction', {
         p_site_id: siteId,
@@ -290,6 +314,7 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ success: false, error: 'Invalid content event' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
+      if (await gate(siteId)) return skippedJurisdiction();
       const { error: contentError } = await supabase.rpc('record_content_metrics', { p_site_id: siteId, p_items: items });
       if (contentError) {
         console.error('Failed to record content metrics:', contentError);
@@ -306,6 +331,7 @@ Deno.serve(async (req) => {
     if (body.event_type === 'conversion' && body.metadata?.form_provider === 'sentrisk'
         && typeof body.metadata.form_id === 'string') {
       const siteId = await resolveOwnedSite();
+      if (await gate(siteId)) return skippedJurisdiction();
       if (siteId) {
         const { error: sentriskError } = await supabase.rpc('record_form_session', {
           p_site_id: siteId, p_session_id: body.session_id ?? null, p_form_id: body.metadata.form_id,
@@ -326,6 +352,7 @@ Deno.serve(async (req) => {
     if (body.event_type === 'conversion') {
       const m = body.metadata || {};
       const siteId = await resolveOwnedSite();
+      if (await gate(siteId)) return skippedJurisdiction();
       if (siteId) {
         let conv: { name: string; type: string; selector: string | null; value: number | null } | null = null;
         if (typeof m.goal_id === 'string') {
@@ -438,6 +465,7 @@ Deno.serve(async (req) => {
       console.error('site resolution failed (non-fatal):', resolveErr);
     }
     const eventSiteId = domainSiteId ?? await resolveOwnedSite();
+    if (await gate(eventSiteId)) return skippedJurisdiction();
 
     // Insert tracking event
     const { data: event, error: insertError } = await supabase
@@ -487,7 +515,7 @@ Deno.serve(async (req) => {
         if (domainSiteId) {
           viewSiteId = domainSiteId;
           const ua = browserAndOs(req.headers.get('user-agent'));
-          const geo = await resolveGeo(req, { key: geoKey(), timeZone: body.metadata?.timezone });
+          const geo = await requestGeo();
           await supabase.rpc('ingest_pageview', {
             p_url: pageUrl,
             p_session: body.session_id ?? null,
