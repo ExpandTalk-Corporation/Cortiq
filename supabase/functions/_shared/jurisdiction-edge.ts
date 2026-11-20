@@ -103,31 +103,55 @@ export function visitorFrom(geo: { country: string | null; region: string | null
 
 export type DecideInput = { visitor: Visitor; purpose: Purpose; signals: Signals; technique: Technique };
 
-export async function decideAndLog(
-  // deno-lint-ignore no-explicit-any
-  client: any, fn: IngestFn, siteId: string,
-  input: DecideInput,
-  policy: SitePolicy, flag: string | null | undefined, count = 1,
-): Promise<Decision & { enforce: boolean; drop: boolean }> {
-  const enforce = isEnforced(fn, flag);
+// store-consent records the visitor's choice, so it never drops, not even on a customer Off.
+const NEVER_DROPS: ReadonlySet<IngestFn> = new Set(['store-consent']);
+
+// The customer's own Off is the controller's documented instruction (GDPR art. 28(3)(a)) and
+// applies now; opt_in and every market rule stay shadow until JURISDICTION_ENFORCE lists the function.
+// STRICT_POLICY (failed policy load) has no tighten, so it never matches and never drops in shadow.
+export const customerOff = (fn: IngestFn, policy: SitePolicy, purpose?: Purpose): boolean =>
+  !NEVER_DROPS.has(fn) && (purpose ? policy.tighten[purpose] === 'off' : Object.values(policy.tighten).includes('off'));
+
+type GateDecision = Decision & { enforce: boolean; drop: boolean };
+
+function decideOnly(fn: IngestFn, input: DecideInput, policy: SitePolicy, enforce: boolean): GateDecision | null {
   let d: Decision;
   try {
     d = decide({ ...input, customer: policy.customer, exceptions: policy.exceptions, tighten: policy.tighten, testSite: policy.testSite });
   } catch (e) {
-    // Fail closed when enforced; in shadow mode nothing changes. Nothing valid to log.
     console.error('jurisdiction: decide threw:', (e as Error)?.message);
-    return { ...DECIDE_FAILED, enforce, drop: enforce };
+    return null;
   }
+  // `enforce` (logged as p_enforced) = the decision was applied: the flag, or the customer's own Off.
+  const applied = enforce || (d.reason === 'customer_off' && !NEVER_DROPS.has(fn));
+  return { ...d, enforce: applied, drop: applied && !d.permit };
+}
+
+// deno-lint-ignore no-explicit-any
+async function logDecision(client: any, fn: IngestFn, siteId: string, input: DecideInput, d: GateDecision, count: number): Promise<void> {
   try {
     const { error } = await client.rpc('log_jurisdiction_decision', {
       p_site_id: siteId, p_fn: fn, p_purpose: input.purpose,
       p_country: input.visitor.geoSource === 'ip' ? (input.visitor.country ?? '') : '',
       p_rule_id: d.ruleIds.join(',').slice(0, 200), p_outcome: d.outcome, p_reason: d.reason,
-      p_evidence: d.evidence, p_enforced: enforce, p_count: Math.max(1, Math.floor(count)),
+      p_evidence: d.evidence, p_enforced: d.enforce, p_count: Math.max(1, Math.floor(count)),
     });
     if (error) console.error('jurisdiction: log failed:', error.message);
   } catch (e) { console.error('jurisdiction: log threw:', (e as Error).message); }
-  return { ...d, enforce, drop: enforce && !d.permit };
+}
+
+export async function decideAndLog(
+  // deno-lint-ignore no-explicit-any
+  client: any, fn: IngestFn, siteId: string,
+  input: DecideInput,
+  policy: SitePolicy, flag: string | null | undefined, count = 1,
+): Promise<GateDecision> {
+  const enforce = isEnforced(fn, flag);
+  const d = decideOnly(fn, input, policy, enforce);
+  // Fail closed when enforced; in shadow mode nothing changes. Nothing valid to log.
+  if (!d) return { ...DECIDE_FAILED, enforce, drop: enforce };
+  await logDecision(client, fn, siteId, input, d, count);
+  return d;
 }
 
 // Keeps shadow work off the response path: the runtime finishes it after the response is sent.
@@ -139,25 +163,46 @@ export function runShadow(p: Promise<unknown>): void {
   else void safe;
 }
 
-// One request's jurisdiction gate. Policy and ledger load once, in parallel (sessionId undefined =
-// no ledger read). Shadow mode: load, decide and log all run inside runShadow and gate() resolves
-// false at once. Enforced: gate() waits for the decision and resolves to whether to drop.
+// One request's jurisdiction gate. Policy and ledger load once (sessionId undefined = no ledger read).
+// Enforced: policy and ledger load in parallel and gate() waits for the decision.
+// Not enforced: gate() waits only for the policy. Without a customer Off for the purpose being
+// handled, ledger, decide and log run inside runShadow and gate() resolves false. With one, it
+// decides inline and drops; the log still runs in the background. store-consent never waits.
 export function jurisdictionGate(
   // deno-lint-ignore no-explicit-any
   client: any, fn: IngestFn, siteId: string, flag: string | null | undefined, sessionId?: unknown,
 ) {
   const enforce = isEnforced(fn, flag);
-  let loaded: Promise<[SitePolicy, Ledger | null]> | null = null;
-  const load = () => (loaded ??= Promise.all([
-    loadSitePolicy(client, siteId),
-    sessionId === undefined ? Promise.resolve(null) : readLedger(client, siteId, sessionId),
-  ]));
+  let policyP: Promise<SitePolicy> | null = null;
+  let ledgerP: Promise<Ledger | null> | null = null;
+  const policy = () => (policyP ??= loadSitePolicy(client, siteId));
+  const ledger = () => (ledgerP ??= sessionId === undefined ? Promise.resolve(null) : readLedger(client, siteId, sessionId));
   return {
     enforce,
     async gate(build: (ledger: Ledger | null) => DecideInput | Promise<DecideInput>, count = 1): Promise<boolean> {
-      const work = load().then(async ([policy, ledger]) => decideAndLog(client, fn, siteId, await build(ledger), policy, flag, count));
-      if (!enforce) { runShadow(work); return false; }
-      return (await work).drop;
+      if (enforce) {
+        const [p, l] = await Promise.all([policy(), ledger()]);
+        return (await decideAndLog(client, fn, siteId, await build(l), p, flag, count)).drop;
+      }
+      if (NEVER_DROPS.has(fn)) {
+        runShadow(Promise.all([policy(), ledger()]).then(async ([p, l]) => decideAndLog(client, fn, siteId, await build(l), p, flag, count)));
+        return false;
+      }
+      const p = await policy();
+      if (!customerOff(fn, p)) {
+        runShadow(ledger().then(async (l) => decideAndLog(client, fn, siteId, await build(l), p, flag, count)));
+        return false;
+      }
+      // The site has an Off somewhere: the purpose comes from the input, which needs the ledger.
+      const input = await build(await ledger());
+      if (!customerOff(fn, p, input.purpose)) {
+        runShadow(decideAndLog(client, fn, siteId, input, p, flag, count));
+        return false;
+      }
+      const d = decideOnly(fn, input, p, false);
+      if (!d) return false;
+      runShadow(logDecision(client, fn, siteId, input, d, count));
+      return d.drop;
     },
   };
 }

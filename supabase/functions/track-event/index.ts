@@ -165,7 +165,8 @@ Deno.serve(async (req) => {
       if (!siteId) return false;
       const hit = gateMemo.get(siteId);
       if (hit !== undefined) return hit;
-      // Shadow mode resolves false at once; geo, policy, ledger and the log run in the background.
+      // Shadow mode waits only for the site policy; geo, ledger and the log run in the background unless
+      // the site has a customer Off (applied now, see jurisdictionGate).
       const drop = await jurisdictionGate(supabase, 'track-event', siteId, Deno.env.get('JURISDICTION_ENFORCE'), body.session_id).gate(async (ledger) => ({
         visitor: visitorFrom(await requestGeo()), purpose: 'statistics',
         signals: signalsFrom(ledger, { trackerGate: ['analytics'], gpcHeader: req.headers.get('sec-gpc') === '1' }),

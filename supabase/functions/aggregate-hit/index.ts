@@ -27,7 +27,7 @@ import { normalizeGoals, matchPageVisitGoals } from '../_shared/conversion-goals
 import { normHost, ownsHost } from '../_shared/site-host.ts';
 import { cleanPath, referrerSource, utmFrom, fallbackGoal, deviceFromUA, visitorHash } from '../_shared/aggregate.js';
 import { resolveGeo, geoKey } from '../_shared/geo.ts';
-import { jurisdictionGate, signalsFrom, visitorFrom } from '../_shared/jurisdiction-edge.ts';
+import { jurisdictionGate, runShadow, signalsFrom, visitorFrom } from '../_shared/jurisdiction-edge.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -112,9 +112,9 @@ Deno.serve(async (req) => {
     signals: signalsFrom(null, { trackerGate: [], gpcHeader: gpc }),
     technique: { storage: 'none', identifiers: 'none' },
   }));
-  // GPC stays absolute whatever the rule says. Its decision is logged, but a GPC hit never uses
-  // up the site's rate limit.
-  if (gpc) { await decide(); return skipped('gpc'); }
+  // GPC stays absolute whatever the rule says. Its decision is logged off the response path, and a
+  // GPC hit never uses up the site's rate limit.
+  if (gpc) { runShadow(decide()); return skipped('gpc'); }
 
   // Fail closed: an unavailable limiter must not become an unlimited one. Runs before the
   // decision log so a flood cannot inflate the counters.
