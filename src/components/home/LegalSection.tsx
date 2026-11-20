@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { FileText, Scale } from "lucide-react";
 import { Faq } from "@/components/tracking-check/LandingParts";
-import { LEGAL_BASES, LEGAL_DOCS, LEGAL_NOTES } from "./copy";
+import { LEGAL_BASES, LEGAL_DOCS, LEGAL_NOTES, ROUTING_ID } from "./copy";
 
 export function LegalSection() {
   return (
@@ -14,10 +14,13 @@ export function LegalSection() {
         <Faq
           items={[
             ...LEGAL_BASES.map((b) => ({ q: b.title, a: b.text })),
-            { q: "Install checklist and jurisdictions", a: LEGAL_NOTES.slice(0, 2).map((n) => `${n.lead} ${n.text}`).join(" ") },
+            { q: "Install checklist", a: `${LEGAL_NOTES[0].lead} ${LEGAL_NOTES[0].text}` },
           ]}
         />
-        <p className="mt-4 text-center text-sm text-muted-foreground">{LEGAL_NOTES[2].text}</p>
+        <p className="mt-4 text-center text-sm text-muted-foreground">
+          Rules per country and what applies today: <a href={`#${ROUTING_ID}`} className="text-primary hover:underline">routing per country</a>.
+        </p>
+        <p className="mt-2 text-center text-sm text-muted-foreground">{LEGAL_NOTES[1].text}</p>
         {/* Deliberate deviation from the spec: these four legal document links stay visible under the
             <details> list (not inside one), because links cost little text and help visitors and crawlers. */}
         <div className="mt-3 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm">
