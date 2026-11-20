@@ -394,8 +394,10 @@ test('ecommerce-tracking: customer Off for statistics drops without the flag; op
   assert.equal(inserts(optIn.d, 'ecommerce_events').length, 1);
 });
 
-test('ecommerce-tracking: no tighten = answers before a slow ledger read and log', async () => {
-  const { body, answeredBeforeLog } = await ecommerce({ slow: true });
+// The consent-ledger read is on the response path here (consent comes from the ledger, fail closed),
+// so only the decision log is held.
+test('ecommerce-tracking: no tighten = answers before a slow log', async () => {
+  const { body, answeredBeforeLog } = await ecommerce({ slow: true, slowLedger: false });
   assert.equal(body.success, true);
   assert.equal(answeredBeforeLog, true);
 });

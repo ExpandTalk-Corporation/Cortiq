@@ -40,7 +40,9 @@ human count). `import-server-logs` is `statistics`: it skips bots and aggregates
 sends such a hit.
 
 Found while wiring (not fixed here):
-- `ecommerce-tracking`: `spa-tracking.js` `trackEcommercePurchase` sends no `consentGranted`, so the function answers 400.
+- `ecommerce-tracking`: `spa-tracking.js` `trackEcommercePurchase` sends no `consentGranted`, so the function answered 400.
+  Fixed server-side: consent now comes from the consent ledger by session id (as in record-conversion), fail closed,
+  and the tracker's `{ orderId, total, items }` shape is mapped. A client `consentGranted: false` still skips.
 - `content-tracking`, `media-analytics`: no live caller (the dashboard calls relative `/api/...` URLs); the POST body's
   `site_id` is not validated against a key, and the GET endpoints return any site's data by `site_id` without auth.
   Recommend removing both functions or adding auth.
