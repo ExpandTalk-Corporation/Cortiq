@@ -2,6 +2,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import type { Site } from '@/types/dashboard';
 import { DISCLAIMER } from '@/lib/jurisdiction';
+
+// Shadow mode (spec 2026-11-18 phase 3): settings are stored and logged, nothing is stopped yet.
+export const NOT_YET_APPLIED = 'Recorded, not yet applied: CortIQ is checking these rules against real traffic before it starts stopping data. Until then, data for every purpose is collected as before.';
 import { useSiteJurisdiction } from '@/hooks/useSiteJurisdiction';
 import { LegalProfileForm } from './LegalProfileForm';
 import { TightenControls } from './TightenControls';
@@ -20,6 +23,7 @@ export function RulesByMarketTab({ selectedSite }: { selectedSite: Site | null }
         </CardHeader>
         <CardContent><LegalProfileForm profile={j.data?.profile ?? null} onSave={(a) => j.saveProfile.mutate(a)} saving={j.saveProfile.isPending} /></CardContent>
       </Card>
+      <Alert><AlertDescription>{NOT_YET_APPLIED}</AlertDescription></Alert>
       <Card>
         <CardHeader>
           <CardTitle>Make it stricter</CardTitle>

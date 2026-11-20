@@ -80,6 +80,7 @@ export function LegalProfileForm({ profile, onSave, saving }: LegalProfileFormPr
             </div>
           ))}
         </div>
+        <p className="text-sm text-muted-foreground">Visitors whose country we cannot verify are treated by the strictest of the markets you select.</p>
       </div>
 
       {PROFILE_QUESTIONS.map((q) => (

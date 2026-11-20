@@ -33,3 +33,21 @@ test('CMPDashboard registers the tab', () => {
   assert.match(src, /<TabsTrigger value="rules">Rules by market<\/TabsTrigger>/);
   assert.match(src, /<RulesByMarketTab selectedSite=\{selectedSite\} \/>/);
 });
+
+test('shadow mode is visible: tighten settings say they are not yet applied; Stopped column explains its 0', () => {
+  const tab = read('RulesByMarketTab.tsx');
+  assert.match(tab, /Recorded, not yet applied: CortIQ is checking these rules against real traffic before it starts stopping data\. Until then, data for every purpose is collected as before\./);
+  assert.ok(tab.indexOf('{NOT_YET_APPLIED}') < tab.indexOf('Make it stricter'), 'notice sits above the tighten controls');
+  assert.match(read('CoverageByCountryCard.tsx'), /Stopping is not switched on yet; this column stays 0 until it is\./);
+  assert.match(read('LegalProfileForm.tsx'), /Visitors whose country we cannot verify are treated by the strictest of the markets you select\./);
+});
+
+test('coverage hook and card are safe without a site; tables scroll on narrow screens', () => {
+  const hook = readFileSync(new URL('../../src/hooks/useCoverageByCountry.ts', import.meta.url), 'utf8');
+  assert.match(hook, /selectedSite: Site \| null/);
+  assert.match(hook, /useSiteJurisdiction\(siteId\)/);
+  assert.match(hook, /enabled: !!siteId/);
+  const card = read('CoverageByCountryCard.tsx');
+  assert.doesNotMatch(card, /as Site/);
+  assert.equal(card.match(/<div className="overflow-x-auto"><table/g)?.length, 3);
+});

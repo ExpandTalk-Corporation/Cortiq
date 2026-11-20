@@ -17,22 +17,23 @@ export interface CoverageByCountry {
   from: string; to: string;
 }
 
-export function useCoverageByCountry(selectedSite: Site, category: 'analytics' | 'marketing' = 'analytics') {
-  const site = selectedSite as Site & { aggregate_measurement?: boolean; conversion_goals?: unknown };
-  const j = useSiteJurisdiction(site.id);
-  const goals = Array.isArray(site.conversion_goals) ? (site.conversion_goals as Goal[]) : [];
+export function useCoverageByCountry(selectedSite: Site | null, category: 'analytics' | 'marketing' = 'analytics') {
+  const site = selectedSite as (Site & { aggregate_measurement?: boolean; conversion_goals?: unknown }) | null;
+  const siteId = site?.id;
+  const j = useSiteJurisdiction(siteId);
+  const goals = Array.isArray(site?.conversion_goals) ? (site.conversion_goals as Goal[]) : [];
   const primary = goals.find((g) => g?.is_primary && typeof g.id === 'string') ?? null;
-  const perCountry = site.aggregate_measurement === true && (primary?.type === 'page_visit' || primary?.type === 'form_submission');
+  const perCountry = site?.aggregate_measurement === true && (primary?.type === 'page_visit' || primary?.type === 'form_submission');
 
   return useQuery({
-    queryKey: ['coverage-by-country', site.id, primary?.id ?? null, perCountry, category, j.data?.tighten ?? null, j.data?.customer ?? null],
-    enabled: !!site.id && !j.isLoading,
+    queryKey: ['coverage-by-country', siteId ?? null, primary?.id ?? null, perCountry, category, j.data?.tighten ?? null, j.data?.customer ?? null],
+    enabled: !!siteId && !j.isLoading,
     staleTime: 5 * 60 * 1000,
     queryFn: async (): Promise<CoverageByCountry> => {
       const now = Date.now();
       const from = new Date(now - 29 * DAY).toISOString().slice(0, 10);
       const to = new Date(now).toISOString().slice(0, 10);
-      const args = { p_site_id: site.id, p_from: from, p_to: to };
+      const args = { p_site_id: siteId!, p_from: from, p_to: to };
       const [cov, acc] = await Promise.all([
         supabase.rpc('coverage_by_country', args),
         supabase.rpc('consent_acceptance_by_country_lang', args),
@@ -47,7 +48,7 @@ export function useCoverageByCountry(selectedSite: Site, category: 'analytics' |
       let readiness: CountryReadinessResult | null = null;
       if (perCountry && primary?.id) {
         const { data, error } = await supabase.from('aggregate_goal_countries_daily')
-          .select('country, conversions').eq('site_id', site.id).eq('goal_id', primary.id).gte('day', from).lte('day', to);
+          .select('country, conversions').eq('site_id', siteId!).eq('goal_id', primary.id).gte('day', from).lte('day', to);
         if (error) throw new Error(error.message);
         const sums = new Map<string, number>();
         for (const r of data ?? []) sums.set(r.country, (sums.get(r.country) ?? 0) + Number(r.conversions));
