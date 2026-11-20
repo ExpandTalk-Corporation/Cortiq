@@ -3,18 +3,22 @@
 -- Spec: docs/superpowers/specs/2026-11-12-attribution-models-and-ai-influence.md (jurist review
 -- 2026-11-20). Plan: docs/superpowers/plans/2026-11-20-attribution-layer-1-5.md.
 --
--- - conversion_events.reported_channel: one category from a fixed list (no free text, no raw
---   answer). Kept equal to supabase/functions/_shared/reported-channel.ts by a foundation test.
+-- - conversion_reported_channel: one category per conversion from a fixed list (no free text, no raw
+--   answer), in its own table so no dashboard role can read it row by row: RLS on, no policy, no
+--   grants to anon/authenticated. Written only by the SECURITY DEFINER functions below, read only by
+--   get_reported_channel. Deleted with its conversion (ON DELETE CASCADE, so run_data_retention()
+--   and erasure cover it). The list is kept equal to supabase/functions/_shared/reported-channel.ts
+--   by a foundation test.
 -- - Two capture paths, both off until the site sets reported_channel_policy_version:
 --     HubSpot: a contact property, mapped in hubspot-lead-webhook, written by
 --       apply_reported_channel_hubspot onto marketing-consented rows (hashed email match).
---     Form: a select/radio field, mapped in the browser, written by record_conversion_event /
---       record-conversion when the session has analytics consent.
+--     Form: a select/radio field, mapped in the browser, written by record_conversion_event (goal
+--       hits) or attach_reported_channel (record-conversion) when the session has analytics consent.
 --   Either way the session's latest consent row must carry that policy_version and be newer than
 --   sites.reported_channel_enabled_at (set by a trigger), so only visitors who saw the updated
 --   banner text count. Fails closed.
--- - Read only in aggregate: get_reported_channel (SECURITY INVOKER, owner check, counts 1-4 as
---   "fewer than 5"). The value never leaves CortIQ (Google Ads upload, GA4, AI insights): test-enforced.
+-- - Read only in aggregate: get_reported_channel (SECURITY DEFINER, explicit owner check, small
+--   counts suppressed). The value never leaves CortIQ (Google Ads upload, GA4, AI insights): test-enforced.
 
 -- ---------------------------------------------------------------------------------------------
 -- Category list and value-list validation
@@ -47,14 +51,21 @@ AS $$
     ) END
 $$;
 
-ALTER TABLE public.conversion_events
-  ADD COLUMN IF NOT EXISTS reported_channel text;
-ALTER TABLE public.conversion_events DROP CONSTRAINT IF EXISTS conversion_events_reported_channel_check;
-ALTER TABLE public.conversion_events
-  ADD CONSTRAINT conversion_events_reported_channel_check
-  CHECK (reported_channel IS NULL OR public.is_reported_channel(reported_channel));
-COMMENT ON COLUMN public.conversion_events.reported_channel IS
-  'Self-reported source category (fixed list). Aggregate display only; never exported to Google Ads, GA4 or an LLM.';
+-- A new table (no existing rows), so its CHECK needs no NOT VALID / VALIDATE step.
+CREATE TABLE IF NOT EXISTS public.conversion_reported_channel (
+  conversion_id uuid PRIMARY KEY REFERENCES public.conversion_events(id) ON DELETE CASCADE,
+  site_id       uuid NOT NULL,
+  channel       text NOT NULL CHECK (public.is_reported_channel(channel)),
+  created_at    timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS conversion_reported_channel_site_idx ON public.conversion_reported_channel (site_id);
+COMMENT ON TABLE public.conversion_reported_channel IS
+  'Self-reported source category (fixed list) per conversion. No read policy: aggregate display through get_reported_channel only; never exported to Google Ads, GA4 or an LLM.';
+
+ALTER TABLE public.conversion_reported_channel ENABLE ROW LEVEL SECURITY;
+-- Deliberately no policy: anon and authenticated can neither read nor write rows.
+REVOKE ALL ON public.conversion_reported_channel FROM PUBLIC, anon, authenticated;
+GRANT SELECT, INSERT, DELETE ON public.conversion_reported_channel TO service_role;
 
 ALTER TABLE public.sites
   ADD COLUMN IF NOT EXISTS reported_channel_policy_version text,
@@ -176,6 +187,7 @@ DECLARE
   v_sess uuid;
   v_name text := left(nullif(trim(p_event_name), ''), 200);
   v_channel text;
+  v_id uuid;
 BEGIN
   IF p_site_id IS NULL OR v_name IS NULL THEN RETURN false; END IF;
 
@@ -200,10 +212,14 @@ BEGIN
     v_channel := p_reported_channel;
   END IF;
 
-  INSERT INTO public.conversion_events (site_id, session_id, event_type, event_name, event_value, element_selector, reported_channel)
+  INSERT INTO public.conversion_events (site_id, session_id, event_type, event_name, event_value, element_selector)
   VALUES (p_site_id, v_sess, left(coalesce(nullif(p_event_type, ''), 'conversion'), 50), v_name,
           CASE WHEN p_value IS NOT NULL AND p_value >= 0 AND p_value < 1e9 THEN p_value END,
-          left(nullif(p_selector, ''), 500), v_channel);
+          left(nullif(p_selector, ''), 500))
+  RETURNING id INTO v_id;
+  IF v_channel IS NOT NULL THEN
+    INSERT INTO public.conversion_reported_channel (conversion_id, site_id, channel) VALUES (v_id, p_site_id, v_channel);
+  END IF;
   RETURN true;
 END;
 $$;
@@ -212,10 +228,41 @@ REVOKE EXECUTE ON FUNCTION public.record_conversion_event(uuid, text, text, text
 GRANT  EXECUTE ON FUNCTION public.record_conversion_event(uuid, text, text, text, text, numeric, text) TO service_role;
 
 -- ---------------------------------------------------------------------------------------------
+-- Form path, data-wfa-conversion forms: record-conversion inserts the conversion itself (service
+-- role) and then attaches the browser-mapped category here, under the same consent gate. Only to a
+-- conversion of this site that has no answer yet. Returns true when stored.
+-- ---------------------------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.attach_reported_channel(p_site_id uuid, p_conversion_id uuid, p_session text, p_category text)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_count integer;
+BEGIN
+  IF p_site_id IS NULL OR p_conversion_id IS NULL OR NOT public.is_reported_channel(p_category)
+     OR NOT public.reported_channel_consent_ok(p_site_id, p_session, 'form') THEN
+    RETURN false;
+  END IF;
+  INSERT INTO public.conversion_reported_channel (conversion_id, site_id, channel)
+  SELECT ce.id, ce.site_id, p_category
+  FROM public.conversion_events ce
+  WHERE ce.id = p_conversion_id AND ce.site_id = p_site_id
+  ON CONFLICT (conversion_id) DO NOTHING;
+  GET DIAGNOSTICS v_count = ROW_COUNT;
+  RETURN v_count = 1;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.attach_reported_channel(uuid, uuid, text, text) FROM PUBLIC, anon, authenticated;
+GRANT  EXECUTE ON FUNCTION public.attach_reported_channel(uuid, uuid, text, text) TO service_role;
+
+-- ---------------------------------------------------------------------------------------------
 -- HubSpot path: the webhook maps the property value in memory and passes only the category.
--- Own code path: matches marketing-consented rows by hashed email that have no answer yet,
--- whose session consented to marketing under the policy version. Never touches upload_status,
--- quality columns or quality_classified_at. Returns the number of rows updated (0 = dropped).
+-- Own code path: matches marketing-consented conversions by hashed email that have no answer yet,
+-- whose session consented to marketing under the policy version, and adds a category row. Never
+-- touches conversion_events (upload_status, quality columns). Returns the rows added (0 = dropped).
 -- ---------------------------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.apply_reported_channel_hubspot(p_site_id uuid, p_hashed_email text, p_category text)
 RETURNS integer
@@ -230,13 +277,15 @@ BEGIN
     RETURN 0;
   END IF;
 
-  UPDATE public.conversion_events ce
-     SET reported_channel = p_category
-   WHERE ce.site_id = p_site_id
-     AND ce.hashed_email = p_hashed_email
-     AND ce.click_id_consent_given IS TRUE
-     AND ce.reported_channel IS NULL
-     AND public.reported_channel_consent_ok(p_site_id, ce.form_data ->> 'tracking_session_id', 'hubspot');
+  INSERT INTO public.conversion_reported_channel (conversion_id, site_id, channel)
+  SELECT ce.id, ce.site_id, p_category
+  FROM public.conversion_events ce
+  WHERE ce.site_id = p_site_id
+    AND ce.hashed_email = p_hashed_email
+    AND ce.click_id_consent_given IS TRUE
+    AND NOT EXISTS (SELECT 1 FROM public.conversion_reported_channel r WHERE r.conversion_id = ce.id)
+    AND public.reported_channel_consent_ok(p_site_id, ce.form_data ->> 'tracking_session_id', 'hubspot')
+  ON CONFLICT (conversion_id) DO NOTHING;
   GET DIAGNOSTICS v_count = ROW_COUNT;
   RETURN v_count;
 END;
@@ -278,7 +327,8 @@ AS $$
 $$;
 
 -- ---------------------------------------------------------------------------------------------
--- Aggregate read for the dashboard. SECURITY INVOKER (RLS applies) plus an explicit owner check.
+-- Aggregate read for the dashboard. SECURITY DEFINER (the category table has no read policy) with an
+-- explicit owner check on auth.uid(); never granted to anon.
 -- Every count is returned as {n, lt5}: 1-4 become {n: null, lt5: true} ("fewer than 5").
 -- No row-level output: never a session, visitor, hash or conversion id.
 -- ---------------------------------------------------------------------------------------------
@@ -296,7 +346,7 @@ CREATE OR REPLACE FUNCTION public.get_reported_channel(p_site_id uuid, p_from da
 RETURNS jsonb
 LANGUAGE plpgsql
 STABLE
-SECURITY INVOKER
+SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
@@ -310,10 +360,11 @@ BEGIN
   END IF;
 
   WITH conv AS (
-    SELECT ce.reported_channel AS reported,
+    SELECT r.channel AS reported,
            CASE WHEN t.id IS NULL THEN 'unknown'
                 ELSE public.observed_channel(t.referrer, t.utm_source, t.utm_medium) END AS observed
     FROM public.conversion_events ce
+    LEFT JOIN public.conversion_reported_channel r ON r.conversion_id = ce.id
     LEFT JOIN public.tracking_sessions t ON t.id = ce.session_id AND t.site_id = ce.site_id
     WHERE ce.site_id = p_site_id
       AND ce.created_at >= p_from AND ce.created_at < p_to + 1

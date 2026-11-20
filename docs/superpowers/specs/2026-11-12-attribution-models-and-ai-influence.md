@@ -70,7 +70,8 @@ Data:
 - Answers are mapped to a fixed category set per site, defaulting to the channel taxonomy in
   `src/ontology/traffic.ts` plus off-site categories (podcast, community, event, colleague or
   friend, AI assistant, other). Unmapped answers become `other`; the raw HubSpot value is not stored.
-- New column `conversion_events.reported_channel` (category, nullable).
+- New table `conversion_reported_channel` (conversion id → category, deleted with the conversion). RLS on with no
+  read policy and no grants to dashboard roles, so the category can only be read in aggregate (code review 2026-11-20).
 
 View (Ads → Attribution): reported channel against the observed source of the converting visit.
 The interesting cells are the mismatches, e.g. "said AI assistant, arrived direct" or "said

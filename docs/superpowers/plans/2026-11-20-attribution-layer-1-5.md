@@ -22,22 +22,24 @@ full mode only, no consent-free aggregate path.
   the new policy_version" recommendation for both paths.
 - **Form field by name only** (`<select name>` or `<input type=radio name>`), not a CSS selector:
   smaller surface, and the tracker checks the element type before reading.
-- **Aggregate only.** `reported_channel` is read by one RPC (`get_reported_channel`, SECURITY INVOKER,
-  owner check) that returns cell counts, with counts 1–4 returned as `null` + `lt5`. No row view.
+- **Aggregate only.** The category is read by one RPC (`get_reported_channel`, SECURITY DEFINER,
+  owner check; the `conversion_reported_channel` table has no read policy) that returns cell counts, with counts 1–4 returned as `null` + `lt5`. No row view.
   `public-api`, `google-ads-quality-upload`, GA4 sync and AI insights use explicit column lists
   without it; a foundation test enforces this.
 
 ## Steps (one commit each, test first)
 
 1. **Migration `20261210000001_reported_channel.sql`**
-   - `conversion_events.reported_channel text` + CHECK (fixed list).
+   - `conversion_reported_channel` (conversion_id PK → conversion_events ON DELETE CASCADE, site_id, channel
+     CHECK fixed list); RLS on, no policy, no grants to anon/authenticated. (Changed from a column on
+     conversion_events after code review 2026-11-20; a new table also makes NOT VALID/VALIDATE moot.)
    - `sites`: `reported_channel_hubspot_property`, `reported_channel_hubspot_map jsonb`,
      `reported_channel_form_field`, `reported_channel_form_map jsonb`, `reported_channel_policy_version`;
      CHECKs via `is_valid_reported_channel_map(jsonb)` (object, ≤50 keys, keys ≤100 chars, values in list).
    - `reported_channel_consent_ok(site, session text, path)` — service role only.
    - `record_conversion_event` gets `p_reported_channel text DEFAULT NULL` (drop + recreate, same grants).
-   - `apply_reported_channel_hubspot(site, hashed_email, category)` — service role only; updates only
-     `reported_channel` on marketing-consented rows (`click_id_consent_given`, hashed email) that have no
+   - `apply_reported_channel_hubspot(site, hashed_email, category)` — service role only; adds a category row
+     for marketing-consented conversions (`click_id_consent_given`, hashed email) that have no
      answer yet and pass the consent gate; never `upload_status`, never depends on `quality_classified_at`.
    - `observed_channel(referrer, utm_source, utm_medium)` and `get_reported_channel(site, from, to)`.
    - PGlite test `reported-channel.sql`.

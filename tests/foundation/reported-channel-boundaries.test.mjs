@@ -59,7 +59,20 @@ test('SQL: only the layer 1.5 migration knows the column; the read is aggregate'
   assert.deepEqual(migrations.map((f) => f.split('/').pop()), ['20261210000001_reported_channel.sql']);
   const fn = read('supabase/migrations/20261210000001_reported_channel.sql')
     .match(/FUNCTION public\.get_reported_channel[\s\S]*?\$\$;/)[0];
-  assert.doesNotMatch(fn, /hashed_email|visitor_id|ce\.id\b|'session_id'/);
+  // The join key is the only use of the conversion id; it never reaches the output.
+  assert.doesNotMatch(fn.replace('ON r.conversion_id = ce.id', ''), /hashed_email|visitor_id|ce\.id\b|'session_id'/);
+  assert.match(fn, /SECURITY DEFINER/);
+  assert.match(fn, /user_id = auth\.uid\(\)/, 'explicit owner check');
+});
+
+test('the category table is never read or written directly outside the migration', () => {
+  const files = [...walk('supabase/functions'), ...walk('src')].filter((f) => /\.(ts|tsx|js|mjs)$/.test(f));
+  assert.deepEqual(files.filter((f) => /from\(['"]conversion_reported_channel/.test(read(f))), []);
+  const sql = read('supabase/migrations/20261210000001_reported_channel.sql');
+  assert.match(sql, /ALTER TABLE public\.conversion_reported_channel ENABLE ROW LEVEL SECURITY;/);
+  assert.match(sql, /REVOKE ALL ON public\.conversion_reported_channel FROM PUBLIC, anon, authenticated;/);
+  assert.doesNotMatch(sql, /CREATE POLICY[^;]*conversion_reported_channel/i, 'no policy on the category table');
+  assert.match(sql, /REFERENCES public\.conversion_events\(id\) ON DELETE CASCADE/, 'retention and erasure cascade');
 });
 
 test('dashboard: only the aggregate RPC and the site settings touch the category', () => {

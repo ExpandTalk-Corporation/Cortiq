@@ -51,8 +51,10 @@ BEGIN
   EXCEPTION WHEN check_violation THEN NULL;
   END;
   BEGIN
-    INSERT INTO public.conversion_events (site_id, reported_channel) VALUES (a, 'free text');
-    ASSERT false, 'reported_channel outside the list must fail';
+    INSERT INTO public.conversion_events (id, site_id) VALUES ('cccccccc-0000-4000-8000-000000000001', a);
+    INSERT INTO public.conversion_reported_channel (conversion_id, site_id, channel)
+      VALUES ('cccccccc-0000-4000-8000-000000000001', a, 'free text');
+    ASSERT false, 'a category outside the list must fail';
   EXCEPTION WHEN check_violation THEN NULL;
   END;
 
@@ -86,7 +88,7 @@ BEGIN
 
   ASSERT NOT public.reported_channel_consent_ok(a, 's-form', 'form'), 'off until configured';
   PERFORM public.record_conversion_event(a, 's-form', 'Lead', 'form_submission', 'form', NULL, 'podcast');
-  ASSERT (SELECT reported_channel FROM public.conversion_events WHERE event_name = 'Lead') IS NULL, 'not stored while off';
+  ASSERT NOT EXISTS (SELECT 1 FROM public.conversion_reported_channel), 'not stored while off';
   DELETE FROM public.conversion_events;
 
   ASSERT (SELECT reported_channel_enabled_at FROM public.sites WHERE id = a) IS NULL, 'enabled_at unset while off';
@@ -110,8 +112,20 @@ BEGIN
   ASSERT public.record_conversion_event(a, 's-withdrawn', 'Lead', 'form_submission', 'form', NULL, 'event'), 'inserted, withdrawn';
   ASSERT public.record_conversion_event(a, 's-hub', 'Lead', 'form_submission', 'form', NULL, 'free text'), 'inserted, bad category';
   ASSERT public.record_conversion_event(a, 's-hub', 'Call', 'element_click', 'a', NULL), 'old 6-argument call';
-  ASSERT (SELECT reported_channel FROM public.conversion_events WHERE session_id = 'aaaaaaaa-0000-4000-8000-000000000001') = 'podcast', 'stored';
-  ASSERT (SELECT count(*) FROM public.conversion_events WHERE reported_channel IS NOT NULL) = 1, 'only the consented answer is stored';
+  ASSERT (SELECT r.channel FROM public.conversion_events ce JOIN public.conversion_reported_channel r ON r.conversion_id = ce.id
+          WHERE ce.session_id = 'aaaaaaaa-0000-4000-8000-000000000001') = 'podcast', 'stored';
+  ASSERT (SELECT count(*) FROM public.conversion_reported_channel) = 1, 'only the consented answer is stored';
+
+  -- attach_reported_channel (record-conversion): same gate, only this site's conversion, never twice.
+  INSERT INTO public.conversion_events (id, site_id, session_id, event_name) VALUES
+    ('cccccccc-0000-4000-8000-000000000002', a, 'aaaaaaaa-0000-4000-8000-000000000001', 'Signup');
+  ASSERT NOT public.attach_reported_channel(a, 'cccccccc-0000-4000-8000-000000000002', 's-old', 'podcast'), 'attach: old version';
+  ASSERT NOT public.attach_reported_channel(a, 'cccccccc-0000-4000-8000-000000000002', 's-form', 'Podcast'), 'attach: category only';
+  ASSERT NOT public.attach_reported_channel('22222222-2222-4222-8222-222222222222', 'cccccccc-0000-4000-8000-000000000002', 's-form', 'podcast'), 'attach: other site';
+  ASSERT public.attach_reported_channel(a, 'cccccccc-0000-4000-8000-000000000002', 's-form', 'podcast'), 'attach: stored';
+  ASSERT NOT public.attach_reported_channel(a, 'cccccccc-0000-4000-8000-000000000002', 's-form', 'event'), 'attach: never overwritten';
+  DELETE FROM public.conversion_events WHERE id = 'cccccccc-0000-4000-8000-000000000002';
+  ASSERT (SELECT count(*) FROM public.conversion_reported_channel) = 1, 'deleting the conversion deletes its category (cascade)';
 
   -- Cookieless site: never.
   UPDATE public.sites SET tracking_mode = 'cookieless' WHERE id = a;
@@ -146,8 +160,10 @@ BEGIN
   ASSERT r::text !~ 's-hub|s-form|abab|aaaaaaaa-0000', 'no session, hash or row ids in the output';
 
   -- Five answers: counts shown.
-  INSERT INTO public.conversion_events (site_id, event_name, reported_channel)
-    SELECT a, 'Bulk ' || g, 'colleague_or_friend' FROM generate_series(1, 5) g;
+  WITH ins AS (
+    INSERT INTO public.conversion_events (site_id, event_name) SELECT a, 'Bulk ' || g FROM generate_series(1, 5) g RETURNING id
+  )
+  INSERT INTO public.conversion_reported_channel (conversion_id, site_id, channel) SELECT id, a, 'colleague_or_friend' FROM ins;
   r := public.get_reported_channel(a, current_date - 1, current_date);
   ASSERT EXISTS (SELECT 1 FROM jsonb_array_elements(r->'cells') x
                  WHERE x->>'reported' = 'colleague_or_friend' AND x->>'observed' = 'unknown' AND (x->>'n')::int = 5), 'count shown at 5';
@@ -176,7 +192,18 @@ BEGIN
   ASSERT NOT has_function_privilege('authenticated', 'public.reported_channel_consent_ok(uuid, text, text)', 'EXECUTE'), 'consent gate: service role only';
   ASSERT NOT has_function_privilege('anon', 'public.record_conversion_event(uuid, text, text, text, text, numeric, text)', 'EXECUTE'), 'record: service role only';
   ASSERT has_function_privilege('service_role', 'public.apply_reported_channel_hubspot(uuid, text, text)', 'EXECUTE'), 'service role can write';
-  ASSERT (SELECT prosecdef FROM pg_proc WHERE proname = 'get_reported_channel') = false, 'aggregate read is SECURITY INVOKER';
+  ASSERT (SELECT prosecdef FROM pg_proc WHERE proname = 'get_reported_channel'), 'aggregate read is SECURITY DEFINER (owner check inside)';
+  ASSERT NOT has_function_privilege('authenticated', 'public.attach_reported_channel(uuid, uuid, text, text)', 'EXECUTE'), 'attach: service role only';
+  -- The category table: RLS on, no policy at all, no grants to the dashboard roles.
+  ASSERT (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.conversion_reported_channel'::regclass), 'RLS enabled';
+  ASSERT NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'conversion_reported_channel'), 'no policy';
+  ASSERT NOT has_table_privilege('authenticated', 'public.conversion_reported_channel', 'SELECT')
+     AND NOT has_table_privilege('authenticated', 'public.conversion_reported_channel', 'INSERT')
+     AND NOT has_table_privilege('authenticated', 'public.conversion_reported_channel', 'UPDATE')
+     AND NOT has_table_privilege('authenticated', 'public.conversion_reported_channel', 'DELETE'), 'no grants to authenticated';
+  ASSERT NOT has_table_privilege('anon', 'public.conversion_reported_channel', 'SELECT'), 'no grants to anon';
+  ASSERT NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'conversion_events' AND column_name = 'reported_channel'),
+    'no category column on conversion_events';
 END $$;
 
 ROLLBACK;

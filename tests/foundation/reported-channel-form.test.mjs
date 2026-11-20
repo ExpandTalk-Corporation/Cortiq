@@ -154,11 +154,10 @@ test('track-event: the category never reaches tracking_events and config is full
   assert.match(src, /rcRow\.reported_channel_policy_version && rcRow\.reported_channel_form_field/);
 });
 
-test('record-conversion: stored only when reported_channel_consent_ok returns true', () => {
+test('record-conversion: the category goes through attach_reported_channel (consent gate in SQL)', () => {
   const src = read('../../supabase/functions/record-conversion/index.ts');
   assert.match(src, /if \(isReportedChannel\(reportedChannel\)\)/);
-  assert.match(src, /rpc\('reported_channel_consent_ok', \{\s*p_site_id: site\.id, p_session: sessionId, p_path: 'form',/);
-  assert.match(src, /if \(!rcError && ok === true\) reported = reportedChannel;/);
-  assert.match(src, /\.\.\.\(reported && \{ reported_channel: reported \}\)/);
-  assert.doesNotMatch(src, /reported_channel: reportedChannel/);
+  assert.match(src, /rpc\('attach_reported_channel', \{\s*p_site_id: site\.id, p_conversion_id: inserted\.id, p_session: sessionId, p_category: reportedChannel,/);
+  assert.doesNotMatch(src, /reported_channel:/, 'never written as a conversion_events column');
+  assert.doesNotMatch(src, /from\('conversion_reported_channel'\)/, 'no direct table write');
 });

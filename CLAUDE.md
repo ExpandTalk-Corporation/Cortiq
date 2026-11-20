@@ -303,13 +303,16 @@ Spec: `docs/superpowers/specs/2026-11-19-measurement-health-design.md`.
 Spec: `docs/superpowers/specs/2026-11-12-attribution-models-and-ai-influence.md` (layer 1.5 + jurist review 2026-11-20).
 Plan: `docs/superpowers/plans/2026-11-20-attribution-layer-1-5.md`.
 
-- "How did you hear about us?" → `conversion_events.reported_channel`, a fixed category list
-  (`_shared/reported-channel.ts`, SQL `is_reported_channel`; no custom labels). Unmapped answers = `other`.
+- "How did you hear about us?" → `conversion_reported_channel` (one row per conversion, `ON DELETE CASCADE` from
+  `conversion_events`), a fixed category list (`_shared/reported-channel.ts`, SQL `is_reported_channel`; no custom
+  labels). Unmapped answers = `other`. RLS on with **no policy** and no grants to anon/authenticated: written only by
+  SECURITY DEFINER functions (`record_conversion_event`, `attach_reported_channel`, `apply_reported_channel_hubspot`),
+  read only by `get_reported_channel` (SECURITY DEFINER, explicit owner check).
   Migration `20261210000001_reported_channel.sql`. Full mode only (cookieless records no conversions).
 - **Two paths, one gate** (`reported_channel_consent_ok`: latest consent row, policy version = `sites.reported_channel_policy_version`):
   HubSpot property (`hubspot-lead-webhook`, marketing consent, hashed-email match, unmatched dropped, never touches
   `upload_status`) and one select/radio form field (tracker 5.5.21+, analytics consent, mapped in the browser, only the
-  category is sent; `track-event` hands the field config out, `record-conversion` stores it). Raw values are never stored or logged.
+  category is sent; `track-event` hands the field config out, `record-conversion` stores it via `attach_reported_channel`). Raw values are never stored or logged.
 - **Never leaves CortIQ and aggregate only:** not in Google Ads upload, GA4, AI insights, public API or MCP; the dashboard
   reads only `get_reported_channel` (counts 1–4 → "fewer than 5"). `tests/foundation/reported-channel-boundaries.test.mjs`
   enforces both. UI: `ReportedChannelCard` (Ads → Attribution), `ReportedChannelSettings` (Settings → Integrations).

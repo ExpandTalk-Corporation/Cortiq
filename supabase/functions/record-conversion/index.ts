@@ -145,17 +145,6 @@ Deno.serve(async (req) => {
       .maybeSingle();
     trackingSessionUuid = ts?.id ?? null;
 
-    // Self-reported source (attribution layer 1.5): a category mapped in the browser. Stored only
-    // when the session's latest consent grants analytics under the site's self-reported-source
-    // policy version (reported_channel_consent_ok fails closed). Never a raw answer.
-    let reported: string | null = null;
-    if (isReportedChannel(reportedChannel)) {
-      const { data: ok, error: rcError } = await supabase.rpc('reported_channel_consent_ok', {
-        p_site_id: site.id, p_session: sessionId, p_path: 'form',
-      });
-      if (!rcError && ok === true) reported = reportedChannel;
-    }
-
     const { data: inserted, error } = await supabase
       .from('conversion_events')
       .insert({
@@ -172,7 +161,6 @@ Deno.serve(async (req) => {
         click_id_consent_given: consent,
         upload_status: uploadStatus,
         form_data: { tracking_session_id: sessionId, ...(contentId ? { content_id: contentId } : {}) },
-        ...(reported && { reported_channel: reported }),
       })
       .select('id')
       .single();
@@ -186,6 +174,17 @@ Deno.serve(async (req) => {
       }
       console.error('record-conversion insert failed:', error.message);
       return json({ error: 'Failed to record conversion' }, 500);
+    }
+
+    // Self-reported source (attribution layer 1.5): a category mapped in the browser, never a raw
+    // answer. attach_reported_channel stores it in conversion_reported_channel only when the
+    // session's latest consent grants analytics under the site's self-reported-source policy
+    // version (fails closed). A failure here never fails the conversion.
+    if (isReportedChannel(reportedChannel)) {
+      const { error: rcError } = await supabase.rpc('attach_reported_channel', {
+        p_site_id: site.id, p_conversion_id: inserted.id, p_session: sessionId, p_category: reportedChannel,
+      });
+      if (rcError) console.error('record-conversion: self-reported source not stored:', rcError.code);
     }
 
     return json({ success: true, conversion_id: inserted.id, upload_status: uploadStatus });
