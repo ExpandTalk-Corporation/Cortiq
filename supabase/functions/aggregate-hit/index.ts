@@ -138,6 +138,13 @@ Deno.serve(async (req) => {
     if (error) console.error('aggregate-hit: ingest failed:', error.message);
     return data;
   };
+  // Goal conversions per country for per-country pixel readiness. Signed edge geo only: the
+  // time-zone fallback is a guess and must not drive a per-country recommendation.
+  const goalCountry = async (goalId: string) => {
+    const { error } = await supabase.rpc('ingest_aggregate_goal_country',
+      { p_site_id: site.id, p_country: geo.source === 'ip' ? geo.country : '', p_goal_id: goalId });
+    if (error) console.error('aggregate-hit: goal country ingest failed:', error.message);
+  };
   const goals = normalizeGoals(site.conversion_goals);
 
   if (kind === 'pageview') {
@@ -149,7 +156,8 @@ Deno.serve(async (req) => {
     const { error: geoError } = await supabase.rpc('ingest_aggregate_country', { p_site_id: site.id, p_country: geo.country });
     if (geoError) console.error('aggregate-hit: country ingest failed:', geoError.message);
     for (const goal of matchPageVisitGoals(goals, pageUrl.href)) {
-      await ingest({ ...base, ...noSource, p_kind: 'goal', p_goal_id: goal.id, p_goal_name: goal.name, p_value: num(goal.value) });
+      const goalCounted = await ingest({ ...base, ...noSource, p_kind: 'goal', p_goal_id: goal.id, p_goal_name: goal.name, p_value: num(goal.value) });
+      if (goalCounted !== false) await goalCountry(goal.id);
     }
     // Form goals only: the beacon matches submits by selector. No names or values leave here.
     return json({ goals: goals.filter((g) => g.type === 'form_submission').map((g) => ({ id: g.id, selector: g.selector.slice(0, 500) })) });
@@ -164,11 +172,13 @@ Deno.serve(async (req) => {
     ? goals.find((g) => g.id === body.goalId && g.type === 'form_submission')
     : undefined;
   const fallback = fallbackGoal(body.formId, body.contentId, base.p_path);
-  await ingest({
+  const goalId = goal ? goal.id : fallback.id;
+  const goalCounted = await ingest({
     ...base, ...noSource, p_kind: 'goal',
-    p_goal_id: goal ? goal.id : fallback.id,
+    p_goal_id: goalId,
     p_goal_name: goal ? goal.name : fallback.name,
     p_value: goal ? num(goal.value) : num(body.value),
   });
+  if (goalCounted !== false) await goalCountry(goalId);
   return new Response(null, { status: 204, headers: corsHeaders });
 });
