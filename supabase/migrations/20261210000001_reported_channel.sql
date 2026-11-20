@@ -297,24 +297,36 @@ GRANT  EXECUTE ON FUNCTION public.apply_reported_channel_hubspot(uuid, text, tex
 -- ---------------------------------------------------------------------------------------------
 -- Observed channel of a visit, in the same codes as the reported list (subset).
 -- AI assistant first (its own channel), then paid, email, social, search, other referrers, direct.
+-- A referrer on the site's own host (or a subdomain of it) is ignored: an internal hop is not a
+-- source, so without UTM tags the visit is direct. Paid search only for search-ad mediums
+-- (cpc, ppc, paid, paid_search, sem); display/banner/cpm/cpv have no category of their own -> other.
 -- ---------------------------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.observed_channel(p_referrer text, p_utm_source text, p_utm_medium text)
+CREATE OR REPLACE FUNCTION public.observed_channel(p_referrer text, p_utm_source text, p_utm_medium text,
+                                                   p_site_host text DEFAULT NULL)
 RETURNS text
 LANGUAGE sql
 IMMUTABLE
 SET search_path = ''
 AS $$
-  WITH n AS (
-    SELECT lower(substring(btrim(coalesce(p_referrer, '')) from '^[a-zA-Z]+://([^/:?#]+)')) AS host,
+  WITH raw AS (
+    SELECT regexp_replace(lower(substring(btrim(coalesce(p_referrer, '')) from '^[a-zA-Z]+://([^/:?#]+)')), '^www\.', '') AS host,
+           regexp_replace(split_part(split_part(regexp_replace(lower(btrim(coalesce(p_site_host, ''))), '^[a-z]+://', ''),
+                                                '/', 1), ':', 1), '^www\.', '') AS own,
            lower(btrim(coalesce(p_utm_source, ''))) AS src,
            lower(btrim(coalesce(p_utm_medium, ''))) AS med
+  ),
+  n AS (
+    SELECT CASE WHEN own <> '' AND (host = own OR right(host, length(own) + 1) = '.' || own) THEN NULL ELSE host END AS host,
+           src, med
+    FROM raw
   )
   SELECT CASE
     WHEN public.is_ai_assistant_referral(host, nullif(src, '')) THEN 'ai_assistant'
     WHEN public.is_paid_social_medium(med)
          AND (public.social_network(host, nullif(src, '')) IS NOT NULL
               OR med IN ('paid-social', 'paid_social', 'paidsocial', 'social-paid', 'social_paid')) THEN 'paid_social'
-    WHEN public.is_paid_social_medium(med) OR med IN ('paid_search', 'paidsearch', 'sem') THEN 'paid_search'
+    WHEN med IN ('cpc', 'ppc', 'paid', 'paid_search', 'paid-search', 'paidsearch', 'sem') THEN 'paid_search'
+    WHEN med IN ('display', 'banner', 'cpm', 'cpv') THEN 'other'
     WHEN med IN ('email', 'e-mail', 'e_mail', 'newsletter') OR src IN ('newsletter', 'email') THEN 'email'
     WHEN public.social_network(host, nullif(src, '')) IS NOT NULL OR public.is_social_medium(med) THEN 'social'
     WHEN med = 'organic'
@@ -362,7 +374,8 @@ BEGIN
   WITH conv AS (
     SELECT r.channel AS reported,
            CASE WHEN t.id IS NULL THEN 'unknown'
-                ELSE public.observed_channel(t.referrer, t.utm_source, t.utm_medium) END AS observed
+                ELSE public.observed_channel(coalesce(nullif(t.referrer, ''), t.referrer_url), t.utm_source, t.utm_medium,
+                                             (SELECT domain FROM public.sites WHERE id = p_site_id)) END AS observed
     FROM public.conversion_events ce
     LEFT JOIN public.conversion_reported_channel r ON r.conversion_id = ce.id
     LEFT JOIN public.tracking_sessions t ON t.id = ce.session_id AND t.site_id = ce.site_id

@@ -8,9 +8,9 @@ CREATE SCHEMA auth;
 CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
   SELECT nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
 $$;
-CREATE TABLE public.sites (id uuid PRIMARY KEY, user_id uuid NOT NULL, tracking_mode text NOT NULL DEFAULT 'full');
+CREATE TABLE public.sites (id uuid PRIMARY KEY, user_id uuid NOT NULL, domain text, tracking_mode text NOT NULL DEFAULT 'full');
 CREATE TABLE public.tracking_sessions (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), site_id uuid, session_id text,
-  started_at timestamptz DEFAULT now(), referrer text, utm_source text, utm_medium text);
+  started_at timestamptz DEFAULT now(), referrer text, referrer_url text, utm_source text, utm_medium text);
 CREATE TABLE public.conversion_events (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), site_id uuid, session_id uuid,
   event_type text, event_name text, event_value numeric, element_selector text, hashed_email text,
   click_id_consent_given boolean DEFAULT false, form_data jsonb, upload_status text, lead_quality text,
@@ -22,8 +22,8 @@ CREATE TABLE public.cookie_consents (site_id uuid, session_id text, consent_give
 \ir ../../supabase/migrations/20261127000001_ai_influence.sql
 \ir ../../supabase/migrations/20261210000001_reported_channel.sql
 
-INSERT INTO public.sites (id, user_id) VALUES
-  ('11111111-1111-4111-8111-111111111111', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+INSERT INTO public.sites (id, user_id, domain) VALUES
+  ('11111111-1111-4111-8111-111111111111', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'https://www.shop.example/');
 
 DO $$
 DECLARE
@@ -68,6 +68,19 @@ BEGIN
   ASSERT public.observed_channel('https://www.bing.com/search', NULL, NULL) = 'organic_search', 'search';
   ASSERT public.observed_channel('https://blog.example.org/post', NULL, NULL) = 'referral', 'referral';
   ASSERT public.observed_channel(NULL, NULL, NULL) = 'direct' AND public.observed_channel('', '', '') = 'direct', 'direct';
+  -- Own host (with or without www, or a subdomain) is not a source; UTM tags still count.
+  ASSERT public.observed_channel('https://www.shop.example/cart', NULL, NULL, 'shop.example') = 'direct', 'own host = direct';
+  ASSERT public.observed_channel('https://shop.example/', NULL, NULL, 'https://www.shop.example/') = 'direct', 'own host, site domain as URL';
+  ASSERT public.observed_channel('https://blog.shop.example/', NULL, NULL, 'shop.example') = 'direct', 'own subdomain = direct';
+  ASSERT public.observed_channel('https://notshop.example/', NULL, NULL, 'shop.example') = 'referral', 'a look-alike host is a referral';
+  ASSERT public.observed_channel('https://shop.example/', 'newsletter', 'email', 'shop.example') = 'email', 'own host + UTM: UTM wins';
+  ASSERT public.observed_channel('https://shop.example/', NULL, NULL) = 'referral', 'no site host given: unchanged';
+  -- Display is not search: no display category, so other.
+  ASSERT public.observed_channel(NULL, 'google', 'display') = 'other', 'display = other';
+  ASSERT public.observed_channel('https://www.google.com/', 'dv360', 'cpm') = 'other', 'cpm = other, never paid search';
+  ASSERT public.observed_channel(NULL, 'adnet', 'banner') = 'other' AND public.observed_channel(NULL, 'adnet', 'cpv') = 'other', 'banner/cpv = other';
+  ASSERT public.observed_channel(NULL, 'facebook', 'cpm') = 'paid_social', 'cpm on a social network is still paid social';
+  ASSERT public.observed_channel(NULL, 'bing', 'ppc') = 'paid_search' AND public.observed_channel(NULL, 'google', 'paid') = 'paid_search', 'ppc/paid = paid search';
 
   -- Nothing is stored until the site sets a policy version and a field.
   INSERT INTO public.tracking_sessions (id, site_id, session_id, referrer) VALUES
@@ -75,6 +88,8 @@ BEGIN
     ('aaaaaaaa-0000-4000-8000-000000000002', a, 's-old', 'https://chatgpt.com/'),
     ('aaaaaaaa-0000-4000-8000-000000000003', a, 's-withdrawn', NULL),
     ('aaaaaaaa-0000-4000-8000-000000000004', a, 's-hub', 'https://www.google.com/');
+  ASSERT (SELECT public.observed_channel(coalesce(nullif(t.referrer, ''), t.referrer_url), NULL, NULL)
+          FROM (VALUES (''::text, 'https://www.bing.com/'::text)) t(referrer, referrer_url)) = 'organic_search', 'referrer_url fallback';
   INSERT INTO public.cookie_consents (site_id, session_id, consent_given, consent_types, expires_at, policy_version, updated_at) VALUES
     (a, 's-form', true, '{"analytics": true, "marketing": false}', now() + interval '1 day', '2', now()),
     (a, 's-old', true, '{"analytics": true, "marketing": true}', now() + interval '1 day', '1', now()),
