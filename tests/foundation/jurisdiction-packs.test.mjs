@@ -53,3 +53,11 @@ test('usable(): production statuses everywhere, draft and reviewed_agent only on
   assert.equal(usable(r('reviewed_agent'), true), true);
   assert.equal(usable(r('suspended'), true), false);
 });
+
+test('server log rule: GDPR art. 21 listed; public-authority limit in the hypothesis; UK line keeps UK GDPR legitimate interest', () => {
+  const log = PACK.rules.find((r) => r.id === 'all.security.server_log');
+  assert.ok(log.sources.some((s) => s.title === 'Regulation (EU) 2016/679 art. 21 (right to object)' && s.ref === 'CELEX:32016R0679'));
+  assert.match(log.assessment, /art\. 6\(1\)\(f\) is not available to public authorities in the performance of their tasks/);
+  const uk = PACK.rules.find((r) => r.id === 'world.statistics.aggregate').uncertainties.find((u) => u.startsWith('UK:'));
+  assert.match(uk, /UK GDPR legitimate-interest assessment is still required/);
+});

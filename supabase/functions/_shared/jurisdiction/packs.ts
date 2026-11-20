@@ -39,7 +39,7 @@ const WORLD_AGGREGATE: Rule = {
   sources: [{ title: 'Current aggregate-hit behaviour (counts every country)', ref: 'supabase/functions/aggregate-hit/index.ts', checked: '2026-11-20' }],
   uncertainties: [
     'No legal review covers markets outside the EU/EEA.',
-    'UK: PECR Schedule A1 para 5 (in force 5 Feb 2026) may cover this if the site informs visitors and offers a simple free objection; whether para 5(2) affects use of IP/UA is not reviewed.',
+    'UK: PECR Schedule A1 para 5 (in force 5 Feb 2026) may cover this if the site informs visitors and offers a simple free objection; whether para 5(2) affects use of IP/UA is not reviewed. A PECR exemption does not replace the lawful basis: a UK GDPR legitimate-interest assessment is still required.',
     'Québec Law 25 (CQLR c. P-39.1, s. 8.1) not reviewed.',
     'Switzerland (FADP; Telecommunications Act art. 45c) and Brazil (LGPD) not reviewed.',
   ],
@@ -55,6 +55,7 @@ const SERVER_LOG: Rule = {
     { title: 'Directive 2002/58/EC (ePrivacy) art. 5(3), consolidated', ref: 'CELEX:02002L0058-20091219', checked: '2026-11-20' },
     { title: 'Lag (2022:482) om elektronisk kommunikation 9 kap. 28 §', ref: 'SFS 2022:482', checked: '2026-11-20' },
     { title: 'Regulation (EU) 2016/679 art. 6(1)(f)', ref: 'CELEX:32016R0679', checked: '2026-11-20' },
+    { title: 'Regulation (EU) 2016/679 art. 21 (right to object)', ref: 'CELEX:32016R0679', checked: '2026-11-20' },
     { title: 'EDPB Guidelines 2/2023 on Technical Scope of Art. 5(3) ePD, v2.0, paras 42–43, 54–55', ref: 'edpb.europa.eu', checked: '2026-11-20' },
     { title: 'server-hit code comment and anonymizeIP implementation', ref: 'supabase/functions/server-hit/index.ts', checked: '2026-11-20' },
     { title: 'DPA 1.5 § 4.1', ref: 'PR #69', checked: '2026-11-20' },
@@ -66,7 +67,7 @@ const SERVER_LOG: Rule = {
     'Market-specific rules outside the EU (UK, CH, US, CA, BR) not reviewed.',
     'The jurist review recommends a measurement purpose and outcome `allowed_unless_opt_out` with a right to object before this rule can be approved; that change awaits further review.',
   ],
-  assessment: 'Hypothesis: logging requests by known automated agents on the server, with truncated IP (/24 IPv4, /48 IPv6) and no device storage, is outside the consent requirement for terminal equipment.',
+  assessment: 'Hypothesis: logging requests by known automated agents on the server, with truncated IP (/24 IPv4, /48 IPv6) and no device storage, is outside the consent requirement for terminal equipment. The GDPR basis would be art. 6(1)(f) with the art. 21 right to object; art. 6(1)(f) is not available to public authorities in the performance of their tasks.',
   effectiveFrom: '2026-11-20', approval: null,
 };
 

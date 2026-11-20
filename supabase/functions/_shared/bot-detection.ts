@@ -7,15 +7,6 @@
  *   const uaCategory = deriveUACategory(rawUA);
  */
 
-export interface BotMatch {
-  botCatalogId: string | null;
-  botName: string;
-  botDisplayName: string;
-  botCategory: string;
-  detectionMethod: 'ua_match' | 'ip_match' | 'behavioral' | 'combined';
-  confidence: number;
-}
-
 /**
  * Derive a coarse, non-identifying UA category string.
  * Safe to store in all pipeline modes.
