@@ -18,6 +18,8 @@
  *
  * Conditions the page cannot fix (disabled, GPC, bots, bursts, rate limit, DB trouble) answer
  * 200 { skipped } so customers' consoles stay clean.
+ *
+ * Bots are dropped before any lookup; GPC after the site's jurisdiction decision is logged.
  */
 import { createClient } from '../_shared/supabase.ts';
 import { classifyBot, GENERIC_BOT_PATTERN } from '../_shared/ai-bot-registry.ts';
@@ -25,6 +27,7 @@ import { normalizeGoals, matchPageVisitGoals } from '../_shared/conversion-goals
 import { normHost, ownsHost } from '../_shared/site-host.ts';
 import { cleanPath, referrerSource, utmFrom, fallbackGoal, deviceFromUA, visitorHash } from '../_shared/aggregate.js';
 import { resolveGeo, geoKey } from '../_shared/geo.ts';
+import { loadSitePolicy, decideAndLog, signalsFrom, visitorFrom } from '../_shared/jurisdiction-edge.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -86,8 +89,8 @@ Deno.serve(async (req) => {
   try { pageUrl = new URL(String(body.url ?? '')); } catch { return json({ error: 'Invalid url' }, 400); }
   if (pageUrl.protocol !== 'https:' && pageUrl.protocol !== 'http:') return json({ error: 'Invalid url' }, 400);
 
-  // Objection signals and non-humans are dropped before any lookup.
-  if (req.headers.get('sec-gpc') === '1') return skipped('gpc');
+  // Non-humans are dropped before any lookup. GPC is read here and applied after the decision is logged.
+  const gpc = req.headers.get('sec-gpc') === '1';
   const ua = (req.headers.get('user-agent') ?? '').slice(0, 512);
   if (isLikelyBot(ua)) return skipped('bot');
 
@@ -100,20 +103,32 @@ Deno.serve(async (req) => {
   const host = normHost(pageUrl.hostname);
   if (!siteHost || !host || !ownsHost(siteHost, host)) return json({ error: 'Host does not belong to this site' }, 400);
 
-  // Fail closed: an unavailable limiter must not become an unlimited one.
+  // Fail closed: an unavailable limiter must not become an unlimited one. Runs before the
+  // decision log so a flood cannot inflate the counters.
   const { data: allowed, error: rlError } = await supabase.rpc('check_rate_limit', {
     p_key: `agg:${site.id}`, p_max_count: REQUESTS_PER_MINUTE, p_window_sec: 60,
   });
   if (rlError) return skipped('unavailable');
   if (allowed === false) return skipped('rate_limited');
 
+  // The Worker hides the visitor's IP behind its own; the signed geo carries it (in transit only).
+  const geo = await resolveGeo(req, { key: geoKey(), timeZone: body.tz });
+  const policy = await loadSitePolicy(supabase, site.id);
+  const decision = await decideAndLog(supabase, 'aggregate-hit', site.id, {
+    visitor: visitorFrom(geo),
+    purpose: kind === 'goal' ? 'conversion' : 'statistics',
+    signals: signalsFrom(null, { trackerGate: [], gpcHeader: gpc }),
+    technique: { storage: 'none', identifiers: 'none' },
+  }, policy, Deno.env.get('JURISDICTION_ENFORCE'));
+  // GPC stays absolute whatever the rule says.
+  if (gpc) return skipped('gpc');
+  if (decision.drop) return skipped('jurisdiction');
+
   const { data: salt, error: saltError } = await supabase.rpc('aggregate_daily_salt');
   if (saltError || typeof salt !== 'string' || !salt) {
     console.error('aggregate-hit: salt unavailable');
     return skipped('unavailable');
   }
-  // The Worker hides the visitor's IP behind its own; the signed geo carries it (in transit only).
-  const geo = await resolveGeo(req, { key: geoKey(), timeZone: body.tz });
   const hash = await visitorHash(salt, site.id, geo.ip ?? '', ua);
 
   const base = { p_site_id: site.id, p_hash: hash, p_path: cleanPath(pageUrl), p_device: deviceFromUA(ua) };

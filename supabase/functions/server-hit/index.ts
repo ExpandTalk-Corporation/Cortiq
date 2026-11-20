@@ -25,6 +25,7 @@ import { anonymizeIP } from "../_shared/ip.ts";
 import { classifyBot, storedBotCategory } from "../_shared/ai-bot-registry.ts";
 import { normHost, ownsHost } from "../_shared/site-host.ts";
 import { normalizeGeoClaims } from "../_shared/geo-token.js";
+import { loadSitePolicy, decideAndLog, signalsFrom } from "../_shared/jurisdiction-edge.ts";
 
 export { normHost };
 
@@ -146,6 +147,14 @@ Deno.serve(async (req) => {
   }
 
   if (rows.length > 0) {
+    // One decision per batch. Adapter geo is unsigned, so the engine judges by the site's markets.
+    const decision = await decideAndLog(supabase, 'server-hit', site.id, {
+      visitor: { country: null, region: null, geoSource: 'adapter' },
+      purpose: 'security',
+      signals: signalsFrom(null, { trackerGate: [], gpcHeader: false }),
+      technique: { storage: 'none', identifiers: 'none' },
+    }, await loadSitePolicy(supabase, site.id), Deno.env.get('JURISDICTION_ENFORCE'), rows.length);
+    if (decision.drop) return json({ accepted: hits.length, stored: 0, ignored, rejected, skipped: 'jurisdiction' });
     const { error } = await supabase.from('ai_bot_traffic').insert(rows);
     if (error) {
       console.error('server-hit insert failed:', error.message);
