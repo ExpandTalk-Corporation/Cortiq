@@ -766,6 +766,35 @@ export type Database = {
           },
         ]
       }
+      aggregate_countries_daily: {
+        Row: {
+          country: string
+          day: string
+          pageviews: number
+          site_id: string
+        }
+        Insert: {
+          country?: string
+          day: string
+          pageviews?: number
+          site_id: string
+        }
+        Update: {
+          country?: string
+          day?: string
+          pageviews?: number
+          site_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "aggregate_countries_daily_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       aggregate_filtered_daily: {
         Row: {
           day: string
@@ -788,6 +817,38 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "aggregate_filtered_daily_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      aggregate_goal_countries_daily: {
+        Row: {
+          conversions: number
+          country: string
+          day: string
+          goal_id: string
+          site_id: string
+        }
+        Insert: {
+          conversions?: number
+          country?: string
+          day: string
+          goal_id: string
+          site_id: string
+        }
+        Update: {
+          conversions?: number
+          country?: string
+          day?: string
+          goal_id?: string
+          site_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "aggregate_goal_countries_daily_site_id_fkey"
             columns: ["site_id"]
             isOneToOne: false
             referencedRelation: "sites"
@@ -3183,11 +3244,13 @@ export type Database = {
       }
       cookie_consents: {
         Row: {
+          banner_lang: string | null
           consent_given: boolean
           consent_types: Json
           created_at: string
           expires_at: string
           geo_country: string | null
+          geo_source: string | null
           gpc_signal: boolean | null
           id: string
           ip_address: string | null
@@ -3200,11 +3263,13 @@ export type Database = {
           user_agent: string | null
         }
         Insert: {
+          banner_lang?: string | null
           consent_given?: boolean
           consent_types?: Json
           created_at?: string
           expires_at?: string
           geo_country?: string | null
+          geo_source?: string | null
           gpc_signal?: boolean | null
           id?: string
           ip_address?: string | null
@@ -3217,11 +3282,13 @@ export type Database = {
           user_agent?: string | null
         }
         Update: {
+          banner_lang?: string | null
           consent_given?: boolean
           consent_types?: Json
           created_at?: string
           expires_at?: string
           geo_country?: string | null
+          geo_source?: string | null
           gpc_signal?: boolean | null
           id?: string
           ip_address?: string | null
@@ -10055,6 +10122,14 @@ export type Database = {
       }
       cleanup_old_tracking_data: { Args: never; Returns: undefined }
       cleanup_rate_limit_buckets: { Args: never; Returns: undefined }
+      consent_acceptance_by_country_lang: {
+        Args: { p_from: string; p_site_id: string; p_to: string }
+        Returns: { country: string; banner_lang: string; answers: number; analytics_accepted: number; marketing_accepted: number }[]
+      }
+      coverage_by_country: {
+        Args: { p_from: string; p_site_id: string; p_to: string }
+        Returns: { country: string; purpose: string; decisions: number; permitted: number; refused: number; missing: number; gpc: number; blocked: number; enforced_drops: number }[]
+      }
       compute_span_cost: {
         Args: {
           p_input_tokens: number
