@@ -4,8 +4,16 @@
 // Only UPDATES existing conversion_events that match the hash AND have
 // click_id_consent_given = true. Unmatched contacts are dropped (no insert).
 // google-ads-quality-upload re-checks current consent before any export.
+//
+// Self-reported source (attribution layer 1.5): when the site configures a "how did you hear
+// about us" contact property, its value is mapped IN MEMORY to a fixed category (trim +
+// lower-case exact match, else `other`) and only the category is written, through
+// apply_reported_channel_hubspot (marketing-consented rows under the site's policy version).
+// The raw value is never stored, logged or sent to an LLM. Unmatched contacts are dropped: no
+// queue, no retry. This path never reads quality_classified_at and never touches upload_status.
 
 import { createClient } from '../_shared/supabase.ts';
+import { cleanChannelMap, mapReportedChannel } from '../_shared/reported-channel.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -160,6 +168,25 @@ Deno.serve(async (req) => {
     const events: any[] = Array.isArray(body) ? body : [body];
     const qualityProperty = (site as any).hubspot_quality_property || 'lead_quality';
 
+    // Self-reported source config. Its own query: before migration 20261210000001 the columns do
+    // not exist, the query errors and the path stays off while lead quality keeps working.
+    let reportedProperty: string | null = null;
+    let reportedMap: ReturnType<typeof cleanChannelMap> = {};
+    try {
+      const { data: rc, error: rcError } = await supabase
+        .from('sites')
+        .select('reported_channel_hubspot_property, reported_channel_hubspot_map, reported_channel_policy_version')
+        .eq('id', effectiveSiteId)
+        .maybeSingle();
+      if (!rcError && rc && (rc as any).reported_channel_policy_version && (rc as any).reported_channel_hubspot_property) {
+        reportedProperty = (rc as any).reported_channel_hubspot_property;
+        reportedMap = cleanChannelMap((rc as any).reported_channel_hubspot_map);
+      }
+    } catch (_) {
+      reportedProperty = null;
+    }
+    let reportedCount = 0;
+
     // GDPR (art. 28.10 / DPA scope): HubSpot sends a plaintext email. It is hashed
     // immediately and the plaintext is never logged or persisted. The hash is used
     // ONLY to look up existing conversion_events from consenting website visitors.
@@ -168,6 +195,21 @@ Deno.serve(async (req) => {
     let matchedCount = 0;
 
     for (const event of events) {
+      if (reportedProperty && event.propertyName === reportedProperty && event.propertyName !== qualityProperty) {
+        // Map first; the raw value goes no further than this line.
+        const category = mapReportedChannel(event.propertyValue ?? event.value, reportedMap);
+        if (!category) continue;
+        const contactEmail: unknown = event.email || event.properties?.email;
+        if (typeof contactEmail !== 'string' || !contactEmail.trim()) continue;
+        const { data: updated, error: applyError } = await supabase.rpc('apply_reported_channel_hubspot', {
+          p_site_id: effectiveSiteId,
+          p_hashed_email: await sha256Hex(contactEmail),
+          p_category: category,
+        });
+        if (applyError) console.error('apply_reported_channel_hubspot failed:', applyError.code ?? 'unknown');
+        else if (typeof updated === 'number') reportedCount += updated;
+        continue;
+      }
       if (event.propertyName !== qualityProperty) continue;
 
       const qualityValue: string = event.propertyValue || event.value || '';
@@ -214,7 +256,7 @@ Deno.serve(async (req) => {
     }
 
     // Always 200 for a valid signed delivery so HubSpot does not retry unmatched contacts.
-    return new Response(JSON.stringify({ ok: true, processed: events.length, matched: matchedCount > 0, matched_count: matchedCount }), {
+    return new Response(JSON.stringify({ ok: true, processed: events.length, matched: matchedCount > 0, matched_count: matchedCount, reported_count: reportedCount }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
