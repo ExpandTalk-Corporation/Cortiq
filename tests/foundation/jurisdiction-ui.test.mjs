@@ -19,7 +19,7 @@ test('effectiveByMarket: tighten applies to every market', () => {
 });
 
 const read = (p) => readFileSync(new URL(`../../src/components/dashboard/jurisdiction/${p}`, import.meta.url), 'utf8');
-test('copy rules: disclaimer shown, forbidden phrases absent, relaxing only via approved exception', () => {
+test('copy rules: disclaimer shown, forbidden phrases absent, relaxing is not offered by the tighten control', () => {
   const all = ['RulesByMarketTab.tsx', 'LegalProfileForm.tsx', 'TightenControls.tsx', 'EffectiveRulesTable.tsx'].map(read).join('\n');
   assert.match(all, /DISCLAIMER/);
   for (const bad of [/no consent needed/i, /GDPR-compliant without consent/i, /no banner needed/i]) assert.doesNotMatch(all, bad);

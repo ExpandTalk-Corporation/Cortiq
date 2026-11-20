@@ -27,7 +27,7 @@ export function RulesByMarketTab({ selectedSite }: { selectedSite: Site | null }
       <Card>
         <CardHeader>
           <CardTitle>Make it stricter</CardTitle>
-          <CardDescription>You can require opt-in or turn a purpose off. Relaxing a market rule needs an exception approved by CortIQ; none are available yet.</CardDescription>
+          <CardDescription>You can require opt-in or turn a purpose off. Relaxing a market rule will need your own documented assessment; that option is not available yet.</CardDescription>
         </CardHeader>
         <CardContent><TightenControls tighten={j.data?.tighten ?? {}} onChange={(purpose, outcome) => j.setTighten.mutate({ purpose, outcome })} /></CardContent>
       </Card>

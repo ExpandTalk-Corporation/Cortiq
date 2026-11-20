@@ -249,9 +249,10 @@ Spec: `docs/superpowers/specs/2026-11-18-jurisdiction-aware-measurement-design.m
 - **Rules:** only `approved_internal` and above apply on customer sites; `draft`/`reviewed_agent` only on admin-flagged
   test sites (`jurisdiction_test_sites`). Without an approved rule the baseline applies: opt-in for every purpose.
   Approving a rule is its own reviewed commit with a jurist review; legal text in a rule is a hypothesis until then.
-- **The server decides; the customer can only tighten** (`site_jurisdiction_tighten`: `opt_in` / `off`). Relaxing needs
-  an approved exception (`jurisdiction_exceptions`, max 12 months; no write path in phase 3). Hard floors: GPC stops
-  sharing purposes, EU cross-site identifiers need opt-in.
+- **The server decides; in phase 3 the customer can only tighten** (`site_jurisdiction_tighten`: `opt_in` / `off`).
+  Relaxing goes through `jurisdiction_exceptions` (max 12 months; no write path in phase 3). Decided 2026-11-20 for
+  phase 4: the customer may relax any non-floor rule on its own documented assessment (spec, "Decisions 2026-11-20").
+  Hard floors never relax: GPC stops sharing purposes, EU cross-site identifiers need opt-in.
 - **Shadow by default:** every ingest function logs its decision to `jurisdiction_decisions_daily` (daily counts only,
   country from signed edge geo only, 400 days). `JURISDICTION_ENFORCE` (`all` or a comma list of function names)
   turns dropping on. store-consent always logs, never blocks. Flip only per

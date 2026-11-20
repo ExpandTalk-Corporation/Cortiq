@@ -3,8 +3,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PURPOSES } from '@/lib/jurisdiction';
 import type { Purpose } from '@/lib/jurisdiction';
 
-// The customer can only tighten — relaxing a market rule needs an exception approved by CortIQ,
-// and none are available yet. This list is the only thing the control can write, matching the
+// The customer can only tighten here — relaxing goes through jurisdiction_exceptions (phase 4,
+// the customer's own documented assessment; never for hard floors). This list is the only thing the control can write, matching the
 // site_jurisdiction_tighten CHECK (opt_in, off).
 const CHOICES = ['opt_in', 'off'] as const;
 const LABEL: Record<string, string> = { opt_in: 'Require opt-in', off: 'Off', default: 'CortIQ default' };
