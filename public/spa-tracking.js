@@ -437,7 +437,7 @@
   // consent, the tracker reads that field's selected option value, maps it to a category from the
   // fixed list below (trim + lower-case exact match against the site's value list, else 'other')
   // and sends only the category. Text inputs, textareas, contenteditable and any "other, please
-  // specify" text field are never read. Keep the list equal to
+  // specify" text field are never read for this. Keep the list equal to
   // supabase/functions/_shared/reported-channel.ts (tests/foundation/reported-channel.test.mjs).
   const REPORTED_CHANNELS = ['organic_search', 'paid_search', 'paid_social', 'social', 'email', 'referral', 'direct',
     'ai_assistant', 'podcast', 'community', 'event', 'colleague_or_friend', 'other'];
@@ -995,9 +995,10 @@
   }
 
   // Form journey analytics — per-field focus time, error counts, completion vs
-  // abandonment. This function never reads field values. The only field value the tracker
-  // reads is the site-configured "how did you hear about us" select/radio, in
-  // readReportedChannel (mapped to a category). Behavioural: consent-gated.
+  // abandonment. This function never reads field values. Field values the tracker reads
+  // elsewhere: the site-configured "how did you hear about us" select/radio (readReportedChannel,
+  // mapped to a category, analytics consent) and the email field in recordConversion (hashed in
+  // the browser, marketing consent only). Behavioural: consent-gated.
   function setupFormAnalytics() {
     if (!hasInteractionConsent()) { deferUntilInteractionConsent(setupFormAnalytics); return; }
     function formKey(form) {

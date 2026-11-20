@@ -95,18 +95,27 @@ test('banner: analytics and marketing texts in all 13 languages name the self-re
 
 test('Privacy, GDPR.md, DPA 1.7 and the tracker comment', () => {
   const privacy = read('src/pages/Privacy.tsx');
-  assert.match(privacy, /Form interactions \(field content is not captured\)[^']*how you heard about the site[^']*Text you type is never read/);
+  assert.match(privacy, /Form interactions and form submissions\. Field content is not captured, with one exception[^']*how you heard about the site[^']*No other field is read for this, and free text is never read for it\. \(Hashing of an email address with marketing consent is described in section 5A\.\)/);
+  // No absolute "never read" claims: the tracker also hashes the email field with marketing consent.
+  assert.doesNotMatch(privacy, /Text you type is never read/);
   assert.match(privacy, /Linking your answer to &quot;how did you hear about us\?&quot;/);
   const gdpr = read('GDPR.md');
   assert.match(gdpr, /## Self-reported source/);
-  assert.match(gdpr, /form interaction data \(not the content of the fields\)/);
+  assert.match(gdpr, /form interaction data \(not the content of the fields, except as described below\)/);
+  assert.match(gdpr, /\(not the content of the fields, except the self-reported source below\)/);
+  assert.match(gdpr, /No other field is read for this, and text inputs and textareas are never read for it\./);
+  assert.match(gdpr, /Text you type in other fields is not read for this purpose\./);
+  assert.doesNotMatch(gdpr, /Text inputs and textareas are never read\.|Text you type is not read\./);
   assert.match(gdpr, /\[If you use the HubSpot path, add under Marketing:\]/);
   const dpa = read('DPA.md');
   assert.match(dpa, /\*\*Version:\*\* 1\.7, dated 20 November 2026\./);
   assert.match(dpa, /\(d\) lead-quality and self-reported source matching/);
   assert.match(dpa, /self-reported source category \(from a fixed list\) on a conversion/);
   assert.match(dpa, /\*Changes in 1\.7:/);
+  assert.match(dpa, /no other field is read for this purpose and free text is never read for it/);
+  assert.doesNotMatch(dpa, /no other field content is read/);
   const tracker = read('public/spa-tracking.js');
   assert.doesNotMatch(tracker, /Field values are never read here/);
-  assert.match(tracker, /The only field value the tracker\s*\/\/ reads is the site-configured/);
+  assert.match(tracker, /Field values the tracker reads\s*\/\/ elsewhere: the site-configured "how did you hear about us" select\/radio \(readReportedChannel,/);
+  assert.match(tracker, /the email field in recordConversion \(hashed in\s*\/\/ the browser, marketing consent only\)/);
 });

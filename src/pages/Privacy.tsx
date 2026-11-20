@@ -370,7 +370,7 @@ const Privacy = () => {
                   'Sessions, device type, browser and country (for the United States and Canada also state or province), derived from the IP address or, if that is unavailable, estimated from the browser time zone',
                   'Clicks and link clicks',
                   'Scroll depth and heatmaps',
-                  'Form interactions (field content is not captured) and form submissions. One exception, in Full mode and only if the site operator sets it up: when a form asks how you heard about the site, the option you select in that one list or choice field is stored as a source category from a fixed list (for example "search engine" or "podcast"). Text you type is never read',
+                  'Form interactions and form submissions. Field content is not captured, with one exception in Full mode, only if the site operator sets it up: when a form asks how you heard about the site, the option you select in that one list or choice field is stored as a source category from a fixed list (for example "search engine" or "podcast"). No other field is read for this, and free text is never read for it. (Hashing of an email address with marketing consent is described in section 5A.)',
                   'E-commerce events and conversions',
                   'In-browser bot checks — bot probe (device capability signals, sent only for clients that look automated), honeypot and canary links'
                 ].map((item, index) => (
