@@ -46,7 +46,7 @@ Principle: show what was observed, show what was not, and never present one mode
 - Coverage line, always visible: "X % of conversions have an observed journey; the rest are
   aggregate or without consent."
 - AI assistants are their own channel in attribution, not a child of organic search.
-- Before building: jurist review and DPA 1.6 (localStorage id = storage on the terminal equipment
+- Before building: jurist review and DPA 1.8 (localStorage id = storage on the terminal equipment
   and a persistent identifier), tracker version bump.
 
 ## Layer 1.5: self-reported attribution (not built)
@@ -54,13 +54,15 @@ Principle: show what was observed, show what was not, and never present one mode
 Ask the buyer. "How did you hear about us?" captures the touchpoints no tracker sees: podcasts,
 communities, a colleague, an AI assistant answer, an event. Modelled audience reports (e.g.
 SparkToro's funnel influence) estimate where buyers are; this measures what buyers say, per
-conversion. It needs no storage on the terminal equipment, so it does not wait for DPA 1.6 the
-way layer 1 does.
+conversion. It stores nothing on the terminal equipment, unlike layer 1. The form-field path still
+*reads* a value from the device and sends it to CortIQ, which is access under LEK 9:28 / ePrivacy
+art. 5(3) (EDPB 2/2023 §33, §44): it needs analytics consent and its own DPA change (1.7).
 
 Capture, two paths:
 - **HubSpot:** a site-configured contact property (e.g. `how_did_you_hear`), read by
-  `hubspot-lead-webhook` the same way as `hubspot_quality_property`: matched to a consented
-  `conversion_events` row by hashed email, unmatched contacts dropped.
+  `hubspot-lead-webhook` the same way as `hubspot_quality_property`: matched to a
+  **marketing-consented** `conversion_events` row by hashed email (`hashed_email` only exists with
+  marketing consent), unmatched contacts dropped. The answer rate is therefore low and the view says so.
 - **Sites without a CRM:** a select or radio field on a tracked form. Only predefined option
   values are sent. Free-text fields are never read by the tracker.
 
@@ -78,9 +80,48 @@ conversions with an answer, with the answer rate always visible.
 Limits: answers are recall, not fact (people name the last memorable touch); low answer rates on
 small sites; one answer per conversion, not a journey.
 
-Before building: jurist review of storing the category against a conversion and of the form-field
-path, and whether answer counts can be aggregate (consent-free) on sites with aggregate
-measurement.
+Cookieless mode creates no `conversion_events` rows (`recordConversion` returns early), so layer 1.5
+is **full mode only** for now.
+
+### Jurist review 2026-11-20 (jurist agent) — conditions before build
+
+Outcome: buildable without a human lawyer once the blocking conditions are met. Consent-free
+aggregate answer counts (browser) are **out of scope** and wait for a human lawyer.
+
+Blocking:
+1. **DPA 1.7** (1.6 is the Cloudflare geo edge, 2026-11-18): add "self-reported source category (from a
+   fixed list) on a conversion" to the visitor-analytics and CRM-matching data categories; purpose (d)
+   becomes "lead-quality and self-reported source matching". Through the amendment procedure (terms §12).
+2. `reported_channel` never leaves CortIQ: not in `google-ads-quality-upload`, GA4 export or AI insights
+   sent to Anthropic. Test-enforced.
+3. Aggregate display only: no row view that shows the category next to a session, visitor or hash.
+4. HubSpot path: marketing consent text (banner in all 13 languages, Privacy §5A, GDPR.md template)
+   names the link to the "how did you hear about us" answer. Mapping is deterministic in memory (trim +
+   lower-case exact match against the site's value list, else `other`); the raw value is never stored,
+   logged or sent to an LLM. No queue or retry for unmatched events — drop them. Own code path: does not
+   depend on `quality_classified_at IS NULL` and never touches `upload_status`.
+5. Form path: analytics consent text (banner in all 13 languages, Privacy.tsx "field content is not
+   captured", GDPR.md "not the content of the fields") says a selected answer to the "how did you hear"
+   question may be stored; bump `policy_version`; fix the "Field values are never read here" comment.
+   Technical: only one customer-configured field (name or selector) of type `select` or
+   `input[type=radio]`; read on submit, only with `hasInteractionConsent()` and the same
+   `consentGeneration`; map to a category in the browser and send only the category (unknown → `other`);
+   never read text inputs, textareas, contenteditable or an "other, specify" field.
+6. Jurist-agent check of the new banner texts before release.
+
+Recommended: fixed category list (custom labels only with a warning against sensitive categories);
+match only rows consented under the new `policy_version`; HubSpot wizard requires or warns for an
+enumeration-type property; art. 13 notice templates for the customer's form/HubSpot form; show low
+counts as "fewer than 5"; n next to every percentage.
+
+Copy: allowed — "said AI assistant, arrived direct", "self-reported source", "what buyers say",
+"answer rate", "recall, not fact". Never — "AI assistants drove X conversions", "true source",
+"true attribution", "dark funnel revealed", "anonymous" (the answers are personal data on the row),
+"no consent needed", "GDPR-compliant", statements about individual leads.
+
+A consent-free alternative, if a customer wants one: the customer's own server or HubSpot sends daily
+totals per category without identifiers (no device access by CortIQ; no cross-tab against observed
+source).
 
 ## Layer 2: AI influence and brand signals (being built)
 
@@ -140,9 +181,9 @@ association and are out of scope for the first layer 1 build.
 
 ## Order of work
 
-1. Layer 1.5 (not blocked by DPA 1.6; jurist review only).
+1. Layer 1.5 (jurist-reviewed 2026-11-20; needs DPA 1.7 + banner/policy text changes).
 2. Layer 3 prerequisite: store Google Ads cost per campaign and day.
-3. Layer 1 after jurist review + DPA 1.6, with journey types.
+3. Layer 1 after jurist review + DPA 1.8, with journey types.
 
 On sites with few conversions, layer 1.5 and a holdout test say more than a multi-touch model
 comparison.
