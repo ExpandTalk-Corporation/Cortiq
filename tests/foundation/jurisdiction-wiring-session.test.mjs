@@ -40,6 +40,18 @@ test('record-conversion shadow: two decisions logged, row unchanged', async () =
   assert.deepEqual(logs(d.rpcCalls).map((l) => [l.p_purpose, l.p_evidence, l.p_enforced]), [['conversion', 'ledger', false], ['attribution', 'ledger', false]]);
 });
 
+test('record-conversion: a rate-limited request is refused before any jurisdiction read or log', async () => {
+  const rpcCalls = [];
+  const m = mockDatabase((op) => {
+    if (op.table === 'sites') return { data: CONV_SITE, error: null };
+    if (op.table === 'cookie_consents') return { data: LEDGER_OK, error: null };
+    return { data: null, error: null };
+  }, async (name, args) => { rpcCalls.push({ name, args }); return { data: name === 'check_rate_limit' ? false : true, error: null }; });
+  const res = await loadEdge('record-conversion', m.client)(post('record-conversion', { siteId: SITE, sessionId: 's-1' }));
+  assert.equal(res.status, 429);
+  assert.deepEqual(rpcCalls.map((c) => c.name).filter((n) => n !== 'check_rate_limit'), []);
+});
+
 test('record-conversion enforce: customer "off" for attribution strips the click and marks skipped_jurisdiction', async () => {
   const { insert } = await conversion({ env: { JURISDICTION_ENFORCE: 'record-conversion' }, policy: OFF_POLICY });
   assert.deepEqual([insert.gclid, insert.hashed_email, insert.click_id_consent_given, insert.upload_status], [null, null, false, 'skipped_jurisdiction']);

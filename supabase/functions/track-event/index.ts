@@ -7,7 +7,7 @@ import { normalizeSessionTimeout } from '../_shared/session-timeout.js';
 import { browserAndOs } from '../_shared/user-agent.js';
 import { skipTrackingCheck } from '../_shared/tracking-check-ua.ts';
 import { sanitizeInteraction } from '../_shared/interaction.js';
-import { loadSitePolicy, decideAndLog, signalsFrom, readLedger, visitorFrom } from '../_shared/jurisdiction-edge.ts';
+import { jurisdictionGate, signalsFrom, visitorFrom } from '../_shared/jurisdiction-edge.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -165,13 +165,14 @@ Deno.serve(async (req) => {
       if (!siteId) return false;
       const hit = gateMemo.get(siteId);
       if (hit !== undefined) return hit;
-      const d = await decideAndLog(supabase, 'track-event', siteId, {
+      // Shadow mode resolves false at once; geo, policy, ledger and the log run in the background.
+      const drop = await jurisdictionGate(supabase, 'track-event', siteId, Deno.env.get('JURISDICTION_ENFORCE'), body.session_id).gate(async (ledger) => ({
         visitor: visitorFrom(await requestGeo()), purpose: 'statistics',
-        signals: signalsFrom(await readLedger(supabase, siteId, body.session_id), { trackerGate: ['analytics'], gpcHeader: req.headers.get('sec-gpc') === '1' }),
+        signals: signalsFrom(ledger, { trackerGate: ['analytics'], gpcHeader: req.headers.get('sec-gpc') === '1' }),
         technique: { storage: 'session', identifiers: 'session' },
-      }, await loadSitePolicy(supabase, siteId), Deno.env.get('JURISDICTION_ENFORCE'));
-      gateMemo.set(siteId, d.drop);
-      return d.drop;
+      }));
+      gateMemo.set(siteId, drop);
+      return drop;
     };
     const skippedJurisdiction = () => new Response(JSON.stringify({ success: true, skipped: 'jurisdiction' }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });

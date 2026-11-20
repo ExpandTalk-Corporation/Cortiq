@@ -11,7 +11,7 @@ import { createClient } from "../_shared/supabase.ts";
 import { resolveSite } from "../_shared/resolve-site.ts";
 import { resolveGeo, geoKey } from "../_shared/geo.ts";
 import { skipTrackingCheck } from '../_shared/tracking-check-ua.ts';
-import { loadSitePolicy, decideAndLog, signalsFrom, readLedger, visitorFrom } from "../_shared/jurisdiction-edge.ts";
+import { jurisdictionGate, signalsFrom, visitorFrom } from "../_shared/jurisdiction-edge.ts";
 
 // DB-backed rate limiter — works across all function instances (no cold-start reset)
 async function checkRateLimit(supabase: ReturnType<typeof createClient>, siteId: string): Promise<boolean> {
@@ -363,18 +363,17 @@ serve(async (req) => {
       );
     }
 
-    const policy = await loadSitePolicy(supabase, site.id);
-    const flag = Deno.env.get('JURISDICTION_ENFORCE');
     const geo = await resolveGeo(req, { key: geoKey(), timeZone: requestData.timeZone });
-    const ledger = await readLedger(supabase, site.id, requestData.sessionId);
     const gpcHeader = req.headers.get('sec-gpc') === '1';
-    const profileDecision = await decideAndLog(supabase, 'visitor-identification', site.id, {
+    // Policy and ledger load once for both decisions; shadow mode never waits for them.
+    const jurisdiction = jurisdictionGate(supabase, 'visitor-identification', site.id, Deno.env.get('JURISDICTION_ENFORCE'), requestData.sessionId);
+    const profileDropped = await jurisdiction.gate((ledger) => ({
       visitor: visitorFrom(geo), purpose: 'statistics',
       // The tracker calls this endpoint only after analytics consent (identifyVisitor in spa-tracking.js).
       signals: signalsFrom(ledger, { trackerGate: ['analytics'], gpcHeader }),
       technique: { storage: 'persistent', identifiers: 'session' },
-    }, policy, flag);
-    if (profileDecision.drop) {
+    }));
+    if (profileDropped) {
       return new Response(JSON.stringify({ success: true, visitor: null, skipped: 'jurisdiction' }),
         { status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } });
     }
@@ -445,12 +444,12 @@ serve(async (req) => {
       requestData.ttclid || requestData.li_fat_id
     );
     if (hasClickIds) {
-      const attribution = await decideAndLog(supabase, 'visitor-identification', site.id, {
+      const attributionDropped = await jurisdiction.gate((ledger) => ({
         visitor: visitorFrom(geo), purpose: 'attribution',
         signals: signalsFrom(ledger, { trackerGate: [], gpcHeader }),
         technique: { storage: 'session', identifiers: 'cross_site' },
-      }, policy, flag);
-      if (attribution.drop) hasClickIds = false;
+      }));
+      if (attributionDropped) hasClickIds = false;
     }
     if (hasClickIds && visitorId) {
       const clickIdUpdate: Record<string, string | boolean | null> = {

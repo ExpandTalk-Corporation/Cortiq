@@ -50,7 +50,8 @@ function mockClient({ user = { id: A, email: 'daniel@expandtalk.se', email_confi
 function edge(name, db, { env = ENV } = {}) {
   const fetches = [];
   const fetch = async (url, init = {}) => { fetches.push({ url: String(url), headers: init.headers ?? {} }); return new Response(null, { status: 202 }); };
-  return { handler: loadEdge(name, db.client, { env, fetch }), fetches };
+  // No EdgeRuntime: the worker then answers with its result instead of 202 + waitUntil.
+  return { handler: loadEdge(name, db.client, { env, fetch, edgeRuntime: false }), fetches };
 }
 const post = (handler, body) => handler(new Request('https://x.example/', { method: 'POST', headers: { Authorization: 'Bearer t', 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));
 const createBody = (extra = {}) => ({ action: 'create', mode: 'comparison', baselineUrl: 'https://old.example/some/path', targetUrl: 'https://new.example', pages: ['/', 'pricing/'], legacyPaths: ['/product/'], ...extra });

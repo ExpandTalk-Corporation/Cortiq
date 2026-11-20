@@ -7,7 +7,7 @@ import { classifyBot, storedBotCategory, type BotCategory } from "../_shared/ai-
 import { resolveSite } from "../_shared/resolve-site.ts";
 import { resolveGeo, geoKey } from "../_shared/geo.ts";
 import { skipTrackingCheck } from '../_shared/tracking-check-ua.ts';
-import { loadSitePolicy, decideAndLog, signalsFrom, readLedger, visitorFrom } from "../_shared/jurisdiction-edge.ts";
+import { jurisdictionGate, signalsFrom, visitorFrom } from "../_shared/jurisdiction-edge.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -135,13 +135,14 @@ serve(async (req) => {
 
     // The browser layer sends only after analytics consent (spa-tracking.js hasAnalyticsConsent);
     // a ledger row for the session can only tighten that.
-    const decision = await decideAndLog(supabase, 'ai-bot-tracker', site.id, {
+    const gpcHeader = req.headers.get('sec-gpc') === '1';
+    const drop = await jurisdictionGate(supabase, 'ai-bot-tracker', site.id, Deno.env.get('JURISDICTION_ENFORCE'), sessionId).gate((ledger) => ({
       visitor: visitorFrom(geo),
       purpose: 'security',
-      signals: signalsFrom(await readLedger(supabase, site.id, sessionId), { trackerGate: ['analytics'], gpcHeader: req.headers.get('sec-gpc') === '1' }),
+      signals: signalsFrom(ledger, { trackerGate: ['analytics'], gpcHeader }),
       technique: { storage: 'session', identifiers: 'session' },
-    }, await loadSitePolicy(supabase, site.id), Deno.env.get('JURISDICTION_ENFORCE'));
-    if (decision.drop) {
+    }));
+    if (drop) {
       return new Response(JSON.stringify({ success: true, skipped: 'jurisdiction' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }

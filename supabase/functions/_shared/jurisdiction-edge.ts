@@ -67,7 +67,7 @@ export async function readLedger(client: any, siteId: string, sessionId: unknown
     const { data, error } = await client.from('cookie_consents')
       .select('consent_given, consent_types, gpc_signal, expires_at')
       .eq('site_id', siteId).eq('session_id', sessionId)
-      .order('created_at', { ascending: false }).limit(1).maybeSingle();
+      .order('updated_at', { ascending: false }).order('created_at', { ascending: false }).limit(1).maybeSingle();
     if (error || !data) return null;
     const exp = Date.parse(data.expires_at);
     if (Number.isFinite(exp) && exp <= now.getTime()) return null;
@@ -91,19 +91,33 @@ export function signalsFrom(ledger: Ledger | null, opts: { trackerGate: ('analyt
   return { consent, evidence, gpc: opts.gpcHeader || ledger?.gpc === true };
 }
 
+const DECIDE_FAILED: Decision = Object.freeze({
+  outcome: 'blocked', permit: false, reason: 'rule_blocked', evidence: 'none',
+  constraints: { storage: 'none', identifiers: 'none' }, ruleIds: [], markets: [], fallback: null, packVersion: '',
+}) as Decision;
+
 export function visitorFrom(geo: { country: string | null; region: string | null; source: string }, adapter = false): Visitor {
   const geoSource = adapter ? 'adapter' : (geo.source === 'ip' || geo.source === 'timezone' ? geo.source : 'unknown');
   return { country: geo.country ?? null, region: geo.region ?? null, geoSource };
 }
 
+export type DecideInput = { visitor: Visitor; purpose: Purpose; signals: Signals; technique: Technique };
+
 export async function decideAndLog(
   // deno-lint-ignore no-explicit-any
   client: any, fn: IngestFn, siteId: string,
-  input: { visitor: Visitor; purpose: Purpose; signals: Signals; technique: Technique },
+  input: DecideInput,
   policy: SitePolicy, flag: string | null | undefined, count = 1,
 ): Promise<Decision & { enforce: boolean; drop: boolean }> {
-  const d = decide({ ...input, customer: policy.customer, exceptions: policy.exceptions, tighten: policy.tighten, testSite: policy.testSite });
   const enforce = isEnforced(fn, flag);
+  let d: Decision;
+  try {
+    d = decide({ ...input, customer: policy.customer, exceptions: policy.exceptions, tighten: policy.tighten, testSite: policy.testSite });
+  } catch (e) {
+    // Fail closed when enforced; in shadow mode nothing changes. Nothing valid to log.
+    console.error('jurisdiction: decide threw:', (e as Error)?.message);
+    return { ...DECIDE_FAILED, enforce, drop: enforce };
+  }
   try {
     const { error } = await client.rpc('log_jurisdiction_decision', {
       p_site_id: siteId, p_fn: fn, p_purpose: input.purpose,
@@ -114,6 +128,38 @@ export async function decideAndLog(
     if (error) console.error('jurisdiction: log failed:', error.message);
   } catch (e) { console.error('jurisdiction: log threw:', (e as Error).message); }
   return { ...d, enforce, drop: enforce && !d.permit };
+}
+
+// Keeps shadow work off the response path: the runtime finishes it after the response is sent.
+export function runShadow(p: Promise<unknown>): void {
+  const safe = p.catch((e) => console.error('jurisdiction: shadow decision failed:', (e as Error)?.message));
+  // deno-lint-ignore no-explicit-any
+  const runtime = (globalThis as any).EdgeRuntime;
+  if (typeof runtime?.waitUntil === 'function') runtime.waitUntil(safe);
+  else void safe;
+}
+
+// One request's jurisdiction gate. Policy and ledger load once, in parallel (sessionId undefined =
+// no ledger read). Shadow mode: load, decide and log all run inside runShadow and gate() resolves
+// false at once. Enforced: gate() waits for the decision and resolves to whether to drop.
+export function jurisdictionGate(
+  // deno-lint-ignore no-explicit-any
+  client: any, fn: IngestFn, siteId: string, flag: string | null | undefined, sessionId?: unknown,
+) {
+  const enforce = isEnforced(fn, flag);
+  let loaded: Promise<[SitePolicy, Ledger | null]> | null = null;
+  const load = () => (loaded ??= Promise.all([
+    loadSitePolicy(client, siteId),
+    sessionId === undefined ? Promise.resolve(null) : readLedger(client, siteId, sessionId),
+  ]));
+  return {
+    enforce,
+    async gate(build: (ledger: Ledger | null) => DecideInput | Promise<DecideInput>, count = 1): Promise<boolean> {
+      const work = load().then(async ([policy, ledger]) => decideAndLog(client, fn, siteId, await build(ledger), policy, flag, count));
+      if (!enforce) { runShadow(work); return false; }
+      return (await work).drop;
+    },
+  };
 }
 
 // Ad-platform export of a stored conversion. No country is stored on conversion_events, so the

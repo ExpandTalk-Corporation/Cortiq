@@ -4,7 +4,7 @@ import { createClient } from '../_shared/supabase.ts';
 import { anonymizeIP } from "../_shared/ip.ts";
 import { consentGeo, gpcRequested } from "../_shared/consent-geo.ts";
 import { resolveGeo, geoKey } from "../_shared/geo.ts";
-import { loadSitePolicy, decideAndLog, visitorFrom } from "../_shared/jurisdiction-edge.ts";
+import { jurisdictionGate, visitorFrom } from "../_shared/jurisdiction-edge.ts";
 import { bannerLangOf } from "../_shared/banner-langs.ts";
 
 const corsHeaders = {
@@ -272,12 +272,12 @@ serve(async (req) => {
     }
 
     // Log only, never block: the ledger must record every choice, including refusals.
-    // Flag null = always shadow, whatever JURISDICTION_ENFORCE says.
-    await decideAndLog(supabase, 'store-consent', site_id, {
+    // Flag null = always shadow, whatever JURISDICTION_ENFORCE says, so the response never waits.
+    await jurisdictionGate(supabase, 'store-consent', site_id, null).gate(() => ({
       visitor: visitorFrom(geo), purpose: 'statistics',
       signals: { consent: { analytics: requestData.consent_types.analytics, marketing: requestData.consent_types.marketing }, evidence: 'ledger', gpc },
       technique: { storage: 'session', identifiers: 'session' },
-    }, await loadSitePolicy(supabase, site_id), null);
+    }));
 
     return new Response(
       JSON.stringify({

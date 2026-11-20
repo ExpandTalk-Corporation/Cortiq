@@ -73,6 +73,52 @@ test('aggregate-hit: GPC still skips with reason gpc, and the decision is logged
   assert.equal(named(rpcCalls, 'ingest_aggregate_hit').length, 0);
 });
 
+test('aggregate-hit: GPC never uses up the rate limit; GPC with an unknown key is still 401', async () => {
+  const { body, rpcCalls } = await agg({ headers: { ...(await geoHeader('SE')), 'sec-gpc': '1' } });
+  assert.deepEqual(body, { skipped: 'gpc' });
+  assert.equal(named(rpcCalls, 'check_rate_limit').length, 0);
+  assert.equal(logs(rpcCalls).length, 1, 'the GPC decision is still logged');
+  const plain = await agg({ headers: await geoHeader('SE') });
+  assert.equal(named(plain.rpcCalls, 'check_rate_limit').length, 1);
+
+  const unknown = mockDatabase(() => ({ data: null, error: null }), async () => ({ data: null, error: null }));
+  const handler = loadEdge('aggregate-hit', unknown.client, { env: { GEO_SIGNING_KEY: GEO_KEY } });
+  const res = await handler(new Request('https://fn.test/aggregate-hit', {
+    method: 'POST', headers: { Authorization: `Bearer ${KEY}`, 'user-agent': CHROME, 'sec-gpc': '1' },
+    body: JSON.stringify({ siteId: SITE, kind: 'pageview', url: 'https://shop.test/' }),
+  }));
+  assert.equal(res.status, 401);
+});
+
+test('shadow mode: the handler answers before a slow decision log finishes', async () => {
+  let release;
+  const slow = new Promise((r) => { release = r; });
+  let logDone = false;
+  const rpcCalls = [];
+  const m = mockDatabase(
+    (op) => (op.table === 'sites' ? { data: AGG_SITE, error: null } : { data: null, error: null }),
+    async (name, args) => {
+      rpcCalls.push({ name, args });
+      if (name === 'log_jurisdiction_decision') { await slow; logDone = true; return { data: null, error: null }; }
+      if (name === 'aggregate_daily_salt') return { data: 'f'.repeat(64), error: null };
+      return { data: true, error: null };
+    },
+  );
+  const handler = loadEdge('aggregate-hit', m.client, { env: { GEO_SIGNING_KEY: GEO_KEY }, flushWaitUntil: false });
+  const res = await handler(new Request('https://fn.test/aggregate-hit', {
+    method: 'POST', headers: { Authorization: `Bearer ${KEY}`, 'user-agent': CHROME, ...(await geoHeader('SE')) },
+    body: JSON.stringify({ siteId: SITE, kind: 'pageview', url: 'https://shop.test/' }),
+  }));
+  assert.deepEqual(await res.json(), { goals: [] });
+  assert.equal(logDone, false, 'the response did not wait for the log');
+  assert.equal(named(rpcCalls, 'ingest_aggregate_hit').length, 1);
+  assert.equal(handler.waitUntilWork.length, 1, 'the decision runs in EdgeRuntime.waitUntil');
+  release();
+  await Promise.all(handler.waitUntilWork);
+  assert.equal(logDone, true);
+  assert.equal(logs(rpcCalls)[0].p_enforced, false);
+});
+
 test('Review Focus 3: a failing decision log never fails ingest', async () => {
   const { body, rpcCalls } = await agg({ logError: { message: 'constraint' }, headers: await geoHeader('SE') });
   assert.deepEqual(body, { goals: [] });

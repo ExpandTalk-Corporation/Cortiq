@@ -27,7 +27,7 @@ import { normalizeGoals, matchPageVisitGoals } from '../_shared/conversion-goals
 import { normHost, ownsHost } from '../_shared/site-host.ts';
 import { cleanPath, referrerSource, utmFrom, fallbackGoal, deviceFromUA, visitorHash } from '../_shared/aggregate.js';
 import { resolveGeo, geoKey } from '../_shared/geo.ts';
-import { loadSitePolicy, decideAndLog, signalsFrom, visitorFrom } from '../_shared/jurisdiction-edge.ts';
+import { jurisdictionGate, signalsFrom, visitorFrom } from '../_shared/jurisdiction-edge.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -103,6 +103,19 @@ Deno.serve(async (req) => {
   const host = normHost(pageUrl.hostname);
   if (!siteHost || !host || !ownsHost(siteHost, host)) return json({ error: 'Host does not belong to this site' }, 400);
 
+  // The Worker hides the visitor's IP behind its own; the signed geo carries it (in transit only).
+  const geo = await resolveGeo(req, { key: geoKey(), timeZone: body.tz });
+  const jurisdiction = jurisdictionGate(supabase, 'aggregate-hit', site.id, Deno.env.get('JURISDICTION_ENFORCE'));
+  const decide = () => jurisdiction.gate(() => ({
+    visitor: visitorFrom(geo),
+    purpose: kind === 'goal' ? 'conversion' : 'statistics',
+    signals: signalsFrom(null, { trackerGate: [], gpcHeader: gpc }),
+    technique: { storage: 'none', identifiers: 'none' },
+  }));
+  // GPC stays absolute whatever the rule says. Its decision is logged, but a GPC hit never uses
+  // up the site's rate limit.
+  if (gpc) { await decide(); return skipped('gpc'); }
+
   // Fail closed: an unavailable limiter must not become an unlimited one. Runs before the
   // decision log so a flood cannot inflate the counters.
   const { data: allowed, error: rlError } = await supabase.rpc('check_rate_limit', {
@@ -110,19 +123,7 @@ Deno.serve(async (req) => {
   });
   if (rlError) return skipped('unavailable');
   if (allowed === false) return skipped('rate_limited');
-
-  // The Worker hides the visitor's IP behind its own; the signed geo carries it (in transit only).
-  const geo = await resolveGeo(req, { key: geoKey(), timeZone: body.tz });
-  const policy = await loadSitePolicy(supabase, site.id);
-  const decision = await decideAndLog(supabase, 'aggregate-hit', site.id, {
-    visitor: visitorFrom(geo),
-    purpose: kind === 'goal' ? 'conversion' : 'statistics',
-    signals: signalsFrom(null, { trackerGate: [], gpcHeader: gpc }),
-    technique: { storage: 'none', identifiers: 'none' },
-  }, policy, Deno.env.get('JURISDICTION_ENFORCE'));
-  // GPC stays absolute whatever the rule says.
-  if (gpc) return skipped('gpc');
-  if (decision.drop) return skipped('jurisdiction');
+  if (await decide()) return skipped('jurisdiction');
 
   const { data: salt, error: saltError } = await supabase.rpc('aggregate_daily_salt');
   if (saltError || typeof salt !== 'string' || !salt) {

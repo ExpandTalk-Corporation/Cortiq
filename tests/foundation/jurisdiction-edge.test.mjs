@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mockDatabase } from './edge-harness.mjs';
 import {
   parseSitePolicy, loadSitePolicy, STRICT_POLICY, isEnforced, readLedger, signalsFrom, visitorFrom, decideAndLog,
+  jurisdictionGate,
 } from '../../supabase/functions/_shared/jurisdiction-edge.ts';
 
 const SITE = '11111111-1111-4111-8111-111111111111';
@@ -99,4 +100,49 @@ test('decideAndLog: logs daily counts with country only for signed geo; log fail
   assert.equal(tz.drop, true, 'enforced + not permitted = drop');
   const throwing = { rpc: async () => { throw new Error('network'); } };
   await decideAndLog(throwing, 'aggregate-hit', SITE, input, STRICT_POLICY, 'all');
+});
+
+test('decideAndLog: a throwing decide() fails closed when enforced, changes nothing in shadow, logs nothing', async () => {
+  const calls = [];
+  const client = { rpc: async (name, args) => { calls.push({ name, args }); return { data: null, error: null }; } };
+  const broken = { visitor: null, purpose: 'statistics',
+    signals: { consent: { analytics: null, marketing: null }, evidence: 'none', gpc: false }, technique: { storage: 'none', identifiers: 'none' } };
+  const shadow = await decideAndLog(client, 'aggregate-hit', SITE, broken, STRICT_POLICY, undefined);
+  assert.deepEqual([shadow.enforce, shadow.drop, shadow.permit], [false, false, false]);
+  const enforced = await decideAndLog(client, 'aggregate-hit', SITE, broken, STRICT_POLICY, 'all');
+  assert.deepEqual([enforced.enforce, enforced.drop, enforced.permit], [true, true, false]);
+  assert.equal(calls.length, 0);
+});
+
+test('readLedger: latest answer first, by updated_at then created_at (as session-consent.ts)', async () => {
+  const orders = [];
+  const query = {
+    select() { return query; }, eq() { return query; }, limit() { return query; }, maybeSingle() { return query; },
+    order(col, opts) { orders.push([col, opts.ascending]); return query; },
+    then(yes, no) { return Promise.resolve({ data: null, error: null }).then(yes, no); },
+  };
+  await readLedger({ from: () => query }, SITE, 's1', NOW);
+  assert.deepEqual(orders, [['updated_at', false], ['created_at', false]]);
+});
+
+test('jurisdictionGate: shadow resolves false at once; enforced starts the policy and ledger reads together', async () => {
+  const started = [];
+  const client = {
+    rpc: async (name) => { started.push(name); return { data: null, error: null }; },
+    from: () => {
+      started.push('cookie_consents');
+      const q = { select: () => q, eq: () => q, order: () => q, limit: () => q, maybeSingle: () => q,
+        then: (yes, no) => Promise.resolve({ data: null, error: null }).then(yes, no) };
+      return q;
+    },
+  };
+  const input = () => ({ visitor: { country: 'SE', region: null, geoSource: 'ip' }, purpose: 'statistics',
+    signals: { consent: { analytics: null, marketing: null }, evidence: 'none', gpc: false }, technique: { storage: 'none', identifiers: 'none' } });
+  assert.equal(await jurisdictionGate(client, 'track-event', SITE, undefined, 's1').gate(input), false, 'shadow never drops');
+  await new Promise((r) => setTimeout(r, 0));
+
+  started.length = 0;
+  const pending = jurisdictionGate(client, 'track-event', SITE, 'all', 's1').gate(input);
+  assert.deepEqual([...started].sort(), ['cookie_consents', 'get_site_jurisdiction'], 'both reads start before either finishes');
+  assert.equal(await pending, true, 'enforced + strict default + no consent = drop');
 });

@@ -15,7 +15,7 @@ import { getSessionConsent } from '../_shared/session-consent.ts';
 import { resolveSite } from "../_shared/resolve-site.ts";
 import { skipTrackingCheck } from '../_shared/tracking-check-ua.ts';
 import { resolveGeo, geoKey } from '../_shared/geo.ts';
-import { loadSitePolicy, decideAndLog, signalsFrom, readLedger, visitorFrom } from '../_shared/jurisdiction-edge.ts';
+import { jurisdictionGate, signalsFrom, visitorFrom, type Ledger } from '../_shared/jurisdiction-edge.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -64,25 +64,26 @@ Deno.serve(async (req) => {
     const currentConsent = await getSessionConsent(supabase, site.id, sessionId);
     if (!currentConsent.analytics) return json({ error: 'Analytics consent required' }, 403);
 
-    // Jurisdiction rules on top of the consent gate above. Ledger evidence only: this endpoint
-    // already requires a ledger row.
-    const policy = await loadSitePolicy(supabase, site.id);
-    const flag = Deno.env.get('JURISDICTION_ENFORCE');
-    const visitorGeo = visitorFrom(await resolveGeo(req, { key: geoKey(), timeZone: null }));
-    const ledgerSignals = signalsFrom(await readLedger(supabase, site.id, sessionId), { trackerGate: [], gpcHeader: req.headers.get('sec-gpc') === '1' });
-    const conversionDecision = await decideAndLog(supabase, 'record-conversion', site.id, {
-      visitor: visitorGeo, purpose: 'conversion', signals: ledgerSignals,
-      technique: { storage: 'session', identifiers: 'session' },
-    }, policy, flag);
-    if (conversionDecision.drop) return json({ success: true, skipped: 'jurisdiction' });
-
     // SECURITY: per-site rate limit to blunt anonymous conversion-injection / dashboard pollution.
+    // Runs before the decision log so a flood cannot inflate the counters.
     const { data: underLimit, error: rlErr } = await supabase.rpc('check_rate_limit', {
       p_key: `conv:${site.id}`,
       p_max_count: 120,
       p_window_sec: 60,
     });
     if (!rlErr && underLimit === false) return json({ error: 'Rate limit exceeded' }, 429);
+
+    // Jurisdiction rules on top of the consent gate above. Ledger evidence only: this endpoint
+    // already requires a ledger row.
+    const visitorGeo = visitorFrom(await resolveGeo(req, { key: geoKey(), timeZone: null }));
+    const gpcHeader = req.headers.get('sec-gpc') === '1';
+    const ledgerSignals = (ledger: Ledger | null) => signalsFrom(ledger, { trackerGate: [], gpcHeader });
+    const jurisdiction = jurisdictionGate(supabase, 'record-conversion', site.id, Deno.env.get('JURISDICTION_ENFORCE'), sessionId);
+    const conversionDropped = await jurisdiction.gate((ledger) => ({
+      visitor: visitorGeo, purpose: 'conversion', signals: ledgerSignals(ledger),
+      technique: { storage: 'session', identifiers: 'session' },
+    }));
+    if (conversionDropped) return json({ success: true, skipped: 'jurisdiction' });
 
     // Look up the visitor's paid-click context. unified_visitors is keyed by the
     // unified visitor UUID (visitorId, returned by visitor-identification). There is
@@ -114,11 +115,11 @@ Deno.serve(async (req) => {
     let gclid: string | null = consent ? visitor?.gclid ?? null : null;
     let jurisdictionBlocked = false;
     if (gclid) {
-      const attribution = await decideAndLog(supabase, 'record-conversion', site.id, {
-        visitor: visitorGeo, purpose: 'attribution', signals: ledgerSignals,
+      const attributionDropped = await jurisdiction.gate((ledger) => ({
+        visitor: visitorGeo, purpose: 'attribution', signals: ledgerSignals(ledger),
         technique: { storage: 'session', identifiers: 'cross_site' },
-      }, policy, flag);
-      if (attribution.drop) { jurisdictionBlocked = true; consent = false; gclid = null; }
+      }));
+      if (attributionDropped) { jurisdictionBlocked = true; consent = false; gclid = null; }
     }
 
     // State machine: only rows with BOTH a gclid AND consent become uploadable.
