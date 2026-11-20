@@ -1,6 +1,6 @@
 # GTM audit: destinations, dependencies and fragile DOM triggers
 
-Date: 2026-11-20. Status: draft, waiting for Daniel's review.
+Date: 2026-11-20. Status: approved by Daniel 2026-11-20 (decisions below).
 Builds on: `2026-11-17-gtm-container-audit-design.md` (phase 1, live at `/gtm-audit/`).
 
 ## Why
@@ -242,15 +242,10 @@ as in B.
 4. Stats from engine v2 contain only the whitelisted keys and counts.
 5. `npm run test:foundation`, `tsc` (baseline unchanged) and `vite build` pass.
 
-## Open questions for Daniel
+## Decisions 2026-11-20 (Daniel)
 
-1. **The `remove` → `review` guard.**
-   - **Proposed:** a certain dependency downgrades `remove` to `review`.
-   - **Alternative:** keep `remove` and only add the warning to the reason.
-2. **Showing IDs on screen.**
-   - **Proposed:** show the full IDs. They are in the user's own file and on their public pages anyway.
-   - **Alternative:** mask the middle digits in the on-page report, so a screenshot shared on LinkedIn does not
-     expose a client's pixel IDs.
-3. **Whether fragile DOM is in this round.**
-   - **Proposed:** yes, it is cheap.
-   - **Alternative:** defer it to when phase 2 can show that a fragile tag was not seen live.
+| Question | Decision |
+|---|---|
+| `remove` → `review` guard | A `certain` dependent downgrades `remove` to `review`; UA stays `remove`. |
+| Destination IDs on screen | Shown in full. They are in the user's own file and on their public pages. |
+| Fragile DOM in this round | Yes, built together with A and B. |
