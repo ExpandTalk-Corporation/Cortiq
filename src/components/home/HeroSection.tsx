@@ -9,6 +9,7 @@ import heroMobileAvif from "@/assets/hero/hero-mobile-900.avif";
 import heroMobileWebp from "@/assets/hero/hero-mobile-900.webp";
 import heroMobileJpg from "@/assets/hero/hero-mobile-900.jpg";
 import { ArrowRight, ShieldCheck, Shield, Cookie, Code } from "lucide-react";
+import { AI_TRAFFIC_SOURCE_ID } from "./AiTrafficSection";
 
 // Hero: one full-bleed photo. Its left edge fades to #f7f9fc, so the light-mode
 // background matches it and a gradient in the same colour keeps the copy readable.
@@ -42,11 +43,13 @@ export function HeroSection() {
           <h1 className="text-4xl md:text-6xl xl:text-5xl font-black mb-4 text-gradient-primary leading-tight">
             Every AI visit, classified.
           </h1>
-          <p className="text-xl md:text-2xl font-semibold text-foreground mb-3 leading-snug">
-            On European sites, one AI bot visit for every 33 human visits. CortIQ shows which ones train on your content, which ones act for real users, and which ones cite you.
-          </p>
-          <p className="text-sm text-muted-foreground mb-6">
-            Source: TollBit, State of the Bots H1 2026, median European publisher site on its network (North America: 1 in 93). Self-identified bots only.
+          <p className="text-xl md:text-2xl font-semibold text-foreground mb-6 leading-snug">
+            On European sites, one AI bot visit for every 33 human visits
+            {/* Short reference next to the figure it sources; the full source sentence is the footnote under the Europe vs North America figures. */}
+            <a href={`#${AI_TRAFFIC_SOURCE_ID}`} className="ml-1 align-super whitespace-nowrap text-xs font-normal text-muted-foreground underline underline-offset-2 hover:text-foreground">
+              TollBit, H1 2026
+            </a>
+            . CortIQ shows which ones train on your content, which ones act for real users, and which ones cite you.
           </p>
           <p className="text-lg text-foreground/80 mb-8 leading-relaxed">
             Plus consent-first visitor analytics, heatmaps and form analytics behind a built-in consent banner in 13 languages. EU-hosted.

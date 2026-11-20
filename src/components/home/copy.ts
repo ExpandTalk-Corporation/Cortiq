@@ -1,3 +1,5 @@
+import type { Market } from "@/lib/jurisdiction";
+
 export const BANNER_POINTS = [
   {
     title: "13 languages",
@@ -70,11 +72,86 @@ export const LEGAL_NOTES = [
     lead: "Before the install code is shown,",
     text: "the site owner confirms a checklist of what the privacy policy must cover. The confirmation is logged with its version and asked again when the checklist changes.",
   },
-  {
-    lead: "In development:",
-    text: "rules per jurisdiction (EU/EEA, UK, US states, Brazil, Canada). CortIQ already records which country each consent was given from.",
-  },
   { lead: "", text: "CortIQ gives you the tools. The site operator makes the final legal assessment." },
+];
+
+// Routing per country. The flow follows decide() in supabase/functions/_shared/jurisdiction/;
+// status per market is never written here, it comes from src/lib/marketStatus.ts.
+export const ROUTING_ID = "routing";
+
+export const ROUTING_FLOW = [
+  {
+    step: "Visitor request",
+    text: "A page view, event, consent answer or server-side request reaches a CortIQ collector.",
+  },
+  {
+    step: "Country",
+    text: "Taken only from the signed edge location. Without one, CortIQ uses the markets you have selected (including your country of establishment), or EU/EEA, UK and Québec if you have selected none. Until you have answered where you operate, EU/EEA, UK and Québec are also checked.",
+  },
+  {
+    step: "Purpose",
+    text: "Each collector names its purpose: statistics, conversions, attribution, sharing with ad platforms or server-side AI-agent measurement.",
+  },
+  {
+    step: "Rule",
+    text: "The strictest matching rule decides. On customer sites only approved rules count; without one, the baseline is opt-in for every purpose. You can make a purpose stricter, not looser.",
+  },
+];
+
+export const ROUTING_OUTCOMES = [
+  {
+    outcome: "Collect",
+    text: "The data is stored.",
+  },
+  {
+    outcome: "Drop",
+    text: "Applied now for purposes you turn Off, and for marketing data, aggregate counts and server-side requests when GPC is present (listed below). Opt-in and market rules are logged only, not yet applied.",
+  },
+  {
+    outcome: "Log decision",
+    text: "Every decision is counted per day, country and purpose. Daily counts only.",
+  },
+];
+
+export const ROUTING_TODAY_LINE =
+  "Today CortIQ does the same in every market: browser analytics waits for consent, aggregate counting runs only on sites that turn it on, server-side AI-agent measurement runs from the site's own server, and the market rules below are logged, not applied.";
+
+export const ROUTING_LAWS: Record<Market, string> = {
+  eu: "ePrivacy Directive art. 5(3) as implemented in each country (Sweden: Electronic Communications Act (2022:482), ch. 9 s. 28), and the GDPR",
+  uk: "PECR as amended by the Data (Use and Access) Act 2025, and the UK GDPR",
+  ch: "Federal Act on Data Protection (FADP, SR 235.1) and Telecommunications Act (SR 784.10) art. 45c",
+  us_ca: "CCPA as amended by the CPRA, and its regulations (incl. opt-out preference signals)",
+  us_other: "State privacy laws; several require honouring a universal opt-out signal such as GPC for sale and targeted advertising",
+  ca_qc: "Québec private-sector privacy act (CQLR c. P-39.1) as amended by Law 25",
+  ca_other: "PIPEDA (S.C. 2000, c. 5), or a substantially similar provincial law",
+  br: "LGPD (Law 13.709/2018)",
+  other: "No market-specific law reviewed. Local law is the site owner's assessment.",
+};
+
+export const ROUTING_RULES_NOTE =
+  "Every rule on file is a working hypothesis. Draft rules and rules in review apply only on test sites CortIQ has flagged, never on customer sites.";
+
+// The Off list is the dashboard's wording (RulesByMarketTab NOT_YET_APPLIED); a test keeps them equal.
+export const ROUTING_OFF_COLLECTORS =
+  "page views and events, aggregate counts, link clicks, AI-search referrals, e-commerce purchases, Core Web Vitals, content and media interactions, AI-bot detection in the browser and canary links, conversions, click IDs, server-side AI-agent requests, Cloudflare traffic, imported server logs and ad-platform uploads. Some other collectors do not check it yet.";
+
+export const ROUTING_WORKS_TODAY = [
+  {
+    title: "Global Privacy Control",
+    text: "When the browser sends GPC, the banner keeps marketing off, aggregate counting stops, and the server-side adapters (5.5.20 and later) do not send the request.",
+  },
+  {
+    title: "Your own Off",
+    text: `New data for a purpose you turn off is dropped, within about a minute, in ${ROUTING_OFF_COLLECTORS}`,
+  },
+  {
+    title: "Country of each consent",
+    text: "CortIQ already records which country each consent was given from. It comes from the signed edge location, or the browser time zone when that is missing. Rules never use the time zone.",
+  },
+  {
+    title: "Coverage per country",
+    text: "Consent → Impact shows per country what the rules would allow, banner answers by language, and pixel readiness.",
+  },
 ];
 
 export const ATTRIBUTION = [
