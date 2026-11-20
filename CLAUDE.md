@@ -313,6 +313,9 @@ Plan: `docs/superpowers/plans/2026-11-20-attribution-layer-1-5.md`.
   HubSpot property (`hubspot-lead-webhook`, marketing consent, hashed-email match, unmatched dropped, never touches
   `upload_status`) and one select/radio form field (tracker 5.5.21+, analytics consent, mapped in the browser, only the
   category is sent; `track-event` hands the field config out, `record-conversion` stores it via `attach_reported_channel`). Raw values are never stored or logged.
+  The HubSpot match needs the contact's email in the webhook payload: a plain `contact.propertyChange` subscription
+  usually has none, so the customer sends the change from a workflow webhook that includes the email (wizard step 1,
+  settings card, GDPR.md). No contact fetch from HubSpot is built.
 - **Never leaves CortIQ and aggregate only:** not in Google Ads upload, GA4, AI insights, public API or MCP; the dashboard
   reads only `get_reported_channel`: ranges ≥ 7 whole days, counts 1–4 → "fewer than 5", complementary suppression
   (one hidden leaf in a group hides the next smallest → `hidden`), totals rounded to 5, one answer per visit and

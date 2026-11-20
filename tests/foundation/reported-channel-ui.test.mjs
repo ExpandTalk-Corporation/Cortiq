@@ -160,4 +160,5 @@ test('Attribution tab shows the card in every state; settings sit under Integrat
   assert.match(integrations, /<ReportedChannelSettings /);
   const wizard = read('../../src/components/dashboard/HubSpotIntegrationWizard.tsx');
   assert.match(wizard, /how did you hear about us/i);
+  assert.match(wizard, /workflow webhook \(&quot;Send a webhook&quot; action\) that includes the contact&apos;s\s+email/);
 });

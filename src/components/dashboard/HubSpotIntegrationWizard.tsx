@@ -133,6 +133,12 @@ export function HubSpotIntegrationWizard({ selectedSite, isConfigured = false }:
             <li>Property: <strong>lead_quality</strong> (or your custom property)</li>
             <li>Copy the <strong>Client Secret</strong> — you'll need it in step 2</li>
           </ul>
+          <p className="text-xs text-muted-foreground">
+            CortIQ matches a change to a conversion by the contact&apos;s email (hashed on arrival). A plain{' '}
+            <strong>contact.propertyChange</strong> subscription usually carries no email, and without one nothing is matched.
+            Send the change from a HubSpot workflow webhook (&quot;Send a webhook&quot; action) that includes the contact&apos;s
+            email. This applies to lead quality and to the &quot;how did you hear about us?&quot; property.
+          </p>
           <Button size="sm" className="gap-2" onClick={() => window.open('https://app.hubspot.com/settings/integrations/webhooks', '_blank')}>
             Open HubSpot Webhooks <ExternalLink className="h-3.5 w-3.5" />
           </Button>
