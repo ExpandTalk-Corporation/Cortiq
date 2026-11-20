@@ -280,7 +280,8 @@ Spec: `docs/superpowers/specs/2026-11-18-jurisdiction-aware-measurement-design.m
   `20261208000001`) under rule `all.agent_measurement.server_log` (`allowed_unless_opt_out`, draft). It honours
   `Sec-GPC: 1` as an objection by automated means (art. 21(5)), an extra route next to the customer's own channel: the
   adapters (`cortiq-server.mjs`, Cloudflare Worker, PHP adapter, WP plugin 5.5.20+) do not send such a request at all.
-  server-hit still discards a hit sent with `gpc: true` (own integrations); no field = no objection.
+  server-hit still discards a hit sent with `gpc: true` (own integrations); no field = no objection. cloudflare-ingest
+  does the same; import-server-logs skips JSON log lines with `gpc: true` or `sec_gpc: "1"` (`objected_lines`).
   Honeypot hits from UAs the registry does not classify are stored as a signal only (no IP, UA, geo or referrer).
 - **Copy:** "CortIQ's technical defaults, not legal advice" (`DISCLAIMER`). Avoid implying that the defaults eliminate
   legal requirements, replace compliance obligations, or remove the need for consent mechanisms.
