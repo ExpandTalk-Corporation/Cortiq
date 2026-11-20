@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
+import { bannerLanguages, singleLanguage } from '../../scripts/banner-languages.mjs';
 
 // public/consent-banner.js — the optional CortIQ banner offered by the install snippet.
 // Runs the real file against a minimal DOM stub: only what the banner touches.
@@ -19,7 +20,7 @@ function makeElement(id) {
   };
 }
 
-function page({ attrs = {}, stored = null, htmlLang = '', hostname = 'www.vikingage.se', cortiqConfig, extraWindow = {}, nav = {} } = {}) {
+function page({ src = source, attrs = {}, stored = null, htmlLang = '', hostname = 'www.vikingage.se', cortiqConfig, extraWindow = {}, nav = {} } = {}) {
   const store = new Map(stored ? [['site_cookie_consent', JSON.stringify(stored)]] : []);
   const byId = new Map();
   const events = [];
@@ -61,7 +62,7 @@ function page({ attrs = {}, stored = null, htmlLang = '', hostname = 'www.viking
     },
     setTimeout: fn => timers.push(fn), Date, JSON, Math, String, Array, Promise,
   };
-  runInNewContext(source, context);
+  runInNewContext(src, context);
   timers.splice(0).forEach(fn => fn());
   return {
     byId, events, posts, window,
@@ -138,7 +139,7 @@ test('company and policy URL are escaped', () => {
 test('every language defines the same keys', () => {
   const block = source.slice(source.indexOf('var T = {'), source.indexOf('var cfg = {'));
   const langs = [...block.matchAll(/^ {4}(\w\w): \{/gm)].map(m => m[1]);
-  assert.deepEqual(langs, ['sv', 'en', 'de', 'fr', 'pt']);
+  assert.deepEqual(langs, ['sv', 'en', 'de', 'fr', 'pt', 'nl', 'nb', 'da', 'fi', 'pl', 'it', 'es', 'is']);
   const keyCount = lang => {
     const start = block.indexOf(`    ${lang}: {`);
     const rest = block.slice(block.indexOf("{", start) + 1);
@@ -146,6 +147,33 @@ test('every language defines the same keys', () => {
     return [...(end === -1 ? rest : rest.slice(0, end)).matchAll(/^\s+(\w+)\s*:/gm)].map(m => m[1]).join(',');
   };
   for (const lang of langs) assert.equal(keyCount(lang), keyCount('sv'), lang);
+});
+
+test('Norwegian arrives as nb, nn or no and gets the bokmål texts', () => {
+  for (const htmlLang of ['nb-NO', 'nn-NO', 'no']) {
+    assert.match(page({ htmlLang }).byId.get('crtq-consent-banner').innerHTML, /Kan vi måle besøket ditt/, htmlLang);
+  }
+  assert.match(page({ attrs: { 'data-lang': 'no' } }).byId.get('crtq-consent-banner').innerHTML, /Kan vi måle/);
+});
+
+test('single-language builds keep only their own texts and render them whatever the page language', () => {
+  assert.deepEqual(bannerLanguages(source), ['sv', 'en', 'de', 'fr', 'pt', 'nl', 'nb', 'da', 'fi', 'pl', 'it', 'es', 'is']);
+  for (const lang of bannerLanguages(source)) {
+    const own = singleLanguage(source, lang);
+    assert.deepEqual(bannerLanguages(own), [lang]);
+    const full = page({ attrs: { 'data-lang': lang } }).byId.get('crtq-consent-banner').innerHTML;
+    const alone = page({ src: own, htmlLang: 'xx' }).byId.get('crtq-consent-banner').innerHTML;
+    assert.equal(alone, full, lang);
+  }
+});
+
+test('the built per-language files match the source', () => {
+  for (const lang of bannerLanguages(source)) {
+    const built = readFileSync(new URL(`../../public/consent-banner.${lang}.js`, import.meta.url), 'utf8');
+    const html = page({ src: built, htmlLang: 'en' }).byId.get('crtq-consent-banner').innerHTML;
+    assert.equal(html, page({ attrs: { 'data-lang': lang } }).byId.get('crtq-consent-banner').innerHTML,
+      `public/consent-banner.${lang}.js is stale: run node scripts/minify-tracker.mjs`);
+  }
 });
 
 test('purposes are visible in the first layer; one category means a plain Accept button', () => {

@@ -10,8 +10,18 @@
 export type ConsentSetup = 'own-cmp' | 'cortiq-banner' | 'none';
 
 /** Languages consent-banner.js ships. `auto` picks from <html lang> (no data-lang attribute). */
-export const BANNER_LANGUAGES = ['auto', 'sv', 'en', 'de', 'fr', 'pt'] as const;
+export const BANNER_LANGUAGES = ['auto', 'sv', 'en', 'de', 'fr', 'pt', 'nl', 'nb', 'da', 'fi', 'pl', 'it', 'es', 'is'] as const;
 export type BannerLanguage = typeof BANNER_LANGUAGES[number];
+
+/**
+ * The banner file a site loads: a fixed language gets consent-banner.<lang>.js with only its own texts
+ * (scripts/banner-languages.mjs); `auto` needs every language, minified.
+ */
+export function bannerFile(language: BannerLanguage | undefined): string {
+  return language && language !== 'auto' && (BANNER_LANGUAGES as readonly string[]).includes(language)
+    ? `consent-banner.${language}.js`
+    : 'consent-banner.min.js';
+}
 
 export interface TrackingSnippetOptions {
   apiUrl: string;

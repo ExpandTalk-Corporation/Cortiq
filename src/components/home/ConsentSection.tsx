@@ -9,13 +9,21 @@ const DEMO_LANGS = [
   { code: "de", label: "Deutsch" },
   { code: "fr", label: "Français" },
   { code: "pt", label: "Português" },
+  { code: "nl", label: "Nederlands" },
+  { code: "nb", label: "Norsk" },
+  { code: "da", label: "Dansk" },
+  { code: "fi", label: "Suomi" },
+  { code: "pl", label: "Polski" },
+  { code: "it", label: "Italiano" },
+  { code: "es", label: "Español" },
+  { code: "is", label: "Íslenska" },
 ] as const;
 type DemoLang = (typeof DEMO_LANGS)[number]["code"];
 
 // Icon per BANNER_POINTS title (not by position — titles in copy.ts can be reordered safely).
 // "Reject is as easy as accept" has no dedicated icon in the set below, so it falls back to Scale.
 const POINT_ICONS: Record<string, LucideIcon> = {
-  "Five languages": Languages, // languages
+  "13 languages": Languages, // languages
   "Consent log": ScrollText, // consent log (also covers the 12/6 month re-ask mentioned in its text)
   "Global Privacy Control": EyeOff, // GPC
   "Google Consent Mode v2": Settings2, // Consent Mode v2
@@ -31,7 +39,7 @@ export function ConsentSection() {
       <div className="container mx-auto max-w-6xl">
         <SectionHeader
           eyebrow="Consent and the law"
-          title="Consent built in, in five languages"
+          title="Consent built in, in 13 languages"
           intro="Browser analytics waits for consent, unless you switch on aggregate mode. The banner, the consent log and the policy texts are part of the product, so the measurement and the legal side are set up together."
         />
         <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">

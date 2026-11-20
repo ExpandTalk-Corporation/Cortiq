@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
-import { renderTrackingSnippet } from '../../src/lib/snippetTemplate.ts';
+import { bannerFile, renderTrackingSnippet } from '../../src/lib/snippetTemplate.ts';
 import { compareVersions, defaultPinned, pinnedScripts, pinStatus } from '../../src/lib/sriPin.ts';
 
 // Pinned installs (Subresource Integrity): the snippet loads /v/<version>/ files with an integrity hash,
@@ -29,7 +29,7 @@ test('every pinned file still matches the hash in the manifest', () => {
 test('the current version is pinned, and is the served tracker and banner', () => {
   const version = read('src/lib/plugin-version.ts').toString().match(/PLUGIN_VERSION = '([\d.]+)'/)[1];
   assert.equal(manifest.latest, version, 'run node scripts/pin-tracker.mjs (part of npm run build)');
-  for (const name of ['cortiq.js', 'consent-banner.js']) {
+  for (const name of ['cortiq.js', 'consent-banner.js', 'consent-banner.min.js', 'consent-banner.sv.js']) {
     assert.ok(read(`public/${name}`).equals(read(`public/v/${version}/${name}`)),
       `public/${name} differs from the pinned copy: bump the shared version`);
   }
@@ -61,8 +61,22 @@ test('pinned banner tag carries integrity and crossorigin', () => {
   const pin = pinnedScripts('https://cortiq.se', manifest);
   const html = renderTrackingSnippet({ ...opts, ...pin, consentSetup: 'cortiq-banner', company: 'Example AB',
     policyUrl: 'https://example.com/privacy' }, { loader, beacon });
-  const tag = html.match(/<script src="[^"]*consent-banner\.js"[\s\S]*?><\/script>/)[0];
+  const tag = html.match(/<script src="[^"]*consent-banner\.min\.js"[\s\S]*?><\/script>/)[0];
   assert.ok(tag.includes(`integrity="${pin.bannerIntegrity}" crossorigin="anonymous"`), tag);
+});
+
+test('a fixed banner language pins the file with only that language', () => {
+  assert.equal(bannerFile('nb'), 'consent-banner.nb.js');
+  assert.equal(bannerFile('auto'), 'consent-banner.min.js');
+  const pin = pinnedScripts('https://cortiq.se', manifest, 'consent-banner.nb.js');
+  assert.equal(pin.bannerSrc, `https://cortiq.se/v/${manifest.latest}/consent-banner.nb.js`);
+  assert.equal(pin.bannerIntegrity, manifest.versions[manifest.latest].files['consent-banner.nb.js']);
+  const html = renderTrackingSnippet({ ...opts, ...pin, consentSetup: 'cortiq-banner', bannerLanguage: 'nb',
+    company: 'Example AB', policyUrl: 'https://example.com/privacy' }, { loader, beacon });
+  assert.match(html, /<script src="[^"]*\/consent-banner\.nb\.js"[^>]*data-lang="nb"[^>]*integrity="sha384-/);
+  const old = pinnedScripts('https://cortiq.se', { latest: '5.5.11', versions: { '5.5.11': { files: {
+    'cortiq.js': 'sha384-a', 'consent-banner.js': 'sha384-b' } } } }, 'consent-banner.nb.js');
+  assert.equal(old.bannerSrc, 'https://cortiq.se/v/5.5.11/consent-banner.js', 'older versions have no per-language file');
 });
 
 test('unpinned snippet has no integrity; a malformed hash is refused', () => {
