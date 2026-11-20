@@ -21,7 +21,7 @@
  * Body: { hits: [{ url, userAgent, method?, status?, referrer?, ip? }] }  (max 25, ≤ 64 KB)
  */
 import { createClient } from "../_shared/supabase.ts";
-import { anonymizeIP } from "../_shared/jurisdiction.ts";
+import { anonymizeIP } from "../_shared/ip.ts";
 import { classifyBot, storedBotCategory } from "../_shared/ai-bot-registry.ts";
 import { normHost, ownsHost } from "../_shared/site-host.ts";
 import { normalizeGeoClaims } from "../_shared/geo-token.js";

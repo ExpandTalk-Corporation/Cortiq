@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "../_shared/supabase.ts";
-import { anonymizeIP } from "../_shared/jurisdiction.ts";
+import { anonymizeIP } from "../_shared/ip.ts";
 // Canonical AI-bot classification — shared with cloudflare-ingest so both the JS-tag
 // and server-log paths classify identically. See _shared/ai-bot-registry.ts.
 import { classifyBot, storedBotCategory, type BotCategory } from "../_shared/ai-bot-registry.ts";
