@@ -316,7 +316,7 @@ Plan: `docs/superpowers/plans/2026-11-20-attribution-layer-1-5.md`.
 - Texts: banner (13 languages), Privacy §5A, GDPR.md "Self-reported source", DPA 1.7. WP built-in banner texts and own CMPs
   do not name it — the settings card says so. Jurist-agent check of the banner texts before any customer turns it on.
 - Copy: "self-reported source", "what buyers say", "answer rate", "recall, not fact". Never "true source/attribution",
-  "dark funnel revealed", "AI assistants drove X", "anonymous", "no consent needed", "GDPR-compliant", or anything about one lead.
+  "dark funnel revealed", "AI assistants drove X", "anonymous", consent-free or compliance claims, or anything about one lead (full list in the spec).
 
 ---
 
