@@ -15,12 +15,13 @@ import {
   isReportedChannel,
   answerKey,
   cleanChannelMap,
+  hasAnswer,
   type ReportedChannel,
 } from '../../supabase/functions/_shared/reported-channel.ts';
 
 export {
   REPORTED_CHANNELS, REPORTED_CHANNEL_LABELS, MAX_MAP_ENTRIES, MAX_ANSWER_LENGTH,
-  isReportedChannel, answerKey, cleanChannelMap,
+  isReportedChannel, answerKey, cleanChannelMap, hasAnswer,
 };
 export type { ReportedChannel };
 
@@ -133,7 +134,7 @@ export interface MapRow { answer: string; channel: ReportedChannel | '' }
 
 /** Rows from the editor → the stored map; blank rows are skipped, duplicates keep the first. */
 export function rowsToMap(rows: MapRow[]): { map: Record<string, ReportedChannel>; errors: string[] } {
-  const map: Record<string, ReportedChannel> = {};
+  const map: Record<string, ReportedChannel> = Object.create(null);
   const errors: string[] = [];
   for (const row of rows) {
     const key = answerKey(row.answer);
@@ -141,7 +142,7 @@ export function rowsToMap(rows: MapRow[]): { map: Record<string, ReportedChannel
     if (!key) { errors.push('Every row needs an answer value.'); continue; }
     if (key.length > MAX_ANSWER_LENGTH) { errors.push(`"${key.slice(0, 20)}…" is longer than ${MAX_ANSWER_LENGTH} characters.`); continue; }
     if (!row.channel) { errors.push(`Pick a category for "${key}".`); continue; }
-    if (key in map) continue;
+    if (hasAnswer(map, key)) continue;
     map[key] = row.channel;
   }
   if (Object.keys(map).length > MAX_MAP_ENTRIES) errors.push(`At most ${MAX_MAP_ENTRIES} answer values.`);

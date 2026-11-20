@@ -82,8 +82,12 @@ test('settings: value map and field validation match the database constraint', (
     { answer: '', channel: '' },
     { answer: 'Podcast', channel: '' },
   ]);
-  assert.deepEqual(map, { chatgpt: 'ai_assistant' });
+  assert.deepEqual({ ...map }, { chatgpt: 'ai_assistant' });
   assert.equal(errors.length, 1);
+  // "constructor" or "toString" as an answer is stored like any other value (no prototype lookup).
+  const proto = rowsToMap([{ answer: 'constructor', channel: 'event' }, { answer: 'toString', channel: 'podcast' }]);
+  assert.deepEqual(Object.entries(proto.map), [['constructor', 'event'], ['tostring', 'podcast']]);
+  assert.deepEqual(proto.errors, []);
   assert.deepEqual(mapToRows({ chatgpt: 'ai_assistant', x: 'not_a_category' }), [{ answer: 'chatgpt', channel: 'ai_assistant' }]);
   assert.ok(FORM_FIELD_PATTERN.test('how_did_you_hear'));
   assert.ok(FORM_FIELD_PATTERN.test('fields[source]'));

@@ -31,14 +31,24 @@ test('the SQL category list equals the shared list', () => {
 
 test('mapping: trim + lower-case exact match, else other; nothing else', () => {
   const map = cleanChannelMap({ ' ChatGPT ': 'ai_assistant', Podcast: 'podcast', Bad: 'religion', 7: 'other' });
-  assert.deepEqual(map, { chatgpt: 'ai_assistant', podcast: 'podcast', 7: 'other' });
+  assert.deepEqual({ ...map }, { chatgpt: 'ai_assistant', podcast: 'podcast', 7: 'other' });
+  assert.equal(Object.getPrototypeOf(map), null, 'no prototype');
   assert.equal(mapReportedChannel('  CHATGPT', map), 'ai_assistant');
   assert.equal(mapReportedChannel('Chat GPT', map), 'other');
   assert.equal(mapReportedChannel('', map), null);
   assert.equal(mapReportedChannel(42, map), null);
   assert.equal(mapReportedChannel('constructor', map), 'other');
-  assert.deepEqual(cleanChannelMap(['x']), {});
-  assert.deepEqual(cleanChannelMap(null), {});
+  assert.deepEqual({ ...cleanChannelMap(['x']) }, {});
+  assert.deepEqual({ ...cleanChannelMap(null) }, {});
   const big = Object.fromEntries(Array.from({ length: 80 }, (_, i) => [`v${i}`, 'other']));
   assert.equal(Object.keys(cleanChannelMap(big)).length, 50);
+});
+
+test('answer values that are Object.prototype names are ordinary keys', () => {
+  const map = cleanChannelMap(JSON.parse('{"__proto__": "podcast", "constructor": "event"}'));
+  assert.deepEqual(Object.entries(map), [['__proto__', 'podcast'], ['constructor', 'event']]);
+  assert.equal(mapReportedChannel('__proto__', map), 'podcast');
+  assert.equal(mapReportedChannel('Constructor', map), 'event');
+  assert.equal(mapReportedChannel('toString', map), 'other');
+  assert.equal(mapReportedChannel('hasOwnProperty', cleanChannelMap({})), 'other');
 });
