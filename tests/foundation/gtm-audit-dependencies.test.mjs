@@ -70,6 +70,8 @@ test('eventMatch: hostile and uncompilable regexes', () => {
   assert.equal(eventMatch(t('^(gtm\\.)?click$'), 'gtm.click'), 'possible');
   assert.equal(eventMatch(t('^click$'), 'other'), null);
   assert.equal(eventMatch({ customEvent: null }, 'x'), null);
+  // Two quantifiers ('a*' twice) — not run, so a non-matching event still comes back 'possible'.
+  assert.equal(eventMatch(t('a*a*$'), 'b'), 'possible');
 });
 
 test('event: 50 hostile regex triggers and 100 pushed events finish quickly', () => {
@@ -79,11 +81,7 @@ test('event: 50 hostile regex triggers and 100 pushed events finish quickly', ()
   const t0 = performance.now();
   const c = parse(exportOf({ tags, triggers }));
   dependencies(c, tagInfos(c));
-  // Budget wider than a solo run needs (~550ms) because npm run test:foundation runs ~48 files
-  // concurrently and this one can get scheduled alongside multi-second PostgreSQL tests; the real
-  // defense against catastrophic regexes is the structural `runnable()` check in dependencies.ts,
-  // not this wall-clock margin — a real exponential blowup would take far longer than 3s.
-  assert.ok(performance.now() - t0 < 3000);
+  assert.ok(performance.now() - t0 < 1000);
 });
 
 test('consent_tool: CMP tag to every gated tag', () => {

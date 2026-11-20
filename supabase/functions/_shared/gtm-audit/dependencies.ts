@@ -18,19 +18,20 @@ const GLOBAL_RE = /\bwindow\.([A-Za-z_$][\w$]{0,100})\s*=(?!=)|(?:^|[;{}\s])var\
 const COOKIE_RE = /document\.cookie\s*=\s*['"`]\s*([^=;'"`\s]{1,100})=/g;
 const IGNORED_GLOBALS = new Set(['dataLayer']);
 const MAX_EVENTS = 500;
-// User regexes from the uploaded file: only short patterns without a quantified group and with at most two
-// quantifiers are run (event names are ≤100 chars, so the worst case stays polynomial and small). The rest
-// are counted as a possible match without running them; regex runs per audit are capped as well.
+// User regexes from the uploaded file: only short patterns without a quantified group and with at most one
+// quantifier are run (event names are ≤100 chars, so the worst case stays linear and small — two or more
+// quantifiers, e.g. 'a*a*$', can backtrack polynomially on an unanchored match). The rest are counted as a
+// possible match without running them; regex runs per audit are capped as well.
 const MAX_USER_REGEX = 200;
 const QUANTIFIED_GROUP = /\)\s*[*+{]/;
 const QUANTIFIER = /[*+?]|\{\d/g;
-const MAX_REGEX_RUNS = 10_000;
+const MAX_REGEX_RUNS = 2_000;
 
 const text = (v: ParamValue | undefined): string => (typeof v === 'string' ? v : '');
 const htmlOf = (i: TagInfo): string => text(i.tag.params.html).slice(0, MAX_HTML);
 
 const runnable = (p: string): boolean =>
-  p.length <= MAX_USER_REGEX && !QUANTIFIED_GROUP.test(p) && (p.match(QUANTIFIER)?.length ?? 0) <= 2;
+  p.length <= MAX_USER_REGEX && !QUANTIFIED_GROUP.test(p) && (p.match(QUANTIFIER)?.length ?? 0) <= 1;
 
 /** How a trigger's custom-event condition treats an event name. */
 export function eventMatch(t: Pick<GtmTrigger, 'customEvent'>, event: string, budget = { runs: MAX_REGEX_RUNS }): Confidence | null {
