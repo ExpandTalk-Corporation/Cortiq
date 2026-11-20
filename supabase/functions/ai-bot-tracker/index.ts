@@ -138,7 +138,7 @@ serve(async (req) => {
     const gpcHeader = req.headers.get('sec-gpc') === '1';
     const drop = await jurisdictionGate(supabase, 'ai-bot-tracker', site.id, Deno.env.get('JURISDICTION_ENFORCE'), sessionId).gate((ledger) => ({
       visitor: visitorFrom(geo),
-      purpose: 'security',
+      purpose: 'agent_measurement',
       signals: signalsFrom(ledger, { trackerGate: ['analytics'], gpcHeader }),
       technique: { storage: 'session', identifiers: 'session' },
     }));

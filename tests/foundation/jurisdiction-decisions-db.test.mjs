@@ -76,7 +76,7 @@ test('AC1: legacy columns and function gone, old values kept as log rows; skippe
 
 // 20261207000006: applied after 1-5 on a database where anon/authenticated start with ALL, as
 // Supabase's default privileges give them.
-async function hardenedDb() {
+async function hardenedDb({ beforeFollowups = '' } = {}) {
   const pg = await jurisdictionDb(LEGACY + `
     CREATE TABLE public.cookie_consents (site_id uuid, created_at timestamptz, consent_types jsonb, geo_country text, geo_source text);`);
   for (const f of ['20261207000002_jurisdiction_decisions', '20261207000003_consent_banner_lang',
@@ -85,6 +85,8 @@ async function hardenedDb() {
   }
   await pg.exec('GRANT USAGE ON SCHEMA public TO anon; GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;');
   await pg.exec(read('../../supabase/migrations/20261207000006_jurisdiction_hardening.sql'));
+  if (beforeFollowups) await pg.exec(beforeFollowups);
+  await pg.exec(read('../../supabase/migrations/20261208000001_jurisdiction_followups.sql'));
   return pg;
 }
 
@@ -95,6 +97,8 @@ test('hardening: grants match the RLS policies; anon gets nothing', async () => 
       site_jurisdiction_tighten: ['SELECT', 'INSERT', 'UPDATE', 'DELETE'],
       site_legal_profiles: ['SELECT'], site_legal_profile_log: ['SELECT'],
       jurisdiction_decisions_daily: ['SELECT'], aggregate_goal_countries_daily: ['SELECT'],
+      // 20261208000001
+      jurisdiction_exceptions: ['SELECT'], jurisdiction_test_sites: ['SELECT', 'INSERT', 'UPDATE', 'DELETE'],
     };
     for (const [table, privs] of Object.entries(expected)) {
       for (const p of ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER']) {
@@ -125,5 +129,26 @@ test('hardening: set_by is always the signed-in user; a negative count is refuse
     await log(pg, { count: 0 });
     await log(pg, { count: null });
     assert.equal((await pg.query('SELECT sum(count)::int n FROM jurisdiction_decisions_daily')).rows[0].n, 1);
+  } finally { await pg.close(); }
+});
+
+test('followups: purpose security becomes agent_measurement; daily counts merge on the same key; old value refused', async () => {
+  const key = `'2026-11-20', 'server-hit', 'SE', 'baseline', 'needs_opt_in', 'consent_missing', 'none', false`;
+  const pg = await hardenedDb({ beforeFollowups: `
+    INSERT INTO site_jurisdiction_tighten (site_id, purpose, setting) VALUES ('${S1}', 'security', 'off'), ('${S1}', 'statistics', 'opt_in');
+    INSERT INTO jurisdiction_decisions_daily (site_id, day, fn, country, rule_id, outcome, reason, evidence, enforced, purpose, count) VALUES
+      ('${S1}', ${key}, 'security', 4), ('${S2}', ${key}, 'security', 2);
+    -- Simulate a row written under the new name before the migration ran (the old CHECK would refuse it).
+    ALTER TABLE jurisdiction_decisions_daily DROP CONSTRAINT jurisdiction_decisions_daily_purpose_check;
+    INSERT INTO jurisdiction_decisions_daily (site_id, day, fn, country, rule_id, outcome, reason, evidence, enforced, purpose, count) VALUES
+      ('${S1}', ${key}, 'agent_measurement', 3);` });
+  try {
+    const t = (await pg.query('SELECT purpose, setting FROM site_jurisdiction_tighten ORDER BY purpose')).rows;
+    assert.deepEqual(t, [{ purpose: 'agent_measurement', setting: 'off' }, { purpose: 'statistics', setting: 'opt_in' }]);
+    const d = (await pg.query('SELECT site_id, purpose, count FROM jurisdiction_decisions_daily ORDER BY site_id')).rows;
+    assert.deepEqual(d, [{ site_id: S1, purpose: 'agent_measurement', count: 7 }, { site_id: S2, purpose: 'agent_measurement', count: 2 }]);
+    await assert.rejects(log(pg, { purpose: 'security' }), /check/i);
+    await log(pg, { fn: 'server-hit', purpose: 'agent_measurement' });
+    await assert.rejects(pg.query(`INSERT INTO site_jurisdiction_tighten (site_id, purpose, setting) VALUES ('${S2}', 'security', 'off')`), /check/i);
   } finally { await pg.close(); }
 });

@@ -18,14 +18,20 @@
  * That key is also present in the browser snippet, so every hit's host must be the site's
  * own domain or a subdomain of it, and writes are rate-limited per site (fail closed).
  *
- * Body: { hits: [{ url, userAgent, method?, status?, referrer?, ip? }] }  (max 25, ≤ 64 KB)
+ * Body: { hits: [{ url, userAgent, method?, status?, referrer?, ip?, country?, region?, gpc? }] }  (max 25, ≤ 64 KB)
+ *
+ * Objection (GDPR art. 21(5)): the bundled adapters (5.5.20+) do not send a request that carries
+ * `Sec-GPC: 1`. A hit that still arrives with `gpc: true` (an own integration or an older adapter build)
+ * is counted with the ignored hits and nothing is stored. No field = no objection.
+ * Honeypot hits from user agents the registry does not classify are kept as a count/signal only:
+ * no IP, user agent, country/region or referrer.
  */
 import { createClient } from "../_shared/supabase.ts";
 import { anonymizeIP } from "../_shared/ip.ts";
 import { classifyBot, storedBotCategory } from "../_shared/ai-bot-registry.ts";
 import { normHost, ownsHost } from "../_shared/site-host.ts";
 import { normalizeGeoClaims } from "../_shared/geo-token.js";
-import { jurisdictionGate, signalsFrom } from "../_shared/jurisdiction-edge.ts";
+import { jurisdictionGate, runShadow, signalsFrom } from "../_shared/jurisdiction-edge.ts";
 
 export { normHost };
 
@@ -106,7 +112,7 @@ Deno.serve(async (req) => {
   const hosts = new Set<string>();
 
   const rows: Record<string, unknown>[] = [];
-  let ignored = 0, rejected = 0;
+  let ignored = 0, rejected = 0, objected = 0;
   for (const raw of hits as Record<string, unknown>[]) {
     let url: URL;
     try { url = new URL(String(raw?.url ?? '')); } catch { rejected++; continue; }
@@ -122,17 +128,21 @@ Deno.serve(async (req) => {
     // Store registry-classified AI bots, and anyone following the honeypot link
     // (a hidden, robots.txt-disallowed URL no human navigates to).
     if (!bot.registryMatch && signal !== 'honeypot') { ignored++; continue; }
+    // The visitor objected (Sec-GPC: 1 forwarded by an own integration or older adapter): store nothing.
+    if (raw.gpc === true) { ignored++; objected++; continue; }
 
-    const g = normalizeGeoClaims({ c: typeof raw.country === 'string' ? raw.country.toUpperCase() : null, r: typeof raw.region === 'string' ? raw.region.toUpperCase() : null, ip: null });
+    // An unclassified honeypot visitor may be a person: keep only that the trap was hit.
+    const signalOnly = !bot.registryMatch;
+    const g = signalOnly ? { c: null, r: null } : normalizeGeoClaims({ c: typeof raw.country === 'string' ? raw.country.toUpperCase() : null, r: typeof raw.region === 'string' ? raw.region.toUpperCase() : null, ip: null });
 
     rows.push({
       site_id: site.id,
       bot_type: bot.botType,
       bot_name: bot.registryMatch ? bot.botName : (bot.botName === 'Unknown Bot' ? 'Honeypot visitor' : bot.botName),
-      user_agent: ua || null,
+      user_agent: signalOnly ? null : (ua || null),
       url: url.origin + url.pathname,
-      referrer: cleanReferrer(raw.referrer),
-      ip_address: anonymizeIP(clip(raw.ip, 64)),
+      referrer: signalOnly ? null : cleanReferrer(raw.referrer),
+      ip_address: signalOnly ? null : anonymizeIP(clip(raw.ip, 64)),
       js_executed: false,
       probe_triggered: signal === 'honeypot',
       // Only registry bots get a category; the generic fallback would mislabel an unknown
@@ -146,14 +156,20 @@ Deno.serve(async (req) => {
     });
   }
 
+  // One decision per batch (plus one for objected hits). Adapter geo is unsigned, so the engine judges
+  // by the site's markets.
+  const jurisdiction = jurisdictionGate(supabase, 'server-hit', site.id, Deno.env.get('JURISDICTION_ENFORCE'));
+  const decide = (gpcHeader: boolean, count: number) => jurisdiction.gate(() => ({
+    visitor: { country: null, region: null, geoSource: 'adapter' },
+    purpose: 'agent_measurement',
+    signals: signalsFrom(null, { trackerGate: [], gpcHeader }),
+    technique: { storage: 'none', identifiers: 'none' },
+  }), count);
+  // Objected hits are already skipped; their decision is only logged.
+  if (objected > 0) runShadow(decide(true, objected));
+
   if (rows.length > 0) {
-    // One decision per batch. Adapter geo is unsigned, so the engine judges by the site's markets.
-    const drop = await jurisdictionGate(supabase, 'server-hit', site.id, Deno.env.get('JURISDICTION_ENFORCE')).gate(() => ({
-      visitor: { country: null, region: null, geoSource: 'adapter' },
-      purpose: 'security',
-      signals: signalsFrom(null, { trackerGate: [], gpcHeader: false }),
-      technique: { storage: 'none', identifiers: 'none' },
-    }), rows.length);
+    const drop = await decide(false, rows.length);
     if (drop) return json({ accepted: hits.length, stored: 0, ignored, rejected, skipped: 'jurisdiction' });
     const { error } = await supabase.from('ai_bot_traffic').insert(rows);
     if (error) {

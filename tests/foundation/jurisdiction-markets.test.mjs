@@ -34,6 +34,6 @@ test('constants: ranks are strict, markets and purposes are closed lists', () =>
   assert.ok(OUTCOME_RANK.allowed_unless_opt_out < OUTCOME_RANK.needs_opt_in);
   assert.ok(OUTCOME_RANK.needs_opt_in < OUTCOME_RANK.blocked);
   assert.deepEqual([...MARKETS], ['eu', 'uk', 'ch', 'us_ca', 'us_other', 'ca_qc', 'ca_other', 'br', 'other']);
-  assert.deepEqual([...PURPOSES], ['statistics', 'conversion', 'attribution', 'ad_platform_sharing', 'security']);
+  assert.deepEqual([...PURPOSES], ['statistics', 'conversion', 'attribution', 'ad_platform_sharing', 'agent_measurement']);
   assert.deepEqual([...PRODUCTION_STATUSES], ['approved_internal', 'reviewed_counsel']);
 });

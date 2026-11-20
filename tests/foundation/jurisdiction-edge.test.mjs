@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mockDatabase } from './edge-harness.mjs';
 import {
   parseSitePolicy, loadSitePolicy, STRICT_POLICY, isEnforced, readLedger, signalsFrom, visitorFrom, decideAndLog,
-  jurisdictionGate,
+  jurisdictionGate, resetPolicyCache,
 } from '../../supabase/functions/_shared/jurisdiction-edge.ts';
 
 const SITE = '11111111-1111-4111-8111-111111111111';
@@ -142,6 +142,7 @@ test('jurisdictionGate: shadow resolves false at once; enforced starts the polic
   await new Promise((r) => setTimeout(r, 0));
 
   started.length = 0;
+  resetPolicyCache();
   const pending = jurisdictionGate(client, 'track-event', SITE, 'all', 's1').gate(input);
   assert.deepEqual([...started].sort(), ['cookie_consents', 'get_site_jurisdiction'], 'both reads start before either finishes');
   assert.equal(await pending, true, 'enforced + strict default + no consent = drop');

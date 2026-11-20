@@ -8,16 +8,17 @@ const BANNED = [/no consent needed/i, /gdpr[- ]compliant without consent/i, /no 
 
 test('baseline is opt-in for every purpose; sharing purposes are marketing', () => {
   for (const p of PURPOSES) assert.equal(BASELINE[p], 'needs_opt_in', p);
-  assert.deepEqual(CATEGORY, { statistics: 'analytics', conversion: 'analytics', security: 'analytics', attribution: 'marketing', ad_platform_sharing: 'marketing' });
+  assert.deepEqual(CATEGORY, { statistics: 'analytics', conversion: 'analytics', agent_measurement: 'analytics', attribution: 'marketing', ad_platform_sharing: 'marketing' });
   assert.deepEqual([...SHARING_PURPOSES].sort(), ['ad_platform_sharing', 'attribution']);
 });
 
-test('pack snapshot: rule ids and honest statuses (changing a status is a reviewed decision)', () => {
+test('pack snapshot: version 2026.11.20-2, rule ids and honest statuses (changing a status is a reviewed decision)', () => {
   assert.equal(PACK.version, PACK_VERSION);
+  assert.equal(PACK_VERSION, '2026.11.20-2');
   assert.deepEqual(PACK.rules.map((r) => [`${r.id}@${r.version}`, r.status]), [
     ['eu.statistics.aggregate@1', 'reviewed_agent'],
     ['world.statistics.aggregate@1', 'draft'],
-    ['all.security.server_log@1', 'draft'],
+    ['all.agent_measurement.server_log@1', 'draft'],
   ]);
 });
 
@@ -55,9 +56,21 @@ test('usable(): production statuses everywhere, draft and reviewed_agent only on
 });
 
 test('server log rule: GDPR art. 21 listed; public-authority limit in the hypothesis; UK line keeps UK GDPR legitimate interest', () => {
-  const log = PACK.rules.find((r) => r.id === 'all.security.server_log');
-  assert.ok(log.sources.some((s) => s.title === 'Regulation (EU) 2016/679 art. 21 (right to object)' && s.ref === 'CELEX:32016R0679'));
-  assert.match(log.assessment, /art\. 6\(1\)\(f\) is not available to public authorities in the performance of their tasks/);
+  const log = PACK.rules.find((r) => r.id === 'all.agent_measurement.server_log');
+  assert.equal(log.outcome, 'allowed_unless_opt_out');
+  assert.deepEqual(log.purposes, ['agent_measurement']);
+  assert.match(log.assessment, /The art\. 21 right to object is exercised through the customer's ordinary channel/);
+  assert.match(log.assessment, /CortIQ also treats `Sec-GPC: 1` as an objection by automated means \(art\. 21\(5\)\)/);
+  assert.match(log.assessment, /art\. 12\(2\)/);
+  assert.match(log.assessment, /art\. 21\(4\)/);
+  assert.ok(log.uncertainties.some((u) => /do-not-sell-or-share signal/.test(u)));
+  assert.ok(log.uncertainties.some((u) => /cannot be matched to stored hits/.test(u)));
+  assert.ok(!log.uncertainties.some((u) => /still transmitted/.test(u)), 'adapters drop GPC requests at source');
+  assert.ok(log.sources.some((s) => s.ref === 'https://w3c.github.io/gpc/'));
+  assert.ok(!log.uncertainties.some((u) => /jurist review recommends/.test(u)));
+  assert.ok(PACK.rules.every((r) => r.sources.every((s) => s.ref !== 'PR #69')));
+  assert.ok(log.sources.some((s) => s.title === 'Regulation (EU) 2016/679 art. 21(1), (4) and (5); art. 12(2)' && s.ref === 'CELEX:32016R0679'));
+  assert.match(log.assessment, /[Aa]rt\. 6\(1\)\(f\) is not available to public authorities in the performance of their tasks/);
   const uk = PACK.rules.find((r) => r.id === 'world.statistics.aggregate').uncertainties.find((u) => u.startsWith('UK:'));
   assert.match(uk, /UK GDPR legitimate-interest assessment is still required/);
 });

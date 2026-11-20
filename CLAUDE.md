@@ -253,10 +253,21 @@ Spec: `docs/superpowers/specs/2026-11-18-jurisdiction-aware-measurement-design.m
   Relaxing goes through `jurisdiction_exceptions` (max 12 months; no write path in phase 3). Decided 2026-11-20 for
   phase 4: the customer may relax any non-floor rule on its own documented assessment (spec, "Decisions 2026-11-20").
   Hard floors never relax: GPC stops sharing purposes, EU cross-site identifiers need opt-in.
-- **Shadow by default:** every ingest function logs its decision to `jurisdiction_decisions_daily` (daily counts only,
-  country from signed edge geo only, 400 days). `JURISDICTION_ENFORCE` (`all` or a comma list of function names)
-  turns dropping on. store-consent always logs, never blocks. Flip only per
+- **The customer's own Off applies now** (decided 2026-11-20; GDPR art. 28(3)(a) instruction): a purpose set to `off`
+  drops that purpose's data in every wired function whatever `JURISDICTION_ENFORCE` says (logged `enforced = true`).
+  Unwired collectors are listed under "Not yet wired" in the runbook; the dashboard copy names only the wired paths.
+  Off is read from the policy (not decide()'s reason) and fails closed if decide() throws. The policy is cached 60 s
+  per isolate with a 1.5 s RPC timeout (failure = safe default, no Off); ledger, decide and log stay in the background.
+- **Opt-in and market rules stay shadow:** every ingest function logs its decision to `jurisdiction_decisions_daily`
+  (daily counts only, country from signed edge geo only, 400 days). `JURISDICTION_ENFORCE` (`all` or a comma list of
+  function names) turns dropping on for them. store-consent always logs, never blocks, not even on Off. Flip only per
   `docs/runbooks/jurisdiction-enforcement.md`.
+- **Server-side agent measurement** (server-hit) has purpose `agent_measurement` (was `security`; migration
+  `20261208000001`) under rule `all.agent_measurement.server_log` (`allowed_unless_opt_out`, draft). It honours
+  `Sec-GPC: 1` as an objection by automated means (art. 21(5)), an extra route next to the customer's own channel: the
+  adapters (`cortiq-server.mjs`, Cloudflare Worker, PHP adapter, WP plugin 5.5.20+) do not send such a request at all.
+  server-hit still discards a hit sent with `gpc: true` (own integrations); no field = no objection.
+  Honeypot hits from UAs the registry does not classify are stored as a signal only (no IP, UA, geo or referrer).
 - **Copy:** "CortIQ's technical defaults, not legal advice" (`DISCLAIMER`). Avoid implying that the defaults eliminate
   legal requirements, replace compliance obligations, or remove the need for consent mechanisms.
 - Phase 6 slice: `coverage_by_country`, `consent_acceptance_by_country_lang` (banner sends `banner_lang` from 5.5.19),

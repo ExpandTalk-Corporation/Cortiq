@@ -1,10 +1,10 @@
 // supabase/functions/_shared/jurisdiction/packs.ts
-// Rule pack 2026.11.20-1: today's behaviour written as data. Every legal statement is a hypothesis.
+// Rule pack 2026.11.20-2: today's behaviour written as data. Every legal statement is a hypothesis.
 // Raising a status to approved_internal is a reviewed commit that also fills `approval`.
 import type { Pack, Rule } from './types.ts';
 import { PRODUCTION_STATUSES } from './types.ts';
 
-export const PACK_VERSION = '2026.11.20-1';
+export const PACK_VERSION = '2026.11.20-2';
 const ALL_BUT_EU = ['uk', 'ch', 'us_ca', 'us_other', 'ca_qc', 'ca_other', 'br', 'other'] as const;
 
 const EU_AGGREGATE: Rule = {
@@ -19,7 +19,7 @@ const EU_AGGREGATE: Rule = {
     { title: 'EDPB Guidelines 2/2023 on Technical Scope of Art. 5(3) ePD, v2.0', ref: 'edpb.europa.eu', checked: '2026-11-20' },
     { title: 'CJEU C-673/17 Planet49 (1 October 2019)', ref: 'CELEX:62017CJ0673', checked: '2026-11-20' },
     { title: 'CJEU C-413/23 P EDPS v SRB (4 September 2025)', ref: 'CELEX:62023CJ0413', checked: '2026-11-20' },
-    { title: 'DPA 1.5 § 4.1', ref: 'PR #69', checked: '2026-11-20' },
+    { title: 'DPA § 4.1 (version 1.6; § 4.1 unchanged since 1.5)', ref: 'DPA.md', checked: '2026-11-20' },
   ],
   uncertainties: [
     'EDPB Guidelines 2/2023 (v2.0, paras 33, 51, 53) treat JavaScript-instructed transmission as gaining access under art. 5(3). Under that reading consent is required in Sweden, as LEK 9 kap. 28 § has no audience-measurement exception.',
@@ -48,26 +48,30 @@ const WORLD_AGGREGATE: Rule = {
 };
 
 const SERVER_LOG: Rule = {
-  id: 'all.security.server_log', version: 1, markets: ['eu', ...ALL_BUT_EU], purposes: ['security'],
-  technique: { storage: 'none', identifiers: 'none' }, outcome: 'allowed',
+  id: 'all.agent_measurement.server_log', version: 1, markets: ['eu', ...ALL_BUT_EU], purposes: ['agent_measurement'],
+  technique: { storage: 'none', identifiers: 'none' }, outcome: 'allowed_unless_opt_out',
   status: 'draft', law: null, relaxable: false, requiredLegalBasis: null,
   sources: [
     { title: 'Directive 2002/58/EC (ePrivacy) art. 5(3), consolidated', ref: 'CELEX:02002L0058-20091219', checked: '2026-11-20' },
     { title: 'Lag (2022:482) om elektronisk kommunikation 9 kap. 28 §', ref: 'SFS 2022:482', checked: '2026-11-20' },
     { title: 'Regulation (EU) 2016/679 art. 6(1)(f)', ref: 'CELEX:32016R0679', checked: '2026-11-20' },
-    { title: 'Regulation (EU) 2016/679 art. 21 (right to object)', ref: 'CELEX:32016R0679', checked: '2026-11-20' },
+    { title: 'Regulation (EU) 2016/679 art. 21(1), (4) and (5); art. 12(2)', ref: 'CELEX:32016R0679', checked: '2026-11-20' },
+    { title: "W3C Global Privacy Control (GPC), editor's draft – Sec-GPC header; legal effects", ref: 'https://w3c.github.io/gpc/', checked: '2026-11-20' },
     { title: 'EDPB Guidelines 2/2023 on Technical Scope of Art. 5(3) ePD, v2.0, paras 42–43, 54–55', ref: 'edpb.europa.eu', checked: '2026-11-20' },
     { title: 'server-hit code comment and anonymizeIP implementation', ref: 'supabase/functions/server-hit/index.ts', checked: '2026-11-20' },
-    { title: 'DPA 1.5 § 4.1', ref: 'PR #69', checked: '2026-11-20' },
+    { title: 'DPA § 4.1 (version 1.6; § 4.1 unchanged since 1.5)', ref: 'DPA.md', checked: '2026-11-20' },
   ],
   uncertainties: [
-    'EDPB 2/2023 paras 42–43 and 54–55: IP address, user agent and HTTP headers can fall under art. 5(3); whether a passively received request is "access" is not settled (DPA 1.5 § 4.1).',
+    'EDPB 2/2023 paras 42–43 and 54–55: IP address, user agent and HTTP headers can fall under art. 5(3); whether a passively received request is "access" is not settled (DPA.md § 4.1).',
     'Truncated IP (/24 IPv4, /48 IPv6), UA and path are still personal data; the customer needs an art. 6(1)(f) balance and Art. 13/21(4) information; not available to public authorities in the performance of their tasks.',
-    'Honeypot hits are stored for any user agent; agentic fetches act for a human user.',
+    'Honeypot hits from user agents the registry does not classify are kept as a count and signal only, without IP or user agent; agentic fetches act for a human user.',
+    'The automated objection route works only where the adapter sees `Sec-GPC`: the bundled adapters (5.5.20+) do not send a request that carries it; an own integration or older adapter build that forwards `gpc: true` is discarded on receipt; a hit without the field is treated as not objected.',
+    "GPC is specified as a do-not-sell-or-share signal and is not meant to limit first-party, same-context use (W3C GPC); treating it as an art. 21 objection is CortIQ's choice, not a requirement of the spec.",
+    "Server-side AI agents and crawlers are not known to send `Sec-GPC`, and the human behind an agentic fetch usually cannot set it (not verified); the customer's own objection channel carries the art. 12(2) duty.",
+    'An objection received by email or another channel cannot be matched to stored hits (truncated IP, no identifier; art. 11 and 12(2)); going forward it can only be honoured by excluding the agent or user agent.',
     'Market-specific rules outside the EU (UK, CH, US, CA, BR) not reviewed.',
-    'The jurist review recommends a measurement purpose and outcome `allowed_unless_opt_out` with a right to object before this rule can be approved; that change awaits further review.',
   ],
-  assessment: 'Hypothesis: logging requests by known automated agents on the server, with truncated IP (/24 IPv4, /48 IPv6) and no device storage, is outside the consent requirement for terminal equipment. The GDPR basis would be art. 6(1)(f) with the art. 21 right to object; art. 6(1)(f) is not available to public authorities in the performance of their tasks.',
+  assessment: "Hypothesis: counting requests by AI agents for statistics on the server, with truncated IP (/24 IPv4, /48 IPv6) and no device storage, is outside the consent requirement for terminal equipment. The customer's basis would be GDPR art. 6(1)(f) with a documented balancing test. The art. 21 right to object is exercised through the customer's ordinary channel, which the customer must provide (art. 12(2)) and state explicitly in its privacy information (art. 21(4)); CortIQ also treats `Sec-GPC: 1` as an objection by automated means (art. 21(5)). Art. 6(1)(f) is not available to public authorities in the performance of their tasks.",
   effectiveFrom: '2026-11-20', approval: null,
 };
 

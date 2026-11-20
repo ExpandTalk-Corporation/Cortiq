@@ -3,8 +3,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import type { Site } from '@/types/dashboard';
 import { DISCLAIMER } from '@/lib/jurisdiction';
 
-// Shadow mode (spec 2026-11-18 phase 3): settings are stored and logged, nothing is stopped yet.
-export const NOT_YET_APPLIED = 'Recorded, not yet applied: CortIQ is checking these rules against real traffic before it starts stopping data. Until then, data for every purpose is collected as before. None of these rules has been legally reviewed and approved yet; each is a working hypothesis.';
+// Spec 2026-11-18 phase 3, decided 2026-11-20: the customer's own Off is applied now in the wired collectors
+// (the rest are listed under "Not yet wired" in docs/runbooks/jurisdiction-enforcement.md); opt-in and the
+// market rules are stored and logged only (shadow) until enforcement is switched on.
+export const NOT_YET_APPLIED = '"Off" is applied now to page views and events, aggregate counts, AI-bot detection in the browser, conversions, click IDs, server-side AI-agent requests and ad-platform uploads. Some other collectors do not check it yet. "Require opt-in" and the market rules are recorded only, not yet applied: CortIQ is checking them against real traffic before it starts stopping data, and until then that data is collected as before. None of these rules has been legally reviewed and approved yet; each is a working hypothesis.';
 import { useSiteJurisdiction } from '@/hooks/useSiteJurisdiction';
 import { LegalProfileForm } from './LegalProfileForm';
 import { TightenControls } from './TightenControls';
@@ -34,7 +36,7 @@ export function RulesByMarketTab({ selectedSite }: { selectedSite: Site | null }
       <Card>
         <CardHeader>
           <CardTitle>What the rules would decide</CardTitle>
-          <CardDescription>Per market, before any visitor consent. Recorded only; not yet applied. "Baseline" is CortIQ's default when no approved rule exists: opt-in.</CardDescription>
+          <CardDescription>Per market, before any visitor consent. Market rules and opt-in are recorded only, not yet applied; your own Off is applied now to the data listed above. "Baseline" is CortIQ's default when no approved rule exists: opt-in.</CardDescription>
         </CardHeader>
         <CardContent><EffectiveRulesTable customer={j.data?.customer ?? null} tighten={j.data?.tighten ?? {}} /></CardContent>
       </Card>

@@ -34,11 +34,15 @@ test('CMPDashboard registers the tab', () => {
   assert.match(src, /<RulesByMarketTab selectedSite=\{selectedSite\} \/>/);
 });
 
-test('shadow mode is visible: tighten settings say they are not yet applied; Stopped column explains its 0', () => {
+test('Off applies now, opt-in and market rules are recorded only; Stopped column explains what it counts', () => {
   const tab = read('RulesByMarketTab.tsx');
-  assert.match(tab, /Recorded, not yet applied: CortIQ is checking these rules against real traffic before it starts stopping data\. Until then, data for every purpose is collected as before\./);
+  assert.match(tab, /"Off" is applied now to page views and events, aggregate counts, AI-bot detection in the browser, conversions, click IDs, server-side AI-agent requests and ad-platform uploads\. Some other collectors do not check it yet\./);
+  assert.doesNotMatch(tab, /stops data for that purpose on this site/, 'Off is not wired into every collector yet');
+  assert.match(tab, /"Require opt-in" and the market rules are recorded only, not yet applied/);
+  assert.match(tab, /your own Off is applied now to the data listed above/);
+  assert.doesNotMatch(tab, /data for every purpose is collected as before|nothing is stopped yet/);
   assert.ok(tab.indexOf('{NOT_YET_APPLIED}') < tab.indexOf('Make it stricter'), 'notice sits above the tighten controls');
-  assert.match(read('CoverageByCountryCard.tsx'), /Stopping is not switched on yet; this column stays 0 until it is\./);
+  assert.match(read('CoverageByCountryCard.tsx'), /Counts only your own Off settings, which apply now to page views, events, aggregate counts and visitor profiles\. Some other collectors do not check Off yet, and the market rules are not switched on\./);
   assert.match(read('LegalProfileForm.tsx'), /Visitors whose country we cannot verify are treated by the strictest of the markets you select\./);
 });
 

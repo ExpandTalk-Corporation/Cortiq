@@ -3,7 +3,7 @@
  * Plugin Name: CortIQ Analytics
  * Plugin URI: https://cortiq.se
  * Description: Analytics for the agentic web. Classifies AI crawlers and agent fetches (GPTBot, ClaudeBot, ChatGPT-User, PerplexityBot…) and measures human visitors after consent — cookieless mode, heatmaps, conversions and a built-in consent banner.
- * Version: 5.5.19
+ * Version: 5.5.20
  * Author: CortIQ
  * Author URI: https://cortiq.se
  * Requires at least: 5.6
@@ -21,7 +21,7 @@ if ( defined( 'CORTIQ_LOADED' ) ) return;
 define( 'CORTIQ_LOADED', true );
 
 // Shared with public/spa-tracking.js (CORTIQ_VERSION) — also the ?ver= cache-bust for it.
-define( 'CORTIQ_VERSION',    '5.5.19' );
+define( 'CORTIQ_VERSION',    '5.5.20' );
 define( 'CORTIQ_OPTION_KEY', 'cortiq_options' );
 // Supabase Edge Functions base — used for the GDPR consent ledger (store-consent).
 define( 'CORTIQ_API',        'https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1' );
@@ -525,7 +525,13 @@ function cortiq_request_path() {
     return (string) wp_parse_url( $uri, PHP_URL_PATH );
 }
 
+// Sec-GPC: 1 – CortIQ treats it as an objection (GDPR art. 21(5)); the hit is not sent.
+function cortiq_gpc() {
+    return isset( $_SERVER['HTTP_SEC_GPC'] ) && sanitize_text_field( wp_unslash( $_SERVER['HTTP_SEC_GPC'] ) ) === '1';
+}
+
 function cortiq_report_request( $opts, $status ) {
+    if ( cortiq_gpc() ) return;
     $host = isset( $_SERVER['HTTP_HOST'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) ) : '';
     $hit  = array(
         'url'       => ( is_ssl() ? 'https' : 'http' ) . '://' . $host . cortiq_request_path(),
@@ -1101,8 +1107,9 @@ function cortiq_settings_page() {
                         <p class="description">
                             Most AI crawlers (GPTBot, ClaudeBot, PerplexityBot…) never run JavaScript. WordPress reports
                             bot/agent requests, <code>robots.txt</code> / <code>llms.txt</code> fetches and hits on a hidden
-                            honeypot link to CortIQ, with the IP truncated. Human requests are never sent and nothing runs in
-                            the visitor's browser, so no consent banner is involved — mention it in your privacy policy.
+                            honeypot link to CortIQ, with the IP truncated. Ordinary human page requests are not sent, and a
+                            request with Global Privacy Control (<code>Sec-GPC: 1</code>) is not sent either. Nothing runs in
+                            the visitor's browser and the consent banner does not control it — mention it in your privacy policy.
                             Requires the Tracking ID above. With full-page caching (or a physical robots.txt file) WordPress
                             doesn't see every request; use the CortIQ Cloudflare Worker for complete coverage.
                         </p>
