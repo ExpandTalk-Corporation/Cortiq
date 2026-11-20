@@ -116,7 +116,7 @@
     "5.5.21": {
       "securityFix": false,
       "files": {
-        "cortiq.js": "sha384-Na5233A+9qToMD7ezyHvS85GsmyiJWq5nXpabSwtS5E7Z9QoHyXS2K2Izvs7OSFf",
+        "cortiq.js": "sha384-lI323Mp0As5XGoQWn59znASxMWZ0mBL07vw9U0MkLXVSfJZIs8L2MNkurKXUQToB",
         "consent-banner.js": "sha384-aOcevXsIHnLaYdVE5loDIlR/bU9rnA2QcKYMvTsBdPxgPK/dkymoFCErsNQmUc2W",
         "consent-banner.min.js": "sha384-RPyKTuBr2Ip+T7Sx+7EKPcuX+8digrDA8654D8j2ves5WenyyE+XuXO+ZK2KlX4l",
         "consent-banner.sv.js": "sha384-uddVE0kTDHxm2OzWoKzJ0DrtD45ASxoUBqAujaRsskd9nt5r6SI3yGwASiO73JGo",
