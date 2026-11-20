@@ -42,6 +42,16 @@ test('shadow mode is visible: tighten settings say they are not yet applied; Sto
   assert.match(read('LegalProfileForm.tsx'), /Visitors whose country we cannot verify are treated by the strictest of the markets you select\./);
 });
 
+test('copy never presents shadow decisions as applied or rules as approved (jurist review 2026-11-20)', () => {
+  const tab = read('RulesByMarketTab.tsx');
+  const card = read('CoverageByCountryCard.tsx');
+  assert.match(tab, /None of these rules has been legally reviewed and approved yet; each is a working hypothesis\./);
+  assert.match(tab, /What the rules would decide/);
+  assert.match(card, /<th>Would be measured<\/th>/);
+  for (const bad of [/What applies now/, /Answers decide which market rules CortIQ applies/, /opt-in is required/]) assert.doesNotMatch(tab, bad);
+  assert.doesNotMatch(card, /share measured per country|<th>Measured<\/th>/);
+});
+
 test('coverage hook and card are safe without a site; tables scroll on narrow screens', () => {
   const hook = readFileSync(new URL('../../src/hooks/useCoverageByCountry.ts', import.meta.url), 'utf8');
   assert.match(hook, /selectedSite: Site \| null/);

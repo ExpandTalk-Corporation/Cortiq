@@ -27,10 +27,10 @@ export function CoverageByCountryCard({ selectedSite }: { selectedSite: Site | n
         {q.error && <p className="text-sm text-destructive">Could not load coverage: {(q.error as Error).message}</p>}
 
         <section>
-          <h4 className="mb-2 text-sm font-medium">Statistics: share measured per country</h4>
+          <h4 className="mb-2 text-sm font-medium">Statistics: what the rules would allow, per country</h4>
           {stats.length === 0 ? <p className="text-sm text-muted-foreground">No decisions logged yet.</p> : (
             <div className="overflow-x-auto"><table className="w-full text-sm">
-              <thead><tr className="text-left text-muted-foreground"><th>Country</th><th>Decisions</th><th>Measured</th><th>No answer</th><th>Refused</th><th>Stopped</th></tr></thead>
+              <thead><tr className="text-left text-muted-foreground"><th>Country</th><th>Decisions</th><th>Would be measured</th><th>No answer</th><th>Refused</th><th>Stopped</th></tr></thead>
               <tbody>{stats.map((r) => (
                 <tr key={r.country} className="border-t"><td>{r.country || 'Unknown'}</td><td>{r.decisions}</td><td>{pct(r.permitted, r.decisions)}</td>
                   <td>{pct(r.missing, r.decisions)}</td><td>{pct(r.refused + r.gpc, r.decisions)}</td><td>{r.enforcedDrops}</td></tr>))}

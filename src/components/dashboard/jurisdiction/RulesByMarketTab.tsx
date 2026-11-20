@@ -4,7 +4,7 @@ import type { Site } from '@/types/dashboard';
 import { DISCLAIMER } from '@/lib/jurisdiction';
 
 // Shadow mode (spec 2026-11-18 phase 3): settings are stored and logged, nothing is stopped yet.
-export const NOT_YET_APPLIED = 'Recorded, not yet applied: CortIQ is checking these rules against real traffic before it starts stopping data. Until then, data for every purpose is collected as before.';
+export const NOT_YET_APPLIED = 'Recorded, not yet applied: CortIQ is checking these rules against real traffic before it starts stopping data. Until then, data for every purpose is collected as before. None of these rules has been legally reviewed and approved yet; each is a working hypothesis.';
 import { useSiteJurisdiction } from '@/hooks/useSiteJurisdiction';
 import { LegalProfileForm } from './LegalProfileForm';
 import { TightenControls } from './TightenControls';
@@ -19,7 +19,7 @@ export function RulesByMarketTab({ selectedSite }: { selectedSite: Site | null }
       <Card>
         <CardHeader>
           <CardTitle>Where you operate</CardTitle>
-          <CardDescription>Answers decide which market rules CortIQ applies. "Don't know" uses the stricter rule.</CardDescription>
+          <CardDescription>Your answers select the market rules CortIQ will use once rules are switched on. "Don't know" uses the stricter rule.</CardDescription>
         </CardHeader>
         <CardContent><LegalProfileForm profile={j.data?.profile ?? null} onSave={(a) => j.saveProfile.mutate(a)} saving={j.saveProfile.isPending} /></CardContent>
       </Card>
@@ -33,8 +33,8 @@ export function RulesByMarketTab({ selectedSite }: { selectedSite: Site | null }
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>What applies now</CardTitle>
-          <CardDescription>Per market, before any visitor consent. "Baseline" means opt-in is required.</CardDescription>
+          <CardTitle>What the rules would decide</CardTitle>
+          <CardDescription>Per market, before any visitor consent. Recorded only; not yet applied. "Baseline" is CortIQ's default when no approved rule exists: opt-in.</CardDescription>
         </CardHeader>
         <CardContent><EffectiveRulesTable customer={j.data?.customer ?? null} tighten={j.data?.tighten ?? {}} /></CardContent>
       </Card>
