@@ -522,7 +522,8 @@
         gpc_signal: GPC,
         time_zone: timeZone(),
         source: 'consent_banner',
-        policy_version: cfg.policyVersion
+        policy_version: cfg.policyVersion,
+        banner_lang: cfg.lang
       };
       if (/^tk_/.test(cfg.siteId)) body.tracking_id = cfg.siteId;
       else body.site_id = cfg.siteId;

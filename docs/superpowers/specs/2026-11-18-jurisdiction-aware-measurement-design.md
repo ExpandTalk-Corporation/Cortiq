@@ -14,7 +14,7 @@ A customer must not be able to switch on a function that is not allowed for a vi
 
 | | |
 |---|---|
-| Decision | CortIQ selects the applicable rules automatically. The customer can only make them stricter. A less restrictive setting needs a documented legal assessment and a logged approval by the customer's accountable person, and is only possible for rules the pack marks as relaxable (never for hard floors). |
+| Decision | CortIQ selects the applicable rules automatically; the customer can always make them stricter. A less restrictive setting needs the customer's own documented legal assessment and a logged approval by the customer's accountable person, and is never possible for hard floors. (Revised 2026-11-20: the customer may relax any non-floor rule, not only CortIQ-approved variants; see "Decisions 2026-11-20".) |
 | Rejected | B (customer picks the mode per market): high risk of misconfiguration. C (customer may relax freely): moves legal risk to an unreviewed checkbox. |
 | Inputs to every decision | 1) visitor country and region, 2) the customer's country of establishment and the laws that apply to its business, 3) purpose of the processing, 4) consent state, GPC and other privacy signals, 5) approved exceptions and legal bases. |
 | Fail mode | Unknown or untrusted input → the strictest rule set among the customer's markets (fail closed). |
@@ -164,7 +164,8 @@ Requirements:
   `geo-check`) so the tracker and banner behave correctly; every ingest function evaluates again and drops
   what is not allowed. The client is never trusted.
 - **Customer can tighten:** per site and per purpose. The UI shows the effective result per market.
-- **Exceptions:** the customer is the controller, so the customer activates — but only by **choosing
+- **Exceptions (revised 2026-11-20, see "Decisions 2026-11-20"; the text below is the original model and
+  stays as the guided path):** the customer is the controller, so the customer activates — originally only by **choosing
   among rule variants CortIQ has already approved** (`approved_internal` or higher, marked `relaxable`,
   with its required legal basis stated, e.g. a Brazil variant on legitimate interest that needs the
   customer's own balancing test). The customer can never define a new variant; their approval does not
@@ -273,6 +274,22 @@ CAPI; storing raw IPs for geo; country blocking by CortIQ itself.
 | Customer profile | Self-declared, guided, logged; `don't know` = the law applies. |
 | Legal review | Budget-conscious staged model (see "Legal review and approval"): jurist agent + explicit internal approval now; outside counsel per pack when a paying customer justifies the cost. |
 | Customer exceptions | Only a choice among CortIQ-approved relaxable variants; never self-defined. |
+
+## Decisions 2026-11-20
+
+Daniel's decision after the phase 3 jurist review: the customer is the controller and may choose a less
+restrictive setting than CortIQ's default, for business reasons, on its own documented assessment.
+Replaces "Customer exceptions: only a choice among CortIQ-approved relaxable variants" above.
+
+| Question | Decision |
+|---|---|
+| What the customer can relax | Any rule outcome per jurisdiction × purpose that is not a hard floor — self-service, without CortIQ approving each case. CortIQ-approved relaxable variants stay as the guided option (pre-filled legal basis and wording). |
+| Hard floors (never relaxable) | 1) GPC / opt-out preference signals stop the sharing purposes where a law requires honouring them; 2) opt-in for cross-site identifiers in the EU/EEA; 3) any further floor a pack marks. Floors are CortIQ's line as processor, not a business setting. |
+| What a self-service relax requires | Legal basis chosen from a list; the customer's own assessment (document or reference, mandatory); the named accountable person confirms a statement that the customer, as controller, is responsible for the choice and that CortIQ's default is stricter; `expires_at` ≤ 12 months, then the default applies again until renewed. |
+| What CortIQ shows | Before saving: CortIQ's default for that market and purpose, the rule's status and sources, and a plain warning that the customer's setting is less strict than CortIQ's technical default (processor duty to inform, GDPR art. 28(3)). After saving: the setting in the site's audit trail and in the effective-rules table, marked "customer exception". |
+| Engine | `decide()` applies a valid customer exception with reason `customer_exception`; the decision log counts it separately so coverage reports show how much data rests on customer exceptions. Floors are evaluated after exceptions and always win. |
+| Ad platform sharing | A relax of `ad_platform_sharing` / `attribution` in the EU/EEA needs the jurist agent to confirm the DPA and the joint-controller question first (CortIQ sending click IDs and hashed leads to Google Ads); until then those two purposes accept only CortIQ-approved variants. |
+| Contract and copy | DPA bump (processor follows the controller's documented instruction; customer bears responsibility for relaxed settings; floors listed). Marketing never presents relaxing as a way to avoid consent; the copy rules in CLAUDE.md apply. Jurist review before the phase 4 UI ships. |
 
 ## Open questions
 

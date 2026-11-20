@@ -14,6 +14,8 @@ import { toast } from 'sonner';
 import type { Site } from '@/types/dashboard';
 import type { SitePatch } from '@/hooks/useSites';
 import { ConsentImpact } from '@/components/dashboard/ConsentImpact';
+import { RulesByMarketTab } from '@/components/dashboard/jurisdiction/RulesByMarketTab';
+import { CoverageByCountryCard } from '@/components/dashboard/jurisdiction/CoverageByCountryCard';
 import {
   DEFAULT_SESSION_TIMEOUT_MINUTES,
   MAX_SESSION_TIMEOUT_MINUTES,
@@ -181,9 +183,10 @@ export function CMPDashboard({ selectedSite, onSiteUpdated }: CMPDashboardProps)
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="impact">Impact</TabsTrigger>
+          <TabsTrigger value="rules">Rules by market</TabsTrigger>
           <TabsTrigger value="configuration">Configuration</TabsTrigger>
           <TabsTrigger value="monitoring">Monitoring</TabsTrigger>
           <TabsTrigger value="testing">Testing</TabsTrigger>
@@ -285,6 +288,11 @@ export function CMPDashboard({ selectedSite, onSiteUpdated }: CMPDashboardProps)
 
         <TabsContent value="impact" className="space-y-6">
           <ConsentImpact selectedSite={selectedSite} />
+          <CoverageByCountryCard selectedSite={selectedSite} />
+        </TabsContent>
+
+        <TabsContent value="rules" className="space-y-6">
+          <RulesByMarketTab selectedSite={selectedSite} />
         </TabsContent>
 
         <TabsContent value="configuration" className="space-y-6">

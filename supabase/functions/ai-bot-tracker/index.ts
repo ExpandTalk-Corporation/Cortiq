@@ -1,12 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "../_shared/supabase.ts";
-import { anonymizeIP } from "../_shared/jurisdiction.ts";
+import { anonymizeIP } from "../_shared/ip.ts";
 // Canonical AI-bot classification — shared with cloudflare-ingest so both the JS-tag
 // and server-log paths classify identically. See _shared/ai-bot-registry.ts.
 import { classifyBot, storedBotCategory, type BotCategory } from "../_shared/ai-bot-registry.ts";
 import { resolveSite } from "../_shared/resolve-site.ts";
 import { resolveGeo, geoKey } from "../_shared/geo.ts";
 import { skipTrackingCheck } from '../_shared/tracking-check-ua.ts';
+import { jurisdictionGate, signalsFrom, visitorFrom } from "../_shared/jurisdiction-edge.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -130,6 +131,20 @@ serve(async (req) => {
     if (!site || !site.is_active) {
       return new Response(JSON.stringify({ error: 'Invalid or inactive site' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // The browser layer sends only after analytics consent (spa-tracking.js hasAnalyticsConsent);
+    // a ledger row for the session can only tighten that.
+    const gpcHeader = req.headers.get('sec-gpc') === '1';
+    const drop = await jurisdictionGate(supabase, 'ai-bot-tracker', site.id, Deno.env.get('JURISDICTION_ENFORCE'), sessionId).gate((ledger) => ({
+      visitor: visitorFrom(geo),
+      purpose: 'security',
+      signals: signalsFrom(ledger, { trackerGate: ['analytics'], gpcHeader }),
+      technique: { storage: 'session', identifiers: 'session' },
+    }));
+    if (drop) {
+      return new Response(JSON.stringify({ success: true, skipped: 'jurisdiction' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     // Detect bot from user agent using the canonical registry (first match wins).

@@ -17,7 +17,7 @@
  */
 
 import { createClient } from '../_shared/supabase.ts';
-import { anonymizeIP } from '../_shared/jurisdiction.ts';
+import { anonymizeIP } from '../_shared/ip.ts';
 import { deriveUACategory } from '../_shared/bot-detection.ts';
 import { dispatchNotifications } from '../_shared/notify.ts';
 import { resolveGeo, geoKey } from '../_shared/geo.ts';

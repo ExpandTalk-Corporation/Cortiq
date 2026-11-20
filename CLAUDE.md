@@ -240,6 +240,30 @@ Spec: `docs/superpowers/specs/2026-11-17-gtm-container-audit-design.md`.
 
 ---
 
+## Jurisdiction rule engine (added 2026-11-20)
+
+Spec: `docs/superpowers/specs/2026-11-18-jurisdiction-aware-measurement-design.md`. Plan: `docs/superpowers/plans/2026-11-20-jurisdiction-phase3-rule-engine.md`.
+
+- **One engine:** `supabase/functions/_shared/jurisdiction/` (`decide()`), read by the Edge Functions through
+  `_shared/jurisdiction-edge.ts` and by the dashboard through `src/lib/jurisdiction.ts`. Never a second copy.
+- **Rules:** only `approved_internal` and above apply on customer sites; `draft`/`reviewed_agent` only on admin-flagged
+  test sites (`jurisdiction_test_sites`). Without an approved rule the baseline applies: opt-in for every purpose.
+  Approving a rule is its own reviewed commit with a jurist review; legal text in a rule is a hypothesis until then.
+- **The server decides; in phase 3 the customer can only tighten** (`site_jurisdiction_tighten`: `opt_in` / `off`).
+  Relaxing goes through `jurisdiction_exceptions` (max 12 months; no write path in phase 3). Decided 2026-11-20 for
+  phase 4: the customer may relax any non-floor rule on its own documented assessment (spec, "Decisions 2026-11-20").
+  Hard floors never relax: GPC stops sharing purposes, EU cross-site identifiers need opt-in.
+- **Shadow by default:** every ingest function logs its decision to `jurisdiction_decisions_daily` (daily counts only,
+  country from signed edge geo only, 400 days). `JURISDICTION_ENFORCE` (`all` or a comma list of function names)
+  turns dropping on. store-consent always logs, never blocks. Flip only per
+  `docs/runbooks/jurisdiction-enforcement.md`.
+- **Copy:** "CortIQ's technical defaults, not legal advice" (`DISCLAIMER`). Avoid implying that the defaults eliminate
+  legal requirements, replace compliance obligations, or remove the need for consent mechanisms.
+- Phase 6 slice: `coverage_by_country`, `consent_acceptance_by_country_lang` (banner sends `banner_lang` from 5.5.19),
+  `aggregate_goal_countries_daily`, `assessPixelReadinessByCountry` (Consent → Impact).
+
+---
+
 ## Measurement health & conversion alerts (added 2026-11-19)
 
 Spec: `docs/superpowers/specs/2026-11-19-measurement-health-design.md`.

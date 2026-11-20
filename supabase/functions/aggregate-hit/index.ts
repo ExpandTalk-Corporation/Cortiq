@@ -18,6 +18,8 @@
  *
  * Conditions the page cannot fix (disabled, GPC, bots, bursts, rate limit, DB trouble) answer
  * 200 { skipped } so customers' consoles stay clean.
+ *
+ * Bots are dropped before any lookup; GPC after the site's jurisdiction decision is logged.
  */
 import { createClient } from '../_shared/supabase.ts';
 import { classifyBot, GENERIC_BOT_PATTERN } from '../_shared/ai-bot-registry.ts';
@@ -25,6 +27,7 @@ import { normalizeGoals, matchPageVisitGoals } from '../_shared/conversion-goals
 import { normHost, ownsHost } from '../_shared/site-host.ts';
 import { cleanPath, referrerSource, utmFrom, fallbackGoal, deviceFromUA, visitorHash } from '../_shared/aggregate.js';
 import { resolveGeo, geoKey } from '../_shared/geo.ts';
+import { jurisdictionGate, signalsFrom, visitorFrom } from '../_shared/jurisdiction-edge.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -86,8 +89,8 @@ Deno.serve(async (req) => {
   try { pageUrl = new URL(String(body.url ?? '')); } catch { return json({ error: 'Invalid url' }, 400); }
   if (pageUrl.protocol !== 'https:' && pageUrl.protocol !== 'http:') return json({ error: 'Invalid url' }, 400);
 
-  // Objection signals and non-humans are dropped before any lookup.
-  if (req.headers.get('sec-gpc') === '1') return skipped('gpc');
+  // Non-humans are dropped before any lookup. GPC is read here and applied after the decision is logged.
+  const gpc = req.headers.get('sec-gpc') === '1';
   const ua = (req.headers.get('user-agent') ?? '').slice(0, 512);
   if (isLikelyBot(ua)) return skipped('bot');
 
@@ -100,20 +103,33 @@ Deno.serve(async (req) => {
   const host = normHost(pageUrl.hostname);
   if (!siteHost || !host || !ownsHost(siteHost, host)) return json({ error: 'Host does not belong to this site' }, 400);
 
-  // Fail closed: an unavailable limiter must not become an unlimited one.
+  // The Worker hides the visitor's IP behind its own; the signed geo carries it (in transit only).
+  const geo = await resolveGeo(req, { key: geoKey(), timeZone: body.tz });
+  const jurisdiction = jurisdictionGate(supabase, 'aggregate-hit', site.id, Deno.env.get('JURISDICTION_ENFORCE'));
+  const decide = () => jurisdiction.gate(() => ({
+    visitor: visitorFrom(geo),
+    purpose: kind === 'goal' ? 'conversion' : 'statistics',
+    signals: signalsFrom(null, { trackerGate: [], gpcHeader: gpc }),
+    technique: { storage: 'none', identifiers: 'none' },
+  }));
+  // GPC stays absolute whatever the rule says. Its decision is logged, but a GPC hit never uses
+  // up the site's rate limit.
+  if (gpc) { await decide(); return skipped('gpc'); }
+
+  // Fail closed: an unavailable limiter must not become an unlimited one. Runs before the
+  // decision log so a flood cannot inflate the counters.
   const { data: allowed, error: rlError } = await supabase.rpc('check_rate_limit', {
     p_key: `agg:${site.id}`, p_max_count: REQUESTS_PER_MINUTE, p_window_sec: 60,
   });
   if (rlError) return skipped('unavailable');
   if (allowed === false) return skipped('rate_limited');
+  if (await decide()) return skipped('jurisdiction');
 
   const { data: salt, error: saltError } = await supabase.rpc('aggregate_daily_salt');
   if (saltError || typeof salt !== 'string' || !salt) {
     console.error('aggregate-hit: salt unavailable');
     return skipped('unavailable');
   }
-  // The Worker hides the visitor's IP behind its own; the signed geo carries it (in transit only).
-  const geo = await resolveGeo(req, { key: geoKey(), timeZone: body.tz });
   const hash = await visitorHash(salt, site.id, geo.ip ?? '', ua);
 
   const base = { p_site_id: site.id, p_hash: hash, p_path: cleanPath(pageUrl), p_device: deviceFromUA(ua) };
@@ -122,6 +138,13 @@ Deno.serve(async (req) => {
     const { data, error } = await supabase.rpc('ingest_aggregate_hit', args);
     if (error) console.error('aggregate-hit: ingest failed:', error.message);
     return data;
+  };
+  // Goal conversions per country for per-country pixel readiness. Signed edge geo only: the
+  // time-zone fallback is a guess and must not drive a per-country recommendation.
+  const goalCountry = async (goalId: string) => {
+    const { error } = await supabase.rpc('ingest_aggregate_goal_country',
+      { p_site_id: site.id, p_country: geo.source === 'ip' ? geo.country : '', p_goal_id: goalId });
+    if (error) console.error('aggregate-hit: goal country ingest failed:', error.message);
   };
   const goals = normalizeGoals(site.conversion_goals);
 
@@ -134,7 +157,8 @@ Deno.serve(async (req) => {
     const { error: geoError } = await supabase.rpc('ingest_aggregate_country', { p_site_id: site.id, p_country: geo.country });
     if (geoError) console.error('aggregate-hit: country ingest failed:', geoError.message);
     for (const goal of matchPageVisitGoals(goals, pageUrl.href)) {
-      await ingest({ ...base, ...noSource, p_kind: 'goal', p_goal_id: goal.id, p_goal_name: goal.name, p_value: num(goal.value) });
+      const goalCounted = await ingest({ ...base, ...noSource, p_kind: 'goal', p_goal_id: goal.id, p_goal_name: goal.name, p_value: num(goal.value) });
+      if (goalCounted !== false) await goalCountry(goal.id);
     }
     // Form goals only: the beacon matches submits by selector. No names or values leave here.
     return json({ goals: goals.filter((g) => g.type === 'form_submission').map((g) => ({ id: g.id, selector: g.selector.slice(0, 500) })) });
@@ -149,11 +173,13 @@ Deno.serve(async (req) => {
     ? goals.find((g) => g.id === body.goalId && g.type === 'form_submission')
     : undefined;
   const fallback = fallbackGoal(body.formId, body.contentId, base.p_path);
-  await ingest({
+  const goalId = goal ? goal.id : fallback.id;
+  const goalCounted = await ingest({
     ...base, ...noSource, p_kind: 'goal',
-    p_goal_id: goal ? goal.id : fallback.id,
+    p_goal_id: goalId,
     p_goal_name: goal ? goal.name : fallback.name,
     p_value: goal ? num(goal.value) : num(body.value),
   });
+  if (goalCounted !== false) await goalCountry(goalId);
   return new Response(null, { status: 204, headers: corsHeaders });
 });

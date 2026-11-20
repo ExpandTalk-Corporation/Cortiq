@@ -85,3 +85,49 @@ export function assessPixelReadiness(input: ReadinessInput): ReadinessResult {
   reasons.push('Enough volume for Smart Bidding — consented click IDs and Enhanced Conversions should pay off.');
   return result('attribution_pays', reasons);
 }
+
+// --- Per country (spec 2026-11-18 phase 6, thin slice) ---
+// Consent-free goal counts per signed country x the acceptance an ad platform would see there.
+// A country's own rate is used from MIN_COUNTRY_ANSWERS answers; below that the site rate.
+
+export const MIN_COUNTRY_ANSWERS = 20;
+export interface CountryAcceptance { country: string; answers: number; analyticsAccepted: number; marketingAccepted: number }
+export interface CountryReadinessInput {
+  goalCountries: { country: string; conversions: number }[];
+  acceptance: CountryAcceptance[];
+  blockedCountries: readonly string[];
+  category?: 'analytics' | 'marketing';
+}
+export interface CountryReadinessRow {
+  country: string; conversions: number; acceptanceUsed: number;
+  acceptanceSource: 'country' | 'site' | 'assumed' | 'blocked'; effectiveConversions: number;
+}
+export interface CountryReadinessResult { rows: CountryReadinessRow[]; totalEffective: number; band: 'below_min' | 'borderline' | 'comfortable' }
+
+const nonNeg = (n: unknown) => (typeof n === 'number' && Number.isFinite(n) && n > 0 ? n : 0);
+
+export function assessPixelReadinessByCountry(input: CountryReadinessInput): CountryReadinessResult {
+  const field = input.category === 'marketing' ? 'marketingAccepted' : 'analyticsAccepted';
+  const byCountry = new Map<string, { answers: number; accepted: number }>();
+  let siteAnswers = 0, siteAccepted = 0;
+  for (const a of input.acceptance) {
+    const answers = nonNeg(a.answers), accepted = Math.min(answers, nonNeg(a[field]));
+    siteAnswers += answers; siteAccepted += accepted;
+    const cur = byCountry.get(a.country) ?? { answers: 0, accepted: 0 };
+    byCountry.set(a.country, { answers: cur.answers + answers, accepted: cur.accepted + accepted });
+  }
+  const blocked = new Set(input.blockedCountries);
+  const rows: CountryReadinessRow[] = input.goalCountries.map(({ country, conversions: raw }) => {
+    const conversions = nonNeg(raw);
+    let acceptanceUsed: number; let acceptanceSource: CountryReadinessRow['acceptanceSource'];
+    const own = byCountry.get(country);
+    if (country && blocked.has(country)) { acceptanceUsed = 0; acceptanceSource = 'blocked'; }
+    else if (country && own && own.answers >= MIN_COUNTRY_ANSWERS) { acceptanceUsed = own.accepted / own.answers; acceptanceSource = 'country'; }
+    else if (siteAnswers > 0) { acceptanceUsed = siteAccepted / siteAnswers; acceptanceSource = 'site'; }
+    else { acceptanceUsed = ASSUMED_ACCEPTANCE; acceptanceSource = 'assumed'; }
+    return { country, conversions, acceptanceUsed, acceptanceSource, effectiveConversions: Math.floor(conversions * acceptanceUsed + 1e-9) };
+  }).sort((a, b) => b.conversions - a.conversions);
+  const totalEffective = rows.reduce((s, r) => s + r.effectiveConversions, 0);
+  const band = totalEffective < SMART_BIDDING_MIN ? 'below_min' : totalEffective < SMART_BIDDING_COMFORTABLE ? 'borderline' : 'comfortable';
+  return { rows, totalEffective, band };
+}
