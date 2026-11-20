@@ -1,4 +1,5 @@
 import { createClient } from '../_shared/supabase.ts'
+import { jurisdictionGate, runShadow, signalsFrom } from '../_shared/jurisdiction-edge.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,6 +15,7 @@ interface LogEntry {
   referrer?: string
   userAgent?: string
   loadTime?: number
+  gpc?: boolean
 }
 
 // Parse Combined Log Format (Apache/Nginx standard)
@@ -49,7 +51,9 @@ function parseJsonLog(line: string): LogEntry | null {
       status: log.status,
       referrer: log.referrer,
       userAgent: log.user_agent || log.userAgent,
-      loadTime: log.load_time || log.loadTime
+      loadTime: log.load_time || log.loadTime,
+      // The request carried Sec-GPC: 1 (an objection by automated means, GDPR art. 21(5)).
+      gpc: log.gpc === true || String(log.sec_gpc ?? log.secGpc ?? '') === '1'
     }
   } catch {
     return null
@@ -191,6 +195,29 @@ Deno.serve(async (req) => {
       )
     }
 
+    const lines = log_content.split('\n').filter((line: string) => line.trim())
+
+    // Jurisdiction (statistics: bots are skipped, only human page views are aggregated). One decision
+    // per import; the log carries no signed geo, so the engine judges by the site's markets.
+    // The customer's own Off drops the whole import; opt_in and market rules stay shadow.
+    const jurisdiction = jurisdictionGate(supabase, 'import-server-logs', String(site_id), Deno.env.get('JURISDICTION_ENFORCE'))
+    const decide = (gpcHeader: boolean, count: number) => jurisdiction.gate(() => ({
+      visitor: { country: null, region: null, geoSource: 'adapter' },
+      purpose: 'statistics',
+      signals: signalsFrom(null, { trackerGate: [], gpcHeader }),
+      technique: { storage: 'none', identifiers: 'none' },
+    }), count)
+    if (await decide(false, lines.length)) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          skipped: 'jurisdiction',
+          stats: { total_lines: lines.length, processed_lines: 0, failed_lines: 0 }
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     // Create import record
     const { data: importRecord, error: importError } = await supabase
       .from('server_log_imports')
@@ -212,9 +239,9 @@ Deno.serve(async (req) => {
     }
 
     // Parse logs line by line
-    const lines = log_content.split('\n').filter((line: string) => line.trim())
     let processedLines = 0
     let failedLines = 0
+    let objectedLines = 0
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]
@@ -232,6 +259,13 @@ Deno.serve(async (req) => {
 
       if (!logEntry) {
         failedLines++
+        continue
+      }
+
+      // The visitor objected (Sec-GPC: 1 in a JSON log line): aggregate nothing from this line.
+      if (logEntry.gpc) {
+        objectedLines++
+        processedLines++
         continue
       }
 
@@ -270,6 +304,9 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Objected lines are already skipped; their decision is only logged.
+    if (objectedLines > 0) runShadow(decide(true, objectedLines))
+
     // Update import record
     await supabase
       .from('server_log_imports')
@@ -289,7 +326,8 @@ Deno.serve(async (req) => {
         stats: {
           total_lines: lines.length,
           processed_lines: processedLines,
-          failed_lines: failedLines
+          failed_lines: failedLines,
+          objected_lines: objectedLines
         }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
