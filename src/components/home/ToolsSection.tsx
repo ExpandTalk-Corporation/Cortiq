@@ -7,6 +7,7 @@ import { ReportView } from "@/components/tracking-check/ReportView";
 import { GtmAuditReport } from "@/components/gtm-audit/GtmAuditReport";
 import { TRACKING_CHECK_SAMPLE } from "@/data/trackingCheckSample";
 import { GTM_AUDIT_SAMPLE } from "@/data/gtmAuditSample";
+import { CHECK_KEYS } from "../../../supabase/functions/_shared/gtm-audit/types";
 import { SectionHeader } from "./SectionHeader";
 import { BrowserFrame } from "./BrowserFrame";
 
@@ -62,9 +63,12 @@ export function ToolsSection() {
             <CardHeader>
               <CardTitle>GTM Audit</CardTitle>
               <CardDescription className="text-base">
-                Drop a Google Tag Manager export and get a report of every tag, which vendor it sends to and which consent it is set to wait for.
-                The file is read in your browser and never uploaded.
+                Drop a Google Tag Manager export. A tag engine classifies every tag by vendor, consent, destinations, dependencies and
+                conversions, then runs {CHECK_KEYS.length} checks. The file is read in your browser and never uploaded.
               </CardDescription>
+              <p className="text-xs text-muted-foreground">
+                Findings describe how the container is configured, not whether a tag actually fires.
+              </p>
             </CardHeader>
             <CardContent className="mt-auto">
               <p className="text-xs text-muted-foreground mb-3">Free, no account needed.</p>
