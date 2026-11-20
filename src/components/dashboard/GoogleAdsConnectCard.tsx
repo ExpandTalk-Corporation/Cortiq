@@ -225,6 +225,13 @@ export function GoogleAdsConnectCard({ siteId }: GoogleAdsConnectCardProps) {
                     </AlertDescription>
                   </Alert>
                 )}
+                <p className="text-xs text-muted-foreground" data-testid="google-ads-sharing-note">
+                  Uploading click IDs and hashed emails to Google Ads may be a &quot;sale&quot; or &quot;sharing&quot; under the
+                  California Consumer Privacy Act (CCPA), and a sale or targeted advertising under other US state privacy
+                  laws. You are responsible for the notices, the opt-out (including opt-out preference signals such as
+                  Global Privacy Control) and any risk assessment your visitors&apos; data needs. CortIQ skips the upload
+                  for visits where it detected Global Privacy Control. CortIQ&apos;s technical defaults, not legal advice.
+                </p>
               </div>
             )}
 
