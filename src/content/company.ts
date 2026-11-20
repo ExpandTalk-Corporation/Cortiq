@@ -60,7 +60,7 @@ export const SECURITY: ContentPageData = {
           items: [
             'Visitor analytics start only after analytics consent. Ad click IDs are stored only with marketing consent, which is checked on the server, not just in the browser.',
             'Heatmap points are stored without IP address or user agent, and with the page URL stripped of query strings.',
-            'The [Cloudflare Worker](/integrations/cloudflare/) sends only requests from known crawler user agents, requests for robots.txt and llms.txt, and hits on its hidden honeypot link, with the IP address truncated before it leaves Cloudflare. CortIQ stores only those from classified AI bots and honeypot hits.',
+            'The optional [Cloudflare Worker adapter](/integrations/cloudflare/) on your own Cloudflare account sends only requests from known crawler user agents, requests for robots.txt and llms.txt, and hits on its hidden honeypot link, with the IP address truncated before it leaves Cloudflare. CortIQ stores only those from classified AI bots and honeypot hits.',
             'Data is deleted automatically after the retention period set for each site. See the [privacy policy](/privacy/) for every retention period.',
           ],
         },
@@ -77,13 +77,14 @@ export const SECURITY: ContentPageData = {
           items: [
             '**Supabase** (on AWS, Stockholm, EU): database, authentication and server functions.',
             '**Loopia** (Sweden): hosting of cortiq.se, the dashboard and the tracking script file.',
+            '**Cloudflare** (USA, Standard Contractual Clauses and EU-US Data Privacy Framework): the geo edge Worker that script and banner requests pass through on their way to Supabase. It derives the country from the IP address (in the United States and Canada also the state or province); nothing is stored in it.',
           ],
         },
         { type: 'p', text: 'Used only when you use the related feature:' },
         {
           type: 'list',
           items: [
-            '**Cloudflare** (USA, EU-US Data Privacy Framework): edge analytics and geo lookup.',
+            '**Cloudflare** (USA): edge analytics and geo lookup, with the Cloudflare integration.',
             '**Resend** (USA, EU-US Data Privacy Framework): when you send a report export by email.',
             '**Anthropic** (USA, Standard Contractual Clauses): AI insights on the dashboard, which receive aggregated statistics only.',
           ],
@@ -184,9 +185,18 @@ s.crossOrigin = 'anonymous';`,
         {
           type: 'code',
           lang: 'html',
-          code: `<script src="${SRI_BASE}/consent-banner.js"
-  integrity="${SRI_FILES['consent-banner.js']}" crossorigin="anonymous"
+          code: `<script src="${SRI_BASE}/consent-banner.min.js"
+  integrity="${SRI_FILES['consent-banner.min.js'] ?? SRI_FILES['consent-banner.js']}" crossorigin="anonymous"
   defer></script>`,
+        },
+        { type: 'p', text: 'That file carries every banner language and picks one from the page. A site with a fixed banner language loads a file with only that language instead. All banner files in this version and their hashes:' },
+        {
+          type: 'code',
+          lang: 'text',
+          code: Object.entries(SRI_FILES)
+            .filter(([name]) => name.startsWith('consent-banner'))
+            .map(([name, hash]) => `${name.padEnd(24)}${hash}`)
+            .join('\n'),
         },
         { type: 'note', tone: 'info', text: `These are the values for version ${SRI_VERSION}, the latest. Copy the full snippet from the dashboard rather than from this page: it also contains your Site ID and tracking key.` },
       ],

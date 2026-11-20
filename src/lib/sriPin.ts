@@ -15,17 +15,22 @@ export interface PinnedScripts {
   bannerIntegrity: string;
 }
 
-/** URLs and hashes of the latest pinned tracker and banner, served from `origin`. */
-export function pinnedScripts(origin: string, manifest: SriManifest): PinnedScripts {
+/**
+ * URLs and hashes of the latest pinned tracker and banner, served from `origin`. `bannerName` is the
+ * banner file for the site's language (bannerFile in snippetTemplate.ts); a version pinned before
+ * per-language files has only consent-banner.js.
+ */
+export function pinnedScripts(origin: string, manifest: SriManifest, bannerName = 'consent-banner.min.js'): PinnedScripts {
   const version = manifest.latest;
   const files = manifest.versions[version]?.files;
   if (!files?.['cortiq.js'] || !files['consent-banner.js']) throw new Error(`No pinned files for ${version}`);
+  const banner = files[bannerName] ? bannerName : 'consent-banner.js';
   return {
     version,
     scriptSrc: `${origin}/v/${version}/cortiq.js`,
     scriptIntegrity: files['cortiq.js'],
-    bannerSrc: `${origin}/v/${version}/consent-banner.js`,
-    bannerIntegrity: files['consent-banner.js'],
+    bannerSrc: `${origin}/v/${version}/${banner}`,
+    bannerIntegrity: files[banner],
   };
 }
 
@@ -58,4 +63,13 @@ export function pinStatus(pinned: string | null | undefined, manifest: SriManife
     behind: newer.length > 0,
     securityFixes: newer.filter(v => manifest.versions[v].securityFix),
   };
+}
+
+/**
+ * Whether the install snippet starts pinned. New installs are pinned by default; a site that already
+ * copied an auto-updating snippet (a policy confirmation but no pinned version) keeps that default,
+ * so the page doesn't silently offer a different snippet than the one on the site.
+ */
+export function defaultPinned(pinnedVersion: string | null | undefined, hasConfirmation: boolean): boolean {
+  return !!pinnedVersion || !hasConfirmation;
 }

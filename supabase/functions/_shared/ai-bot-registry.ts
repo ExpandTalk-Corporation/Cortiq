@@ -108,3 +108,9 @@ export function classifyBot(ua: string): BotClassification {
   }
   return { botType: 'other', botName: 'Unknown Bot', botCategory: null, registryMatch: false };
 }
+
+/** Value for ai_bot_traffic.bot_category: the registry category, or 'other' for anything the
+ *  registry does not know (the generic fallback's 'citation' is a guess, not a classification). */
+export function storedBotCategory(c: { botCategory: BotCategory | null; registryMatch: boolean }): BotCategory | 'other' {
+  return c.registryMatch && c.botCategory ? c.botCategory : 'other';
+}

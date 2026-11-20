@@ -101,6 +101,7 @@ Single-page app without prerendered HTML? Set CORTIQ_SPA_FALLBACK = true.`;
   -d '{"hits":[{"url":"https://your-domain.com/page","userAgent":"Mozilla/5.0 (compatible; GPTBot/1.2)","ip":"203.0.113.0","status":200}]}'
 
 # Send only bot/agent requests, /robots.txt, /llms.txt and /cortiq-trap/ hits.
+# Do not send a request that carried Sec-GPC: 1 (CortIQ treats it as an objection).
 # Truncate the IP (a.b.c.0, or the first three IPv6 groups) and drop the query string
 # before sending. Up to 100 hits per request.`;
 
@@ -112,8 +113,12 @@ Single-page app without prerendered HTML? Set CORTIQ_SPA_FALLBACK = true.`;
           Most AI crawlers (GPTBot, ClaudeBot, PerplexityBot, Google-Extended) never run JavaScript, so no browser
           script sees them. These adapters run on your server or edge and send CortIQ only bot/agent requests,
           <code> robots.txt</code> / <code>llms.txt</code> fetches and hits on a hidden honeypot link — with the IP
-          truncated and without query strings. Human requests are never sent and nothing runs in the visitor's browser,
-          so no consent banner is involved. It is still personal data under GDPR: mention it in your privacy policy.
+          truncated and without query strings. Ordinary human page requests are not sent; a person who opens the
+          honeypot link is counted as a signal only, without IP or user agent. Nothing runs in the visitor's browser, and
+          the browser consent banner does not control this measurement. It is still personal data under GDPR: mention it
+          in your privacy policy. CortIQ treats a request that carries <code>Sec-GPC: 1</code> as an objection: the
+          adapters do not send it, so nothing is stored. Your privacy policy still needs to say how visitors can object in
+          other ways.
         </p>
         {coverage && (
           <p className="text-xs mt-2">

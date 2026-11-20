@@ -1,3 +1,4 @@
+import { HexIcon } from '@/components/HexIcon';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,8 +24,8 @@ export default function CMP() {
     },
     {
       icon: <Users className="h-6 w-6" />,
-      title: "Banner in Five Languages",
-      description: "Swedish, English, German, French and Portuguese, picked from the page language, with customizable categories"
+      title: "Banner in 13 Languages",
+      description: "Swedish, English, German, French, Portuguese, Dutch, Norwegian, Danish, Finnish, Polish, Italian, Spanish and Icelandic, picked from the page language, with customizable categories"
     },
     {
       icon: <Eye className="h-6 w-6" />,
@@ -46,7 +47,7 @@ export default function CMP() {
   const benefits = [
     "Consent-first by design",
     "Consent valid for 12 months",
-    "Banner text in sv, en, de, fr and pt",
+    "Banner text in 13 languages",
     "Professional cookie management",
     "Consent-check decisions logged server-side",
     "Google Consent Mode v2 included"
@@ -96,9 +97,7 @@ export default function CMP() {
           {features.map((feature, index) => (
             <Card key={index} className="hover-lift">
               <CardHeader>
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                  {feature.icon}
-                </div>
+                <HexIcon size={52} className="mb-4">{feature.icon}</HexIcon>
                 <CardTitle className="text-xl">{feature.title}</CardTitle>
               </CardHeader>
               <CardContent>

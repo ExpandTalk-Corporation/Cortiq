@@ -95,6 +95,16 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
     footer: { group: 'product', label: 'Tracking Check' },
   },
   {
+    path: '/gtm-audit/',
+    title: 'Free GTM Container Audit: Consent & Cleanup — CortIQ',
+    description: 'Upload your GTM container export and see which tags have no consent condition, which identify visitors and which CortIQ can replace. Runs in your browser.',
+    published: '2026-11-17',
+    changefreq: 'monthly',
+    priority: 0.7,
+    source: 'src/pages/GtmAudit.tsx',
+    footer: { group: 'product', label: 'GTM container audit' },
+  },
+  {
     path: '/cookie-consent-checker/',
     title: 'Cookie Checker: Scan Before & After Consent — CortIQ',
     description: 'Free cookie checker: a real browser visits your pages before the banner is answered, after "Reject all" and "Accept all", and lists cookies, pixels and tags.',
@@ -231,7 +241,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   {
     path: '/integrations/wordpress/',
     title: 'WordPress Plugin: Analytics & Consent Banner — CortIQ',
-    description: 'One WordPress plugin for CortIQ tracking, a consent banner in five languages and Google Consent Mode v2 for GA4. Cookieless mode and geo-gating.',
+    description: 'One WordPress plugin for CortIQ tracking, a consent banner in 13 languages and Google Consent Mode v2 for GA4. Cookieless mode and geo-gating.',
     published: '2026-10-03',
     changefreq: 'monthly',
     priority: 0.7,
@@ -249,7 +259,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   {
     path: '/integrations/cloudflare/',
     title: 'Track AI Crawlers Server-Side with Cloudflare — CortIQ',
-    description: 'A paste-ready Cloudflare Worker that reports GPTBot, ClaudeBot and other AI crawlers that never run JavaScript. Human requests never leave Cloudflare.',
+    description: 'A paste-ready Cloudflare Worker that reports GPTBot, ClaudeBot and other AI crawlers that never run JavaScript. Ordinary page views stay in Cloudflare.',
     published: '2026-10-03',
     changefreq: 'monthly',
     priority: 0.7,

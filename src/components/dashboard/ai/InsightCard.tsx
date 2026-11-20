@@ -1,10 +1,12 @@
 // One AI insight with its verify path: priority, actions, the "verify against the sources"
 // note and a Sources toggle that shows the agent_runs record (tables, row counts, model).
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Database, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { InsightText } from './InsightText';
+import type { Fact } from '../../../../supabase/functions/_shared/insight-facts.ts';
 
 export interface InsightView {
   id?: string;
@@ -24,6 +26,7 @@ interface AgentRun {
   input_tokens: number | null;
   output_tokens: number | null;
   duration_ms: number | null;
+  data_snapshot: { facts?: Fact[] } | null;
 }
 
 const PRIORITY_VARIANT: Record<string, 'destructive' | 'default' | 'secondary'> = {
@@ -36,7 +39,7 @@ function loadRun(runId: string) {
   if (!runCache.has(runId)) {
     runCache.set(runId, (async () => {
       const { data } = await (supabase as any).from('agent_runs')
-        .select('id, model, queries_run, input_tokens, output_tokens, duration_ms').eq('id', runId).maybeSingle();
+        .select('id, model, queries_run, input_tokens, output_tokens, duration_ms, data_snapshot').eq('id', runId).maybeSingle();
       return (data as AgentRun | null) ?? null;
     })());
   }
@@ -48,6 +51,17 @@ export function InsightCard({ insight, onDismiss }: { insight: InsightView; onDi
   const [run, setRun] = useState<AgentRun | null | undefined>(undefined);
   const actions = Array.isArray(insight.action_items) ? (insight.action_items as unknown[]).filter((a): a is string => typeof a === 'string') : [];
 
+  const hasTokens = [insight.title, insight.description, ...actions].some((t) => /\{\{\s*m\d+\s*\}\}/.test(t));
+  useEffect(() => {
+    if (hasTokens && insight.run_id && run === undefined) {
+      let live = true;
+      loadRun(insight.run_id).then((r) => { if (live) setRun(r); });
+      return () => { live = false; };
+    }
+  }, [hasTokens, insight.run_id, run]);
+  // undefined while loading; null when there is no run or it has no facts (tokens then show "—").
+  const facts = !hasTokens ? null : !insight.run_id ? null : run === undefined ? undefined : (run?.data_snapshot?.facts ?? null);
+
   const toggleSources = async () => {
     if (!insight.run_id) return;
     setShowSources((v) => !v);
@@ -58,7 +72,7 @@ export function InsightCard({ insight, onDismiss }: { insight: InsightView; onDi
     <div className="rounded-lg border border-border bg-card p-3 text-sm">
       <div className="flex items-start justify-between gap-2 mb-1.5">
         <div className="flex items-center gap-2 flex-wrap">
-          <h4 className="font-semibold text-sm">{insight.title}</h4>
+          <h4 className="font-semibold text-sm"><InsightText text={insight.title} facts={facts} /></h4>
           <Badge variant={PRIORITY_VARIANT[insight.priority] ?? 'default'} className="text-[10px] py-0 h-4">{insight.priority}</Badge>
           <Badge variant="outline" className="text-[10px] py-0 h-4">{insight.insight_type}</Badge>
         </div>
@@ -68,12 +82,12 @@ export function InsightCard({ insight, onDismiss }: { insight: InsightView; onDi
           </Button>
         )}
       </div>
-      <p className="text-xs text-muted-foreground mb-2 whitespace-pre-wrap">{insight.description}</p>
+      <p className="text-xs text-muted-foreground mb-2 whitespace-pre-wrap"><InsightText text={insight.description} facts={facts} /></p>
       {actions.length > 0 && (
         <div>
           <p className="text-xs font-medium mb-1">Recommended actions:</p>
           <ul className="text-xs text-muted-foreground space-y-0.5 list-disc pl-4">
-            {actions.map((a, i) => <li key={i}>{a}</li>)}
+            {actions.map((a, i) => <li key={i}><InsightText text={a} facts={facts} /></li>)}
           </ul>
         </div>
       )}

@@ -37,7 +37,7 @@ function browser(config = {}, storedConsent = null, identifyResponse = null, pag
   };
   runInNewContext(script, {
     window, document, history, crypto: webcrypto, URL, URLSearchParams, TextEncoder,
-    screen: { width: 1200, height: 800 }, navigator: { userAgent: 'Test', language: 'sv', platform: 'test' },
+    screen: { width: 1200, height: 800 }, navigator: { userAgent: 'Test', language: 'sv', platform: 'test', ...page.nav },
     localStorage: { getItem: key => local.get(key) ?? null },
     sessionStorage: {
       getItem: key => session.get(key) ?? null,
@@ -50,7 +50,7 @@ function browser(config = {}, storedConsent = null, identifyResponse = null, pag
     fetch: async (url, options) => {
       calls.push({ url, body: JSON.parse(options.body) });
       if (url.endsWith('/visitor-identification') && identifyResponse) return identifyResponse;
-      return { ok: true, json: async () => ({ success: true, visitor: { visitorId: 'visitor-1', visitorType: 'human' } }) };
+      return { ok: true, headers: { get: () => null }, json: async () => ({ success: true, visitor: { visitorId: 'visitor-1', visitorType: 'human' } }) };
     },
   });
   const choose = (analytics, marketing = false) => window.dispatchEvent({ type: 'siteConsentUpdated', detail: { analytics, marketing } });
@@ -199,7 +199,7 @@ test('in-flight identification cannot restore a revoked identity or start page t
   const b = browser({}, null, response);
   b.choose(true);
   b.choose(false);
-  finish({ ok: true, json: async () => ({ success: true, visitor: { visitorId: 'stale' } }) });
+  finish({ ok: true, headers: { get: () => null }, json: async () => ({ success: true, visitor: { visitorId: 'stale' } }) });
   await settle();
   assert.equal(b.window.CortIQ.getVisitorId(), null);
   assert.equal(b.calls.length, 1); // only the request already sent before withdrawal
@@ -284,4 +284,18 @@ test('a stored CortIQ choice wins over Consent Mode (WordPress plugin re-sends o
   const view = pageViews(page.calls)[0];
   assert.ok(view, 'tracks with stored analytics consent');
   assert.ok(page.session.get('cortiq_click_ids'), 'stored marketing grant still captures click IDs');
+});
+
+test('GPC wins over a stored marketing grant: no click IDs are captured', async () => {
+  const page = browser({}, { analytics: true, marketing: true }, null, { search: '?gclid=abc', nav: { globalPrivacyControl: true } });
+  await settle();
+  const view = pageViews(page.calls)[0];
+  assert.ok(view, 'still tracks with stored analytics consent');
+  assert.ok(!page.session.get('cortiq_click_ids'), 'GPC blocks click ID capture despite stored marketing grant');
+});
+
+test('without GPC, the same stored marketing grant still captures click IDs', async () => {
+  const page = browser({}, { analytics: true, marketing: true }, null, { search: '?gclid=abc' });
+  await settle();
+  assert.ok(page.session.get('cortiq_click_ids'), 'no GPC: click IDs captured as before');
 });

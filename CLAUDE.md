@@ -178,6 +178,16 @@ Spec: `docs/superpowers/specs/2026-10-29-aggregate-measurement-and-pixel-readine
 
 ---
 
+## CSP on cortiq.se (added 2026-11-17)
+
+- `public/.htaccess` and `public/api-docs/.htaccess` send an **enforced** Content-Security-Policy. `script-src` is `'self'` +
+  build-time hashes of inline scripts (`scripts/csp-hashes.mjs`); never add `'unsafe-eval'`, `'strict-dynamic'` or a
+  third-party script host without SRI. A new external `fetch` target needs a `connect-src` entry.
+- Violations go to the `csp-report` Edge Function (report-uri + Reporting-Endpoints) → `csp_reports`, counted per day,
+  service role only, 90 days. Check it after every deploy: `select * from csp_reports order by last_seen desc`.
+
+---
+
 ## Cookieless session storage (added 2026-11-12)
 
 Spec: `docs/superpowers/specs/2026-11-12-cookieless-session-stitching.md`.
@@ -189,6 +199,102 @@ Spec: `docs/superpowers/specs/2026-11-12-cookieless-session-stitching.md`.
 - Never cookies or localStorage in cookieless mode; click IDs stay marketing-gated (off in cookieless).
 - Copy: "sessionStorage after consent" — never "nothing stored" for cookieless, never "no consent needed".
 - Phase 2 (not built): daily-salted server hash, consent-only, after jurist review + DPA 1.6.
+
+---
+
+## Uptime monitoring (added 2026-11-17)
+
+- `site-uptime` Edge Function, pg_cron every 5 min (`20261130000001_site_uptime.sql`): fetches each active site's
+  home page (`_shared/uptime.ts`, UA `CortIQ-Uptime/1.0`, SSRF-guarded) → `record_uptime_check()`.
+- Alerts in `uptime_alerts` after the same problem in two checks in a row: `down` (no answer, timeout, HTTP error —
+  e.g. a host suspension) or `snippet_missing` (page loads but the snippet seen there before is gone; sites that
+  load CortIQ from their own JS bundle never get it). Bot challenges, 401 and 429 are inconclusive and change nothing.
+- Shown in Overview/Alerts (red, above pipeline alerts); emailed to the owner on open and recovery when
+  `RESEND_API_KEY` (+ optional `ALERT_EMAIL_FROM`) is set — same secrets as pipeline-freshness.
+- **Emails are OFF until Resend is set up** (as of 2026-11-17). Each run writes `alert_email_status.configured`; while
+  false, the Alerts tab and every open alert show the setup steps (`EMAIL_SETUP_STEPS` in `_shared/uptime.ts`):
+  1. Resend (the SentriSK account is fine): API key with Sending access, restricted to cortiq.se.
+  2. Resend → Domains → add cortiq.se; add its DKIM/SPF/MX records at Loopia; wait for Verified.
+  3. `supabase secrets set RESEND_API_KEY=re_… ALERT_EMAIL_FROM="CortIQ <alerts@cortiq.se>"` — picked up within 5 min.
+  Free plan: 100 emails/day, shared with SentriSK.
+- The 36 h pipeline-freshness rule stays for "site up, tracking broken". An hourly data-silence rule was backtested
+  2026-11-17 and rejected: ~5 false alarms/month and still 16 h late on ekonom.biz.
+
+---
+
+## GTM container audit (added 2026-11-17)
+
+Spec: `docs/superpowers/specs/2026-11-17-gtm-container-audit-design.md`.
+
+- Public page `/gtm-audit/`: the visitor drops a GTM export (JSON, ≤5 MB) and `_shared/gtm-audit/audit.ts` runs **in the
+  browser**. The file is never sent anywhere; `tests/foundation/gtm-audit-page.test.mjs` fails if the page UI calls
+  `fetch`/`sendBeacon`.
+- Engine: `parse` → `tagInfos` (vendor via the tracking-vendors registry, `gallery-map.ts`, template permissions,
+  Custom HTML URLs; consent from triggers and consent settings) → 9 rules (`gtm.*`) + a migration class per tag.
+  Evidence level is always "configuration" — never claim a tag fires.
+- Engine v2 (2026-11-20, spec `2026-11-20-gtm-audit-destinations-dependencies-design.md`): `destinations.ts`
+  (IDs per tag → `gtm.multiple_destinations`, "Sends to"), `dependencies.ts` (sequence/event/consent tool certain;
+  global/cookie/regex possible → `gtm.dependencies`, "Relied on by", and a certain dependent turns `remove` into
+  `review` except UA), `fragile.ts` (`gtm.fragile_dom`). Shared refs in `refs.ts` (variable chains ≤5 levels).
+  User regexes from the file run only when short and simple; the rest count as `possible`.
+- Destination IDs are shown in full on the page and in the local export, never in stats.
+  **Deploy order:** redeploy `gtm-audit-stats` before the dist FTP, or v2 stats (new keys, `v: 2`) are rejected.
+- Counters: `stats.ts` whitelist → `gtm-audit-stats` (public, rate-limited) → `gtm_audit_stats_daily` (service role only).
+  New keys must go through `validateStats`; never add names, IDs, domains or URLs.
+- Sample report: `node scripts/gtm-audit/sample-report.mjs` after any engine change (freshness test). The sample
+  container is synthetic — never use a real customer's export in fixtures, samples or tests.
+- New vendor in GTM: add it to `_shared/tracking-vendors.ts` (and `gallery-map.ts` for a gallery template).
+
+---
+
+## Jurisdiction rule engine (added 2026-11-20)
+
+Spec: `docs/superpowers/specs/2026-11-18-jurisdiction-aware-measurement-design.md`. Plan: `docs/superpowers/plans/2026-11-20-jurisdiction-phase3-rule-engine.md`.
+
+- **One engine:** `supabase/functions/_shared/jurisdiction/` (`decide()`), read by the Edge Functions through
+  `_shared/jurisdiction-edge.ts` and by the dashboard through `src/lib/jurisdiction.ts`. Never a second copy.
+- **Rules:** only `approved_internal` and above apply on customer sites; `draft`/`reviewed_agent` only on admin-flagged
+  test sites (`jurisdiction_test_sites`). Without an approved rule the baseline applies: opt-in for every purpose.
+  Approving a rule is its own reviewed commit with a jurist review; legal text in a rule is a hypothesis until then.
+- **The server decides; in phase 3 the customer can only tighten** (`site_jurisdiction_tighten`: `opt_in` / `off`).
+  Relaxing goes through `jurisdiction_exceptions` (max 12 months; no write path in phase 3). Decided 2026-11-20 for
+  phase 4: the customer may relax any non-floor rule on its own documented assessment (spec, "Decisions 2026-11-20").
+  Hard floors never relax: GPC stops sharing purposes, EU cross-site identifiers need opt-in.
+- **The customer's own Off applies now** (decided 2026-11-20; GDPR art. 28(3)(a) instruction): a purpose set to `off`
+  drops that purpose's data in every wired function whatever `JURISDICTION_ENFORCE` says (logged `enforced = true`).
+  Unwired collectors are listed under "Not yet wired" in the runbook; the dashboard copy names only the wired paths.
+  Off is read from the policy (not decide()'s reason) and fails closed if decide() throws. The policy is cached 60 s
+  per isolate with a 1.5 s RPC timeout (failure = safe default, no Off); ledger, decide and log stay in the background.
+- **Opt-in and market rules stay shadow:** every ingest function logs its decision to `jurisdiction_decisions_daily`
+  (daily counts only, country from signed edge geo only, 400 days). `JURISDICTION_ENFORCE` (`all` or a comma list of
+  function names) turns dropping on for them. store-consent always logs, never blocks, not even on Off. Flip only per
+  `docs/runbooks/jurisdiction-enforcement.md`.
+- **Server-side agent measurement** (server-hit) has purpose `agent_measurement` (was `security`; migration
+  `20261208000001`) under rule `all.agent_measurement.server_log` (`allowed_unless_opt_out`, draft). It honours
+  `Sec-GPC: 1` as an objection by automated means (art. 21(5)), an extra route next to the customer's own channel: the
+  adapters (`cortiq-server.mjs`, Cloudflare Worker, PHP adapter, WP plugin 5.5.20+) do not send such a request at all.
+  server-hit still discards a hit sent with `gpc: true` (own integrations); no field = no objection.
+  Honeypot hits from UAs the registry does not classify are stored as a signal only (no IP, UA, geo or referrer).
+- **Copy:** "CortIQ's technical defaults, not legal advice" (`DISCLAIMER`). Avoid implying that the defaults eliminate
+  legal requirements, replace compliance obligations, or remove the need for consent mechanisms.
+- Phase 6 slice: `coverage_by_country`, `consent_acceptance_by_country_lang` (banner sends `banner_lang` from 5.5.19),
+  `aggregate_goal_countries_daily`, `assessPixelReadinessByCountry` (Consent → Impact).
+
+---
+
+## Measurement health & conversion alerts (added 2026-11-19)
+
+Spec: `docs/superpowers/specs/2026-11-19-measurement-health-design.md`.
+
+- `get_measurement_health(site)` (SECURITY INVOKER) → checks (uptime, pipelines, goals, goal health, consent rate,
+  conversions) + a 7/28-day signal inventory. Sentences live in `_shared/measurement-health.ts`. The "Alerts" tab
+  (value `alerts`) is labelled "Measurement health".
+- Tracker version: `site-uptime` reads `/v/<x.y.z>/cortiq.js` or `cortiq*.js?ver=` from the home page into
+  `site_uptime.snippet_version`; the UI compares it with `src/lib/sri-manifest.json`.
+- `conversion_alerts`: `goal_silent`, `form_zero_completions`, `form_abandon_spike`, run hourly from `pipeline-freshness`
+  via `check_conversion_alerts()`. Thresholds in SQL and `_shared/conversion-alerts.ts` (test keeps them equal).
+- AI insights cite server facts as `{{mN}}` (`_shared/insight-facts.ts`); `validateInsight` rejects bare digits,
+  one retry, then the insight is dropped (`agent_runs.data_snapshot.rejected`). Facts are in `data_snapshot.facts`.
 
 ---
 

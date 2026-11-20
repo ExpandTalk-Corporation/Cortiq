@@ -29,7 +29,6 @@ export function GDPRSettings({ siteId }: GDPRSettingsProps) {
   const [bannerType, setBannerType] = useState('internal');
   const [cookiebotId, setCookiebotId] = useState('');
   const [onetrustId, setOnetrustId] = useState('');
-  const [customFunction, setCustomFunction] = useState('');
   const [savedCookies, setSavedCookies] = useState<any[]>([]);
   const [savedScripts, setSavedScripts] = useState<any[]>([]);
   const [lastScanDate, setLastScanDate] = useState<string | null>(null);
@@ -441,71 +440,10 @@ export function GDPRSettings({ siteId }: GDPRSettingsProps) {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="banner_type">Cookie banner type</Label>
-                <Select
-                  value={bannerType}
-                  onValueChange={setBannerType}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select banner type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="internal">Built-in banner</SelectItem>
-                    <SelectItem value="cookiebot">Cookiebot</SelectItem>
-                    <SelectItem value="onetrust">OneTrust</SelectItem>
-                    <SelectItem value="custom">Custom integration</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-sm text-muted-foreground">
-                  Select which cookie banner you want to use
-                </p>
+              <div className="rounded-md border p-3 text-sm text-muted-foreground">
+                Banner choice (CortIQ banner, your own CMP or none), banner language and tracking mode are set under{' '}
+                <strong className="text-foreground">Settings → Consent &amp; cookie banner</strong>.
               </div>
-
-              {bannerType === 'cookiebot' && (
-                <div className="space-y-2">
-                  <Label htmlFor="cookiebot_id">Cookiebot ID</Label>
-                  <Input
-                    id="cookiebot_id"
-                    placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                    value={cookiebotId}
-                    onChange={(e) => setCookiebotId(e.target.value)}
-                  />
-                  <p className="text-sm text-muted-foreground">
-                    Your Cookiebot domain group ID
-                  </p>
-                </div>
-              )}
-
-              {bannerType === 'onetrust' && (
-                <div className="space-y-2">
-                  <Label htmlFor="onetrust_id">OneTrust Script ID</Label>
-                  <Input
-                    id="onetrust_id"
-                    placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                    value={onetrustId}
-                    onChange={(e) => setOnetrustId(e.target.value)}
-                  />
-                  <p className="text-sm text-muted-foreground">
-                    Your OneTrust script ID
-                  </p>
-                </div>
-              )}
-
-              {bannerType === 'custom' && (
-                <div className="space-y-2">
-                  <Label htmlFor="custom_consent_function">Consent Check Function</Label>
-                  <Textarea
-                    id="custom_consent_function"
-                    placeholder="window.checkAnalyticsConsent()"
-                    value={customFunction}
-                    onChange={(e) => setCustomFunction(e.target.value)}
-                  />
-                  <p className="text-sm text-muted-foreground">
-                    JavaScript function that returns true if analytics consent is given
-                  </p>
-                </div>
-              )}
 
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">

@@ -72,6 +72,21 @@ test('reports agents with truncated IP and no query string; ignores humans', asy
   });
 });
 
+test('Sec-GPC: 1 is an objection: no request is sent (Fetch headers, Node header objects, trap, watched files)', async () => {
+  const { sent, fetchImpl } = capture();
+  const c = createCortiq({ siteKey: KEY, fetchImpl });
+  await c.report(req('https://shop.test/a', 'GPTBot/1.2', { 'sec-gpc': '1' }));
+  await c.report(req('https://shop.test/b', 'GPTBot/1.2', { 'sec-gpc': '0' }));
+  await c.report({ url: 'https://shop.test/c', method: 'GET', headers: { 'user-agent': 'GPTBot/1.2', 'sec-gpc': '1' } });
+  await c.report(req('https://shop.test/robots.txt', 'GPTBot/1.2', { 'sec-gpc': '1' }));
+  const trap = req(`https://shop.test${TRAP_PATH}`, 'Mozilla/5.0 Chrome/129.0', { 'sec-gpc': '1' });
+  assert.equal(c.trapResponse(trap).status, 404, 'the trap still answers 404');
+  await new Promise((r) => setImmediate(r));
+  assert.equal(c.shouldReport(req('https://shop.test/d', 'GPTBot/1.2', { 'sec-gpc': '1' })), false);
+  assert.deepEqual(sent.map((s) => s.body.hits[0].url), ['https://shop.test/b']);
+  assert.equal('gpc' in sent[0].body.hits[0], false, 'the hit carries no gpc field');
+});
+
 test('robots.txt / llms.txt are reported for any user agent', async () => {
   const { sent, fetchImpl } = capture();
   const c = createCortiq({ siteKey: KEY, fetchImpl });
@@ -166,6 +181,12 @@ test('worker: reports GPTBot, not humans; truncates CF-Connecting-IP', async () 
   assert.equal(w.sent.length, 1);
   assert.equal(w.sent[0].hits[0].url, 'https://shop.test/page');
   assert.equal(w.sent[0].hits[0].ip, '203.0.113.0');
+  assert.equal('gpc' in w.sent[0].hits[0], false);
+  // Sec-GPC: 1 is an objection: nothing is sent, for agents, watched files or the trap.
+  await w.run('https://shop.test/page', 'GPTBot/1.2', { 'Sec-GPC': '1' });
+  await w.run('https://shop.test/robots.txt', 'GPTBot/1.2', { 'Sec-GPC': '1' });
+  assert.equal((await w.run(`https://shop.test${TRAP_PATH}`, 'Mozilla/5.0 Chrome/129.0', { 'Sec-GPC': '1' })).status, 404);
+  assert.equal(w.sent.length, 1);
 });
 
 test('worker: injects honeypot into HTML, Disallow into robots.txt, answers the trap', async () => {

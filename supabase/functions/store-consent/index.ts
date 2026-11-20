@@ -1,7 +1,11 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from '../_shared/supabase.ts';
-import { anonymizeIP } from "../_shared/jurisdiction.ts";
+import { anonymizeIP } from "../_shared/ip.ts";
+import { consentGeo, gpcRequested } from "../_shared/consent-geo.ts";
+import { resolveGeo, geoKey } from "../_shared/geo.ts";
+import { jurisdictionGate, visitorFrom } from "../_shared/jurisdiction-edge.ts";
+import { bannerLangOf } from "../_shared/banner-langs.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,9 +27,11 @@ interface ConsentRequest {
   user_agent?: string;
   source?: string;
   locale?: string;
+  banner_lang?: string;
   gpc_signal?: boolean;
   policy_version?: string;
   page_url?: string; // used to resolve the site by domain (most reliable)
+  time_zone?: string; // IANA zone from the banner (Intl), used for geo_country until phase 2
 }
 
 serve(async (req) => {
@@ -83,6 +89,11 @@ serve(async (req) => {
       necessary: true, analytics: requestData.consent_types.analytics,
       marketing: requestData.consent_types.marketing, preferences: requestData.consent_types.preferences === true,
     };
+
+    // GPC wins (spec 2026-11-18 AC6): a GPC visitor's marketing choice is recorded as refused,
+    // whatever the banner sent. Phase 4 decides whether a later specific consent may change that.
+    const gpc = gpcRequested(requestData, req.headers);
+    if (gpc) requestData.consent_types.marketing = false;
 
     // tracking_id is an OPTIONAL legacy site hint. If it isn't a tk_ key (e.g. an
     // account/API key was pasted into the tracking field), ignore it rather than
@@ -161,6 +172,9 @@ serve(async (req) => {
         { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': '60' } });
     }
 
+    // Signed edge geo via the CortIQ Worker, else the browser time zone (spec 2026-11-18 phase 2).
+    const geo = await resolveGeo(req, { key: geoKey(), timeZone: requestData.time_zone });
+
     // Prepare consent data with sanitized inputs.
     // consent_given reflects the actual decision (opt-in to analytics/marketing), not a
     // hardcoded true — a reject-all banner must be recorded as consent_given = false.
@@ -169,11 +183,13 @@ serve(async (req) => {
       session_id: session_id.substring(0, 255), // Limit length to prevent overflow
       consent_given: !!(requestData.consent_types.analytics || requestData.consent_types.marketing || requestData.consent_types.preferences),
       consent_types: requestData.consent_types,
-      ip_address: anonymizeIP(requestData.ip_address ?? null), // host portion zeroed — matches "IP anonymized" claim
+      ip_address: anonymizeIP(geo.ip ?? requestData.ip_address ?? null), // host portion zeroed — matches "IP anonymized" claim
       user_agent: requestData.user_agent ? requestData.user_agent.substring(0, 500) : null, // Reasonable limit
       source: requestData.source ? requestData.source.substring(0, 50) : 'cookie_banner',
       locale: requestData.locale ? requestData.locale.substring(0, 10) : 'sv',
-      gpc_signal: requestData.gpc_signal || false,
+      banner_lang: bannerLangOf(requestData.banner_lang),
+      gpc_signal: gpc,
+      ...consentGeo(geo),
       policy_version: requestData.policy_version ? requestData.policy_version.substring(0, 20) : '1.0',
       expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year
     };
@@ -194,13 +210,17 @@ serve(async (req) => {
         .from('cookie_consents')
         .update({
           consent_given: consentData.consent_given,
-          consent_types: requestData.consent_types,
+          consent_types: consentData.consent_types,
           updated_at: new Date().toISOString(),
           policy_version: consentData.policy_version,
           expires_at: consentData.expires_at,
           gpc_signal: consentData.gpc_signal,
           source: consentData.source,
           locale: consentData.locale,
+          banner_lang: consentData.banner_lang,
+          geo_country: consentData.geo_country,
+          geo_region: consentData.geo_region,
+          geo_source: consentData.geo_source,
         })
         .eq('id', existingConsent.id)
         .select()
@@ -250,6 +270,14 @@ serve(async (req) => {
         // Don't fail the entire request for validation errors
       }
     }
+
+    // Log only, never block: the ledger must record every choice, including refusals.
+    // Flag null = always shadow, whatever JURISDICTION_ENFORCE says, so the response never waits.
+    await jurisdictionGate(supabase, 'store-consent', site_id, null).gate(() => ({
+      visitor: visitorFrom(geo), purpose: 'statistics',
+      signals: { consent: { analytics: requestData.consent_types.analytics, marketing: requestData.consent_types.marketing }, evidence: 'ledger', gpc },
+      technique: { storage: 'session', identifiers: 'session' },
+    }));
 
     return new Response(
       JSON.stringify({

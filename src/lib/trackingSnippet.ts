@@ -2,8 +2,8 @@ import consentLoader from './consent-loader.js?raw';
 import aggregateBeacon from './aggregate-beacon.js?raw';
 import { renderTrackingSnippet, type TrackingSnippetOptions } from './snippetTemplate';
 
-export type { ConsentSetup, TrackingSnippetOptions } from './snippetTemplate';
-export { bannerDetailsProblem } from './snippetTemplate';
+export type { BannerLanguage, ConsentSetup, TrackingSnippetOptions } from './snippetTemplate';
+export { BANNER_LANGUAGES, bannerDetailsProblem, bannerFile } from './snippetTemplate';
 
 /**
  * The install snippet shown in the dashboard. It sets window.cortiqConfig and inlines the

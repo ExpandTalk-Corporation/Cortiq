@@ -425,7 +425,7 @@ export function IPSegmentManager({ companyId }: IPSegmentManagerProps) {
           <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
             Label known IP ranges — your office network, a competitor's corporate IP block, or a
             partner's servers. Traffic from these ranges is tagged in analytics with the segment name.
-            Raw IP addresses are never stored in compliance with your jurisdiction settings.
+            Only the segment name is stored with the event, never the raw IP address.
           </p>
         </div>
         <Button onClick={() => setShowForm(v => !v)} className="shrink-0">
@@ -440,8 +440,7 @@ export function IPSegmentManager({ companyId }: IPSegmentManagerProps) {
         <AlertDescription className="text-xs space-y-1">
           <p>
             <strong>How it works:</strong> When a visit matches a defined range, the segment name is
-            written into the event record — not the IP address. This means segment analytics work
-            regardless of your jurisdiction mode (EU strict, global standard, or permissive).
+            written into the event record — not the IP address.
           </p>
           <p>
             <strong>Intranet use:</strong> For internal networks, enable <em>Intranet mode</em> on

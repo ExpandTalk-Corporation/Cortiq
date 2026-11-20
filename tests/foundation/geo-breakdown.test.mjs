@@ -17,9 +17,12 @@ test('PostgreSQL: session country ingest + geo breakdown — normalisation, unkn
   }
 });
 
-test('track-event forwards the Cloudflare country to ingest_pageview', () => {
+test('track-event forwards resolved geo (signed edge country, else time zone) to ingest_pageview', () => {
   const src = readFileSync(new URL('../../supabase/functions/track-event/index.ts', import.meta.url), 'utf8');
-  assert.match(src, /p_country:\s*req\.headers\.get\('cf-ipcountry'\)/);
+  assert.match(src, /resolveGeo\(req, \{ key: geoKey\(\), timeZone: body\.metadata\?\.timezone \}\)/);
+  assert.match(src, /p_country: geo\.country,/);
+  assert.match(src, /p_region: geo\.region,/);
+  assert.match(src, /p_geo_source: geo\.source,/);
 });
 
 test('Locations tab reads the RPC, not the dead /api proxy or empty aggregate tables', () => {
@@ -40,7 +43,7 @@ test('time zone fallback maps browser zones to countries (CF-IPCountry is not fo
   assert.equal(countryFromTimeZone('__proto__'), null);
   assert.equal(countryFromTimeZone(42), null);
   const src = readFileSync(new URL('../../supabase/functions/track-event/index.ts', import.meta.url), 'utf8');
-  assert.match(src, /countryFromTimeZone\(body\.metadata\?\.timezone\)/);
+  assert.match(src, /timeZone: body\.metadata\?\.timezone/);
   const tracker = readFileSync(new URL('../../public/spa-tracking.js', import.meta.url), 'utf8');
   assert.match(tracker, /timezone: getTimeZone\(\)/);
 });

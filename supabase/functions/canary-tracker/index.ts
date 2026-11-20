@@ -17,9 +17,10 @@
  */
 
 import { createClient } from '../_shared/supabase.ts';
-import { anonymizeIP } from '../_shared/jurisdiction.ts';
+import { anonymizeIP } from '../_shared/ip.ts';
 import { deriveUACategory } from '../_shared/bot-detection.ts';
 import { dispatchNotifications } from '../_shared/notify.ts';
+import { resolveGeo, geoKey } from '../_shared/geo.ts';
 
 // 1×1 transparent GIF — served for pixel requests.
 const TRANSPARENT_GIF = new Uint8Array([
@@ -67,11 +68,10 @@ Deno.serve(async (req) => {
     if (siteError || !site) return respond(canaryType);
 
     // Extract request context
-    const rawIP  = req.headers.get('cf-connecting-ip')
-                ?? req.headers.get('x-forwarded-for')?.split(',')[0].trim()
-                ?? null;
+    const geo = await resolveGeo(req, { key: geoKey(), timeZone: null });
+    const rawIP = geo.ip;
+    const country = geo.country;
     const rawUA  = req.headers.get('user-agent') ?? null;
-    const country  = req.headers.get('cf-ipcountry') ?? req.headers.get('x-country') ?? null;
     // Origin + path only: referrer query strings can carry tokens, emails, search terms.
     const referrer = (() => {
       const r = req.headers.get('referer');

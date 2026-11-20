@@ -11,7 +11,13 @@
   var cfg = window.cortiqConfig || {};
   if (cfg.aggregate !== true || !cfg.siteId || !cfg.apiKey || window.__cortiqAggregate) return;
   window.__cortiqAggregate = true;
-  var endpoint = (cfg.apiUrl || 'https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1') + '/aggregate-hit';
+  // Through the CortIQ geo Worker (signed country) unless the site has its own apiUrl or
+  // geoUrl: false. If the Worker fails, the hit is resent directly and the rest of the page
+  // load stays direct.
+  var DIRECT_URL = 'https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1';
+  var GEO_URL = 'https://cortiq-geo.cortiq.workers.dev';
+  var directBase = cfg.apiUrl || DIRECT_URL;
+  var base = cfg.geoUrl === false ? directBase : (cfg.geoUrl || (directBase === DIRECT_URL ? GEO_URL : directBase));
   var refusedLive = null;
   var formGoals = [];
   var lastPath = null;
@@ -59,11 +65,16 @@
     if (navigator.globalPrivacyControl === true || refused()) return Promise.resolve(null);
     body.siteId = cfg.siteId;
     try {
-      return fetch(endpoint, {
+      var init = {
         method: 'POST', keepalive: true, credentials: 'omit',
         headers: { 'Authorization': 'Bearer ' + cfg.apiKey, 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
-      }).then(function (r) { return r && r.status === 200 ? r.json() : null; })
+      };
+      var url = base + '/aggregate-hit';
+      var toDirect = function () { base = directBase; return fetch(directBase + '/aggregate-hit', init); };
+      return (base === directBase ? fetch(url, init) : fetch(url, init).then(function (res) {
+        return res.headers.get('x-cortiq-geo-proxy') === 'error' ? toDirect() : res;
+      }, toDirect)).then(function (r) { return r && r.status === 200 ? r.json() : null; })
         .catch(function () { return null; });
     } catch (e) { return Promise.resolve(null); }
   }

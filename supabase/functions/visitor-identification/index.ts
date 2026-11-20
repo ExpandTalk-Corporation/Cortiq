@@ -9,8 +9,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "../_shared/supabase.ts";
 import { resolveSite } from "../_shared/resolve-site.ts";
-import { countryFromTimeZone } from "../_shared/tz-country.js";
+import { resolveGeo, geoKey } from "../_shared/geo.ts";
 import { skipTrackingCheck } from '../_shared/tracking-check-ua.ts';
+import { jurisdictionGate, signalsFrom, visitorFrom } from "../_shared/jurisdiction-edge.ts";
 
 // DB-backed rate limiter — works across all function instances (no cold-start reset)
 async function checkRateLimit(supabase: ReturnType<typeof createClient>, siteId: string): Promise<boolean> {
@@ -262,13 +263,6 @@ function extractDeviceInfo(userAgent: string): {
 // MAIN HANDLER
 // =====================================================
 
-// ISO 3166-1 alpha-2 only; Cloudflare's XX (unknown) and T1 (Tor) are not countries.
-function visitorCountry(header: string | null, timeZone: unknown): string | null {
-  const fromHeader = header?.toUpperCase();
-  if (fromHeader && /^[A-Z]{2}$/.test(fromHeader) && fromHeader !== 'XX') return fromHeader;
-  return countryFromTimeZone(timeZone);
-}
-
 serve(async (req) => {
   // CORS headers
   if (req.method === 'OPTIONS') {
@@ -369,6 +363,21 @@ serve(async (req) => {
       );
     }
 
+    const geo = await resolveGeo(req, { key: geoKey(), timeZone: requestData.timeZone });
+    const gpcHeader = req.headers.get('sec-gpc') === '1';
+    // Policy and ledger load once for both decisions; shadow mode never waits for them.
+    const jurisdiction = jurisdictionGate(supabase, 'visitor-identification', site.id, Deno.env.get('JURISDICTION_ENFORCE'), requestData.sessionId);
+    const profileDropped = await jurisdiction.gate((ledger) => ({
+      visitor: visitorFrom(geo), purpose: 'statistics',
+      // The tracker calls this endpoint only after analytics consent (identifyVisitor in spa-tracking.js).
+      signals: signalsFrom(ledger, { trackerGate: ['analytics'], gpcHeader }),
+      technique: { storage: 'persistent', identifiers: 'session' },
+    }));
+    if (profileDropped) {
+      return new Response(JSON.stringify({ success: true, visitor: null, skipped: 'jurisdiction' }),
+        { status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } });
+    }
+
     // Generate device fingerprint (SHA-256, per-site salt)
     const fingerprint = await generateDeviceFingerprint(requestData, (site as { fingerprint_salt?: string }).fingerprint_salt ?? '');
 
@@ -403,9 +412,8 @@ serve(async (req) => {
       p_utm_source: sanitizeString(requestData.utmSource, 255),
       p_utm_medium: sanitizeString(requestData.utmMedium, 255),
       p_utm_campaign: sanitizeString(requestData.utmCampaign, 255),
-      // Supabase does not forward cf-ipcountry (checked 2026-10-15); the browser time zone
-      // is the same no-IP estimate track-event uses for page views.
-      p_country_code: visitorCountry(req.headers.get('cf-ipcountry'), requestData.timeZone)
+      // Signed edge geo, else the browser time zone (spec 2026-11-18 phase 2).
+      p_country_code: geo.country
     });
 
     if (upsertError) {
@@ -431,10 +439,18 @@ serve(async (req) => {
       serverMarketingConsent = ct?.marketing === true;
     }
 
-    const hasClickIds = serverMarketingConsent && requestData.clickIdConsentGiven && (
+    let hasClickIds = serverMarketingConsent && requestData.clickIdConsentGiven && (
       requestData.gclid || requestData.fbclid || requestData.msclkid ||
       requestData.ttclid || requestData.li_fat_id
     );
+    if (hasClickIds) {
+      const attributionDropped = await jurisdiction.gate((ledger) => ({
+        visitor: visitorFrom(geo), purpose: 'attribution',
+        signals: signalsFrom(ledger, { trackerGate: [], gpcHeader }),
+        technique: { storage: 'session', identifiers: 'cross_site' },
+      }));
+      if (attributionDropped) hasClickIds = false;
+    }
     if (hasClickIds && visitorId) {
       const clickIdUpdate: Record<string, string | boolean | null> = {
         click_id_consent_given: true,

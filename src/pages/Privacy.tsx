@@ -6,9 +6,9 @@ import PublicNavigation from "@/components/PublicNavigation";
 import PublicFooter from "@/components/PublicFooter";
 import { useSEO } from "@/hooks/useSEO";
 import { seoFor } from "@/marketing-routes";
-import { Shield, CheckCircle, Mail, FileText, Database, Users, BarChart3, Megaphone } from "lucide-react";
+import { Shield, CheckCircle, Mail, FileText, Database, Users, BarChart3, Megaphone, FileSearch } from "lucide-react";
 
-const LAST_UPDATED = "November 7, 2026";
+const LAST_UPDATED = "November 18, 2026";
 
 const Privacy = () => {
   useSEO(seoFor("/privacy/"));
@@ -191,6 +191,7 @@ const Privacy = () => {
                   reading information on the visitor's device.
                 </p>
               </div>
+
             </CardContent>
           </Card>
 
@@ -227,7 +228,7 @@ const Privacy = () => {
                   <li>• Parts of the page address, UTM values and form names that look like an email address, a long number or an ID are replaced (for example <code>/order/:id</code>) or dropped before anything is counted.</li>
                   <li>• For the current day, the hash is used to count visits (a new visit starts after 30 minutes of inactivity or when you arrive from a new referrer or campaign): entry page, referrer domain, UTM values, device type, goals reached, number of page views and time in the foreground.</li>
                   <li>• Once the day has ended, the daily value and these visit records are deleted, normally within an hour after midnight UTC. After that, the hash cannot be recomputed or linked across days.</li>
-                  <li>• Only daily totals are kept: page views per page, and visits, visitors, engagement and conversions per traffic source and device type.</li>
+                  <li>• Only daily totals are kept: page views per page and per country, and visits, visitors, engagement and conversions per traffic source and device type. The country is derived from the IP address when the request passes through CortIQ&apos;s Cloudflare Worker (section 5); otherwise no country is recorded.</li>
                 </ul>
                 <p className="text-sm text-muted-foreground mt-3">
                   <strong className="text-foreground">What is not done:</strong> no cookies or other storage on your
@@ -262,6 +263,29 @@ const Privacy = () => {
                 </p>
                 <p className="text-xs text-muted-foreground mt-2 italic">
                   <strong>Retention:</strong> see section 9.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Public Tools */}
+          <Card className="glass shadow-elegant border-primary/20">
+            <CardHeader>
+              <div className="flex items-center space-x-3 mb-2">
+                <FileSearch className="h-6 w-6 text-primary" />
+                <CardTitle>3D. Public Tools</CardTitle>
+              </div>
+              <Badge className="w-fit bg-gradient-accent text-white">No account needed</Badge>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-primary/10 p-4 rounded-lg">
+                <h4 className="font-semibold mb-2 text-foreground">GTM container audit</h4>
+                <p className="text-sm text-muted-foreground">
+                  The GTM container audit at /gtm-audit/ runs in the visitor&apos;s browser; the uploaded file is not sent
+                  to CortIQ. After each audit the page sends anonymous totals — the number of tags in a range, counts per
+                  tag type, known vendor, finding and migration class, and the audit engine version — which CortIQ adds
+                  to daily counters. No tag names, container IDs, domains, URLs, IP addresses or User-Agents are stored
+                  in the counters, and nothing is stored on the visitor&apos;s device.
                 </p>
               </div>
             </CardContent>
@@ -343,7 +367,7 @@ const Privacy = () => {
                   'Page views and most visited pages',
                   'AI referrals — when a visit arrives from an AI service such as ChatGPT or Perplexity (referring site, landing page with UTM parameters only, device type, time on page)',
                   'Referrers and traffic sources (including UTM parameters)',
-                  'Sessions, device type, browser and country',
+                  'Sessions, device type, browser and country (for the United States and Canada also state or province), derived from the IP address or, if that is unavailable, estimated from the browser time zone',
                   'Clicks and link clicks',
                   'Scroll depth and heatmaps',
                   'Form interactions (field content is not captured) and form submissions',
@@ -441,7 +465,7 @@ const Privacy = () => {
                 <li>• <strong>Supabase</strong> (Supabase, Inc., USA) — database, authentication and server functions for all data. Data is stored on AWS in Stockholm (EU).</li>
                 <li>• <strong>Loopia</strong> (Loopia AB, Sweden) — web host for cortiq.se, which serves the dashboard and the tracking script file. When a browser loads the script, Loopia&apos;s access log records the IP address, user agent, file and time. This is needed to deliver the file (the transmission exception in Chapter 9, Section 28 of the Electronic Communications Act); our legal basis for the log is legitimate interest in running and securing the service (Art. 6(1)(f) GDPR), and it is not used for analytics.</li>
                 <li>• <strong>Resend</strong> (Plus Five Five, Inc., USA) — email delivery of large report exports (over 10,000 rows); Resend receives the recipient address and a download link that expires after one hour, not the report itself.</li>
-                <li>• <strong>Cloudflare</strong> (Cloudflare, Inc., USA) — when the operator enables the Cloudflare integration, Cloudflare processes visitor IP addresses at its edge; CortIQ receives the country and a truncated IP address for security and bot classification (section 3B).</li>
+                <li>• <strong>Cloudflare</strong> (Cloudflare, Inc., USA) — requests from the CortIQ tracking script, aggregate script and consent banner pass through CortIQ&apos;s Cloudflare Worker on their way to our servers in the EU. Cloudflare sees each request in transit, including the IP address, and tells us the visitor&apos;s country – for the United States and Canada also the state or province. We use it to apply the privacy rules of the visitor&apos;s location and for country reports. Nothing is stored in the Worker, and we do not store the full IP address. The country is an estimate: a VPN or proxy can make it wrong. When the operator enables the Cloudflare integration, Cloudflare also processes visitor IP addresses at its edge for security and bot classification (section 3B).</li>
                 <li>• <strong>Anthropic</strong> (USA) — AI insights on the dashboard use CortIQ&apos;s own key and receive aggregated statistics for a site (page paths without query strings, counts, device breakdown, form conversion rates, monthly KPI figures). No visitor identifiers, IP addresses or email addresses are sent.</li>
               </ul>
               <p className="text-muted-foreground leading-relaxed">
@@ -478,13 +502,13 @@ const Privacy = () => {
                 <li>• <strong>Loopia</strong> — Sweden; no transfer.</li>
                 <li>• <strong>Resend</strong> — USA; the EU–US Data Privacy Framework (Art. 45 GDPR), with Standard Contractual Clauses in Resend&apos;s data processing agreement.</li>
                 <li>• <strong>Anthropic</strong> — USA; Standard Contractual Clauses (Art. 46 GDPR) in Anthropic&apos;s data processing addendum. Only aggregated statistics are sent.</li>
-                <li>• <strong>Cloudflare</strong> — the EU–US Data Privacy Framework (Art. 45 GDPR), with Standard Contractual Clauses in Cloudflare&apos;s data processing agreement.</li>
+                <li>• <strong>Cloudflare</strong> — Cloudflare&apos;s global network, which may process requests outside the EU/EEA; Standard Contractual Clauses (Art. 46 GDPR) in Cloudflare&apos;s data processing addendum, and the EU–US Data Privacy Framework (Art. 45 GDPR).</li>
                 <li>• <strong>Services the operator connects</strong> (Anthropic, Google, HubSpot) — the transfer basis follows the operator&apos;s own agreement with each provider.</li>
               </ul>
               <p className="text-sm">
                 We also limit what is transferred, for example by hashing email addresses and truncating IP
-                addresses. AI, advertising and Cloudflare features are optional and enabled by the site
-                operator; advertising transfers additionally require the visitor&apos;s marketing consent.
+                addresses. AI and advertising features and the Cloudflare integration are optional and enabled by the
+                site operator; advertising transfers additionally require the visitor&apos;s marketing consent.
               </p>
             </CardContent>
           </Card>
@@ -530,7 +554,10 @@ const Privacy = () => {
                 </ul>
               </div>
               <p className="text-sm text-muted-foreground">
-                The CortIQ tracking script and the CortIQ consent banner set no cookies, in either mode. In both modes
+                The CortIQ tracking script and the CortIQ consent banner set no cookies, in either mode. Tracker versions up to 5.5.15 send some requests directly to our server
+                functions at supabase.co after analytics consent; that host, run by our provider Supabase behind Cloudflare,
+                can then set a <code>__cf_bm</code> bot-protection cookie (HttpOnly, limited to the site you visit, 30 minutes).
+                CortIQ does not read or use it. In both modes
                 the script keeps a session identifier in sessionStorage after analytics consent. A Cookieless site can choose
                 memory only; the script then stores nothing for human visitors, and only clients classified as automated get
                 the <code>_ciq_adp</code> counter. The
@@ -621,7 +648,7 @@ const Privacy = () => {
                 <ul className="text-sm text-muted-foreground space-y-1 ml-4">
                   <li>• <strong>Daily value and visit records (hash):</strong> deleted once the UTC day has ended, normally within an hour after midnight UTC, so no more than about 25 hours after creation</li>
                   <li>• <strong>IP address and User-Agent:</strong> not stored by CortIQ; only the device type is kept</li>
-                  <li>• <strong>Daily totals (page views, visits, sources, conversions):</strong> the value in the site's GDPR settings (default 365 days), and deleted when the site is deleted from CortIQ</li>
+                  <li>• <strong>Daily totals (page views, visits, sources, countries, conversions):</strong> the value in the site's GDPR settings (default 365 days), and deleted when the site is deleted from CortIQ</li>
                 </ul>
               </div>
 

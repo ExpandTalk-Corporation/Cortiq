@@ -32,6 +32,18 @@ export interface ObservedRequest {
   initiator?: string;
 }
 
+/** An external script of the main document: its <script> tag (when still in the DOM) joined with the recorded request. */
+export interface ObservedScript {
+  url: string;
+  /** The tag's integrity attribute; null when the tag has none or was not found in the DOM. */
+  integrity: string | null;
+  crossorigin: string | null;
+  /** SRI-format hash of the response body ("sha256-<base64>"). Only measured with all cookies accepted; absent when too large or not fetched. */
+  sha256?: string;
+  /** Size of the decoded response body in bytes. */
+  bytes?: number;
+}
+
 export interface StateObservation {
   state: ConsentState;
   method: ConsentMethod;
@@ -52,6 +64,8 @@ export interface StateObservation {
   bannerSeen: boolean;
   /** After a CMP-adapter choice and a reload: was the CMP's own banner shown again? null when not measured (no adapter action, or its banner was not seen before). */
   bannerAfterChoice?: boolean | null;
+  /** External scripts of the main document after the last load. Absent in observations from before this field. */
+  scripts?: ObservedScript[];
 }
 
 export interface FormHit {
@@ -92,7 +106,7 @@ export interface PolicyTemplate {
   manualItems: { key: string; label: string }[];
 }
 
-export type Scope = 'Parameters' | 'Tags' | 'CSP' | 'Consent' | 'Forms' | 'Ads/GA4' | 'Manual' | 'Coverage';
+export type Scope = 'Parameters' | 'Tags' | 'CSP' | 'Consent' | 'Forms' | 'Ads/GA4' | 'Manual' | 'Coverage' | 'Scripts' | 'GTM';
 export type FindingStatus = 'pass' | 'fail' | 'warning' | 'manual' | 'untestable';
 export type Priority = 'high' | 'medium' | 'low';
 export type Owner = 'developer' | 'gtm' | 'cmp' | 'marketing' | 'legal';

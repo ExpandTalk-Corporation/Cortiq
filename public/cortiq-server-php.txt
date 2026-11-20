@@ -112,9 +112,15 @@ function cortiq_hit( $status ) {
 	);
 }
 
+function cortiq_gpc() {
+	return ( $_SERVER['HTTP_SEC_GPC'] ?? '' ) === '1';
+}
+
 // Sent after the response: the crawler gets the page first, the report follows.
 function cortiq_send( array $hit ) {
 	if ( strlen( CORTIQ_SITE_KEY ) < 20 || strpos( CORTIQ_SITE_KEY, 'YOUR_' ) !== false ) return;
+	// Sec-GPC: 1 – CortIQ treats it as an objection (GDPR art. 21(5)); this hit is not sent.
+	if ( cortiq_gpc() ) return;
 	ignore_user_abort( true );
 	if ( function_exists( 'fastcgi_finish_request' ) ) {
 		fastcgi_finish_request();

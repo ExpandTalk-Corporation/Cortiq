@@ -1,11 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "../_shared/supabase.ts";
-import { anonymizeIP } from "../_shared/jurisdiction.ts";
+import { anonymizeIP } from "../_shared/ip.ts";
 // Canonical AI-bot classification — shared with cloudflare-ingest so both the JS-tag
 // and server-log paths classify identically. See _shared/ai-bot-registry.ts.
-import { classifyBot, type BotCategory } from "../_shared/ai-bot-registry.ts";
+import { classifyBot, storedBotCategory, type BotCategory } from "../_shared/ai-bot-registry.ts";
 import { resolveSite } from "../_shared/resolve-site.ts";
+import { resolveGeo, geoKey } from "../_shared/geo.ts";
 import { skipTrackingCheck } from '../_shared/tracking-check-ua.ts';
+import { jurisdictionGate, signalsFrom, visitorFrom } from "../_shared/jurisdiction-edge.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,13 +25,6 @@ async function checkRateLimit(supabase: ReturnType<typeof createClient>, key: st
   });
   if (error) return true; // fail open rather than drop legitimate traffic
   return data === true;
-}
-
-// Best-effort client IP from the edge proxy headers.
-function clientIp(req: Request): string {
-  const xff = req.headers.get('x-forwarded-for');
-  if (xff) return xff.split(',')[0].trim();
-  return req.headers.get('x-real-ip') || 'unknown';
 }
 
 // Asset file patterns
@@ -120,7 +115,9 @@ serve(async (req) => {
 
     // Two-dimensional throttle: per-site (blunt dashboard pollution) AND per-IP
     // (stop one source rotating siteId to flood many tenants). Either tripping = 429.
-    const ip = clientIp(req);
+    // Bots have no meaningful browser time zone; geo here is IP-only.
+    const geo = await resolveGeo(req, { key: geoKey(), timeZone: null });
+    const ip = geo.ip ?? 'unknown';
     const [siteOk, ipOk] = await Promise.all([
       checkRateLimit(supabase, `aibot:${siteId}`, 600),
       checkRateLimit(supabase, `aibot-ip:${ip}`, 1200),
@@ -136,12 +133,27 @@ serve(async (req) => {
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
+    // The browser layer sends only after analytics consent (spa-tracking.js hasAnalyticsConsent);
+    // a ledger row for the session can only tighten that.
+    const gpcHeader = req.headers.get('sec-gpc') === '1';
+    const drop = await jurisdictionGate(supabase, 'ai-bot-tracker', site.id, Deno.env.get('JURISDICTION_ENFORCE'), sessionId).gate((ledger) => ({
+      visitor: visitorFrom(geo),
+      purpose: 'agent_measurement',
+      signals: signalsFrom(ledger, { trackerGate: ['analytics'], gpcHeader }),
+      technique: { storage: 'session', identifiers: 'session' },
+    }));
+    if (drop) {
+      return new Response(JSON.stringify({ success: true, skipped: 'jurisdiction' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     // Detect bot from user agent using the canonical registry (first match wins).
     // Prefer the real request User-Agent header over the client-supplied body value:
     // the body is trivially forgeable (POST {userAgent:"GPTBot"}), the request header
     // is not settable from browser fetch. Fall back to the body only if absent.
     const ua = req.headers.get('user-agent') || userAgent || '';
-    const { botType, botName, botCategory }: { botType: string; botName: string; botCategory: BotCategory | null } = classifyBot(ua);
+    const classification = classifyBot(ua);
+    const { botType, botName, botCategory }: { botType: string; botName: string; botCategory: BotCategory | null } = classification;
 
     // Detect asset type
     const { isAsset, assetType } = detectAssetType(url);
@@ -190,10 +202,13 @@ serve(async (req) => {
         url,
         referrer,
         session_id: sessionId,
-        ip_address: anonymizeIP(req.headers.get('x-forwarded-for')) || 'unknown',
+        ip_address: anonymizeIP(geo.ip) || 'unknown',
         js_executed: probeData?.jsExecuted || false,
         probe_triggered: !!probeData,
         request_type: requestType,
+        bot_category: storedBotCategory(classification),
+        country_code: geo.country,
+        region_code: geo.region,
       })
       .select()
       .single();

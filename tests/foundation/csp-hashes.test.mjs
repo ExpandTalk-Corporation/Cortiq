@@ -33,9 +33,25 @@ test('each .htaccess with the placeholder gets the hashes of the pages it serves
   fs.rmSync(dist, { recursive: true });
 });
 
-test('the site policy is report-only and keeps scripts restricted', () => {
+const ENDPOINT = 'https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1/csp-report';
+const policyLine = (rel) => fs.readFileSync(new URL(rel, import.meta.url), 'utf8').split(/\r?\n/)
+  .find((l) => l.includes('Header always set Content-Security-Policy '));
+
+test('the site policy is enforced, keeps scripts restricted and reports violations', () => {
   const ht = fs.readFileSync(new URL('../../public/.htaccess', import.meta.url), 'utf8');
-  const line = ht.split(/\r?\n/).find((l) => l.includes('Header always set Content-Security-Policy'));
-  assert.match(line, /Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' __CSP_SCRIPT_HASHES__;/);
+  assert.doesNotMatch(ht, /Content-Security-Policy-Report-Only/);
+  const line = policyLine('../../public/.htaccess');
+  assert.match(line, /Content-Security-Policy "default-src 'self'; script-src 'self' __CSP_SCRIPT_HASHES__;/);
   assert.doesNotMatch(line.match(/script-src([^;]*)/)[1], /unsafe-|\*|https:/);
+  assert.match(line, /frame-ancestors 'self'/);
+  assert.ok(line.includes(`report-uri ${ENDPOINT}; report-to csp-endpoint"`));
+  assert.ok(ht.includes(`Header always set Reporting-Endpoints "csp-endpoint=\\"${ENDPOINT}\\""`));
+  assert.match(ht, /Header always set X-Frame-Options "SAMEORIGIN"/);
+  assert.match(ht, /Header always set X-Content-Type-Options "nosniff"/);
+});
+
+test('the API docs policy is enforced and reported too', () => {
+  const line = policyLine('../../public/api-docs/.htaccess');
+  assert.match(line, /script-src 'self' https:\/\/unpkg\.com\/swagger-ui-dist@5\.10\.0\/ __CSP_SCRIPT_HASHES__;/);
+  assert.ok(line.includes(`report-uri ${ENDPOINT}; report-to csp-endpoint"`));
 });

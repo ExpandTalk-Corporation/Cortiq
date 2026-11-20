@@ -3,6 +3,7 @@ import { assessConsentAutomation, assessCoverage, assessParameters } from './par
 import { assessCsp, assessCspPolicy, assessForms, assessHubSpotFormFrames, assessTags } from './tags.ts';
 import { assessConsent } from './consent.ts';
 import { assessSignals } from './signals.ts';
+import { assessScripts } from './scripts.ts';
 
 const STATUS_ORDER: Record<FindingStatus, number> = { fail: 0, warning: 1, manual: 2, untestable: 3, pass: 4 };
 const PRIORITY_ORDER: Record<Priority, number> = { high: 0, medium: 1, low: 2 };
@@ -15,6 +16,7 @@ export function assess(input: AssessInput): Finding[] {
     ...assessTags(input),
     ...assessCsp(input),
     ...assessCspPolicy(input),
+    ...assessScripts(input),
     ...assessForms(input),
     ...assessHubSpotFormFrames(input),
     ...assessConsent(input),

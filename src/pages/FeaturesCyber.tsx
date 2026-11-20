@@ -1,3 +1,4 @@
+import { HexIcon } from '@/components/HexIcon';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -160,7 +161,7 @@ export default function FeaturesCyber() {
               <Card key={i} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-start gap-4">
-                    <div className="text-primary mt-1">{f.icon}</div>
+                    <HexIcon size={64}>{f.icon}</HexIcon>
                     <div>
                       <CardTitle className="text-xl mb-1">{f.title}</CardTitle>
                       <CardDescription className="text-base">{f.description}</CardDescription>

@@ -3,7 +3,7 @@ Contributors: cortiq
 Tags: analytics, ai-tracking, heatmap, cookie-free, gdpr, chatgpt, ai-bots
 Requires at least: 5.6
 Tested up to: 6.8
-Stable tag: 5.5.14
+Stable tag: 5.5.20
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -86,6 +86,26 @@ All data is stored in the EU (AWS eu-north-1 via Supabase).
 The tracking script is loaded with `defer` so it does not block rendering.
 
 == Changelog ==
+
+= 5.5.20 =
+* Server-side agent measurement does not send a request that carries Global Privacy Control (Sec-GPC: 1); CortIQ treats it as an objection.
+
+= 5.5.19 =
+* The consent banner sends the language it was shown in with each answer, so acceptance can be compared per language.
+
+= 5.5.18 =
+* Consent banner wording corrected in Dutch, Finnish, Icelandic, Norwegian and Danish after a legal review of the eight new languages.
+
+= 5.5.17 =
+* Consent banner in eight more languages: Dutch, Norwegian, Danish, Finnish, Polish, Italian, Spanish and Icelandic. WordPress locales nb_NO, nn_NO and no get the Norwegian (bokmål) texts.
+* Snippet installs with a fixed banner language load a banner file with only that language.
+
+= 5.5.16 =
+* Tracking and consent requests go through CortIQ's Cloudflare edge, which adds the visitor's country (and US state / Canadian province). If the edge is unreachable, requests go directly to CortIQ as before.
+
+= 5.5.15 =
+* Consent banner: with Global Privacy Control (GPC) on, marketing stays off and the banner says why.
+* Consent records now include a country derived from the browser's time zone (approximate); the time zone itself is not stored.
 
 = 5.5.14 =
 * Change: A "necessary only" choice is now kept for 180 days before the banner asks again (new setting; an accepted choice is still kept 365 days). The banner never asks again on every visit.

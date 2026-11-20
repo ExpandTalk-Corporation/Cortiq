@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { summarize, toCsv, CSV_COLUMNS } from '../../supabase/functions/_shared/tracking-check/report.ts';
+import { summarize, toCsv, CSV_COLUMNS, SCRIPTS_NOTE, scriptConsentText, scriptIntegrityText, scriptPagesText, toScriptSheet } from '../../supabase/functions/_shared/tracking-check/report.ts';
 
 const f = (status, priority, scope, title, extra = {}) => ({ scope, checkKey: title.toLowerCase().replace(/\W+/g, '.'), title, status, priority,
   explanation: `${title} explained.`, fix: status === 'pass' ? '' : `Fix ${title}. Then verify.`, typicalOwner: null, evidence: { pages: ['/'], details: [] }, ...extra });
@@ -55,4 +55,27 @@ test('a run where nothing could be tested says so instead of claiming no problem
   const p = summarize([f('manual', 'high', 'Consent', 'Check reject')], 'policy');
   assert.match(p.headline, /^The site could not be tested automatically/);
   assert.doesNotMatch(p.headline, /commitments are met/);
+});
+
+test('script rows: integrity, consent and page texts, and the Scripts sheet', () => {
+  const row = (extra = {}) => ({ url: 'https://code.jquery.com/jquery.min.js', host: 'code.jquery.com', vendorId: null, tool: null, firstParty: false, origin: 'page',
+    states: ['accept'], beforeConsent: false, integrity: null, crossorigin: null, sha256: null, bytes: null, sriPossible: true, pages: ['/', '/a/'], pageCount: 2, of: 2, ...extra });
+  assert.equal(scriptIntegrityText(row({ integrity: 'sha384-abc' })), 'Yes (sha384)');
+  assert.equal(scriptIntegrityText(row({ firstParty: true })), 'No (own domain)');
+  assert.equal(scriptIntegrityText(row({ sriPossible: false })), 'No (fixed hash not possible)');
+  assert.equal(scriptIntegrityText(row({ origin: 'gtm', sriPossible: false })), 'No');
+  assert.equal(scriptConsentText(row({ states: ['none', 'accept'] })), 'Before choice');
+  assert.equal(scriptConsentText(row({ states: ['reject', 'accept'] })), 'After "Reject all"');
+  assert.equal(scriptConsentText(row()), 'Only after consent');
+  assert.equal(scriptConsentText(row({ states: [] })), 'Not tested');
+  assert.equal(scriptPagesText(row()), 'All 2 pages');
+  assert.equal(scriptPagesText(row({ pages: ['/', '/a/', '/b/'], pageCount: 3, of: 9 }), 2), '3 of 9: /, /a/ +1 more');
+  const sheet = toScriptSheet([row({ integrity: 'sha384-abc', sha256: 'sha256-x', bytes: 87000 })]);
+  assert.equal(sheet.rows[0][sheet.columns.indexOf('Integrity')], 'sha384-abc');
+  assert.equal(sheet.rows[0][sheet.columns.indexOf('SHA-256 (measured)')], 'sha256-x');
+  assert.equal(sheet.rows[0][sheet.columns.indexOf('Size')], '85 KB');
+  assert.equal(sheet.rows[0][sheet.columns.indexOf('Loaded by')], 'Page source');
+  // The note keeps to the plan's limits: one browser, one location, no compliance claims.
+  assert.match(SCRIPTS_NOTE, /one headless browser in one location/);
+  assert.doesNotMatch(SCRIPTS_NOTE, /PCI|complian/i);
 });

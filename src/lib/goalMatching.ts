@@ -1,5 +1,6 @@
 // Shared conversion-event-to-goal matching predicate — used by useConversionGoalHealth and
 // usePixelReadiness so the two never disagree on what counts as a conversion for a goal.
+// SQL copy of this rule: conversion_alert_stats() and get_measurement_health() — keep them in step.
 // No '@/' imports: the foundation tests import this file directly.
 //
 // record-conversion (the only writer of conversion_events) stores event_name + event_type and

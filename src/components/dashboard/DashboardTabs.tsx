@@ -6,6 +6,7 @@ import { FilterScopeNotice, type FilterScopeNotes } from './FilterScopeNotice';
 import { HIDDEN_TABS } from './nav/navSections';
 import { PixelReadinessCard } from './PixelReadinessCard';
 import { PipelineAlerts } from './overview/PipelineAlerts';
+import { HealthSummary, SignalTable } from './health/MeasurementHealth';
 import type { Site } from '@/types/dashboard';
 import type { SitePatch } from '@/hooks/useSites';
 import { useAnalytics } from '@/hooks/useAnalytics';
@@ -28,6 +29,7 @@ const ApiKeysTab               = lazy(() => import('./tabs/ApiKeysTab').then(m =
 const ApiKeyManager            = lazy(() => import('./ApiKeyManager'));
 const MCPServerConfig          = lazy(() => import('./MCPServerConfig').then(m => ({ default: m.MCPServerConfig })));
 const GDPRTab                  = lazy(() => import('./tabs/GDPRTab').then(m => ({ default: m.GDPRTab })));
+const ConsentTab               = lazy(() => import('./tabs/ConsentTab').then(m => ({ default: m.ConsentTab })));
 const NavigationTab            = lazy(() => import('./tabs/NavigationTab').then(m => ({ default: m.NavigationTab })));
 const BehavioralAlertsTab      = lazy(() => import('./tabs/BehavioralAlertsTab').then(m => ({ default: m.BehavioralAlertsTab })));
 const UserLTVTab               = lazy(() => import('./tabs/UserLTVTab').then(m => ({ default: m.UserLTVTab })));
@@ -95,7 +97,7 @@ const FILTER_NOTES: Record<string, FilterScopeNotes> = {
 // no "does not apply the filter" notice.
 const NO_FILTER_NOTICE = new Set([
   'overview', 'realtime', 'alerts',
-  'setup', 'integrations', 'cortiq-api', 'api-keys', 'gdpr', 'notifications', 'tag-manager',
+  'setup', 'consent', 'integrations', 'cortiq-api', 'api-keys', 'gdpr', 'notifications', 'tag-manager',
   'utm-segments', 'agent-macros', 'agent-registry', 'conversion-goals', 'report-builder',
 ]);
 
@@ -193,7 +195,7 @@ function DashboardTabsInner({ selectedSite, dateRange, onSiteDeleted, onSiteUpda
 
       <TabsContent value="ai-visibility" className="space-y-6">
         <TabErrorBoundary tabName="AI Visibility">
-          <AIVisibilityTab siteId={selectedSite.id} onNavigateToIntegrations={() => setActiveTab('integrations')} />
+          <AIVisibilityTab siteId={selectedSite.id} siteDomain={selectedSite.domain} onNavigateToIntegrations={() => setActiveTab('integrations')} />
         </TabErrorBoundary>
       </TabsContent>
 
@@ -223,7 +225,9 @@ function DashboardTabsInner({ selectedSite, dateRange, onSiteDeleted, onSiteUpda
 
       <TabsContent value="alerts" className="space-y-6">
         <TabErrorBoundary tabName="Alerts">
+          <HealthSummary siteId={selectedSite.id} onNavigate={setActiveTab} />
           <PipelineAlerts siteId={selectedSite.id} showAllClear />
+          <SignalTable siteId={selectedSite.id} />
           <BehavioralAlertsTab selectedSite={selectedSite} />
         </TabErrorBoundary>
       </TabsContent>
@@ -248,7 +252,7 @@ function DashboardTabsInner({ selectedSite, dateRange, onSiteDeleted, onSiteUpda
 
       <TabsContent value="cookiefree" className="space-y-6">
         <TabErrorBoundary tabName="Cookie-Free">
-          <CookiefreeAnalyticsTab selectedSite={selectedSite} />
+          <CookiefreeAnalyticsTab selectedSite={selectedSite} onNavigate={setActiveTab} />
         </TabErrorBoundary>
       </TabsContent>
 
@@ -274,6 +278,12 @@ function DashboardTabsInner({ selectedSite, dateRange, onSiteDeleted, onSiteUpda
       <TabsContent value="gdpr" className="space-y-6">
         <TabErrorBoundary tabName="GDPR">
           <GDPRTab selectedSite={selectedSite} onSiteUpdated={onSiteUpdated} />
+        </TabErrorBoundary>
+      </TabsContent>
+
+      <TabsContent value="consent" className="space-y-6">
+        <TabErrorBoundary tabName="Consent & cookie banner">
+          <ConsentTab key={selectedSite.id} selectedSite={selectedSite} onSiteUpdated={onSiteUpdated} onNavigate={setActiveTab} />
         </TabErrorBoundary>
       </TabsContent>
 

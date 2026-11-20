@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -6,8 +6,8 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { supabase } from '@/integrations/supabase/client';
 import { POLICY_CHECKLIST_VERSION, policyChecklist, type TrackingMode } from '@/lib/policyChecklist';
-import { bannerDetailsProblem, buildTrackingSnippet, type ConsentSetup } from '@/lib/trackingSnippet';
-import { pinnedScripts, pinStatus, type SriManifest } from '@/lib/sriPin';
+import { bannerDetailsProblem, bannerFile, buildTrackingSnippet, type BannerLanguage, type ConsentSetup } from '@/lib/trackingSnippet';
+import { defaultPinned, pinnedScripts, pinStatus, type SriManifest } from '@/lib/sriPin';
 import sriManifest from '@/lib/sri-manifest.json';
 import { toast } from 'sonner';
 
@@ -17,6 +17,10 @@ interface TrackingSnippetSetupProps {
   aggregateMeasurement: boolean;
   /** sites.tracking_mode; the guide writes the chosen mode back when the policy is confirmed. */
   trackingMode?: TrackingMode;
+  /** sites.consent_setup (Settings → Consent & cookie banner). Wins over the latest confirmation. */
+  consentSetup?: ConsentSetup | null;
+  /** sites.banner_language; set in Settings → Consent & cookie banner. */
+  bannerLanguage?: BannerLanguage;
   apiBase: string;
   /** Origin that serves cortiq.js and consent-banner.js. */
   scriptOrigin: string;
@@ -63,8 +67,11 @@ const MODES: { value: TrackingMode; label: string; description: string }[] = [
 ];
 
 // Install snippet with the site's consent setup. Shared by the Setup tab and the onboarding wizard.
-export function TrackingSnippetSetup({ siteId, trackingKey, aggregateMeasurement, trackingMode: siteMode, apiBase, scriptOrigin }: TrackingSnippetSetupProps) {
-  const [consentSetup, setConsentSetup] = useState<ConsentSetup>('own-cmp');
+export function TrackingSnippetSetup({
+  siteId, trackingKey, aggregateMeasurement, trackingMode: siteMode, consentSetup: siteConsent, bannerLanguage = 'auto',
+  apiBase, scriptOrigin,
+}: TrackingSnippetSetupProps) {
+  const [consentSetup, setConsentSetup] = useState<ConsentSetup>(siteConsent ?? 'own-cmp');
   const [aggregateOn, setAggregateOn] = useState(aggregateMeasurement);
   const [saving, setSaving] = useState(false);
   const [company, setCompany] = useState('');
@@ -75,9 +82,21 @@ export function TrackingSnippetSetup({ siteId, trackingKey, aggregateMeasurement
   const [marketing, setMarketing] = useState(false);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [confirming, setConfirming] = useState(false);
-  const [pinned, setPinned] = useState(false);
+  // Pinned by default for new installs; see defaultPinned once the site's state has loaded.
+  const [pinned, setPinned] = useState(true);
+  const pinTouched = useRef(false);
   // sites.sri_pinned_version: the version of the last pinned snippet copied for this site.
   const [pinnedVersion, setPinnedVersion] = useState<string | null>(null);
+  // Flag on for 24 h and no aggregate hit since: the installed snippet/plugin lacks the beacon.
+  const [installStatus, setInstallStatus] = useState<{ missing: boolean; last_hit_day: string | null } | null>(null);
+  useEffect(() => {
+    let live = true;
+    // get_aggregate_install_status is newer than the generated types.
+    (supabase as any).rpc('get_aggregate_install_status', { p_site_id: siteId }).then(({ data }: { data: unknown }) => {
+      if (live && data) setInstallStatus(data as { missing: boolean; last_hit_day: string | null });
+    });
+    return () => { live = false; };
+  }, [siteId, aggregateOn]);
 
   // Prefill the banner's policy link and version from the site's GDPR settings, and the choices
   // from the latest policy confirmation, so a returning owner sees the snippet they confirmed.
@@ -89,25 +108,24 @@ export function TrackingSnippetSetup({ siteId, trackingKey, aggregateMeasurement
         if (data.privacy_policy_url) setPolicyUrl(url => url || data.privacy_policy_url!);
         if (data.policy_version) setPolicyVersion(data.policy_version);
       });
-    supabase.from('sites').select('sri_pinned_version').eq('id', siteId).maybeSingle()
-      .then(({ data }) => {
-        if (cancelled || !data?.sri_pinned_version) return;
-        setPinnedVersion(data.sri_pinned_version);
-        setPinned(true);
-      });
-    supabase.from('policy_confirmations')
-      .select('consent_setup, tracking_mode, marketing, policy_url, checklist_version, confirmed_at')
-      .eq('site_id', siteId).order('confirmed_at', { ascending: false }).limit(1).maybeSingle()
-      .then(({ data }) => {
-        if (cancelled || !data) return;
-        setConfirmation(data);
-        setConsentSetup(data.consent_setup as ConsentSetup);
-        setMode(data.tracking_mode as TrackingMode);
-        setMarketing(data.marketing);
-        if (data.policy_url) setPolicyUrl(data.policy_url);
-      });
+    Promise.all([
+      supabase.from('sites').select('sri_pinned_version').eq('id', siteId).maybeSingle(),
+      supabase.from('policy_confirmations')
+        .select('consent_setup, tracking_mode, marketing, policy_url, checklist_version, confirmed_at')
+        .eq('site_id', siteId).order('confirmed_at', { ascending: false }).limit(1).maybeSingle(),
+    ]).then(([{ data: site }, { data }]) => {
+      if (cancelled) return;
+      if (site?.sri_pinned_version) setPinnedVersion(site.sri_pinned_version);
+      if (!pinTouched.current) setPinned(defaultPinned(site?.sri_pinned_version, !!data));
+      if (!data) return;
+      setConfirmation(data);
+      if (!siteConsent) setConsentSetup(data.consent_setup as ConsentSetup);
+      setMode(data.tracking_mode as TrackingMode);
+      setMarketing(data.marketing);
+      if (data.policy_url) setPolicyUrl(data.policy_url);
+    });
     return () => { cancelled = true; };
-  }, [siteId]);
+  }, [siteId, siteConsent]);
 
   const withConsent = consentSetup !== 'none';
   const useMarketing = mode === 'full' && marketing;
@@ -125,7 +143,7 @@ export function TrackingSnippetSetup({ siteId, trackingKey, aggregateMeasurement
   const bannerProblem = consentSetup === 'cortiq-banner' ? bannerDetailsProblem({ company, policyUrl }) : null;
   const gateProblem = bannerProblem
     ?? (withConsent && !confirmed ? 'Confirm that your privacy policy covers the items above to get the snippet.' : null);
-  const pin = pinnedScripts(scriptOrigin, sriManifest as SriManifest);
+  const pin = pinnedScripts(scriptOrigin, sriManifest as SriManifest, bannerFile(bannerLanguage));
   const usePin = pinned && withConsent;
   const status = pinStatus(pinnedVersion, sriManifest as SriManifest);
   const snippet = gateProblem ? '' : buildTrackingSnippet({
@@ -134,13 +152,14 @@ export function TrackingSnippetSetup({ siteId, trackingKey, aggregateMeasurement
     trackingKey,
     ...(usePin
       ? pin
-      : { scriptSrc: `${scriptOrigin}/cortiq.js`, bannerSrc: `${scriptOrigin}/consent-banner.js` }),
+      : { scriptSrc: `${scriptOrigin}/cortiq.js`, bannerSrc: `${scriptOrigin}/${bannerFile(bannerLanguage)}` }),
     aggregate: aggregateOn,
     consentSetup,
     company,
     policyUrl,
     policyVersion,
     googleConsentMode,
+    bannerLanguage,
     trackingMode: mode,
     marketing: useMarketing,
   });
@@ -193,8 +212,9 @@ export function TrackingSnippetSetup({ siteId, trackingKey, aggregateMeasurement
       toast.error('Could not save the confirmation');
       return;
     }
-    if (siteMode !== mode) {
-      const { error: modeError } = await supabase.from('sites').update({ tracking_mode: mode }).eq('id', siteId);
+    if (siteMode !== mode || siteConsent !== consentSetup) {
+      const { error: modeError } = await supabase.from('sites')
+        .update({ tracking_mode: mode, consent_setup: consentSetup }).eq('id', siteId);
       if (modeError) {
         setConfirming(false);
         console.error('Error updating tracking mode:', modeError);
@@ -228,6 +248,14 @@ export function TrackingSnippetSetup({ siteId, trackingKey, aggregateMeasurement
         <div className="rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm space-y-2">
           <p>Aggregate measurement is off for this site, so this snippet would count nothing.</p>
           <Button size="sm" onClick={enableAggregate} disabled={saving}>Turn on aggregate measurement</Button>
+        </div>
+      )}
+
+      {aggregateOn && installStatus?.missing && (
+        <div className="rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm">
+          Aggregate measurement has been on for more than 24 hours, but no aggregate hit has arrived.
+          The snippet installed on the site does not include the aggregate beacon: copy the snippet below
+          again, or update the WordPress plugin. A custom loader must include the beacon too.
         </div>
       )}
 
@@ -332,9 +360,9 @@ export function TrackingSnippetSetup({ siteId, trackingKey, aggregateMeasurement
 
       {withConsent && (
         <label htmlFor="snippet-pinned" className="flex items-start gap-3 cursor-pointer">
-          <Checkbox id="snippet-pinned" checked={pinned} onCheckedChange={v => setPinned(v === true)} className="mt-0.5" />
+          <Checkbox id="snippet-pinned" checked={pinned} onCheckedChange={v => { pinTouched.current = true; setPinned(v === true); }} className="mt-0.5" />
           <span>
-            <span className="block text-sm font-medium">Pin version {pin.version} with Subresource Integrity (SRI)</span>
+            <span className="block text-sm font-medium">Pin version {pin.version} with Subresource Integrity (SRI) — recommended</span>
             <span className="block text-xs text-muted-foreground">The browser checks a cryptographic hash of the
               {consentSetup === 'cortiq-banner' ? ' tracker and banner' : ' tracker'} and refuses to run them if the file
               on cortiq.se has been changed. Fixes and new features then reach the site only when you replace the
@@ -370,7 +398,11 @@ export function TrackingSnippetSetup({ siteId, trackingKey, aggregateMeasurement
               and remove <code>defer</code>, so they wait for the choice (denied until then). Marketing grants the ad
               signals only if it is listed in <code>data-categories</code>.</li>
           )}
-          <li>Languages: Swedish, English, German, French, Portuguese (from <code>&lt;html lang&gt;</code>, or set <code>data-lang</code>).</li>
+          <li>Language: {bannerLanguage === 'auto'
+            ? <>picked from <code>&lt;html lang&gt;</code>, so the file carries every language. A fixed language
+              loads a file with only its own texts, about a third of the size.</>
+            : <>fixed with <code>data-lang="{bannerLanguage}"</code>; the file carries only that language.</>}
+            {' '}Change it under Settings → Consent &amp; cookie banner.</li>
           <li>The banner helps you collect and document consent. You remain responsible for your policy text and the
             purposes you list.</li>
         </ul>

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { TRACKING_VENDORS, vendorForUrl, vendorForName, cookieCategory, extractVendorIds, isGoogleHost, isGoogleDomain } from '../../supabase/functions/_shared/tracking-vendors.ts';
+import { TRACKING_VENDORS, vendorForUrl, vendorForName, cookieCategory, extractVendorIds, isGoogleHost, isGoogleDomain, sriPossibleFor, vendorById } from '../../supabase/functions/_shared/tracking-vendors.ts';
 
 test('every vendor is complete and ids are unique', () => {
   const ids = new Set();
@@ -54,6 +54,25 @@ test('classifies request URLs, including gtag by ID prefix', () => {
     'https://tags.inzynk.io/bpedxeoi/iztag.js': 'inzynk',
     'https://js.chilipiper.com/marketing.js': 'chilipiper',
     'https://launcher.1mind.com/deployment-n8bthh9zt8': '1mind',
+    'https://analytics.tiktok.com/i18n/pixel/events.js': 'tiktok-pixel',
+    'https://www.tiktok.com/embed/v2/123': 'tiktok-embed',
+    'https://s.pinimg.com/ct/core.js': 'pinterest-pixel',
+    'https://ct.pinterest.com/v3/?event=init': 'pinterest-pixel',
+    'https://sc-static.net/scevent.min.js': 'snap-pixel',
+    'https://tr.snapchat.com/p': 'snap-pixel',
+    'https://static.ads-twitter.com/uwt.js': 'x-pixel',
+    'https://analytics.twitter.com/i/adsct': 'x-pixel',
+    'https://dynamic.criteo.com/js/ld/ld.js': 'criteo',
+    'https://sslwidget.criteo.com/event': 'criteo',
+    'https://tr.capterra.com/tracking/v1/123': 'g2',
+    'https://bzrcdn.openai.com/sdk/pixel.js': 'openai-ads',
+    'https://dev.visualwebsiteoptimizer.com/j.php?a=1': 'vwo',
+    'https://assets.apollo.io/micro/website-tracker/tracker.iife.js': 'apollo',
+    'https://ddwl4m2hdecbv.cloudfront.net/b/ABC123/ABC123.js.gz': 'rb2b',
+    'https://s3-us-west-2.amazonaws.com/b2bjsstore/b/ABC123/ABC123.js.gz': 'rb2b',
+    'https://b2bjsstore.s3.us-west-2.amazonaws.com/b/ABC123/ABC123.js.gz': 'rb2b',
+    'https://web.cmp.usercentrics.eu/ui/loader.js': 'usercentrics',
+    'https://policy.app.cookieinformation.com/uc.js': 'cookie-information',
     'https://example.com/app.js': null,
   };
   for (const [url, id] of Object.entries(cases)) assert.equal(vendorForUrl(url)?.id ?? null, id, url);
@@ -96,7 +115,7 @@ test('isGoogleHost covers Google-owned endpoints and exempts Google Fonts and re
 test('vendor kinds: CMPs and infrastructure are marked in the registry', () => {
   for (const v of TRACKING_VENDORS) assert.ok([undefined, 'tag', 'cmp', 'infrastructure'].includes(v.kind), v.id);
   const ids = (kind) => TRACKING_VENDORS.filter((v) => v.kind === kind).map((v) => v.id).sort();
-  assert.deepEqual(ids('cmp'), ['complianz', 'cookiebot', 'cookieyes', 'dynamicweb', 'onetrust']);
+  assert.deepEqual(ids('cmp'), ['complianz', 'cookie-information', 'cookiebot', 'cookieyes', 'dynamicweb', 'onetrust', 'usercentrics']);
   assert.deepEqual(ids('infrastructure'), ['akamai', 'cloudflare', 'google-csp-reports', 'google-fonts', 'public-cdn', 'recaptcha', 'webflow']);
 });
 
@@ -226,4 +245,30 @@ test('HubSpot CTAs, collected forms and regional form hosts are HubSpot', () => 
   for (const url of ['https://forms-na1.hsforms.com/embed/v3/counters.gif', 'https://perf-na1.hsforms.com/embed/v3/counters.gif'])
     assert.equal(vendorForUrl(url)?.id, 'hubspot-forms', url);
   assert.equal(vendorForUrl('https://api.hubapi.com/crm/v3/objects'), null);
+});
+
+test('Optimizely is recognised by its snippet, its log endpoint and its cookies', () => {
+  assert.equal(vendorForUrl('https://cdn.optimizely.com/js/123456.js')?.id, 'optimizely');
+  assert.equal(vendorForUrl('https://logx.optimizely.com/v1/events')?.id, 'optimizely');
+  assert.equal(vendorForName('optimizelyEndUserId')?.id, 'optimizely');
+  assert.deepEqual([...extractVendorIds(['https://cdn.optimizely.com/js/123456.js']).get('optimizely')], ['123456']);
+});
+
+test('sriPossible: vendors that update files in place are flagged, with Turnstile scoped to its host', () => {
+  const flagged = (id) => vendorById(id)?.sriPossible;
+  for (const id of ['gtm', 'ga4', 'google-ads', 'hubspot', 'meta', 'linkedin', 'clarity', 'hotjar', 'cookiebot', 'cookieyes', 'onetrust', 'optimizely'])
+    assert.equal(flagged(id), false, id);
+  assert.equal(flagged('public-cdn'), undefined);
+  assert.ok(flagged('cloudflare') instanceof RegExp);
+  assert.equal(sriPossibleFor('https://challenges.cloudflare.com/turnstile/v0/api.js'), false);
+  assert.equal(sriPossibleFor('https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js'), true);
+  assert.equal(sriPossibleFor('https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js'), true);
+  for (const v of TRACKING_VENDORS) if (v.sriNote) assert.ok(v.sriNote.length > 20, v.id);
+});
+
+test('flags visitor-identifying vendors and only those', () => {
+  const flagged = TRACKING_VENDORS.filter((v) => v.identifiesVisitors).map((v) => v.id).sort();
+  assert.deepEqual(flagged, ['apollo', 'claydar', 'inzynk', 'leadfeeder', 'rb2b', 'zoominfo']);
+  assert.equal(vendorById('usercentrics')?.kind, 'cmp');
+  assert.equal(vendorById('cookie-information')?.kind, 'cmp');
 });

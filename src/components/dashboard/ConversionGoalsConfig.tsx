@@ -10,6 +10,7 @@ import { Plus, Trash2, Target, FormInput, Phone, Eye, AlertTriangle, CheckCircle
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useConversionGoalHealth } from '@/hooks/useConversionGoalHealth';
+import { ANY_FORM_GOAL, PREDEFINED_GOALS, conversionSetupHint } from '@/lib/conversionSetupHint';
 import type { Site } from '@/types/dashboard';
 
 interface ConversionGoal {
@@ -35,12 +36,29 @@ export function ConversionGoalsConfig({ selectedSite, onUpdate }: ConversionGoal
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { data: healthData } = useConversionGoalHealth(selectedSite.id);
+  const [completedForms30d, setCompletedForms30d] = useState(0);
 
   useEffect(() => {
     if (selectedSite) {
       loadGoals();
     }
   }, [selectedSite]);
+
+  useEffect(() => {
+    let live = true;
+    const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
+    supabase.from('form_sessions').select('id', { count: 'exact', head: true })
+      .eq('site_id', selectedSite.id).not('completed_at', 'is', null).gte('completed_at', since)
+      .then(({ count }) => { if (live) setCompletedForms30d(count ?? 0); });
+    return () => { live = false; };
+  }, [selectedSite.id]);
+
+  const hint = conversionSetupHint({ completedForms30d, goals });
+  // 'form' matches any <form> on the page — including search/login forms that aren't
+  // conversions — so this one-click goal is added as an observation goal, never primary.
+  // Primary drives pixel readiness and Smart Bidding signal; the site owner opts a goal
+  // into Primary explicitly once they've confirmed it tracks a real conversion.
+  const addAnyFormGoal = () => setGoals([...goals, { id: `goal_${Date.now()}`, ...ANY_FORM_GOAL, is_primary: false }]);
 
   const loadGoals = async () => {
     try {
@@ -133,33 +151,6 @@ export function ConversionGoalsConfig({ selectedSite, onUpdate }: ConversionGoal
     }
   };
 
-  const predefinedGoals = [
-    {
-      name: 'Contact form',
-      type: 'form_submission' as const,
-      selector: 'form[name="contact"], #contact-form, .contact-form',
-      value: 50
-    },
-    {
-      name: 'Phone click',
-      type: 'phone_click' as const,
-      selector: 'a[href^="tel:"], .phone-link, .call-button',
-      value: 25
-    },
-    {
-      name: 'Quote request',
-      type: 'form_submission' as const,
-      selector: 'form[name="quote"], #quote-form, .quote-form',
-      value: 100
-    },
-    {
-      name: 'Newsletter signup',
-      type: 'form_submission' as const,
-      selector: 'form[name="newsletter"], #newsletter, .newsletter-signup',
-      value: 15
-    }
-  ];
-
   return (
     <Card>
       <CardHeader>
@@ -172,6 +163,19 @@ export function ConversionGoalsConfig({ selectedSite, onUpdate }: ConversionGoal
         </p>
       </CardHeader>
       <CardContent className="space-y-6">
+        {hint !== 'ok' && (
+          <div className="rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm space-y-2">
+            <p>
+              {completedForms30d} forms were completed on this site in the last 30 days, but{' '}
+              {hint === 'no_goals'
+                ? 'the site has no conversion goals, so none of them count as conversions.'
+                : 'the goals still use the example selectors, which likely match no form on this site.'}
+            </p>
+            <Button size="sm" onClick={addAnyFormGoal}>Add goal: any form submission</Button>
+            <p className="text-xs text-muted-foreground">Then press Save. You can narrow the selector later.</p>
+          </div>
+        )}
+
         {/* Befintliga mål */}
         <div className="space-y-3">
           <h4 className="font-medium">Active conversion goals ({goals.length})</h4>
@@ -242,7 +246,7 @@ export function ConversionGoalsConfig({ selectedSite, onUpdate }: ConversionGoal
         <div className="space-y-3">
           <h4 className="font-medium">Quick templates</h4>
           <div className="grid gap-2">
-            {predefinedGoals.map((goal, index) => (
+            {PREDEFINED_GOALS.map((goal, index) => (
               <Button
                 key={index}
                 variant="outline"

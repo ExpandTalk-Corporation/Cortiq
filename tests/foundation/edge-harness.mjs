@@ -13,26 +13,33 @@ import ts from 'typescript';
 // `self` are therefore bound to a shadow object (prototype-chained to the real globalThis,
 // so everything else — JSON, console, ... — still works) so that `globalThis.fetch` /
 // `.Deno` agree with the bare `fetch` / `Deno` stubs below, and `globalThis.WebSocket` /
-// `.process` / `.EdgeRuntime` are hidden instead of reaching real Node globals — otherwise a
-// missing stub would make a real network call instead of failing the test.
+// `.process` are hidden instead of reaching real Node globals — otherwise a missing stub would
+// make a real network call instead of failing the test. `.EdgeRuntime` is hidden unless the
+// caller passes a stub (loadEdge does, to collect work handed to EdgeRuntime.waitUntil).
 const PARAMS = ['exports', 'require', 'Deno', 'Request', 'Response', 'URL', 'fetch', 'crypto', 'TextEncoder', 'TextDecoder', 'AbortSignal', 'Headers', 'btoa', 'atob', 'setTimeout', 'console', 'globalThis', 'self'];
 const noopConsole = { log() {}, warn() {}, error() {} };
 
-function runModule(code, filename, { exports, require, Deno, fetch }) {
+function runModule(code, filename, { exports, require, Deno, fetch, EdgeRuntime }) {
   const shadow = Object.create(globalThis, {
     fetch: { value: fetch },
     Deno: { value: Deno },
     WebSocket: { value: undefined },
     process: { value: undefined },
-    EdgeRuntime: { value: undefined },
+    EdgeRuntime: { value: EdgeRuntime },
   });
   const fn = compileFunction(code, PARAMS, { filename });
   return fn(exports, require, Deno, Request, Response, URL, fetch, globalThis.crypto, TextEncoder, TextDecoder, AbortSignal, Headers, btoa, atob, setTimeout, noopConsole, shadow, shadow);
 }
 
-export function loadEdge(name, client, { env = {}, fetch = async () => { throw new Error('Unexpected outbound request'); } } = {}) {
+// Work handed to EdgeRuntime.waitUntil runs after the response in production. By default the
+// returned handler waits for it before resolving, so tests can assert what it wrote; pass
+// { flushWaitUntil: false } to get the raw handler, with the pending work on handler.waitUntilWork.
+// { edgeRuntime: false } hides EdgeRuntime entirely (code then takes its no-runtime path).
+export function loadEdge(name, client, { env = {}, fetch = async () => { throw new Error('Unexpected outbound request'); }, flushWaitUntil = true, edgeRuntime = true } = {}) {
   let handler;
   const cache = new Map();
+  const waitUntilWork = [];
+  const EdgeRuntime = edgeRuntime ? { waitUntil: (p) => { waitUntilWork.push(p); } } : undefined;
   const Deno = { serve: fn => { handler = fn; }, env: { get: key => env[key] ?? 'test-value' } };
   function load(url) {
     if (cache.has(url.href)) return cache.get(url.href);
@@ -48,11 +55,17 @@ export function loadEdge(name, client, { env = {}, fetch = async () => { throw n
       if (specifier.includes('/xhr@')) return {};
       throw new Error(`Unhandled dependency: ${specifier}`);
     };
-    runModule(code, url.href, { exports, require, Deno, fetch });
+    runModule(code, url.href, { exports, require, Deno, fetch, EdgeRuntime });
     return exports;
   }
   load(new URL(`../../supabase/functions/${name}/index.ts`, import.meta.url));
-  return handler;
+  const raw = handler;
+  if (!flushWaitUntil) return Object.assign((req) => raw(req), { waitUntilWork });
+  return async (req) => {
+    const res = await raw(req);
+    while (waitUntilWork.length) await Promise.allSettled(waitUntilWork.splice(0));
+    return res;
+  };
 }
 
 // Exposed only for a harness self-test: compiles and runs a source string the same way

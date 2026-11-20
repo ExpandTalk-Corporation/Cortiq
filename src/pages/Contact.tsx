@@ -1,3 +1,4 @@
+import { HexIcon } from '@/components/HexIcon';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -70,9 +71,7 @@ const Contact = () => {
                 {/* Contact Methods */}
                 <div className="grid md:grid-cols-2 gap-6 py-6">
                   <div className="flex items-start space-x-4 p-4 rounded-lg hover:bg-primary/5 transition-colors">
-                    <div className="w-12 h-12 bg-gradient-primary rounded-full flex items-center justify-center flex-shrink-0">
-                      <Globe className="h-6 w-6 text-white" />
-                    </div>
+                    <HexIcon size={52} className="text-primary"><Globe className="h-6 w-6" aria-hidden="true" /></HexIcon>
                     <div>
                       <h4 className="font-semibold mb-2">Website</h4>
                       <a
@@ -87,9 +86,7 @@ const Contact = () => {
                   </div>
 
                   <div className="flex items-start space-x-4 p-4 rounded-lg hover:bg-primary/5 transition-colors">
-                    <div className="w-12 h-12 bg-gradient-accent rounded-full flex items-center justify-center flex-shrink-0">
-                      <Mail className="h-6 w-6 text-white" />
-                    </div>
+                    <HexIcon size={52} className="text-accent"><Mail className="h-6 w-6" aria-hidden="true" /></HexIcon>
                     <div>
                       <h4 className="font-semibold mb-2">Email</h4>
                       <p className="text-muted-foreground text-sm">
@@ -99,9 +96,7 @@ const Contact = () => {
                   </div>
 
                   <div className="flex items-start space-x-4 p-4 rounded-lg hover:bg-primary/5 transition-colors">
-                    <div className="w-12 h-12 bg-gradient-primary rounded-full flex items-center justify-center flex-shrink-0">
-                      <MapPin className="h-6 w-6 text-white" />
-                    </div>
+                    <HexIcon size={52} className="text-primary"><MapPin className="h-6 w-6" aria-hidden="true" /></HexIcon>
                     <div>
                       <h4 className="font-semibold mb-2">Location</h4>
                       <p className="text-muted-foreground text-sm">Sweden</p>
@@ -109,9 +104,7 @@ const Contact = () => {
                   </div>
 
                   <div className="flex items-start space-x-4 p-4 rounded-lg hover:bg-primary/5 transition-colors">
-                    <div className="w-12 h-12 bg-gradient-accent rounded-full flex items-center justify-center flex-shrink-0">
-                      <Sparkles className="h-6 w-6 text-white" />
-                    </div>
+                    <HexIcon size={52} className="text-accent"><Sparkles className="h-6 w-6" aria-hidden="true" /></HexIcon>
                     <div>
                       <h4 className="font-semibold mb-2">Access</h4>
                       <p className="text-muted-foreground text-sm">Free during beta — create an account at cortiq.se/auth</p>

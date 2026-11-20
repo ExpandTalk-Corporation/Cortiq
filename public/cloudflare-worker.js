@@ -15,8 +15,9 @@
  * What it does — and doesn't:
  * - Visitors are never delayed: reporting runs in ctx.waitUntil after the response.
  * - Only bot/agent-like requests, /robots.txt, /llms.txt and honeypot hits are sent.
- *   Human requests never leave Cloudflare. IPs are truncated (/24, /48) before sending;
- *   query strings are dropped.
+ *   Ordinary human page requests never leave Cloudflare. IPs are truncated (/24, /48) before
+ *   sending; query strings are dropped.
+ * - A request that carries Sec-GPC: 1 is not sent: CortIQ treats it as an objection (GDPR art. 21(5)).
  * - Adds a hidden honeypot link to HTML pages and "Disallow: /cortiq-trap/" to every group in
  *   robots.txt (serving a minimal robots.txt if the origin has none), so only bots that ignore
  *   robots.txt hit it. Nothing runs in the visitor's browser.
@@ -77,6 +78,8 @@ function cleanReferrer(r) {
 
 async function report(request, url, status, key, env) {
   if (key.trim().length < 20) return; // tk_… or an older base64 site key
+  // Sec-GPC: 1 – CortIQ treats it as an objection (GDPR art. 21(5)); this hit is not sent.
+  if (request.headers.get('sec-gpc') === '1') return;
   try {
     await fetch(env.CORTIQ_ENDPOINT || ENDPOINT, {
       method: 'POST',
@@ -88,6 +91,8 @@ async function report(request, url, status, key, env) {
         userAgent: (request.headers.get('User-Agent') || '').slice(0, 512),
         referrer: cleanReferrer(request.headers.get('Referer')),
         ip: truncateIp(request.headers.get('CF-Connecting-IP')) || undefined,
+        country: request.cf?.country || undefined,
+        region: request.cf?.regionCode || undefined,
       }] }),
     });
   } catch (_) { /* never surface measurement errors to visitors */ }

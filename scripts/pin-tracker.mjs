@@ -13,11 +13,17 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { bannerLanguages } from './banner-languages.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const manifestPath = join(root, 'src', 'lib', 'sri-manifest.json');
 // Published name → source in public/. The names match the unpinned URLs the snippet uses.
-const FILES = { 'cortiq.js': 'cortiq.js', 'consent-banner.js': 'consent-banner.js' };
+// consent-banner.min.js and consent-banner.<lang>.js are pinned from 5.5.17; older versions only have the first two.
+const bannerSource = readFileSync(join(root, 'public', 'consent-banner.js'), 'utf8');
+const FILES = Object.fromEntries(
+  ['cortiq.js', 'consent-banner.js', 'consent-banner.min.js', ...bannerLanguages(bannerSource).map(l => `consent-banner.${l}.js`)]
+    .map(name => [name, name]),
+);
 
 const sri = buf => `sha384-${createHash('sha384').update(buf).digest('base64')}`;
 const version = readFileSync(join(root, 'public', 'spa-tracking.js'), 'utf8').match(/const CORTIQ_VERSION = '([\d.]+)'/)?.[1];

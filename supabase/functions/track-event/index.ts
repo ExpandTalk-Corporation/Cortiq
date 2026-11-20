@@ -1,12 +1,13 @@
 import { createClient } from '../_shared/supabase.ts';
-import { anonymizeIP } from '../_shared/jurisdiction.ts';
-import { countryFromTimeZone } from '../_shared/tz-country.js';
+import { anonymizeIP } from '../_shared/ip.ts';
+import { resolveGeo, geoKey } from '../_shared/geo.ts';
 import { storedReferrer } from '../_shared/referrer.js';
 import { normalizeGoals, clientGoals, matchPageVisitGoals } from '../_shared/conversion-goals.js';
 import { normalizeSessionTimeout } from '../_shared/session-timeout.js';
 import { browserAndOs } from '../_shared/user-agent.js';
 import { skipTrackingCheck } from '../_shared/tracking-check-ua.ts';
 import { sanitizeInteraction } from '../_shared/interaction.js';
+import { jurisdictionGate, signalsFrom, visitorFrom } from '../_shared/jurisdiction-edge.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -155,6 +156,28 @@ Deno.serve(async (req) => {
       if (touchError) console.error('touch_tracking_session failed (non-fatal):', touchError);
     };
 
+    // One decision per request and site (memoized). The tracker sends only after its analytics
+    // gate; the ledger can only tighten that (spec ADR-1, Review Focus 1).
+    let geoMemo: Awaited<ReturnType<typeof resolveGeo>> | null = null;
+    const requestGeo = async () => (geoMemo ??= await resolveGeo(req, { key: geoKey(), timeZone: body.metadata?.timezone }));
+    const gateMemo = new Map<string, boolean>();
+    const gate = async (siteId: string | null | undefined): Promise<boolean> => {
+      if (!siteId) return false;
+      const hit = gateMemo.get(siteId);
+      if (hit !== undefined) return hit;
+      // Shadow mode waits only for the site policy; geo, ledger and the log run in the background unless
+      // the site has a customer Off (applied now, see jurisdictionGate).
+      const drop = await jurisdictionGate(supabase, 'track-event', siteId, Deno.env.get('JURISDICTION_ENFORCE'), body.session_id).gate(async (ledger) => ({
+        visitor: visitorFrom(await requestGeo()), purpose: 'statistics',
+        signals: signalsFrom(ledger, { trackerGate: ['analytics'], gpcHeader: req.headers.get('sec-gpc') === '1' }),
+        technique: { storage: 'session', identifiers: 'session' },
+      }));
+      gateMemo.set(siteId, drop);
+      return drop;
+    };
+    const skippedJurisdiction = () => new Response(JSON.stringify({ success: true, skipped: 'jurisdiction' }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
     // Click/scroll heatmap points go to heatmap_data, which the dashboard, REST API and
     // MCP server read. Until 2026-10 this event type fell through the allow-list above
     // and was silently dropped, so heatmaps stopped receiving data after June 2026.
@@ -174,6 +197,7 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ success: false, error: 'Invalid heatmap event' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
+      if (await gate(site.id)) return skippedJurisdiction();
       const { error: heatmapError } = await supabase.from('heatmap_data').insert({
         site_id: site.id,
         url,
@@ -217,6 +241,7 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ success: false, error: 'Invalid form_session event' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
+      if (await gate(siteId)) return skippedJurisdiction();
       const fieldData = Array.isArray(m.field_data) ? m.field_data : [];
       const { error: formError } = await supabase.rpc('record_form_session', {
         p_site_id: siteId,
@@ -255,6 +280,7 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ success: false, error: 'Invalid interaction event' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
+      if (await gate(siteId)) return skippedJurisdiction();
       const at = body.timestamp ? new Date(body.timestamp) : new Date();
       const { data: interactionId, error: interactionError } = await supabase.rpc('record_user_interaction', {
         p_site_id: siteId,
@@ -290,6 +316,7 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ success: false, error: 'Invalid content event' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
+      if (await gate(siteId)) return skippedJurisdiction();
       const { error: contentError } = await supabase.rpc('record_content_metrics', { p_site_id: siteId, p_items: items });
       if (contentError) {
         console.error('Failed to record content metrics:', contentError);
@@ -306,6 +333,7 @@ Deno.serve(async (req) => {
     if (body.event_type === 'conversion' && body.metadata?.form_provider === 'sentrisk'
         && typeof body.metadata.form_id === 'string') {
       const siteId = await resolveOwnedSite();
+      if (await gate(siteId)) return skippedJurisdiction();
       if (siteId) {
         const { error: sentriskError } = await supabase.rpc('record_form_session', {
           p_site_id: siteId, p_session_id: body.session_id ?? null, p_form_id: body.metadata.form_id,
@@ -326,6 +354,7 @@ Deno.serve(async (req) => {
     if (body.event_type === 'conversion') {
       const m = body.metadata || {};
       const siteId = await resolveOwnedSite();
+      if (await gate(siteId)) return skippedJurisdiction();
       if (siteId) {
         let conv: { name: string; type: string; selector: string | null; value: number | null } | null = null;
         if (typeof m.goal_id === 'string') {
@@ -438,6 +467,7 @@ Deno.serve(async (req) => {
       console.error('site resolution failed (non-fatal):', resolveErr);
     }
     const eventSiteId = domainSiteId ?? await resolveOwnedSite();
+    if (await gate(eventSiteId)) return skippedJurisdiction();
 
     // Insert tracking event
     const { data: event, error: insertError } = await supabase
@@ -487,17 +517,18 @@ Deno.serve(async (req) => {
         if (domainSiteId) {
           viewSiteId = domainSiteId;
           const ua = browserAndOs(req.headers.get('user-agent'));
+          const geo = await requestGeo();
           await supabase.rpc('ingest_pageview', {
             p_url: pageUrl,
             p_session: body.session_id ?? null,
             p_device: metadata.device_type ?? null,
             p_referrer: metadata.referrer ?? null,
             p_viewed_at: body.timestamp ? new Date(body.timestamp).toISOString() : new Date().toISOString(),
-            // Country only (ISO alpha-2). Supabase Edge no longer forwards CF-IPCountry
-            // (checked 2026-10-15), so the browser time zone the tracker sends is the
-            // estimate; the header still wins if it comes back. ingest_pageview drops
-            // XX/T1/non-ISO values.
-            p_country: req.headers.get('cf-ipcountry') ?? countryFromTimeZone(body.metadata?.timezone),
+            // Signed Cloudflare geo via the CortIQ Worker, else the browser time zone
+            // (resolveGeo, spec 2026-11-18 phase 2). Region only for US/CA; no IP is stored.
+            p_country: geo.country,
+            p_region: geo.region,
+            p_geo_source: geo.source,
             // Browser and OS families only (no versions); the User-Agent itself is not stored.
             p_browser: ua.browser,
             p_os: ua.os,
