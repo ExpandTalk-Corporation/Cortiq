@@ -24,7 +24,7 @@ test('buckets', () => {
 
 test('buildStats: whitelisted keys only, no names, URLs or container IDs', () => {
   const s = buildStats(result());
-  assert.equal(s.v, 2);
+  assert.equal(s.v, 3);
   assert.equal(s.bucket, '1-10');
   assert.deepEqual(s.types, { html: 2, gaawe: 1, template: 1, other: 1 });
   assert.deepEqual(s.vendors, { linkedin: 1, ga4: 1, unknown: 3 });
@@ -59,6 +59,24 @@ test('the three new checks are counted, and nothing else from them reaches stats
   assert.deepEqual(validateStats(JSON.parse(json)), s);
   assert.equal(validateStats({ ...s, checks: { ...s.checks, 'gtm.fragile_dom': 'many' } }), null);
   assert.equal(validateStats({ ...s, checks: { 'gtm.unknown_key': 1 } }), null);
+});
+
+test('v3: the conversion checks are counted, labels and IDs never reach stats; v ≤ 3 accepted', () => {
+  const s = buildStats(audit(exportOf({
+    tags: [
+      tag(1, 'Secret lead', 'awct', [tpl('conversionId', '123456789'), tpl('conversionLabel', 'SECRETlead')], { fire: [12] }),
+      tag(2, 'Secret signup', 'awct', [tpl('conversionId', '123456789'), tpl('conversionLabel', 'SECRETsignup')], { fire: [12] }),
+      tag(3, 'Everywhere', 'awct', [tpl('conversionId', '123456789'), tpl('conversionLabel', 'SECRETall')]),
+    ],
+    triggers: [trigger(12, 'Secret form', 'FORM_SUBMISSION')],
+  })));
+  assert.equal(s.v, 3);
+  for (const k of ['gtm.conversion_on_every_page', 'gtm.conversion_double_count', 'gtm.enhanced_conversions_off']) assert.equal(s.checks[k], 1, k);
+  const json = JSON.stringify(s);
+  for (const secret of ['SECRET', '123456789', 'Secret', 'Everywhere']) assert.equal(json.includes(secret), false, secret);
+  assert.deepEqual(validateStats(JSON.parse(json)), s);
+  assert.deepEqual(validateStats({ ...s, v: 2 }), { ...s, v: 2 });
+  assert.equal(validateStats({ ...s, v: 4 }), null);
 });
 
 test('validateStats rejects free text, unknown keys and bad counts; caps large counts', () => {

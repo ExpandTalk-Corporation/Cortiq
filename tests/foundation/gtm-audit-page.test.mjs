@@ -72,6 +72,13 @@ test('the page states where the file goes', () => {
   assert.match(page, /seoFor\("\/gtm-audit\/"\)/);
 });
 
+test('the page names the conversion checks and what Google Ads settings it cannot see', () => {
+  const page = read('src/pages/GtmAudit.tsx').replace(/\s+/g, ' ');
+  assert.match(page, /fire on every page or count one action twice/);
+  assert.match(page, /whether Enhanced Conversions are set up/);
+  assert.match(page, /Primary or Secondary conversion actions and automatic Enhanced Conversions, are not in the export/);
+});
+
 test('the tag table shows Sends to, Relied on by and the dependency note', () => {
   const src = read('src/components/gtm-audit/GtmAuditReport.tsx');
   for (const s of ['Sends to', 'Relied on by', 'Only dependencies inside this container are shown. Code on the site or in another container can also rely on a tag.']) {

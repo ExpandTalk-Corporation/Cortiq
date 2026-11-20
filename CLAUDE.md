@@ -237,8 +237,15 @@ Spec: `docs/superpowers/specs/2026-11-17-gtm-container-audit-design.md`.
   global/cookie/regex possible → `gtm.dependencies`, "Relied on by", and a certain dependent turns `remove` into
   `review` except UA), `fragile.ts` (`gtm.fragile_dom`). Shared refs in `refs.ts` (variable chains ≤5 levels).
   User regexes from the file run only when short and simple; the rest count as `possible`.
+- Engine v3 (2026-11-20, spec `2026-11-20-gtm-audit-conversion-rules-design.md`): 15 rules. One conversion definition
+  in `conversions.ts` (awct, or a registry vendor whose event text matches `CONVERSION_RE`), used by `migrate.ts` and
+  `rules/conversions.ts`: `gtm.conversion_on_every_page` (unconditioned page trigger or all-page group),
+  `gtm.conversion_double_count` (one trigger, one vendor, ≥2 different events/labels; Primary/Secondary is not in the
+  export), `gtm.enhanced_conversions_off` (manual: automatic EC in Google Ads is not in the export; EC needs marketing
+  consent + a privacy policy mention). Parked: HubSpot form GUIDs vs `form_registry` — needs a logged-in entry point,
+  the public page must never fetch.
 - Destination IDs are shown in full on the page and in the local export, never in stats.
-  **Deploy order:** redeploy `gtm-audit-stats` before the dist FTP, or v2 stats (new keys, `v: 2`) are rejected.
+  **Deploy order:** redeploy `gtm-audit-stats` before the dist FTP, or newer stats (new keys, `v: 2`/`v: 3`) are rejected.
 - Counters: `stats.ts` whitelist → `gtm-audit-stats` (public, rate-limited) → `gtm_audit_stats_daily` (service role only).
   New keys must go through `validateStats`; never add names, IDs, domains or URLs.
 - Sample report: `node scripts/gtm-audit/sample-report.mjs` after any engine change (freshness test). The sample

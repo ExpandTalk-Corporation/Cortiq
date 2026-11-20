@@ -5,16 +5,16 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
   "publicId": "GTM-SAMPLE1",
   "exportedAt": 1793527200000,
   "summary": {
-    "headline": "3 of 19 tags have no consent condition · 1 identifies visitors · 3 removal candidates",
-    "tags": 19,
-    "noConsent": 3,
+    "headline": "4 of 21 tags have no consent condition · 1 identifies visitors · 3 removal candidates",
+    "tags": 21,
+    "noConsent": 4,
     "identifies": 1,
     "removal": 3,
     "counts": {
       "covered": 2,
       "consent_tool": 1,
       "pixel": 3,
-      "conversion": 4,
+      "conversion": 6,
       "third_party": 1,
       "keep_google": 3,
       "remove": 3,
@@ -25,7 +25,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
     {
       "scope": "GTM",
       "checkKey": "gtm.consent_missing",
-      "title": "3 tags with no consent condition found",
+      "title": "4 tags with no consent condition found",
       "status": "fail",
       "priority": "high",
       "explanation": "These analytics or marketing tags are set to fire on triggers with no consent condition, and their consent settings require no consent type. A trigger can still depend on logic the audit cannot read (for example a Custom JavaScript variable), so check each tag before changing it.",
@@ -37,7 +37,8 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
           "Evidence level: configuration (container export, not observed live)",
           "Meta - Lead (Meta Pixel): No consent condition found on Form submit - contact.",
           "Clay - web intent (Claydar): No consent condition found on All Pages.",
-          "Chat widget (Custom HTML): No consent condition found on All Pages."
+          "Chat widget (Custom HTML): No consent condition found on All Pages.",
+          "Meta - CompleteRegistration (Meta Pixel): No consent condition found on Form submit - contact."
         ]
       }
     },
@@ -106,7 +107,61 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
         "pages": [],
         "details": [
           "Evidence level: configuration (container export, not observed live)",
-          "Meta Pixel: 2 IDs — 1234567890 (2 tags, last changed 2026-10-01), 9876543210 (1 tag, last changed 2023-03-14)"
+          "Meta Pixel: 2 IDs — 1234567890 (3 tags, last changed 2026-10-01), 9876543210 (1 tag, last changed 2023-03-14)"
+        ]
+      }
+    },
+    {
+      "scope": "GTM",
+      "checkKey": "gtm.conversion_on_every_page",
+      "title": "1 conversion tag is set to fire on every page",
+      "status": "warning",
+      "priority": "high",
+      "explanation": "These conversion tags are set to fire on a trigger that matches every page. A conversion counted on every page view inflates conversions and feeds the bidding algorithm the wrong signal.",
+      "fix": "Fire each one on the confirmation page (e.g. Page Path contains /thank-you) or on the form-submit event only.",
+      "typicalOwner": "marketing",
+      "evidence": {
+        "pages": [],
+        "details": [
+          "Evidence level: configuration (container export, not observed live)",
+          "Google Ads - quote conversion (Google Ads): All Pages"
+        ]
+      }
+    },
+    {
+      "scope": "GTM",
+      "checkKey": "gtm.conversion_double_count",
+      "title": "1 trigger is set to send several conversions to one vendor",
+      "status": "warning",
+      "priority": "high",
+      "explanation": "Each of these triggers is set to fire two or more conversion tags of the same vendor with different events or conversion labels, so one action is counted as several conversions. In Google Ads only Primary conversion actions are used for bidding: if all but one of them are set to Secondary, the others are only reported, not double counted. The container does not show which actions are Primary.",
+      "fix": "Keep one conversion per action, or set the others to Secondary in Google Ads.",
+      "typicalOwner": "marketing",
+      "evidence": {
+        "pages": [],
+        "details": [
+          "Evidence level: configuration (container export, not observed live)",
+          "Form submit - contact: Meta - Lead (Lead), Meta - CompleteRegistration (CompleteRegistration)"
+        ]
+      }
+    },
+    {
+      "scope": "GTM",
+      "checkKey": "gtm.enhanced_conversions_off",
+      "title": "4 Google Ads conversion tags without Enhanced Conversions in the container",
+      "status": "manual",
+      "priority": "low",
+      "explanation": "The container shows no Enhanced Conversions for these Google Ads conversion tags: the tag setting is off and there is no user-provided data tag or Google tag setting. Enhanced Conversions can also be switched on in Google Ads itself (automatic Enhanced Conversions), which the container export does not show. Enhanced Conversions send hashed user data, such as an email address, to Google: that needs marketing consent and a mention in the privacy policy.",
+      "fix": "Check the conversion settings in Google Ads to see whether automatic Enhanced Conversions are on. Turn them on (there or in the tag) only where visitors have given marketing consent and the privacy policy mentions it.",
+      "typicalOwner": "marketing",
+      "evidence": {
+        "pages": [],
+        "details": [
+          "Evidence level: configuration (container export, not observed live)",
+          "Google Ads - contact conversion (Google Ads)",
+          "Google Ads - lead conversion (Google Ads)",
+          "Google Ads - demo click (Google Ads)",
+          "Google Ads - quote conversion (Google Ads)"
         ]
       }
     },
@@ -667,6 +722,50 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "reliedOnBy": [],
       "folder": "Marketing",
       "paused": false
+    },
+    {
+      "id": "20",
+      "name": "Google Ads - quote conversion",
+      "typeLabel": "Google Ads conversion",
+      "vendorId": "google-ads",
+      "vendorName": "Google Ads",
+      "sendsTo": [
+        "AW-000000000"
+      ],
+      "triggers": [
+        "All Pages"
+      ],
+      "consent": "google_consent_mode",
+      "consentEvidence": "Google tag: adapts to Consent Mode instead of being blocked; judged by the Consent Mode default check.",
+      "modifiedAt": 1790812800000,
+      "migration": "conversion",
+      "migrationLabel": "Conversion tag — can be sent server-side",
+      "migrationReason": "Google Ads conversion: can be sent server-side as an offline or enhanced conversion.",
+      "reliedOnBy": [],
+      "folder": "Marketing",
+      "paused": false
+    },
+    {
+      "id": "21",
+      "name": "Meta - CompleteRegistration",
+      "typeLabel": "Meta Pixel",
+      "vendorId": "meta",
+      "vendorName": "Meta Pixel",
+      "sendsTo": [
+        "1234567890"
+      ],
+      "triggers": [
+        "Form submit - contact"
+      ],
+      "consent": "not_gated",
+      "consentEvidence": "No consent condition found on Form submit - contact.",
+      "modifiedAt": 1790812800000,
+      "migration": "conversion",
+      "migrationLabel": "Conversion tag — can be sent server-side",
+      "migrationReason": "Meta Pixel conversion event: can be sent server-side through the vendor's conversions API.",
+      "reliedOnBy": [],
+      "folder": "Marketing",
+      "paused": false
     }
   ],
   "triggers": [
@@ -687,7 +786,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
     {
       "name": "Form submit - contact",
       "type": "FORM_SUBMISSION",
-      "tags": 2,
+      "tags": 3,
       "folder": "",
       "builtIn": false
     },
@@ -736,7 +835,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
     {
       "name": "All Pages",
       "type": "PAGEVIEW",
-      "tags": 7,
+      "tags": 8,
       "folder": "",
       "builtIn": true
     }
