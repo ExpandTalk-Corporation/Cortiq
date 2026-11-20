@@ -2,6 +2,8 @@ import { createClient } from '../_shared/supabase.ts';
 import { sanitize } from './sanitize.ts';
 import { resolveSite } from "../_shared/resolve-site.ts";
 import { skipTrackingCheck } from '../_shared/tracking-check-ua.ts';
+import { resolveGeo, geoKey } from '../_shared/geo.ts';
+import { jurisdictionGate, signalsFrom, visitorFrom } from '../_shared/jurisdiction-edge.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -57,6 +59,18 @@ Deno.serve(async (req) => {
     } catch (e) {
       return new Response(JSON.stringify({ error: 'invalid payload', detail: String(e) }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // Jurisdiction (statistics): the customer's own Off drops now; opt_in and market rules stay shadow.
+    // The payload carries no session id, so there is no ledger read; the tracker sends it only after consent.
+    const drop = await jurisdictionGate(supabase, 'link-click-counter', site!.id, Deno.env.get('JURISDICTION_ENFORCE')).gate(async () => ({
+      visitor: visitorFrom(await resolveGeo(req, { key: geoKey(), timeZone: null })), purpose: 'statistics',
+      signals: signalsFrom(null, { trackerGate: ['analytics'], gpcHeader: req.headers.get('sec-gpc') === '1' }),
+      technique: { storage: 'none', identifiers: 'none' },
+    }));
+    if (drop) {
+      return new Response(JSON.stringify({ ok: true, skipped: 'jurisdiction' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const day = new Date().toISOString().slice(0, 10); // UTC date

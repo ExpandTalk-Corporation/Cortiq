@@ -237,8 +237,15 @@ Spec: `docs/superpowers/specs/2026-11-17-gtm-container-audit-design.md`.
   global/cookie/regex possible → `gtm.dependencies`, "Relied on by", and a certain dependent turns `remove` into
   `review` except UA), `fragile.ts` (`gtm.fragile_dom`). Shared refs in `refs.ts` (variable chains ≤5 levels).
   User regexes from the file run only when short and simple; the rest count as `possible`.
+- Engine v3 (2026-11-20, spec `2026-11-20-gtm-audit-conversion-rules-design.md`): 15 rules. One conversion definition
+  in `conversions.ts` (awct, or a registry vendor whose event text matches `CONVERSION_RE`), used by `migrate.ts` and
+  `rules/conversions.ts`: `gtm.conversion_on_every_page` (unconditioned page trigger or all-page group),
+  `gtm.conversion_double_count` (one trigger, one vendor, ≥2 different events/labels; Primary/Secondary is not in the
+  export), `gtm.enhanced_conversions_off` (manual: automatic EC in Google Ads is not in the export; EC needs marketing
+  consent + a privacy policy mention). Parked: HubSpot form GUIDs vs `form_registry` — needs a logged-in entry point,
+  the public page must never fetch.
 - Destination IDs are shown in full on the page and in the local export, never in stats.
-  **Deploy order:** redeploy `gtm-audit-stats` before the dist FTP, or v2 stats (new keys, `v: 2`) are rejected.
+  **Deploy order:** redeploy `gtm-audit-stats` before the dist FTP, or newer stats (new keys, `v: 2`/`v: 3`) are rejected.
 - Counters: `stats.ts` whitelist → `gtm-audit-stats` (public, rate-limited) → `gtm_audit_stats_daily` (service role only).
   New keys must go through `validateStats`; never add names, IDs, domains or URLs.
 - Sample report: `node scripts/gtm-audit/sample-report.mjs` after any engine change (freshness test). The sample
@@ -273,7 +280,8 @@ Spec: `docs/superpowers/specs/2026-11-18-jurisdiction-aware-measurement-design.m
   `20261208000001`) under rule `all.agent_measurement.server_log` (`allowed_unless_opt_out`, draft). It honours
   `Sec-GPC: 1` as an objection by automated means (art. 21(5)), an extra route next to the customer's own channel: the
   adapters (`cortiq-server.mjs`, Cloudflare Worker, PHP adapter, WP plugin 5.5.20+) do not send such a request at all.
-  server-hit still discards a hit sent with `gpc: true` (own integrations); no field = no objection.
+  server-hit still discards a hit sent with `gpc: true` (own integrations); no field = no objection. cloudflare-ingest
+  does the same; import-server-logs skips JSON log lines with `gpc: true` or `sec_gpc: "1"` (`objected_lines`).
   Honeypot hits from UAs the registry does not classify are stored as a signal only (no IP, UA, geo or referrer).
 - **Copy:** "CortIQ's technical defaults, not legal advice" (`DISCLAIMER`). Avoid implying that the defaults eliminate
   legal requirements, replace compliance obligations, or remove the need for consent mechanisms.

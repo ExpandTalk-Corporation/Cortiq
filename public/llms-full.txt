@@ -2,7 +2,7 @@
 
 ## What is CortIQ?
 
-CortIQ is a web analytics platform built for the Agentic Web — the emerging era where AI agents and crawlers make up a fast-growing share of web traffic. By Q4 2025 there was one AI bot visit for every 31 human visits, up from one in 200 in Q1 2025 (TollBit, State of the Bots, Q4 2025).
+CortIQ is a web analytics platform built for the Agentic Web — the emerging era where AI agents and crawlers make up a fast-growing share of web traffic. In the first half of 2026 the median European publisher site saw one AI bot visit for every 33 human visits, against one in 93 in North America (TollBit, State of the Bots H1 2026).
 
 CortIQ is an open-source, EU-built analytics platform with a dedicated module for classifying and analyzing AI traffic. Beyond AI intelligence it provides consent-gated visitor analytics (Cookieless or Full mode), click and scroll heatmaps, a cookieless per-link click counter, form analytics, geolocation maps, a paid-conversion attribution loop, an MCP server, and a built-in consent management platform (CMP).
 

@@ -30,8 +30,11 @@ function db({ site, policy = null, ledger = LEDGER_OK, extra = () => null, hold 
     if (name === 'log_jurisdiction_decision') { if (hold) await hold; return { data: null, error: null }; }
     if (name === 'aggregate_daily_salt') return { data: 'f'.repeat(64), error: null };
     if (name === 'upsert_unified_visitor') return { data: 'visitor-1', error: null };
+    if (name === 'resolve_site_by_domain') return { data: SITE, error: null };
     return { data: true, error: null };
   });
+  // import-server-logs checks the caller's session before the RLS-scoped site read.
+  m.client.auth = { getUser: async () => ({ data: { user: { id: OWNER } }, error: null }) };
   return { ...m, rpcCalls };
 }
 const logs = (rpcCalls) => rpcCalls.filter((c) => c.name === 'log_jurisdiction_decision').map((c) => c.args);
@@ -63,7 +66,7 @@ async function run(name, request, { site, policy = null, ledger, extra, env = {}
   release();
   const res = await pending;
   if (slow) await Promise.all(handler.waitUntilWork);
-  const body = res.status === 200 ? await res.json() : null;
+  const body = res.status === 200 && (res.headers.get('content-type') ?? '').includes('json') ? await res.json() : null;
   return { res, body, d, answeredBeforeLog };
 }
 
@@ -321,4 +324,254 @@ test('policy timeout: a hung policy RPC falls back to the safe default and the h
   } finally {
     mock.timers.reset();
   }
+});
+
+// ---------- collectors wired 2026-11-20 (runbook "Not yet wired") ----------
+// Each: the customer's Off for its purpose drops without the flag and is logged as applied; opt_in is
+// not applied; with no tighten the response does not wait for the ledger read or the decision log.
+const rows = (d, table) => d.calls.filter((c) => c.table === table && (c.type === 'insert' || c.type === 'update'));
+const appliedOff = (d, purpose) => {
+  const [l] = logs(d.rpcCalls);
+  assert.deepEqual([l.p_purpose, l.p_reason, l.p_enforced], [purpose, 'customer_off', true]);
+};
+
+// ai-search-tracker
+const aiSearch = (opts) => run('ai-search-tracker', async () => post('ai-search-tracker',
+  { siteId: SITE, sessionId: 's-1', aiPlatform: 'chatgpt', url: 'https://shop.test/?utm_source=chatgpt' }),
+  { site: { id: SITE, is_active: true }, extra: (op) => (op.table === 'ai_search_traffic' && op.type === 'select' ? { data: null, error: null } : null), ...opts });
+
+test('ai-search-tracker: customer Off for statistics drops without the flag; opt_in does not', async () => {
+  const off = await aiSearch({ policy: tighten({ statistics: 'off' }) });
+  assert.deepEqual(off.body, { success: true, skipped: 'jurisdiction' });
+  assert.equal(rows(off.d, 'ai_search_traffic').length, 0);
+  appliedOff(off.d, 'statistics');
+  const optIn = await aiSearch({ policy: tighten({ statistics: 'opt_in' }) });
+  assert.equal(optIn.body.action, 'session_created');
+  assert.equal(logs(optIn.d.rpcCalls)[0].p_enforced, false);
+});
+
+test('ai-search-tracker: no tighten = answers before a slow ledger read and log', async () => {
+  const { body, answeredBeforeLog } = await aiSearch({ slow: true });
+  assert.equal(body.action, 'session_created');
+  assert.equal(answeredBeforeLog, true);
+});
+
+// link-click-counter (aggregate counter, no session id: no ledger read)
+const linkClick = (opts) => run('link-click-counter', async () => post('link-click-counter',
+  { siteId: SITE, pagePath: '/', linkKind: 'link', linkKey: 'shop.test/a', linkLabel: 'A', deviceType: 'desktop' },
+  { Authorization: `Bearer ${KEY}` }), { site: { id: SITE, is_active: true, tracking_id: KEY, user_id: OWNER }, ...opts });
+
+test('link-click-counter: customer Off for statistics drops without the flag; opt_in does not', async () => {
+  const off = await linkClick({ policy: tighten({ statistics: 'off' }) });
+  assert.deepEqual(off.body, { ok: true, skipped: 'jurisdiction' });
+  assert.equal(named(off.d.rpcCalls, 'increment_link_click').length, 0);
+  appliedOff(off.d, 'statistics');
+  const optIn = await linkClick({ policy: tighten({ statistics: 'opt_in' }) });
+  assert.deepEqual(optIn.body, { ok: true });
+  assert.equal(named(optIn.d.rpcCalls, 'increment_link_click').length, 1);
+});
+
+test('link-click-counter: no tighten = answers before a slow log', async () => {
+  const { body, answeredBeforeLog } = await linkClick({ slow: true });
+  assert.deepEqual(body, { ok: true });
+  assert.equal(answeredBeforeLog, true);
+});
+
+// ecommerce-tracking
+const ecommerce = (opts) => run('ecommerce-tracking', async () => post('ecommerce-tracking', {
+  siteId: SITE, sessionId: 's-1', eventType: 'purchase', consentGranted: true, userId: 'u-1',
+  transactionData: { id: 't-1', revenue: 100 },
+}), { site: { id: SITE }, ...opts });
+
+test('ecommerce-tracking: customer Off for statistics drops without the flag; opt_in does not', async () => {
+  const off = await ecommerce({ policy: tighten({ statistics: 'off' }) });
+  assert.deepEqual(off.body, { success: true, skipped: 'jurisdiction' });
+  assert.equal(inserts(off.d, 'ecommerce_events').length, 0);
+  assert.equal(named(off.d.rpcCalls, 'upsert_user_identity').length, 0);
+  appliedOff(off.d, 'statistics');
+  const optIn = await ecommerce({ policy: tighten({ statistics: 'opt_in' }) });
+  assert.equal(optIn.body.success, true);
+  assert.equal(inserts(optIn.d, 'ecommerce_events').length, 1);
+});
+
+// The consent-ledger read is on the response path here (consent comes from the ledger, fail closed),
+// so only the decision log is held.
+test('ecommerce-tracking: no tighten = answers before a slow log', async () => {
+  const { body, answeredBeforeLog } = await ecommerce({ slow: true, slowLedger: false });
+  assert.equal(body.success, true);
+  assert.equal(answeredBeforeLog, true);
+});
+
+// canary-tracker (agent_measurement; the pixel answer never depends on the gate)
+const canary = (opts) => run('canary-tracker', async () => new Request(`https://fn.test/canary-tracker/tok12345?s=${SITE}&v=px`,
+  { headers: { 'user-agent': 'python-requests/2.31' } }), { site: { id: SITE }, ...opts });
+
+test('canary-tracker: customer Off for agent_measurement drops the hit without the flag; the pixel is still served', async () => {
+  const off = await canary({ policy: tighten({ agent_measurement: 'off' }) });
+  assert.equal(off.res.headers.get('content-type'), 'image/gif');
+  assert.equal(inserts(off.d, 'canary_hits').length, 0);
+  appliedOff(off.d, 'agent_measurement');
+  const optIn = await canary({ policy: tighten({ agent_measurement: 'opt_in' }) });
+  assert.equal(inserts(optIn.d, 'canary_hits').length, 1);
+});
+
+// track-web-vitals (no caller in this repo; per-page-load id, no ledger read)
+const webVitals = (opts) => run('track-web-vitals', async () => post('track-web-vitals', {
+  tracking_id: KEY, session_id: 'p-1', metric_name: 'LCP', metric_value: 1200, metric_rating: 'good', page_url: 'https://shop.test/a',
+}, { apikey: 'anon' }), { site: { id: SITE }, ...opts });
+
+test('track-web-vitals: customer Off for statistics drops without the flag; opt_in does not', async () => {
+  const off = await webVitals({ policy: tighten({ statistics: 'off' }) });
+  assert.deepEqual(off.body, { success: true, skipped: 'jurisdiction' });
+  assert.equal(off.d.calls.filter((c) => c.table === 'web_vitals').length, 0);
+  appliedOff(off.d, 'statistics');
+  const optIn = await webVitals({ policy: tighten({ statistics: 'opt_in' }) });
+  assert.deepEqual(optIn.body, { success: true });
+  assert.equal(optIn.d.calls.filter((c) => c.table === 'web_vitals' && c.type === 'upsert').length, 1);
+});
+
+test('track-web-vitals: no tighten = answers before a slow log', async () => {
+  const { body, answeredBeforeLog } = await webVitals({ slow: true });
+  assert.deepEqual(body, { success: true });
+  assert.equal(answeredBeforeLog, true);
+});
+
+// pixel-tracking (first-party proxy path; the caller sets consent.analytics)
+const pixel = (opts) => run('pixel-tracking', async () => post('pixel-tracking', {
+  type: 'pageview', siteId: KEY, sessionId: 'sess_1_abc', consent: { analytics: true }, data: { url: 'https://shop.test/' },
+}), { site: { id: SITE }, ...opts });
+
+test('pixel-tracking: customer Off for statistics drops without the flag; opt_in does not', async () => {
+  const off = await pixel({ policy: tighten({ statistics: 'off' }) });
+  assert.deepEqual(off.body, { success: true, skipped: 'jurisdiction' });
+  assert.equal(off.d.calls.some((c) => c.type !== 'select' && c.table !== 'cookie_consents'), false);
+  appliedOff(off.d, 'statistics');
+  const optIn = await pixel({ policy: tighten({ statistics: 'opt_in' }) });
+  assert.deepEqual(optIn.body, { success: true });
+  assert.equal(inserts(optIn.d, 'page_views').length, 1);
+});
+
+test('pixel-tracking: no tighten = answers before a slow ledger read and log', async () => {
+  const { body, answeredBeforeLog } = await pixel({ slow: true });
+  assert.deepEqual(body, { success: true });
+  assert.equal(answeredBeforeLog, true);
+});
+
+// content-tracking (three POST collectors)
+const content = (path, body, opts) => run('content-tracking', async () => post(`content-tracking/${path}`, body), { site: { id: SITE, is_active: true }, ...opts });
+const INTERACTION = { site_id: SITE, session_id: 's-1', interaction: { element_id: 'e-1', page_url: '/', interaction_type: 'click', mouse_x: 1, mouse_y: 2 } };
+
+test('content-tracking: customer Off for statistics drops every POST collector without the flag; opt_in does not', async () => {
+  for (const [path, body] of [['element', { site_id: SITE, element: { element_id: 'e-1', element_type: 'a', element_selector: '#a', page_url: '/' } }],
+    ['interaction', INTERACTION], ['scroll', { site_id: SITE, session_id: 's-1', page_url: '/', scroll_depth: 50 }]]) {
+    const off = await content(path, body, { policy: tighten({ statistics: 'off' }) });
+    assert.deepEqual(off.body, { success: true, skipped: 'jurisdiction' }, path);
+    assert.equal(off.d.calls.some((c) => c.type !== 'select'), false, path);
+    appliedOff(off.d, 'statistics');
+    const optIn = await content(path, body, { policy: tighten({ statistics: 'opt_in' }) });
+    assert.deepEqual(optIn.body, { success: true }, path);
+    assert.equal(optIn.d.calls.some((c) => c.type !== 'select'), true, path);
+  }
+});
+
+test('content-tracking: no tighten = answers before a slow ledger read and log', async () => {
+  const { body, answeredBeforeLog } = await content('interaction', INTERACTION, { slow: true });
+  assert.deepEqual(body, { success: true });
+  assert.equal(answeredBeforeLog, true);
+});
+
+// media-analytics
+const media = (opts) => run('media-analytics', async () => post('media-analytics/event',
+  { site_id: SITE, session_id: 's-1', event: { media_id: 'm-1', media_type: 'video', event_type: 'play' } }), { site: { id: SITE, is_active: true }, ...opts });
+
+test('media-analytics: customer Off for statistics drops without the flag; opt_in does not', async () => {
+  const off = await media({ policy: tighten({ statistics: 'off' }) });
+  assert.deepEqual(off.body, { success: true, skipped: 'jurisdiction' });
+  assert.equal(inserts(off.d, 'media_events').length, 0);
+  appliedOff(off.d, 'statistics');
+  const optIn = await media({ policy: tighten({ statistics: 'opt_in' }) });
+  assert.deepEqual(optIn.body, { success: true });
+  assert.equal(inserts(optIn.d, 'media_events').length, 1);
+});
+
+test('media-analytics: no tighten = answers before a slow ledger read and log', async () => {
+  const { body, answeredBeforeLog } = await media({ slow: true });
+  assert.deepEqual(body, { success: true });
+  assert.equal(answeredBeforeLog, true);
+});
+
+// cloudflare-ingest (Worker push; automated = agent_measurement, the anonymous human count = statistics)
+const GPTBOT = 'Mozilla/5.0 (compatible; GPTBot/1.2)';
+const cfIngest = (extraBody, opts) => run('cloudflare-ingest', async () => post('cloudflare-ingest',
+  { domain: 'shop.test', urlPath: '/a', statusCode: 200, userAgent: GPTBOT, ...extraBody }, { 'x-ingest-key': 'test-value' }),
+  { site: null, ...opts });
+const cfWrites = (d) => d.calls.filter((c) => c.type === 'insert' && ['cloudflare_traffic', 'ai_bot_traffic'].includes(c.table));
+
+test('cloudflare-ingest: customer Off drops by purpose without the flag; opt_in does not', async () => {
+  const bot = await cfIngest({}, { policy: tighten({ agent_measurement: 'off' }) });
+  assert.deepEqual(bot.body, { ok: true, skipped: 'jurisdiction' });
+  assert.equal(cfWrites(bot.d).length, 0);
+  appliedOff(bot.d, 'agent_measurement');
+  // A human-looking request is statistics, so an agent_measurement Off leaves its anonymous count alone.
+  const human = await cfIngest({ userAgent: CHROME }, { policy: tighten({ agent_measurement: 'off' }) });
+  assert.equal(human.body.ok, true);
+  assert.equal(inserts(human.d, 'cloudflare_traffic').length, 1);
+  const humanOff = await cfIngest({ userAgent: CHROME }, { policy: tighten({ statistics: 'off' }) });
+  assert.deepEqual(humanOff.body, { ok: true, skipped: 'jurisdiction' });
+  appliedOff(humanOff.d, 'statistics');
+  const optIn = await cfIngest({}, { policy: tighten({ agent_measurement: 'opt_in' }) });
+  assert.equal(optIn.body.visitorType, 'ai_bot');
+  assert.deepEqual(cfWrites(optIn.d).map((c) => c.table).sort(), ['ai_bot_traffic', 'cloudflare_traffic']);
+});
+
+test('cloudflare-ingest: a hit with gpc: true is never stored; its decision is logged with GPC', async () => {
+  const { body, d } = await cfIngest({ gpc: true }, { policy: { profile: null, tighten: {}, exceptions: [], testSite: true } });
+  assert.deepEqual(body, { ok: true, skipped: 'gpc' });
+  assert.equal(cfWrites(d).length, 0);
+  const [l] = logs(d.rpcCalls);
+  assert.deepEqual([l.p_fn, l.p_purpose, l.p_reason], ['cloudflare-ingest', 'agent_measurement', 'gpc']);
+  // gpc: 'true' (not a boolean) is no objection, as in server-hit.
+  const str = await cfIngest({ gpc: 'true' }, {});
+  assert.equal(cfWrites(str.d).length, 2);
+});
+
+test('cloudflare-ingest: no tighten = answers before a slow log', async () => {
+  const { body, answeredBeforeLog } = await cfIngest({}, { slow: true });
+  assert.equal(body.ok, true);
+  assert.equal(answeredBeforeLog, true);
+});
+
+// import-server-logs (dashboard upload; humans only are aggregated = statistics)
+const LOG_LINES = [
+  JSON.stringify({ timestamp: '2026-11-19T10:00:00Z', ip: '85.1.2.3', method: 'GET', url: '/a', status: 200, user_agent: CHROME }),
+  JSON.stringify({ timestamp: '2026-11-19T10:01:00Z', ip: '85.1.2.4', method: 'GET', url: '/b', status: 200, user_agent: CHROME, sec_gpc: '1' }),
+  JSON.stringify({ timestamp: '2026-11-19T10:02:00Z', ip: '85.1.2.5', method: 'GET', url: '/c', status: 200, user_agent: CHROME, gpc: true }),
+].join('\n');
+const importLogs = (opts) => run('import-server-logs', async () => post('import-server-logs',
+  { site_id: SITE, log_content: LOG_LINES, log_format: 'json' }, { Authorization: 'Bearer user-jwt' }), { site: { id: SITE }, ...opts });
+const aggregated = (d) => named(d.rpcCalls, 'increment_server_log_analytics');
+
+test('import-server-logs: customer Off for statistics drops the whole import without the flag; opt_in does not', async () => {
+  const off = await importLogs({ policy: tighten({ statistics: 'off' }) });
+  assert.deepEqual(off.body, { success: true, skipped: 'jurisdiction', stats: { total_lines: 3, processed_lines: 0, failed_lines: 0 } });
+  assert.equal(aggregated(off.d).length, 0);
+  assert.equal(inserts(off.d, 'server_log_imports').length, 0);
+  appliedOff(off.d, 'statistics');
+  const optIn = await importLogs({ policy: tighten({ statistics: 'opt_in' }) });
+  assert.equal(optIn.body.success, true);
+  assert.equal(aggregated(optIn.d).length, 1);
+});
+
+test('import-server-logs: lines with Sec-GPC are not aggregated; their decision is logged with GPC', async () => {
+  const { body, d } = await importLogs({});
+  assert.deepEqual(body.stats, { total_lines: 3, processed_lines: 3, failed_lines: 0, objected_lines: 2 });
+  assert.deepEqual(aggregated(d).map((c) => c.args.p_url), ['/a']);
+  const ls = logs(d.rpcCalls).map((l) => [l.p_fn, l.p_purpose, l.p_count]).sort();
+  assert.deepEqual(ls, [['import-server-logs', 'statistics', 2], ['import-server-logs', 'statistics', 3]]);
+});
+
+test('canary-tracker: the pixel never waits for the gate', async () => {
+  const { res, answeredBeforeLog } = await canary({ slow: true, policy: tighten({ agent_measurement: 'off' }) });
+  assert.equal(res.headers.get('content-type'), 'image/gif');
+  assert.equal(answeredBeforeLog, true);
 });

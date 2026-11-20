@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "../_shared/supabase.ts";
 import { resolveSite } from "../_shared/resolve-site.ts";
+import { resolveGeo, geoKey } from "../_shared/geo.ts";
+import { jurisdictionGate, signalsFrom, visitorFrom } from "../_shared/jurisdiction-edge.ts";
 
 // AI-referral measurement: a human visitor arriving from ChatGPT, Perplexity, Claude, …
 //
@@ -82,6 +84,15 @@ serve(async (req) => {
     const site = await resolveSite(supabase, data.siteId, data.url ?? req.headers.get('origin'), 'id, is_active');
     if (!site || !site.is_active) return json({ success: true, skipped: 'unknown site' });
     const siteId = site.id;
+
+    // Jurisdiction (statistics, same as track-event): the customer's own Off drops now; opt_in and market
+    // rules stay shadow. Shadow mode waits only for the cached site policy; geo, ledger and log run after.
+    const drop = await jurisdictionGate(supabase, 'ai-search-tracker', siteId, Deno.env.get('JURISDICTION_ENFORCE'), sessionId).gate(async (ledger) => ({
+      visitor: visitorFrom(await resolveGeo(req, { key: geoKey(), timeZone: null })), purpose: 'statistics',
+      signals: signalsFrom(ledger, { trackerGate: ['analytics'], gpcHeader: req.headers.get('sec-gpc') === '1' }),
+      technique: { storage: 'session', identifiers: 'session' },
+    }));
+    if (drop) return json({ success: true, skipped: 'jurisdiction' });
 
     // Engagement update at page hide. Whitelisted columns only — the old code passed the
     // client object straight to .update(), which let a caller overwrite any column.

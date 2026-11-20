@@ -112,9 +112,10 @@ Task #24 implements advanced content tracking with element-level analytics, inte
 **POST /content-tracking/element** - Register tracked element
 **POST /content-tracking/interaction** - Track interaction
 **POST /content-tracking/scroll** - Track scroll depth
-**GET /content-tracking/performance** - Get content performance
-**GET /content-tracking/forms** - Get form analytics
-**GET /content-tracking/heatmap** - Get heatmap data
+
+The POST body's `site_id` must be an active site (or, from the WordPress plugin, the account id of the site on the
+request's Origin); anything else gets 403. The GET read endpoints were removed on 2026-11-20 (they returned any site's
+data without auth) and now answer 405. Read the tables through the Supabase client, where RLS applies.
 
 ### React Components
 
