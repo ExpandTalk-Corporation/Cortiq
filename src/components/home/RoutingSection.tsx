@@ -48,7 +48,23 @@ export function RoutingSection() {
 
         <h3 className="text-2xl font-bold text-center mb-2">Markets the engine knows</h3>
         <p className="text-center text-muted-foreground max-w-3xl mx-auto mb-6">{ROUTING_TODAY_LINE}</p>
-        <div className="overflow-x-auto rounded-lg border bg-background">
+        {/* Phones: one card per market, so the status is never scrolled out of view. */}
+        <ul className="space-y-3 sm:hidden">
+          {STATUSES.map((s) => (
+            <li key={s.market} className="rounded-lg border bg-background p-4 text-sm">
+              <p className="font-medium text-foreground">{MARKET_LABEL[s.market]}</p>
+              <dl className="mt-2 space-y-2">
+                <div><dt className="text-xs text-muted-foreground">Status</dt><dd className="text-foreground">{s.status}</dd></div>
+                <div><dt className="text-xs text-muted-foreground">Main laws</dt><dd className="text-muted-foreground">{ROUTING_LAWS[s.market]}</dd></div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Rules on file</dt>
+                  <dd className="text-muted-foreground">{s.rulesOnFile.length ? s.rulesOnFile.map((r) => r.text).join("; ") : "None"}</dd>
+                </div>
+              </dl>
+            </li>
+          ))}
+        </ul>
+        <div className="hidden overflow-x-auto rounded-lg border bg-background sm:block">
           <table className="w-full min-w-[40rem] text-sm">
             <caption className="sr-only">Markets, main laws, rules on file and status, from rule pack {PACK_VERSION}</caption>
             <thead>
