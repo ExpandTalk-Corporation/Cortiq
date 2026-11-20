@@ -2,11 +2,12 @@
  * Migration class per tag: what the tag could become without GTM. Phrased as facts about what exists
  * today — never as promises of features CortIQ does not have.
  */
-import type { Container, MigrationClass, ParamValue, TagInfo } from './types.ts';
+import type { Container, MigrationClass, TagInfo } from './types.ts';
 import { GOOGLE_TYPES } from './tag-types.ts';
 import { coveredReason } from './covered.ts';
 import { isConsentTrigger } from './consent.ts';
 import { duplicateGroups } from './rules/hygiene.ts';
+import { CONVERSION_RE, eventText } from './conversions.ts';
 import { dependencies, type Dependency } from './dependencies.ts';
 
 export const MIGRATION_LABEL: Record<MigrationClass, string> = {
@@ -22,11 +23,8 @@ export const MIGRATION_LABEL: Record<MigrationClass, string> = {
 
 const PIXEL_VENDORS = new Set(['meta', 'linkedin', 'reddit', 'tiktok-pixel', 'pinterest-pixel', 'microsoft-ads', 'snap-pixel', 'x-pixel']);
 const GOOGLE_CONVERSION = new Set(['awct', 'awcc', 'awud']);
-const EVENT_KEYS = ['eventName', 'standardEventName', 'event', 'conversionLabel', 'eventType', 'customEventName'];
-const CONVERSION_RE = /conversion|purchase|lead|signup|sign_up|submit|complete/i;
 const PAGEVIEW_RE = /page_?view/i;
 const PAGE_TYPES = new Set(['PAGEVIEW', 'DOM_READY', 'WINDOW_LOADED', 'INIT', 'CONSENT_INIT', 'HISTORY_CHANGE']);
-const PIXEL_CALL_RE = /\b(?:fbq|rdt|twq|ttq|pintrk|snaptr|lintrk)\(([^)]{0,200})\)/g;
 
 export interface MigrateContext {
   container: Container;
@@ -73,16 +71,6 @@ export function migrationContext(container: Container, infos: TagInfo[], deps: D
     }
   }
   return ctx;
-}
-
-const text = (v: ParamValue | undefined): string => (typeof v === 'string' ? v : '');
-
-/** Event names from template fields, plus the arguments of pixel calls in Custom HTML. */
-function eventText(info: TagInfo): string {
-  const parts = EVENT_KEYS.map((k) => text(info.tag.params[k]));
-  const html = text(info.tag.params.html).slice(0, 200_000);
-  for (const m of html.matchAll(PIXEL_CALL_RE)) parts.push(m[1]);
-  return parts.join(' ');
 }
 
 function firesOnPageLoad(info: TagInfo, container: Container): boolean {
