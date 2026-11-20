@@ -197,7 +197,7 @@ serve(async (req) => {
     // Check for existing consent for this session
     const { data: existingConsent, error: lookupError } = await supabase
       .from('cookie_consents')
-      .select('id')
+      .select('id, gpc_signal')
       .eq('session_id', session_id)
       .eq('site_id', site_id)
       .maybeSingle();
@@ -214,7 +214,9 @@ serve(async (req) => {
           updated_at: new Date().toISOString(),
           policy_version: consentData.policy_version,
           expires_at: consentData.expires_at,
-          gpc_signal: consentData.gpc_signal,
+          // Sticky: a later request without GPC is not consent to sell or share again
+          // (CPPA Regs §7025(c)(5)). Ad uploads read it through _shared/gpc-stop.ts.
+          gpc_signal: consentData.gpc_signal || existingConsent.gpc_signal === true,
           source: consentData.source,
           locale: consentData.locale,
           banner_lang: consentData.banner_lang,
