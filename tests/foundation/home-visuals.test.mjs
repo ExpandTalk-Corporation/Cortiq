@@ -93,6 +93,16 @@ test('the banner example is the real banner in a sandbox without same-origin acc
   assert.doesNotMatch(src, /allow-same-origin/);
 });
 
+test('the hero figure links to its full source, which sits in the AI traffic section', () => {
+  const hero = read(HOME + 'HeroSection.tsx');
+  const ai = read(HOME + 'AiTrafficSection.tsx');
+  assert.match(hero, /href=\{`#\$\{AI_TRAFFIC_SOURCE_ID\}`\}/);
+  assert.match(hero, /\(TollBit, H1 2026\)/);
+  assert.doesNotMatch(hero, /Source: TollBit/, 'the full source sentence lives in AiTrafficSection');
+  assert.match(ai, /export const AI_TRAFFIC_SOURCE_ID = "ai-traffic-source"/);
+  assert.match(ai, /<p id=\{AI_TRAFFIC_SOURCE_ID\}[^>]*>\s*Source: TollBit, State of the Bots H1 2026, median European publisher site on its network \(North America: 1 in 93\)\. Self-identified bots only\./);
+});
+
 test('reviewed legal text sits in details, measurement modes keep their full text', () => {
   assert.match(read(HOME + 'LegalSection.tsx'), /<Faq\b/);
   assert.match(read(HOME + 'ModesSection.tsx'), /<details\b[\s\S]*\{m\.text\}/);

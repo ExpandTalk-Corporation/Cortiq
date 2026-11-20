@@ -18,6 +18,9 @@ const CATEGORY_STYLE: Record<BotCategory, { icon: LucideIcon; tag: string }> = {
   citation: { icon: Globe, tag: "Visibility signal" },
 };
 
+// The hero's "1 in 33" claim links here; the footnote carries its full source sentence.
+export const AI_TRAFFIC_SOURCE_ID = "ai-traffic-source";
+
 // TollBit, State of the Bots H1 2026 (publisher sites on its network, self-identified bots only).
 const REGIONS = [
   { value: "1 : 33", compare: "North America 1 : 93", label: "AI bot visits per human visit, median site" },
@@ -85,8 +88,11 @@ export function AiTrafficSection() {
               </Card>
             ))}
           </div>
-          <p className="mt-4 text-center text-sm text-muted-foreground max-w-3xl mx-auto">
-            Source: TollBit, State of the Bots H1 2026, publisher sites on its network. Counts only bots that identify themselves, so the real
+          <p id={AI_TRAFFIC_SOURCE_ID} className="mt-4 text-center text-sm text-muted-foreground max-w-3xl mx-auto scroll-mt-24">
+            Source: TollBit, State of the Bots H1 2026, median European publisher site on its network (North America: 1 in 93). Self-identified bots only.
+          </p>
+          <p className="mt-2 text-center text-sm text-muted-foreground max-w-3xl mx-auto">
+            Figures above: TollBit, State of the Bots H1 2026, publisher sites on its network. Counts only bots that identify themselves, so the real
             numbers are likely higher. Daily requests from AI agents grew by more than 1,700% in a year (Cloudflare, The Internet has a second
             audience, September 2026).
           </p>
