@@ -19,9 +19,15 @@ export interface GtmTag {
   folderId: string | null;
   /** ms epoch from the tag fingerprint; null when the fingerprint is not a timestamp. */
   modifiedAt: number | null;
+  /** Tag names in "Fire a tag before / after this tag fires" (setupTag / teardownTag). */
+  setupTagNames: string[];
+  teardownTagNames: string[];
 }
 
 export interface GtmCondition { type: string; arg0: string; arg1: string; negate: boolean }
+
+/** A trigger's custom-event condition on {{_event}}, when it has one that is not negated. */
+export interface CustomEventMatch { match: 'equals' | 'contains' | 'starts_with' | 'regex'; value: string }
 
 export interface GtmTrigger {
   id: string;
@@ -33,6 +39,8 @@ export interface GtmTrigger {
   /** Members of a TRIGGER_GROUP. */
   groupTriggerIds: string[];
   folderId: string | null;
+  params: Record<string, ParamValue>;
+  customEvent: CustomEventMatch | null;
 }
 
 export interface GtmVariable { id: string; name: string; type: string; params: Record<string, ParamValue> }

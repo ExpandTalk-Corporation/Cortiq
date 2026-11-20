@@ -2,7 +2,7 @@
  * parse — GTM container export (format v2) → normalized Container. Never throws: every access to the
  * input goes through obj/arr/str, so wrong types, nulls and hostile keys degrade to empty values.
  */
-import type { Container, GtmCondition, GtmTag, GtmTemplate, GtmTrigger, ParamValue, ParseError, ParseErrorCode } from './types.ts';
+import type { Container, CustomEventMatch, GtmCondition, GtmTag, GtmTemplate, GtmTrigger, ParamValue, ParseError, ParseErrorCode } from './types.ts';
 import { BUILTIN_TRIGGERS } from './tag-types.ts';
 
 export const MAX_FILE_BYTES = 5 * 1024 * 1024;
@@ -69,6 +69,19 @@ function conditionsOf(t: Record<string, unknown>): GtmCondition[] {
   });
 }
 
+const tagNames = (v: unknown): string[] => arr(v).map((x) => str(obj(x).tagName)).filter(Boolean);
+
+const EVENT_MATCH: Record<string, CustomEventMatch['match']> = { EQUALS: 'equals', CONTAINS: 'contains', STARTS_WITH: 'starts_with', MATCH_REGEX: 'regex' };
+const EVENT_ARGS = new Set(['{{_event}}', '{{Event}}']);
+
+function customEventOf(t: Record<string, unknown>): CustomEventMatch | null {
+  for (const c of conditionsOf({ customEventFilter: t.customEventFilter })) {
+    if (!Object.prototype.hasOwnProperty.call(EVENT_MATCH, c.type)) continue;
+    if (!c.negate && EVENT_ARGS.has(c.arg0) && c.arg1) return { match: EVENT_MATCH[c.type], value: c.arg1 };
+  }
+  return null;
+}
+
 function section(data: string, name: string): string {
   const marker = `___${name}___`;
   const start = data.indexOf(marker);
@@ -119,6 +132,7 @@ export function parse(input: unknown): Container | ParseError {
       paused: t.paused === true || str(t.paused) === 'true',
       folderId: idOrNull(t.parentFolderId),
       modifiedAt: /^\d{12,14}$/.test(fp) ? Number(fp) : null,
+      setupTagNames: tagNames(t.setupTag), teardownTagNames: tagNames(t.teardownTag),
     };
   });
 
@@ -129,6 +143,7 @@ export function parse(input: unknown): Container | ParseError {
     return {
       id: str(t.triggerId), name: str(t.name), type: enumOf(t.type), conditions: conditionsOf(t),
       builtIn: false, groupTriggerIds: members, folderId: idOrNull(t.parentFolderId),
+      params, customEvent: customEventOf(t),
     };
   });
 
@@ -138,7 +153,7 @@ export function parse(input: unknown): Container | ParseError {
     const b = Object.prototype.hasOwnProperty.call(BUILTIN_TRIGGERS, id) ? BUILTIN_TRIGGERS[id] : undefined;
     if (b && !known.has(id)) {
       known.add(id);
-      triggers.push({ id, name: b.name, type: b.type, conditions: [], builtIn: true, groupTriggerIds: [], folderId: null });
+      triggers.push({ id, name: b.name, type: b.type, conditions: [], builtIn: true, groupTriggerIds: [], folderId: null, params: {}, customEvent: null });
     }
   }
 

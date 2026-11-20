@@ -13,13 +13,15 @@ export const needed = (...types) => ({
   consentStatus: 'NEEDED', consentType: { type: 'LIST', list: types.map((t) => ({ type: 'TEMPLATE', value: t })) },
 });
 
-export function tag(id, name, type, params = [], { fire = [ALL_PAGES], block = [], consent, paused, folder, modified } = {}) {
+export function tag(id, name, type, params = [], { fire = [ALL_PAGES], block = [], consent, paused, folder, modified, setup = [], teardown = [] } = {}) {
   return {
     tagId: String(id), name, type, parameter: params, fingerprint: String(modified ?? DEFAULT_MODIFIED),
     firingTriggerId: fire.map(String),
     ...(block.length ? { blockingTriggerId: block.map(String) } : {}),
     ...(paused ? { paused: true } : {}),
     ...(folder ? { parentFolderId: String(folder) } : {}),
+    ...(setup.length ? { setupTag: setup.map((tagName) => ({ tagName, stopOnSetupFailure: true })) } : {}),
+    ...(teardown.length ? { teardownTag: teardown.map((tagName) => ({ tagName, stopTeardownOnFailure: true })) } : {}),
     consentSettings: consent ?? { consentStatus: 'NOT_SET' },
   };
 }
@@ -40,6 +42,13 @@ export function trigger(id, name, type, { filter = [], custom = [], params = [],
 export const customEvent = (id, name, event, opts = {}) => trigger(id, name, 'CUSTOM_EVENT', { ...opts, custom: [cond('EQUALS', '{{_event}}', event)] });
 export const triggerGroup = (id, name, memberIds) => trigger(id, name, 'TRIGGER_GROUP', { params: [list('triggerIds', memberIds.map(ref))] });
 export const variable = (id, name, type, params = []) => ({ variableId: String(id), name, type, parameter: params });
+
+/** Lookup Table variable (smm). rows: [[input, output], …]; defaultValue switches on "Set default value". */
+export const lookup = (id, name, input, rows, defaultValue) => variable(id, name, 'smm', [
+  tpl('input', input),
+  list('map', rows.map(([key, value]) => ms({ key, value }))),
+  ...(defaultValue === undefined ? [] : [bool('setDefaultValue', true), tpl('defaultValue', defaultValue)]),
+]);
 
 /** permissions: { inject_script: ['https://cdn.example.com/*'], access_consent: [] } */
 export function template(id, name, { permissions = {}, gallery } = {}) {

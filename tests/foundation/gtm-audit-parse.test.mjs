@@ -49,7 +49,7 @@ test('normalizes triggers, groups and adds referenced built-in triggers', () => 
   assert.deepEqual(byId['10'].conditions, [{ type: 'EQUALS', arg0: '{{_event}}', arg1: 'generate_lead', negate: false }]);
   assert.deepEqual(byId['11'].groupTriggerIds, ['10', ALL_PAGES]);
   assert.equal(byId['12'].conditions[0].negate, true);
-  assert.deepEqual(byId[ALL_PAGES], { id: ALL_PAGES, name: 'All Pages', type: 'PAGEVIEW', conditions: [], builtIn: true, groupTriggerIds: [], folderId: null });
+  assert.deepEqual(byId[ALL_PAGES], { id: ALL_PAGES, name: 'All Pages', type: 'PAGEVIEW', conditions: [], builtIn: true, groupTriggerIds: [], folderId: null, params: {}, customEvent: null });
   assert.equal(byId[CONSENT_INIT].type, 'CONSENT_INIT');
   assert.equal(byId['10'].builtIn, false);
 });
