@@ -3,7 +3,7 @@ Contributors: cortiq
 Tags: analytics, ai-tracking, heatmap, cookie-free, gdpr, chatgpt, ai-bots
 Requires at least: 5.6
 Tested up to: 6.8
-Stable tag: 5.5.19
+Stable tag: 5.5.20
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -86,6 +86,9 @@ All data is stored in the EU (AWS eu-north-1 via Supabase).
 The tracking script is loaded with `defer` so it does not block rendering.
 
 == Changelog ==
+
+= 5.5.20 =
+* Server-side agent measurement forwards the visitor's Global Privacy Control signal (Sec-GPC) with each hit; CortIQ stores nothing for a hit that carries it.
 
 = 5.5.19 =
 * The consent banner sends the language it was shown in with each answer, so acceptance can be compared per language.

@@ -1,5 +1,5 @@
 {
-  "latest": "5.5.19",
+  "latest": "5.5.20",
   "versions": {
     "5.5.13": {
       "securityFix": false,
@@ -75,6 +75,27 @@
       "securityFix": false,
       "files": {
         "cortiq.js": "sha384-td2XRSu0HuAIRGYwDMQfIaiUUESIeLX/KCtEMkDnIuFAydg4dqmMhCQ29U9yKQSI",
+        "consent-banner.js": "sha384-NES9vma99MD5MvQB72Y2y38lcvDEwu8sKXha/bumGjZdxHjiey4gM1IqkX1tpZ0z",
+        "consent-banner.min.js": "sha384-wd15Vo8DCCESfLb9soL4MBBKnLsrg/tuLkWbKs5vMD58dMmqN8b8LhqYEQfc+LSq",
+        "consent-banner.sv.js": "sha384-m8ev1QBvEIm3YVu8cejP2a8l0e1/fVN2NvWlCAOHrhwO9jhRHfnq1C44V5r+RGN4",
+        "consent-banner.en.js": "sha384-BLycs66u3WiW+ekMtcOx+8qarh+PT/3ZRG5/tZdUxd9zI7fB88dFGDdXkbZLg+Wk",
+        "consent-banner.de.js": "sha384-5KnFkHPDdtfc4TC+nsqho9Y5IdiU55l6KOKXNTHB9JC0VHH1NywuHIgNDsKN/cf6",
+        "consent-banner.fr.js": "sha384-DJxEmgsEHiRNrSFftg9jilVOGEpSiP+aATfHjML4UvOHZ4PCOQuAEr6Z0hR6+Gkw",
+        "consent-banner.pt.js": "sha384-InL5Mj2FqfB7jLeCeL3XuxtYT4vxzaTrYAkX8de+q6UKqDoGB68oQvf+wIu591U7",
+        "consent-banner.nl.js": "sha384-/E/niJpSgFHLJ9oY61W3+VeOl+9MFUPEUpP3TQAIRGkJACK/22o0sVTLfC2JLR6g",
+        "consent-banner.nb.js": "sha384-XhHTatIUtqv5zPDCVUYakT3rvmWNS2sMnzYiKP471I94xDDtdIClu3uE/A59qLbd",
+        "consent-banner.da.js": "sha384-c/HavtYlC4lAE+jAey2/1fzRvOIPrLlRkhyDG1N09roWcVRB46s/8q5L2Qhq4Wlm",
+        "consent-banner.fi.js": "sha384-Hv/BiGZQ8GFPsigXO2El0m5fqlcjUs2pM7ZfKTxAwjQkQc1tgvHOwQPQ/M0rSX12",
+        "consent-banner.pl.js": "sha384-3OIBXxHQ4BVVxN88gqMkpINFvH023uQkfqPj9Wy9gG7Wb7r9+/Zq316IlqOJRGbn",
+        "consent-banner.it.js": "sha384-EAjjLyLWniZndi+wRA6ni/hlzZ4wSYtWue86Nc/PJrkD1arVW7pTfvxJSwMTjqX1",
+        "consent-banner.es.js": "sha384-+jElSqMnhTvuc0NNmNiTUHIFvkvcmD3ace10uuXUZrZjJdVMwDRBpIXEsPGuyV8D",
+        "consent-banner.is.js": "sha384-bcVVoBuCgvuGqEwZS5e9D9NgKA5tlEB9eCwe3qqCcZlByESl2sl8CMxWRUNLav8W"
+      }
+    },
+    "5.5.20": {
+      "securityFix": false,
+      "files": {
+        "cortiq.js": "sha384-gJNDfnJ465360Iq259qR4yYRKa8nv781ghEO3OhuPsSGZZa1UPskB360XnEadhFi",
         "consent-banner.js": "sha384-NES9vma99MD5MvQB72Y2y38lcvDEwu8sKXha/bumGjZdxHjiey4gM1IqkX1tpZ0z",
         "consent-banner.min.js": "sha384-wd15Vo8DCCESfLb9soL4MBBKnLsrg/tuLkWbKs5vMD58dMmqN8b8LhqYEQfc+LSq",
         "consent-banner.sv.js": "sha384-m8ev1QBvEIm3YVu8cejP2a8l0e1/fVN2NvWlCAOHrhwO9jhRHfnq1C44V5r+RGN4",
