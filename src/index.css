@@ -115,6 +115,13 @@
     --sidebar-accent-foreground: 240 10% 3.9%;
     --sidebar-border: 240 6% 88%;
     --sidebar-ring: 217 91% 45%;
+
+    /* Market map (/markets/): one tone per engine status category, muted palette */
+    --map-approved: 113 21% 34%;
+    --map-rules: 38 40% 82%;
+    --map-rules-line: 38 50% 36%;
+    --map-global: 240 5% 84%;
+    --map-stroke: 0 0% 100%;
   }
 
   .dark {
@@ -192,6 +199,12 @@
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 240 6% 14%;
     --sidebar-ring: 217 91% 60%;
+
+    --map-approved: 113 25% 62%;
+    --map-rules: 38 30% 22%;
+    --map-rules-line: 38 48% 59%;
+    --map-global: 240 5% 24%;
+    --map-stroke: 240 10% 3.9%;
   }
 }
 
@@ -209,6 +222,20 @@
   }
 
   /* Force dark theme for professional SaaS look */
+}
+
+/* Market map: fills come from the status category, never from the market itself. Market rules are hatched
+   (fill="url(#…-hatch)" on the shape), so the category never rests on colour alone. */
+@layer components {
+  .market-map path { stroke: hsl(var(--map-stroke)); stroke-width: 0.6; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+  .market-map .mm-approved { fill: hsl(var(--map-approved)); }
+  .market-map .mm-global_only { fill: hsl(var(--map-global)); }
+  .market-map .mm-hatch-bg { fill: hsl(var(--map-rules)); stroke: none; }
+  .market-map .mm-hatch-line { stroke: hsl(var(--map-rules-line)); stroke-width: 1.4; }
+  .market-map [data-market] { cursor: pointer; outline: none; }
+  .market-map [data-market]:hover path { opacity: 0.8; }
+  .market-map [data-market][aria-pressed="true"] path,
+  .market-map [data-market]:focus-visible path { stroke: hsl(var(--foreground)); stroke-width: 1.6; }
 }
 
 @layer utilities {

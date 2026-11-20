@@ -19,6 +19,7 @@ import Privacy from './pages/Privacy';
 import Contact from './pages/Contact';
 import TrackingCheckLanding from './pages/TrackingCheckLanding';
 import GtmAudit from './pages/GtmAudit';
+import Markets from './pages/Markets';
 import CookieConsentChecker from './pages/CookieConsentChecker';
 import WebsiteMigrationCheck from './pages/WebsiteMigrationCheck';
 import ContentPage from './components/ContentPage';
@@ -40,6 +41,7 @@ const PAGES: Record<string, React.ComponentType> = {
   '/contact/': Contact,
   '/tracking-check/': TrackingCheckLanding,
   '/gtm-audit/': GtmAudit,
+  '/markets/': Markets,
   '/cookie-consent-checker/': CookieConsentChecker,
   '/website-migration-check/': WebsiteMigrationCheck,
   // Docs and integration pages are data rendered by ContentPage.

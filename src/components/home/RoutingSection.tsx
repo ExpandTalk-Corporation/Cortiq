@@ -1,13 +1,11 @@
-import { ArrowDown, ArrowRight, Check } from "lucide-react";
-import { DISCLAIMER, PACK_VERSION } from "@/lib/jurisdiction";
-import { MARKET_LABEL, marketStatuses } from "@/lib/marketStatus";
+import { ArrowDown, ArrowRight } from "lucide-react";
+import { DISCLAIMER } from "@/lib/jurisdiction";
 import { SectionHeader } from "./SectionHeader";
-import {
-  ROUTING_FLOW, ROUTING_ID, ROUTING_LAWS, ROUTING_OUTCOMES, ROUTING_RULES_NOTE, ROUTING_TODAY_LINE, ROUTING_WORKS_TODAY,
-} from "./copy";
+import { MarketMapThumbnail } from "./MarketMap";
+import { MarketTable, WorksToday } from "./MarketTable";
+import { ROUTING_FLOW, ROUTING_ID, ROUTING_OUTCOMES, ROUTING_TODAY_LINE } from "./copy";
 
-// Status per market is computed from the rule engine at build time; nothing here is hand-written.
-const STATUSES = marketStatuses();
+// Status per market is computed from the rule engine at build time (MarketTable, MarketMap); nothing here is hand-written.
 
 export function RoutingSection() {
   return (
@@ -48,65 +46,13 @@ export function RoutingSection() {
 
         <h3 className="text-2xl font-bold text-center mb-2">Markets the engine knows</h3>
         <p className="text-center text-muted-foreground max-w-3xl mx-auto mb-6">{ROUTING_TODAY_LINE}</p>
-        {/* Phones: one card per market, so the status is never scrolled out of view. */}
-        <ul className="space-y-3 sm:hidden">
-          {STATUSES.map((s) => (
-            <li key={s.market} className="rounded-lg border bg-background p-4 text-sm">
-              <p className="font-medium text-foreground">{MARKET_LABEL[s.market]}</p>
-              <dl className="mt-2 space-y-2">
-                <div><dt className="text-xs text-muted-foreground">Engine status (logged, not applied)</dt><dd className="text-foreground">{s.status}</dd></div>
-                <div><dt className="text-xs text-muted-foreground">Main laws</dt><dd className="text-muted-foreground">{ROUTING_LAWS[s.market]}</dd></div>
-                <div>
-                  <dt className="text-xs text-muted-foreground">Rules on file</dt>
-                  <dd className="text-muted-foreground">{s.rulesOnFile.length ? s.rulesOnFile.map((r) => r.text).join("; ") : "None"}</dd>
-                </div>
-              </dl>
-            </li>
-          ))}
-        </ul>
-        <div className="hidden overflow-x-auto rounded-lg border bg-background sm:block">
-          <table className="w-full min-w-[40rem] text-sm">
-            <caption className="sr-only">Markets, main laws, rules on file and status, from rule pack {PACK_VERSION}</caption>
-            <thead>
-              <tr className="border-b text-left text-muted-foreground">
-                <th scope="col" className="p-3 font-medium">Market</th>
-                <th scope="col" className="p-3 font-medium">Main laws</th>
-                <th scope="col" className="p-3 font-medium">Rules on file</th>
-                <th scope="col" className="p-3 font-medium">Engine status (logged, not applied)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {STATUSES.map((s) => (
-                <tr key={s.market} data-market={s.market} className="border-b last:border-0 align-top">
-                  <th scope="row" className="p-3 text-left font-medium text-foreground">{MARKET_LABEL[s.market]}</th>
-                  <td className="p-3 text-muted-foreground">{ROUTING_LAWS[s.market]}</td>
-                  <td className="p-3 text-muted-foreground">
-                    {s.rulesOnFile.length ? (
-                      <ul className="space-y-1">{s.rulesOnFile.map((r) => <li key={r.id}>{r.text}</li>)}</ul>
-                    ) : "None"}
-                  </td>
-                  <td className="p-3 text-foreground">{s.status}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="mx-auto mb-6 max-w-2xl">
+          <MarketMapThumbnail />
         </div>
-        <p className="mt-3 text-center text-xs text-muted-foreground">
-          {ROUTING_RULES_NOTE} Status shows what the engine logs, computed from rule pack {PACK_VERSION}. It does not change what is collected today. {DISCLAIMER}
-        </p>
+        <MarketTable />
 
         <h3 className="text-2xl font-bold text-center mt-16 mb-6">What works in every market today</h3>
-        <ul className="grid gap-4 md:grid-cols-2">
-          {ROUTING_WORKS_TODAY.map((w) => (
-            <li key={w.title} className="flex gap-3 rounded-lg border bg-background p-4">
-              <Check className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
-              <div>
-                <p className="font-medium text-foreground">{w.title}</p>
-                <p className="mt-1 text-sm text-muted-foreground">{w.text}</p>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <WorksToday />
         <p className="mt-6 text-center text-sm text-muted-foreground">{DISCLAIMER}</p>
       </div>
     </section>
