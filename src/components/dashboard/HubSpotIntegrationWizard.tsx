@@ -171,6 +171,10 @@ export function HubSpotIntegrationWizard({ selectedSite, isConfigured = false }:
             CortIQ expects values: <strong>Priority</strong>, <strong>Qualified</strong>, or <strong>Challenge</strong>.
             These map to conversion values 300, 100, and 0 for Smart Bidding.
           </p>
+          <p className="text-xs text-muted-foreground">
+            Also ask &quot;how did you hear about us?&quot; in HubSpot? Set that property up separately under Self-reported source on
+            this page. It must be a different property, ideally a dropdown or radio select.
+          </p>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => setStep(2)}>Back</Button>
             <Button size="sm" onClick={() => setStep(4)}>Next</Button>

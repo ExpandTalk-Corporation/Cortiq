@@ -11,6 +11,7 @@ import { SetupChecklist } from '../setup/SetupChecklist';
 import { conversionStep, goalsStep, googleAdsApiStep, hubspotStep } from '../setup/acquisitionSteps';
 import { GoogleAdsConnectHint } from '@/components/dashboard/GoogleAdsConnectCard';
 import { AiInfluenceCard } from '@/components/dashboard/AiInfluenceCard';
+import { ReportedChannelCard } from '@/components/dashboard/ReportedChannelCard';
 
 interface AttributionTabProps {
   selectedSite: Site;
@@ -41,6 +42,7 @@ export function AttributionTab({ selectedSite, onNavigate }: AttributionTabProps
       <div className="space-y-6">
         <PixelReadinessCard selectedSite={selectedSite} />
         <AiInfluenceCard selectedSite={selectedSite} onNavigate={onNavigate} />
+        <ReportedChannelCard selectedSite={selectedSite} onNavigate={onNavigate} />
       </div>
     );
   }
@@ -69,6 +71,7 @@ export function AttributionTab({ selectedSite, onNavigate }: AttributionTabProps
         {checklist}
         <PixelReadinessCard selectedSite={selectedSite} />
         <AiInfluenceCard selectedSite={selectedSite} onNavigate={onNavigate} />
+        <ReportedChannelCard selectedSite={selectedSite} onNavigate={onNavigate} />
       </div>
     );
   }
@@ -185,6 +188,7 @@ export function AttributionTab({ selectedSite, onNavigate }: AttributionTabProps
       {!gapMeasurable && checklist}
 
       <AiInfluenceCard selectedSite={selectedSite} onNavigate={onNavigate} />
+      <ReportedChannelCard selectedSite={selectedSite} onNavigate={onNavigate} />
 
       {/* Source breakdown */}
       {bySource.length > 0 && (

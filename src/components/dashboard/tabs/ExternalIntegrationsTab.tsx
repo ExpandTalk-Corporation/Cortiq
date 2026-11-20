@@ -16,6 +16,7 @@ import { BingWebmasterSetup } from '@/components/dashboard/BingWebmasterSetup';
 import { GoogleSiteKitIntegration } from '@/components/dashboard/GoogleSiteKitIntegration';
 import { TikTokIntegration } from '@/components/dashboard/integrations/TikTokIntegration';
 import { HubSpotIntegrationWizard } from '@/components/dashboard/HubSpotIntegrationWizard';
+import { ReportedChannelSettings } from '@/components/dashboard/ReportedChannelSettings';
 import { DetectedTools } from '@/components/dashboard/integrations/DetectedTools';
 import { useIntegrations, useUpdateIntegrations, type IntegrationItem } from '@/hooks/useIntegrations';
 import { toast } from 'sonner';
@@ -291,6 +292,7 @@ export function ExternalIntegrationsTab({ selectedSite }: ExternalIntegrationsTa
         <GoogleSearchConsoleSetup selectedSite={selectedSite} />
         <BrandKeywordsSettings selectedSite={selectedSite} />
         <GoogleAdsConnectCard siteId={selectedSite.id} />
+        <ReportedChannelSettings selectedSite={selectedSite} />
       </div>
 
       {/* Important Notice */}

@@ -1,0 +1,108 @@
+// tests/foundation/reported-channel-ui.test.mjs
+// Attribution layer 1.5 dashboard: aggregate parsing, "fewer than 5", n next to every percentage,
+// and the copy rules from the jurist review 2026-11-20 (spec 2026-11-12-attribution-models-and-ai-influence.md).
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import {
+  parseReportedChannel, formatCount, formatShare, percent, mismatches, mismatchLabel,
+  rowsToMap, mapToRows, noticeTemplate, FORM_FIELD_PATTERN, HUBSPOT_PROPERTY_PATTERN,
+  REPORTED_CHANNELS,
+} from '../../src/lib/reportedChannel.ts';
+
+const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
+const UI = [
+  '../../src/components/dashboard/ReportedChannelCard.tsx',
+  '../../src/components/dashboard/ReportedChannelSettings.tsx',
+  '../../src/lib/reportedChannel.ts',
+];
+
+test('parse: hidden counts stay hidden, never become a number', () => {
+  const s = parseReportedChannel({
+    conversions: { n: 40, lt5: false },
+    answered: { n: 12, lt5: false },
+    matched: { n: null, lt5: true },
+    reported: [{ channel: 'ai_assistant', n: 7, lt5: false }, { channel: 'podcast', n: null, lt5: true }],
+    cells: [
+      { reported: 'ai_assistant', observed: 'direct', n: 6, lt5: false },
+      { reported: 'podcast', observed: 'podcast', n: null, lt5: true },
+      { reported: 'event', observed: 'unknown', n: null, lt5: true },
+    ],
+  });
+  assert.equal(formatCount(s.matched), 'fewer than 5');
+  assert.equal(s.reported[1].n, null);
+  assert.equal(formatShare(s.answered, s.conversions), '12 of 40 (30 %)');
+  assert.equal(formatShare(s.reported[1], s.answered), 'fewer than 5 of 12');
+  assert.equal(percent(s.matched, s.answered), null);
+  assert.deepEqual(mismatches(s).map(mismatchLabel), [
+    'said AI assistant, arrived direct',
+    'said Event, no tracked visit',
+  ]);
+  const empty = parseReportedChannel(null);
+  assert.deepEqual(empty.conversions, { n: 0, lt5: false });
+  assert.equal(formatShare(empty.answered, empty.conversions), '0 of 0');
+});
+
+test('settings: value map and field validation match the database constraint', () => {
+  const { map, errors } = rowsToMap([
+    { answer: '  ChatGPT ', channel: 'ai_assistant' },
+    { answer: 'chatgpt', channel: 'other' },
+    { answer: '', channel: '' },
+    { answer: 'Podcast', channel: '' },
+  ]);
+  assert.deepEqual(map, { chatgpt: 'ai_assistant' });
+  assert.equal(errors.length, 1);
+  assert.deepEqual(mapToRows({ chatgpt: 'ai_assistant', x: 'not_a_category' }), [{ answer: 'chatgpt', channel: 'ai_assistant' }]);
+  assert.ok(FORM_FIELD_PATTERN.test('how_did_you_hear'));
+  assert.ok(FORM_FIELD_PATTERN.test('fields[source]'));
+  assert.ok(!FORM_FIELD_PATTERN.test('#source select'));
+  assert.ok(!FORM_FIELD_PATTERN.test('input[name="x"]'));
+  assert.ok(HUBSPOT_PROPERTY_PATTERN.test('how_did_you_hear'));
+  assert.ok(!HUBSPOT_PROPERTY_PATTERN.test('how did you hear'));
+  // Migration and frontend agree on the patterns.
+  const sql = read('../../supabase/migrations/20261210000001_reported_channel.sql');
+  assert.match(sql, /reported_channel_form_field ~ '\^\[A-Za-z0-9_\.:\\\[\\\]-\]\{1,100\}\$'/);
+  assert.match(sql, /reported_channel_hubspot_property ~ '\^\[A-Za-z0-9_\]\{1,100\}\$'/);
+  assert.equal(REPORTED_CHANNELS.length, 13);
+});
+
+test('notice templates name the consent and the category, not a promise of compliance', () => {
+  for (const path of ['form', 'hubspot']) {
+    const t = noticeTemplate(path, 'Acme');
+    assert.match(t, /Acme/);
+    assert.match(t, /category/);
+    assert.match(t, /withdraw your consent/);
+  }
+  assert.match(noticeTemplate('form', ''), /statistics cookies/);
+  assert.match(noticeTemplate('hubspot', ''), /marketing cookies/);
+});
+
+test('copy: allowed wording present, never-list absent', () => {
+  const card = read(UI[0]);
+  const settings = read(UI[1]);
+  assert.match(card, /Self-reported source/);
+  assert.match(card, /recall, not fact/);
+  assert.match(card, /[Aa]nswer rate/);
+  assert.match(card, /[Ww]hat buyers say/);
+  assert.match(card, /formatShare\(data\.answered, data\.conversions\)/, 'answer rate is always shown with n');
+  assert.match(settings, /sensitive/i);
+  assert.match(settings, /noticeTemplate\(/);
+  for (const f of UI) {
+    const src = read(f);
+    for (const never of [/true source/i, /true attribution/i, /dark funnel revealed/i, /\banonymous/i,
+      /no consent needed/i, /GDPR-compliant/i, /AI assistants? drove/i]) {
+      assert.doesNotMatch(src, never, `${f}: ${never}`);
+    }
+    // Never a percentage without its count next to it.
+    assert.doesNotMatch(src, /\{percent\(/, `${f}: percent() rendered without n`);
+  }
+});
+
+test('Attribution tab shows the card in every state; settings sit under Integrations', () => {
+  const tab = read('../../src/components/dashboard/tabs/AttributionTab.tsx');
+  assert.equal((tab.match(/<ReportedChannelCard /g) ?? []).length, 3);
+  const integrations = read('../../src/components/dashboard/tabs/ExternalIntegrationsTab.tsx');
+  assert.match(integrations, /<ReportedChannelSettings /);
+  const wizard = read('../../src/components/dashboard/HubSpotIntegrationWizard.tsx');
+  assert.match(wizard, /how did you hear about us/i);
+});
