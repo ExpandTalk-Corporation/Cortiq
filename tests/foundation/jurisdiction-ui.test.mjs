@@ -34,11 +34,14 @@ test('CMPDashboard registers the tab', () => {
   assert.match(src, /<RulesByMarketTab selectedSite=\{selectedSite\} \/>/);
 });
 
-test('shadow mode is visible: tighten settings say they are not yet applied; Stopped column explains its 0', () => {
+test('Off applies now, opt-in and market rules are recorded only; Stopped column explains what it counts', () => {
   const tab = read('RulesByMarketTab.tsx');
-  assert.match(tab, /Recorded, not yet applied: CortIQ is checking these rules against real traffic before it starts stopping data\. Until then, data for every purpose is collected as before\./);
+  assert.match(tab, /"Off" is applied now: it stops data for that purpose on this site\./);
+  assert.match(tab, /"Require opt-in" and the market rules are recorded only, not yet applied/);
+  assert.match(tab, /your own Off is applied now/);
+  assert.doesNotMatch(tab, /data for every purpose is collected as before|nothing is stopped yet/);
   assert.ok(tab.indexOf('{NOT_YET_APPLIED}') < tab.indexOf('Make it stricter'), 'notice sits above the tighten controls');
-  assert.match(read('CoverageByCountryCard.tsx'), /Stopping is not switched on yet; this column stays 0 until it is\./);
+  assert.match(read('CoverageByCountryCard.tsx'), /Counts only your own Off settings until the market rules are switched on\./);
   assert.match(read('LegalProfileForm.tsx'), /Visitors whose country we cannot verify are treated by the strictest of the markets you select\./);
 });
 

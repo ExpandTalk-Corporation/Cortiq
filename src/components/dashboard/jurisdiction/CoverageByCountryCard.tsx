@@ -36,7 +36,7 @@ export function CoverageByCountryCard({ selectedSite }: { selectedSite: Site | n
                   <td>{pct(r.missing, r.decisions)}</td><td>{pct(r.refused + r.gpc, r.decisions)}</td><td>{r.enforcedDrops}</td></tr>))}
               </tbody>
             </table></div>)}
-          <p className="mt-1 text-xs text-muted-foreground">Stopping is not switched on yet; this column stays 0 until it is.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Counts only your own Off settings until the market rules are switched on.</p>
         </section>
 
         <section>
