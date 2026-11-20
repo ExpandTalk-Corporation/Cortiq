@@ -2,6 +2,7 @@ import type { Finding } from '../../tracking-check/types.ts';
 import type { Container, TagInfo } from '../types.ts';
 import { consentInferred, consentMissing, consentModeDefault, identifiesVisitors } from './consent.ts';
 import { multipleDestinations } from './destinations.ts';
+import { conversionDoubleCount, conversionOnEveryPage, enhancedConversionsOff } from './conversions.ts';
 import { reliedOn } from './dependencies.ts';
 import { dependencies, type Dependency } from '../dependencies.ts';
 import { fragileDom } from './fragile.ts';
@@ -17,6 +18,9 @@ export function runRules(container: Container, infos: TagInfo[], deps: Dependenc
     identifiesVisitors(infos),
     consentModeDefault(container, infos),
     multipleDestinations(container, infos),
+    conversionOnEveryPage(container, infos),
+    conversionDoubleCount(container, infos),
+    enhancedConversionsOff(container, infos),
     reliedOn(container, infos, deps),
     unknownCustomHtml(infos),
     communityTemplateInjects(infos),
