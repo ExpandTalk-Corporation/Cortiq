@@ -17,6 +17,8 @@ const EEA_UK_CH = new Set([
 ]);
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// ?site= reads the site's policy with the service role; cap it per site so it cannot be used to load the DB.
+const SITE_LOOKUPS_PER_MINUTE = 60;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
@@ -31,17 +33,23 @@ Deno.serve(async (req) => {
   const site = new URL(req.url).searchParams.get('site');
   if (site && UUID.test(site)) {
     const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-    const policy = await loadSitePolicy(supabase, site);
-    const outcomes: Record<string, string> = {};
-    for (const purpose of PURPOSES) {
-      outcomes[purpose] = decide({
-        visitor: visitorFrom(geo), purpose,
-        signals: signalsFrom(null, { trackerGate: [], gpcHeader: req.headers.get('sec-gpc') === '1' }),
-        technique: { storage: 'none', identifiers: 'none' },
-        customer: policy.customer, exceptions: policy.exceptions, tighten: policy.tighten, testSite: false,
-      }).outcome;
+    const { data: allowed, error: rlError } = await supabase.rpc('check_rate_limit', {
+      p_key: `geo-check:${site.toLowerCase()}`, p_max_count: SITE_LOOKUPS_PER_MINUTE, p_window_sec: 60,
+    });
+    // Limited or unavailable: the plain scope answer only (still 200, the banner needs it).
+    if (!rlError && allowed !== false) {
+      const policy = await loadSitePolicy(supabase, site);
+      const outcomes: Record<string, string> = {};
+      for (const purpose of PURPOSES) {
+        outcomes[purpose] = decide({
+          visitor: visitorFrom(geo), purpose,
+          signals: signalsFrom(null, { trackerGate: [], gpcHeader: req.headers.get('sec-gpc') === '1' }),
+          technique: { storage: 'none', identifiers: 'none' },
+          customer: policy.customer, exceptions: policy.exceptions, tighten: policy.tighten, testSite: false,
+        }).outcome;
+      }
+      payload.outcomes = outcomes;
     }
-    payload.outcomes = outcomes;
   }
   return new Response(JSON.stringify(payload),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Cache-Control': 'private, max-age=300' } });
