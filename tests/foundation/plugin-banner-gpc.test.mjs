@@ -91,7 +91,8 @@ test('plugin banner: replay of a pre-GPC stored marketing grant is masked in det
 test('plugin banner: every language has a GPC note', () => {
   const langs = [...php.matchAll(/'(en|sv|de|fr|pt|nl|nb|da|fi|pl|it|es|is)' => array\(/g)].map((m) => m[1]);
   assert.ok(langs.length >= 3);
-  // One 'gpc' => per language string, plus one for CQ_T's 'gpc' => $t['gpc'] passthrough.
-  assert.equal((php.match(/'gpc'\s*=>/g) || []).length, langs.length + 1);
+  // One 'gpc' => per language string, plus one for CQ_T's 'gpc' => $t['gpc'] passthrough
+  // (the server-side hit's Sec-GPC field is not a banner string and is left out).
+  assert.equal((php.match(/'gpc'\s*=>(?!\s*\( isset\( \$_SERVER\['HTTP_SEC_GPC'\])/g) || []).length, langs.length + 1);
   assert.match(php, /'gpc'\s*=> \$t\['gpc'\]/);
 });

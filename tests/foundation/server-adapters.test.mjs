@@ -68,8 +68,17 @@ test('reports agents with truncated IP and no query string; ignores humans', asy
   assert.equal(sent[0].init.headers.Authorization, `Bearer ${KEY}`);
   assert.deepEqual(sent[0].body.hits[0], {
     url: 'https://shop.test/p', method: 'GET', status: 200,
-    userAgent: 'Mozilla/5.0 (compatible; GPTBot/1.2)', referrer: 'https://ref.test/', ip: '198.51.100.0',
+    userAgent: 'Mozilla/5.0 (compatible; GPTBot/1.2)', referrer: 'https://ref.test/', ip: '198.51.100.0', gpc: false,
   });
+});
+
+test('forwards the Sec-GPC objection per hit (Fetch headers and Node header objects)', async () => {
+  const { sent, fetchImpl } = capture();
+  const c = createCortiq({ siteKey: KEY, fetchImpl });
+  await c.report(req('https://shop.test/a', 'GPTBot/1.2', { 'sec-gpc': '1' }));
+  await c.report(req('https://shop.test/b', 'GPTBot/1.2', { 'sec-gpc': '0' }));
+  await c.report({ url: 'https://shop.test/c', method: 'GET', headers: { 'user-agent': 'GPTBot/1.2', 'sec-gpc': '1' } });
+  assert.deepEqual(sent.map((s) => s.body.hits[0].gpc), [true, false, true]);
 });
 
 test('robots.txt / llms.txt are reported for any user agent', async () => {
@@ -166,6 +175,9 @@ test('worker: reports GPTBot, not humans; truncates CF-Connecting-IP', async () 
   assert.equal(w.sent.length, 1);
   assert.equal(w.sent[0].hits[0].url, 'https://shop.test/page');
   assert.equal(w.sent[0].hits[0].ip, '203.0.113.0');
+  assert.equal(w.sent[0].hits[0].gpc, false);
+  await w.run('https://shop.test/page', 'GPTBot/1.2', { 'Sec-GPC': '1' });
+  assert.equal(w.sent[1].hits[0].gpc, true);
 });
 
 test('worker: injects honeypot into HTML, Disallow into robots.txt, answers the trap', async () => {

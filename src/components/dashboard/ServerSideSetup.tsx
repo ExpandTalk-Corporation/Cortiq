@@ -98,9 +98,10 @@ Single-page app without prerendered HTML? Set CORTIQ_SPA_FALLBACK = true.`;
   const http = `curl -X POST '${endpoint}' \\
   -H 'Authorization: Bearer ${trackingKey}' \\
   -H 'Content-Type: application/json' \\
-  -d '{"hits":[{"url":"https://your-domain.com/page","userAgent":"Mozilla/5.0 (compatible; GPTBot/1.2)","ip":"203.0.113.0","status":200}]}'
+  -d '{"hits":[{"url":"https://your-domain.com/page","userAgent":"Mozilla/5.0 (compatible; GPTBot/1.2)","ip":"203.0.113.0","status":200,"gpc":false}]}'
 
 # Send only bot/agent requests, /robots.txt, /llms.txt and /cortiq-trap/ hits.
+# Set "gpc": true when the request carried Sec-GPC: 1; CortIQ then stores nothing for that hit.
 # Truncate the IP (a.b.c.0, or the first three IPv6 groups) and drop the query string
 # before sending. Up to 100 hits per request.`;
 
@@ -114,6 +115,7 @@ Single-page app without prerendered HTML? Set CORTIQ_SPA_FALLBACK = true.`;
           <code> robots.txt</code> / <code>llms.txt</code> fetches and hits on a hidden honeypot link — with the IP
           truncated and without query strings. Human requests are never sent and nothing runs in the visitor's browser,
           so no consent banner is involved. It is still personal data under GDPR: mention it in your privacy policy.
+          A request that carries <code>Sec-GPC: 1</code> is forwarded as an objection, and CortIQ stores nothing for it.
         </p>
         {coverage && (
           <p className="text-xs mt-2">

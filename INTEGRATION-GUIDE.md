@@ -375,10 +375,12 @@ POST https://[YOUR_PROJECT_REF].supabase.co/functions/v1/server-hit
 Authorization: Bearer tk_…
 Content-Type: application/json
 
-{"hits":[{"url":"https://example.com/page","userAgent":"Mozilla/5.0 (compatible; GPTBot/1.2)","ip":"203.0.113.0","status":200,"referrer":"https://…"}]}
+{"hits":[{"url":"https://example.com/page","userAgent":"Mozilla/5.0 (compatible; GPTBot/1.2)","ip":"203.0.113.0","status":200,"referrer":"https://…","gpc":false}]}
 ```
 
-Up to 100 hits per request. Every hit's host must belong to the key's site (other hosts are rejected). Response: `{ accepted, stored, ignored, rejected }`. CortIQ stores AI-registry bots and honeypot visitors (`ai_bot_traffic`, `source = 'server_log'`, `server_signal = request | robots_txt | llms_txt | honeypot`) and discards everything else. The truncated IP is cleared after 30 days.
+Up to 100 hits per request. Every hit's host must belong to the key's site (other hosts are rejected). Response: `{ accepted, stored, ignored, rejected }`. CortIQ stores AI-registry bots and honeypot visitors (`ai_bot_traffic`, `source = 'server_log'`, `server_signal = request | robots_txt | llms_txt | honeypot`) and discards everything else. Honeypot hits from user agents the registry does not classify are kept as a signal only, without IP, user agent, country or referrer. The truncated IP is cleared after 30 days.
+
+`gpc` is `true` when the request carried `Sec-GPC: 1`: the visitor objects (GDPR art. 21), and CortIQ counts the hit as ignored and stores nothing. The bundled adapters (`cortiq-server.mjs`, the Cloudflare Worker, the PHP adapter and the WordPress plugin from 5.5.20) send it on every hit; a hit without the field is treated as not objected.
 
 ---
 

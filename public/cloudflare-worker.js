@@ -90,6 +90,8 @@ async function report(request, url, status, key, env) {
         ip: truncateIp(request.headers.get('CF-Connecting-IP')) || undefined,
         country: request.cf?.country || undefined,
         region: request.cf?.regionCode || undefined,
+        // The visitor's objection (GDPR art. 21): CortIQ stores nothing for this hit.
+        gpc: request.headers.get('sec-gpc') === '1',
       }] }),
     });
   } catch (_) { /* never surface measurement errors to visitors */ }

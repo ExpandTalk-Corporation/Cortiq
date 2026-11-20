@@ -100,6 +100,8 @@ export function createCortiq({ siteKey, endpoint = DEFAULT_ENDPOINT, fetchImpl }
       userAgent: (header(request.headers, 'user-agent') || '').slice(0, 512),
       referrer: cleanReferrer(header(request.headers, 'referer')),
       ip: truncateIp(clientIp(request.headers)) || undefined,
+      // The visitor's objection (GDPR art. 21): CortIQ stores nothing for this hit.
+      gpc: header(request.headers, 'sec-gpc') === '1',
     };
   }
 

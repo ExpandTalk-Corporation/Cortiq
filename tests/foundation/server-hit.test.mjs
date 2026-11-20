@@ -6,13 +6,14 @@ import { loadEdge, mockDatabase } from './edge-harness.mjs';
 const SITE = '11111111-1111-4111-8111-111111111111';
 const KEY = 'tk_' + 'a'.repeat(32);
 
-function setup({ site = { id: SITE, is_active: true, domain: 'https://www.shop.test/' }, rate = { data: true, error: null } } = {}) {
+function setup({ site = { id: SITE, is_active: true, domain: 'https://www.shop.test/' }, rate = { data: true, error: null }, policy = null } = {}) {
   const rpcCalls = [];
   const db = mockDatabase(
     op => (op.table === 'sites' ? { data: site, error: null } : { data: null, error: null }),
     async (name, args) => {
       rpcCalls.push({ name, args });
       if (name === 'check_rate_limit') return rate;
+      if (name === 'get_site_jurisdiction') return { data: policy, error: null };
       return { data: null, error: null };
     },
   );
@@ -133,4 +134,44 @@ test('Cloudflare adapter sends request.cf country and region', () => {
   const src = readFileSync('public/cloudflare-worker.js', 'utf8');
   assert.match(src, /country: request\.cf\?\.country \|\| undefined,/);
   assert.match(src, /region: request\.cf\?\.regionCode \|\| undefined,/);
+});
+
+test('honeypot hits from unclassified user agents keep no IP, UA, geo or referrer; registry agents unchanged', async () => {
+  const { handler, calls } = setup();
+  await handler(post([
+    { url: 'https://shop.test/cortiq-trap/x', userAgent: 'Mozilla/5.0 Chrome/129.0', ip: '198.51.100.9', country: 'SE', referrer: 'https://shop.test/a' },
+    { url: 'https://shop.test/cortiq-trap/x', userAgent: 'Mozilla/5.0 (compatible; GPTBot/1.2)', ip: '198.51.100.9', country: 'SE' },
+  ]));
+  const [unknown, gpt] = inserted(calls);
+  assert.deepEqual([unknown.ip_address, unknown.user_agent, unknown.country_code, unknown.region_code, unknown.referrer], [null, null, null, null, null]);
+  assert.deepEqual([unknown.server_signal, unknown.probe_triggered, unknown.bot_name], ['honeypot', true, 'Honeypot visitor']);
+  assert.deepEqual([gpt.ip_address, gpt.user_agent, gpt.country_code], ['198.51.100.0', 'Mozilla/5.0 (compatible; GPTBot/1.2)', 'SE']);
+});
+
+test('objection: a hit with gpc: true is counted as ignored and never stored; its decision is logged with GPC', async () => {
+  // A test site, so the draft server-log rule (allowed_unless_opt_out) decides and the reason shows GPC.
+  const { handler, calls, rpcCalls } = setup({ policy: { profile: null, tighten: {}, exceptions: [], testSite: true } });
+  const res = await handler(post([
+    { url: 'https://shop.test/a', userAgent: 'GPTBot/1.2', gpc: true },
+    { url: 'https://shop.test/b', userAgent: 'ClaudeBot/1.0', gpc: false },
+    { url: 'https://shop.test/c', userAgent: 'ClaudeBot/1.0' },
+    { url: 'https://shop.test/d', userAgent: 'ClaudeBot/1.0', gpc: 'true' },
+  ]));
+  assert.deepEqual(await res.json(), { accepted: 4, stored: 3, ignored: 1, rejected: 0 });
+  assert.deepEqual(inserted(calls).map((r) => r.url), ['https://shop.test/b', 'https://shop.test/c', 'https://shop.test/d']);
+  const ls = rpcCalls.filter((c) => c.name === 'log_jurisdiction_decision').map((c) => c.args);
+  assert.deepEqual(ls.map((l) => [l.p_purpose, l.p_count, l.p_reason === 'gpc']).sort(), [['agent_measurement', 1, true], ['agent_measurement', 3, false]]);
+
+  // Production policy (draft rule unusable): the objected hit is still never stored.
+  const only = setup();
+  const r2 = await only.handler(post([{ url: 'https://shop.test/a', userAgent: 'GPTBot/1.2', gpc: true }]));
+  assert.deepEqual(await r2.json(), { accepted: 1, stored: 0, ignored: 1, rejected: 0 });
+  assert.equal(inserted(only.calls).length, 0);
+});
+
+test('adapters forward Sec-GPC per hit', () => {
+  assert.match(readFileSync('public/cortiq-server.mjs', 'utf8'), /gpc: header\(request\.headers, 'sec-gpc'\) === '1'/);
+  assert.match(readFileSync('public/cloudflare-worker.js', 'utf8'), /gpc: request\.headers\.get\('sec-gpc'\) === '1'/);
+  assert.match(readFileSync('public/cortiq-server-php.txt', 'utf8'), /'gpc'\s*=>\s*\( \$_SERVER\['HTTP_SEC_GPC'\] \?\? '' \) === '1'/);
+  assert.match(readFileSync('wordpress-plugin/cortiq-analytics.php', 'utf8'), /'gpc'\s*=>\s*\( isset\( \$_SERVER\['HTTP_SEC_GPC'\] \)[^\n]*\) === '1'/);
 });
