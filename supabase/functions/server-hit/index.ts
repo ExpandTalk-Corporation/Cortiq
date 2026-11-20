@@ -150,7 +150,7 @@ Deno.serve(async (req) => {
     // One decision per batch. Adapter geo is unsigned, so the engine judges by the site's markets.
     const drop = await jurisdictionGate(supabase, 'server-hit', site.id, Deno.env.get('JURISDICTION_ENFORCE')).gate(() => ({
       visitor: { country: null, region: null, geoSource: 'adapter' },
-      purpose: 'security',
+      purpose: 'agent_measurement',
       signals: signalsFrom(null, { trackerGate: [], gpcHeader: false }),
       technique: { storage: 'none', identifiers: 'none' },
     }), rows.length);

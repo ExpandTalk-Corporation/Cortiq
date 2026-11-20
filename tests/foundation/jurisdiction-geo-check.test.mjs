@@ -21,7 +21,7 @@ test('geo-check ?site=: outcome per purpose, no profile details, nothing logged'
   const token = await signGeo({ country: 'SE', region: null, ip: null }, KEY, Math.floor(Date.now() / 1000));
   const body = await (await handler(new Request(`https://fn.test/geo-check?site=${SITE}`, { headers: { [GEO_HEADER]: token } }))).json();
   assert.deepEqual(Object.keys(body), ['country', 'region', 'in_scope', 'outcomes']);
-  assert.deepEqual(body.outcomes, { statistics: 'blocked', conversion: 'needs_opt_in', attribution: 'needs_opt_in', ad_platform_sharing: 'needs_opt_in', security: 'needs_opt_in' });
+  assert.deepEqual(body.outcomes, { statistics: 'blocked', conversion: 'needs_opt_in', attribution: 'needs_opt_in', ad_platform_sharing: 'needs_opt_in', agent_measurement: 'needs_opt_in' });
   assert.equal(rpcCalls.some((c) => c.name === 'log_jurisdiction_decision'), false);
 });
 

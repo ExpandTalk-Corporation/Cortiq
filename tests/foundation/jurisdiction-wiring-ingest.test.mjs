@@ -144,7 +144,7 @@ test('server-hit: one decision per batch, adapter geo is never logged as a count
   assert.equal(body.stored, 2);
   const ls = logs(d.rpcCalls);
   assert.equal(ls.length, 1);
-  assert.deepEqual([ls[0].p_purpose, ls[0].p_country, ls[0].p_count], ['security', '', 2]);
+  assert.deepEqual([ls[0].p_purpose, ls[0].p_country, ls[0].p_count], ['agent_measurement', '', 2]);
   const enforced = await serverHit({ JURISDICTION_ENFORCE: 'server-hit' });
   assert.deepEqual(enforced.body, { accepted: 2, stored: 0, ignored: 0, rejected: 0, skipped: 'jurisdiction' });
   assert.equal(enforced.d.calls.some((c) => c.table === 'ai_bot_traffic' && c.type === 'insert'), false);
@@ -161,10 +161,10 @@ async function aiBot(env = {}) {
   return { body: await res.json(), d };
 }
 
-test('ai-bot-tracker: security decision with tracker-gate evidence; enforce drops without writes', async () => {
+test('ai-bot-tracker: agent_measurement decision with tracker-gate evidence; enforce drops without writes', async () => {
   const shadow = await aiBot();
   const [l] = logs(shadow.d.rpcCalls);
-  assert.deepEqual([l.p_fn, l.p_purpose, l.p_evidence], ['ai-bot-tracker', 'security', 'tracker_gate']);
+  assert.deepEqual([l.p_fn, l.p_purpose, l.p_evidence], ['ai-bot-tracker', 'agent_measurement', 'tracker_gate']);
   const enforced = await aiBot({ JURISDICTION_ENFORCE: 'ai-bot-tracker' });
   // Consent via tracker gate permits needs_opt_in, so enforcement keeps the row.
   assert.notEqual(enforced.body.skipped, 'jurisdiction');

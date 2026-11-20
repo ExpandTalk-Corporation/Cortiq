@@ -1,7 +1,7 @@
 // supabase/functions/_shared/jurisdiction/types.ts
 // Spec 2026-11-18 phase 3. Pure data types for the rule engine. Erasable TS only (node --test strips types).
 
-export const PURPOSES = ['statistics', 'conversion', 'attribution', 'ad_platform_sharing', 'security'] as const;
+export const PURPOSES = ['statistics', 'conversion', 'attribution', 'ad_platform_sharing', 'agent_measurement'] as const;
 export type Purpose = typeof PURPOSES[number];
 
 export const OUTCOMES = ['allowed', 'allowed_unless_opt_out', 'needs_opt_in', 'blocked'] as const;
