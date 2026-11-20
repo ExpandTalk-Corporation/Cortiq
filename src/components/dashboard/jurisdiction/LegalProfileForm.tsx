@@ -43,6 +43,8 @@ export function LegalProfileForm({ profile, onSave, saving }: LegalProfileFormPr
     setMarkets((prev) => (checked ? [...new Set([...prev, m])] : prev.filter((x) => x !== m)));
   };
 
+  const establishmentValid = establishment === '' || /^[A-Z]{2}$/.test(establishment);
+
   const submit = () => {
     const est = establishment.trim();
     onSave({ establishment: est ? est.toUpperCase() : null, markets, answers });
@@ -57,8 +59,11 @@ export function LegalProfileForm({ profile, onSave, saving }: LegalProfileFormPr
           value={establishment}
           maxLength={2}
           placeholder="SE"
-          onChange={(e) => setEstablishment(e.target.value.toUpperCase())}
+          onChange={(e) => setEstablishment(e.target.value.toUpperCase().replace(/[^A-Z]/g, ''))}
         />
+        {!establishmentValid && (
+          <p className="text-sm text-destructive">Enter a 2-letter country code (e.g. SE), or leave it empty.</p>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -102,7 +107,7 @@ export function LegalProfileForm({ profile, onSave, saving }: LegalProfileFormPr
         </div>
       ))}
 
-      <Button onClick={submit} disabled={saving}>{saving ? 'Saving...' : 'Save'}</Button>
+      <Button onClick={submit} disabled={saving || !establishmentValid}>{saving ? 'Saving...' : 'Save'}</Button>
     </div>
   );
 }
