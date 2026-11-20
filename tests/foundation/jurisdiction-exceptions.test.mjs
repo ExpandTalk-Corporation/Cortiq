@@ -66,3 +66,11 @@ test('AC4: a relax attempt through tighten has no effect', () => {
     assert.deepEqual([d.outcome, d.permit], ['needs_opt_in', false], String(value));
   }
 });
+
+test('tighten.off on a rule-blocked outcome keeps reason rule_blocked, not customer_off', () => {
+  const blockedRule = { ...approve(PACK.rules[0]), outcome: 'blocked' };
+  const statsPack = pack([blockedRule]);
+  const d = run({ purpose: 'statistics', technique: { storage: 'none', identifiers: 'none' }, pack: statsPack, tighten: { statistics: 'off' } });
+  assert.deepEqual([d.outcome, d.permit, d.reason], ['blocked', false, 'rule_blocked']);
+  assert.ok(d.ruleIds.includes('tighten.off'), 'tighten.off should still be in ruleIds');
+});

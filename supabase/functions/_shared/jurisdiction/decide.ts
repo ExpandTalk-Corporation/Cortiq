@@ -77,8 +77,9 @@ export function decide(input: DecideInput): Decision {
   // The customer can only tighten. Unknown values (including any attempt to relax) are ignored.
   const t = input.tighten?.[input.purpose];
   let customerOff = false;
+  const outcomeBeforeTighten = outcome;
   if (t === 'opt_in' && OUTCOME_RANK[outcome] < OUTCOME_RANK.needs_opt_in) { outcome = 'needs_opt_in'; ruleIds.push('tighten.opt_in'); }
-  else if (t === 'off') { outcome = 'blocked'; customerOff = true; ruleIds.push('tighten.off'); }
+  else if (t === 'off') { outcome = 'blocked'; if (outcomeBeforeTighten !== 'blocked') customerOff = true; ruleIds.push('tighten.off'); }
 
   const s = input.signals;
   const category = CATEGORY[input.purpose];
