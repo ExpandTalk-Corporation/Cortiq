@@ -5,15 +5,15 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
   "publicId": "GTM-SAMPLE1",
   "exportedAt": 1793527200000,
   "summary": {
-    "headline": "3 of 16 tags have no consent condition · 1 identifies visitors · 3 removal candidates",
-    "tags": 16,
+    "headline": "3 of 17 tags have no consent condition · 1 identifies visitors · 3 removal candidates",
+    "tags": 17,
     "noConsent": 3,
     "identifies": 1,
     "removal": 3,
     "counts": {
       "covered": 2,
       "consent_tool": 1,
-      "pixel": 2,
+      "pixel": 3,
       "conversion": 2,
       "third_party": 1,
       "keep_google": 3,
@@ -95,6 +95,23 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
     },
     {
       "scope": "GTM",
+      "checkKey": "gtm.multiple_destinations",
+      "title": "1 vendor sends data to more than one account",
+      "status": "manual",
+      "priority": "high",
+      "explanation": "Each ID is a separate account at the vendor. Check who owns each one. An ID nobody recognises often belongs to an old account or a former agency, and data sent to it is outside your control.",
+      "fix": "Keep the IDs your organisation owns and has access to. Remove or pause tags that send to the others.",
+      "typicalOwner": "marketing",
+      "evidence": {
+        "pages": [],
+        "details": [
+          "Evidence level: configuration (container export, not observed live)",
+          "Meta Pixel: 2 IDs — 1234567890 (2 tags, last changed 2026-10-01), 9876543210 (1 tag, last changed 2023-03-14)"
+        ]
+      }
+    },
+    {
+      "scope": "GTM",
       "checkKey": "gtm.unknown_custom_html",
       "title": "1 Custom HTML tag the audit could not identify",
       "status": "manual",
@@ -167,7 +184,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
     {
       "scope": "GTM",
       "checkKey": "gtm.stale",
-      "title": "1 tag unchanged for more than two years",
+      "title": "2 tags unchanged for more than two years",
       "status": "manual",
       "priority": "low",
       "explanation": "Old tags often belong to campaigns, agencies or tools that are no longer used.",
@@ -177,7 +194,8 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
         "pages": [],
         "details": [
           "Evidence level: configuration (container export, not observed live)",
-          "UA - pageview (Google Analytics 4): last changed 2022-06-01"
+          "UA - pageview (Google Analytics 4): last changed 2022-06-01",
+          "Meta - PageView (old agency) (Meta Pixel): last changed 2023-03-14"
         ]
       }
     }
@@ -189,6 +207,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "Cookiebot CMP",
       "vendorId": "cookiebot",
       "vendorName": "Cookiebot",
+      "sendsTo": [],
       "triggers": [
         "Consent Initialization - All Pages"
       ],
@@ -207,6 +226,9 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "Google tag",
       "vendorId": "ga4",
       "vendorName": "Google Analytics 4",
+      "sendsTo": [
+        "G-SAMPLE123"
+      ],
       "triggers": [
         "Initialization - All Pages"
       ],
@@ -225,6 +247,9 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "GA4 event",
       "vendorId": "ga4",
       "vendorName": "Google Analytics 4",
+      "sendsTo": [
+        "G-SAMPLE123"
+      ],
       "triggers": [
         "CE - generate_lead"
       ],
@@ -243,6 +268,9 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "GA4 event",
       "vendorId": "ga4",
       "vendorName": "Google Analytics 4",
+      "sendsTo": [
+        "G-SAMPLE123"
+      ],
       "triggers": [
         "CE - generate_lead"
       ],
@@ -261,6 +289,9 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "Google Ads conversion",
       "vendorId": "google-ads",
       "vendorName": "Google Ads",
+      "sendsTo": [
+        "AW-000000000"
+      ],
       "triggers": [
         "Form submit - contact"
       ],
@@ -279,6 +310,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "Conversion Linker",
       "vendorId": "google-ads",
       "vendorName": "Google Ads",
+      "sendsTo": [],
       "triggers": [
         "All Pages"
       ],
@@ -297,6 +329,9 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "Meta Pixel",
       "vendorId": "meta",
       "vendorName": "Meta Pixel",
+      "sendsTo": [
+        "1234567890"
+      ],
       "triggers": [
         "CE - cookie_consent_marketing"
       ],
@@ -315,6 +350,9 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "Meta Pixel",
       "vendorId": "meta",
       "vendorName": "Meta Pixel",
+      "sendsTo": [
+        "1234567890"
+      ],
       "triggers": [
         "Form submit - contact"
       ],
@@ -333,6 +371,9 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "LinkedIn Insight",
       "vendorId": "linkedin",
       "vendorName": "LinkedIn Insight Tag",
+      "sendsTo": [
+        "0000000"
+      ],
       "triggers": [
         "Consent Analytics Trigger"
       ],
@@ -351,6 +392,9 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "Custom HTML",
       "vendorId": "clarity",
       "vendorName": "Microsoft Clarity",
+      "sendsTo": [
+        "sample123"
+      ],
       "triggers": [
         "All Pages"
       ],
@@ -369,6 +413,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "Clay Web Intent",
       "vendorId": "claydar",
       "vendorName": "Claydar",
+      "sendsTo": [],
       "triggers": [
         "All Pages"
       ],
@@ -387,6 +432,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "Custom HTML",
       "vendorId": null,
       "vendorName": "Unidentified",
+      "sendsTo": [],
       "triggers": [
         "All Pages"
       ],
@@ -405,6 +451,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "Custom HTML",
       "vendorId": null,
       "vendorName": "Unidentified",
+      "sendsTo": [],
       "triggers": [
         "All Pages"
       ],
@@ -423,6 +470,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "Custom HTML",
       "vendorId": "reddit",
       "vendorName": "Reddit Pixel",
+      "sendsTo": [],
       "triggers": [
         "All Pages"
       ],
@@ -441,6 +489,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "Visitor helper",
       "vendorId": null,
       "vendorName": "Unidentified",
+      "sendsTo": [],
       "triggers": [
         "CE - cookie_consent_analytics"
       ],
@@ -459,6 +508,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "Universal Analytics",
       "vendorId": "ga4",
       "vendorName": "Google Analytics 4",
+      "sendsTo": [],
       "triggers": [
         "All Pages"
       ],
@@ -470,13 +520,34 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "migrationReason": "Universal Analytics no longer processes data.",
       "folder": "Analytics",
       "paused": false
+    },
+    {
+      "id": "17",
+      "name": "Meta - PageView (old agency)",
+      "typeLabel": "Meta Pixel",
+      "vendorId": "meta",
+      "vendorName": "Meta Pixel",
+      "sendsTo": [
+        "9876543210"
+      ],
+      "triggers": [
+        "CE - cookie_consent_marketing"
+      ],
+      "consent": "gated",
+      "consentEvidence": "Every firing trigger has a consent condition (CE - cookie_consent_marketing).",
+      "modifiedAt": 1678752000000,
+      "migration": "pixel",
+      "migrationLabel": "Pixel tag",
+      "migrationReason": "Meta Pixel page view: the pixel loads in the browser.",
+      "folder": "Marketing",
+      "paused": false
     }
   ],
   "triggers": [
     {
       "name": "CE - cookie_consent_marketing",
       "type": "CUSTOM_EVENT",
-      "tags": 1,
+      "tags": 2,
       "folder": "Marketing",
       "builtIn": false
     },

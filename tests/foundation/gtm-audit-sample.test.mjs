@@ -16,6 +16,7 @@ test('the sample shows every check result and every migration class', () => {
     'gtm.consent_inferred': 'manual',
     'gtm.identifies_visitors': 'fail',
     'gtm.consent_mode_default': 'pass',
+    'gtm.multiple_destinations': 'manual',
     'gtm.unknown_custom_html': 'manual',
     'gtm.community_template_injects': 'manual',
     'gtm.duplicate': 'warning',
@@ -25,8 +26,13 @@ test('the sample shows every check result and every migration class', () => {
   for (const c of ['covered', 'consent_tool', 'pixel', 'conversion', 'third_party', 'keep_google', 'remove', 'review']) {
     assert.ok(s.summary.counts[c] > 0, c);
   }
-  assert.equal(s.tags.length, 16);
-  assert.equal(s.summary.headline, '3 of 16 tags have no consent condition · 1 identifies visitors · 3 removal candidates');
+  assert.equal(s.tags.length, 17);
+  assert.equal(s.summary.headline, '3 of 17 tags have no consent condition · 1 identifies visitors · 3 removal candidates');
+});
+
+test('the sample shows two Meta pixel IDs', () => {
+  const f = buildSample().findings.find((x) => x.checkKey === 'gtm.multiple_destinations');
+  assert.equal(f.evidence.details[1], 'Meta Pixel: 2 IDs — 1234567890 (2 tags, last changed 2026-10-01), 9876543210 (1 tag, last changed 2023-03-14)');
 });
 
 test('the sample is synthetic and carries no raw HTML', () => {

@@ -5,6 +5,7 @@
 import type { AuditResult, AuditSummary, Container, MigrationClass, ParseError, TagInfo, TagRow } from './types.ts';
 import { MIGRATION_CLASSES } from './types.ts';
 import { isParseError, parse } from './parse.ts';
+import { destinationsOf } from './destinations.ts';
 import { tagInfos } from './info.ts';
 import { runRules } from './rules/index.ts';
 import { missingConsent } from './rules/consent.ts';
@@ -25,6 +26,7 @@ function rows(container: Container, infos: TagInfo[]): TagRow[] {
       typeLabel: i.template?.name || typeLabel(i.tag.type),
       vendorId: i.vendor?.id ?? null,
       vendorName: i.vendor?.name ?? 'Unidentified',
+      sendsTo: [...new Set(destinationsOf(i, container).map((d) => d.id ?? `Unresolved (${d.raw})`))],
       triggers: i.tag.firingTriggerIds.map((id) => triggerName.get(id) || `Trigger ${id}`),
       consent: i.consent,
       consentEvidence: i.consentEvidence,

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import ExcelJS from 'exceljs';
 import { GTM_FINDING_COLUMNS, TAG_COLUMNS, ITEM_COLUMNS, toGtmFindingRows, toTagRows } from '../../supabase/functions/_shared/gtm-audit/sheets.ts';
 import { audit } from '../../supabase/functions/_shared/gtm-audit/audit.ts';
+import { CHECK_KEYS } from '../../supabase/functions/_shared/gtm-audit/types.ts';
 import { reportData } from '../../supabase/functions/_shared/gtm-audit/report.ts';
 import { gtmAuditXlsx } from '../../src/lib/gtmAuditXlsx.ts';
 import { buildSample } from '../../scripts/gtm-audit/sample-report.mjs';
@@ -15,7 +16,7 @@ test('finding rows drop the page and manual-verification columns (no pages in a 
   assert.equal(GTM_FINDING_COLUMNS.includes('Verified manually'), false);
   const s = buildSample();
   const rows = toGtmFindingRows(s.findings);
-  assert.equal(rows.length, 9);
+  assert.equal(rows.length, CHECK_KEYS.length);
   assert.ok(rows.every((r) => r.length === GTM_FINDING_COLUMNS.length));
   const evidence = rows[0][GTM_FINDING_COLUMNS.indexOf('Evidence')];
   assert.match(evidence, /^Evidence level: configuration/);
@@ -42,7 +43,9 @@ test('finding rows truncate an Evidence cell that would exceed Excel\'s cell lim
 test('tag rows: one per tag with consent and migration in words', () => {
   const s = buildSample();
   const rows = toTagRows(s.tags);
-  assert.equal(rows.length, 16);
+  assert.equal(rows.length, s.tags.length);
+  assert.ok(TAG_COLUMNS.includes('Sends to'));
+  assert.ok(rows.every((r) => r.length === TAG_COLUMNS.length));
   const col = (n) => TAG_COLUMNS.indexOf(n);
   const lead = rows.find((r) => r[col('Tag')] === 'Meta - Lead');
   assert.equal(lead[col('Consent')], 'No consent condition');

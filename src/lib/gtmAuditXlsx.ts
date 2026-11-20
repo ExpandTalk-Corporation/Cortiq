@@ -8,7 +8,7 @@ import type { ReportData } from '../../supabase/functions/_shared/gtm-audit/repo
 import { GTM_FINDING_COLUMNS, ITEM_COLUMNS, TAG_COLUMNS, toGtmFindingRows, toItemRows, toTagRows } from '../../supabase/functions/_shared/gtm-audit/sheets.ts';
 
 const FINDING_WIDTHS: Record<string, number> = { '#': 5, Status: 14, Priority: 10, Area: 8, Finding: 45, Explanation: 60, 'What to do': 60, Owner: 20, Evidence: 60 };
-const TAG_WIDTHS: Record<string, number> = { Tag: 36, Type: 22, Vendor: 22, Triggers: 30, Consent: 24, 'Consent evidence': 50, Plan: 40, Why: 60, Folder: 16, 'Last changed': 12, Paused: 8 };
+const TAG_WIDTHS: Record<string, number> = { Tag: 36, Type: 22, Vendor: 22, 'Sends to': 28, Triggers: 30, Consent: 24, 'Consent evidence': 50, Plan: 40, Why: 60, Folder: 16, 'Last changed': 12, Paused: 8 };
 const STATUS_FILL: Record<FindingStatus, string> = {
   fail: 'FFFDE2E2', warning: 'FFFEF3C7', manual: 'FFDBEAFE', untestable: 'FFF3F4F6', pass: 'FFDCFCE7',
 };

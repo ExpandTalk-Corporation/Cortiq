@@ -4,6 +4,8 @@ import { parse } from '../../supabase/functions/_shared/gtm-audit/parse.ts';
 import { tagInfos } from '../../supabase/functions/_shared/gtm-audit/info.ts';
 import { destinationsOf, normalizeId, HTML_ID_PATTERNS } from '../../supabase/functions/_shared/gtm-audit/destinations.ts';
 import { tag, tpl, variable, lookup, template, tplType, exportOf } from '../../scripts/gtm-audit/fixture.mjs';
+import { runRules } from '../../supabase/functions/_shared/gtm-audit/rules/index.ts';
+import { audit } from '../../supabase/functions/_shared/gtm-audit/audit.ts';
 
 const metaTpl = template(20, 'Meta Pixel', { permissions: { inject_script: ['https://connect.facebook.net/*'] }, gallery: ['facebookarchive', 'GoogleTagManager-WebTemplate-For-FacebookPixel'] });
 const dests = (tags, variables = []) => {
@@ -11,6 +13,11 @@ const dests = (tags, variables = []) => {
   return Object.fromEntries(tagInfos(c).map((i) => [i.tag.name, destinationsOf(i, c)]));
 };
 const html = (s) => tpl('html', s);
+
+const rule = (tags, variables = []) => {
+  const c = parse(exportOf({ tags, variables, templates: [metaTpl] }));
+  return runRules(c, tagInfos(c)).find((f) => f.checkKey === 'gtm.multiple_destinations');
+};
 
 test('literal, constant, lookup (nested variable and default) and unresolved IDs', () => {
   const d = dests([
@@ -109,4 +116,44 @@ test('every Custom HTML pattern is linear on 5 MB', () => {
       assert.ok(ms < 1000, `${p.vendorId} ${p.re.source.slice(0, 30)} took ${ms} ms on ${JSON.stringify(input.slice(0, 20))}`);
     }
   }
+});
+
+test('gtm.multiple_destinations: two Meta IDs, newest change per ID, unresolved listed last', () => {
+  const f = rule([
+    tag(1, 'Meta A', tplType(20), [tpl('pixelId', '1234567890')], { modified: Date.UTC(2025, 2, 2) }),
+    tag(2, 'Meta A2', tplType(20), [tpl('pixelId', '{{Meta ID}}')], { modified: Date.UTC(2024, 0, 1) }),
+    tag(3, 'Meta old', tplType(20), [tpl('pixelId', '9876543210')], { modified: Date.UTC(2021, 5, 10) }),
+    tag(4, 'Meta paused', tplType(20), [tpl('pixelId', '5555555555')], { paused: true }),
+    tag(5, 'Meta DLV', tplType(20), [tpl('pixelId', '{{DLV}}')]),
+  ], [variable(1, 'Meta ID', 'c', [tpl('value', '1234567890')])]);
+  assert.equal(f.status, 'manual');
+  assert.equal(f.priority, 'high');
+  assert.equal(f.typicalOwner, 'marketing');
+  assert.equal(f.title, '1 vendor sends data to more than one account');
+  assert.deepEqual(f.evidence.details.slice(1), [
+    'Meta Pixel: 2 IDs — 1234567890 (2 tags, last changed 2025-03-02), 9876543210 (1 tag, last changed 2021-06-10)',
+    '1 tag with an ID the audit could not resolve',
+  ]);
+  assert.equal(f.explanation, 'Each ID is a separate account at the vendor. Check who owns each one. An ID nobody recognises often belongs to an old account or a former agency, and data sent to it is outside your control.');
+  assert.equal(f.fix, 'Keep the IDs your organisation owns and has access to. Remove or pause tags that send to the others.');
+});
+
+test('gtm.multiple_destinations: GA4 + Ads, several AW labels, and UA next to G- pass', () => {
+  const f = rule([
+    tag(1, 'GA4', 'gaawe', [tpl('measurementIdOverride', 'G-AAAA1111')]),
+    tag(2, 'Ads 1', 'awct', [tpl('conversionId', '111111111'), tpl('conversionLabel', 'a')]),
+    tag(3, 'Ads 2', 'awct', [tpl('conversionId', 'AW-111111111/b')]),
+    tag(4, 'UA', 'ua', [tpl('trackingId', 'UA-1-1')]),
+  ]);
+  assert.equal(f.status, 'pass');
+  assert.equal(f.title, 'Each vendor sends to one account');
+  assert.deepEqual(f.evidence.details.slice(1), []);
+});
+
+test('TagRow.sendsTo lists IDs and unresolved references', () => {
+  const r = audit(exportOf({
+    tags: [tag(1, 'Meta', tplType(20), [tpl('pixelId', '1234567890')]), tag(2, 'Meta DLV', tplType(20), [tpl('pixelId', '{{DLV}}')]), tag(3, 'Inline', 'html', [tpl('html', '<p>')])],
+    templates: [metaTpl],
+  }));
+  assert.deepEqual(r.tags.map((t) => t.sendsTo), [['1234567890'], ['Unresolved ({{DLV}})'], []]);
 });
