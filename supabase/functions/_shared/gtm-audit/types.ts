@@ -101,7 +101,7 @@ export type MigrationClass = typeof MIGRATION_CLASSES[number];
 
 export const CHECK_KEYS = [
   'gtm.consent_missing', 'gtm.consent_inferred', 'gtm.identifies_visitors', 'gtm.consent_mode_default',
-  'gtm.multiple_destinations',
+  'gtm.multiple_destinations', 'gtm.dependencies',
   'gtm.unknown_custom_html', 'gtm.community_template_injects', 'gtm.duplicate', 'gtm.dead', 'gtm.stale',
 ] as const;
 export type CheckKey = typeof CHECK_KEYS[number];
@@ -121,6 +121,8 @@ export interface TagRow {
   migration: MigrationClass;
   migrationLabel: string;
   migrationReason: string;
+  /** Tags that rely on this one (inside the container), with how sure the audit is. */
+  reliedOnBy: { name: string; confidence: 'certain' | 'possible' }[];
   folder: string;
   paused: boolean;
 }

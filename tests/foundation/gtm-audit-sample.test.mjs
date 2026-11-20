@@ -17,6 +17,7 @@ test('the sample shows every check result and every migration class', () => {
     'gtm.identifies_visitors': 'fail',
     'gtm.consent_mode_default': 'pass',
     'gtm.multiple_destinations': 'manual',
+    'gtm.dependencies': 'manual',
     'gtm.unknown_custom_html': 'manual',
     'gtm.community_template_injects': 'manual',
     'gtm.duplicate': 'warning',
@@ -26,8 +27,13 @@ test('the sample shows every check result and every migration class', () => {
   for (const c of ['covered', 'consent_tool', 'pixel', 'conversion', 'third_party', 'keep_google', 'remove', 'review']) {
     assert.ok(s.summary.counts[c] > 0, c);
   }
-  assert.equal(s.tags.length, 17);
-  assert.equal(s.summary.headline, '3 of 17 tags have no consent condition · 1 identifies visitors · 3 removal candidates');
+  assert.equal(s.tags.length, 18);
+  assert.equal(s.summary.headline, '3 of 18 tags have no consent condition · 1 identifies visitors · 3 removal candidates');
+});
+
+test('the sample shows the HubSpot listener feeding the lead conversions', () => {
+  const f = buildSample().findings.find((x) => x.checkKey === 'gtm.dependencies');
+  assert.ok(f.evidence.details.some((d) => d.startsWith('HubSpot form listener (') && d.includes('Google Ads - lead conversion (Google Ads)') && d.endsWith("— event 'generate_lead' (certain)")), f.evidence.details.join('\n'));
 });
 
 test('the sample shows two Meta pixel IDs', () => {

@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { ReportData } from "../../../supabase/functions/_shared/gtm-audit/report";
-import type { ConsentStatus, MigrationClass } from "../../../supabase/functions/_shared/gtm-audit/types";
+import type { ConsentStatus, MigrationClass, TagRow } from "../../../supabase/functions/_shared/gtm-audit/types";
 import { MIGRATION_CLASSES } from "../../../supabase/functions/_shared/gtm-audit/types";
 import { MIGRATION_LABEL } from "../../../supabase/functions/_shared/gtm-audit/migrate";
 import { CONSENT_LABEL } from "../../../supabase/functions/_shared/gtm-audit/sheets";
@@ -26,6 +26,13 @@ interface Props {
   report: ReportData;
   /** Sample data: shows a label and hides the export. */
   sample?: boolean;
+}
+
+function reliedLabel(deps: TagRow["reliedOnBy"]) {
+  if (!deps.length) return "—";
+  const certain = deps.filter((d) => d.confidence === "certain").length;
+  const text = certain === deps.length ? `${deps.length} certain` : certain ? `${deps.length} (${certain} certain)` : `${deps.length} possible`;
+  return <span title={deps.map((d) => d.name).join(", ")}>{text}</span>;
 }
 
 export function GtmAuditReport({ report, sample }: Props) {
@@ -121,10 +128,11 @@ export function GtmAuditReport({ report, sample }: Props) {
             ))}
           </div>
         </div>
+        <p className="text-xs text-muted-foreground">Only dependencies inside this container are shown. Code on the site or in another container can also rely on a tag.</p>
         <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full min-w-[860px] text-sm">
+          <table className="w-full min-w-[960px] text-sm">
             <thead className="bg-muted/50 text-left">
-              <tr><th className="p-2">Tag</th><th className="p-2">Vendor</th><th className="p-2">Sends to</th><th className="p-2">Triggers</th><th className="p-2">Consent</th><th className="p-2">Plan</th></tr>
+              <tr><th className="p-2">Tag</th><th className="p-2">Vendor</th><th className="p-2">Sends to</th><th className="p-2">Triggers</th><th className="p-2">Consent</th><th className="p-2">Plan</th><th className="p-2">Relied on by</th></tr>
             </thead>
             <tbody className="divide-y">
               {tags.map((t) => (
@@ -135,6 +143,7 @@ export function GtmAuditReport({ report, sample }: Props) {
                   <td className="p-2 align-top text-xs">{t.triggers.join(", ") || "—"}</td>
                   <td className="p-2 align-top"><Badge variant="outline" className={CONSENT_CLASS[t.consent]} title={t.consentEvidence}>{CONSENT_LABEL[t.consent]}</Badge></td>
                   <td className="p-2 align-top"><div>{t.migrationLabel}</div><div className="text-xs text-muted-foreground">{t.migrationReason}</div></td>
+                  <td className="p-2 align-top text-xs">{reliedLabel(t.reliedOnBy)}</td>
                 </tr>
               ))}
             </tbody>

@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { parse } from '../../supabase/functions/_shared/gtm-audit/parse.ts';
 import { tagInfos } from '../../supabase/functions/_shared/gtm-audit/info.ts';
 import { dependencies, eventMatch } from '../../supabase/functions/_shared/gtm-audit/dependencies.ts';
+import { runRules } from '../../supabase/functions/_shared/gtm-audit/rules/index.ts';
+import { migrate, migrationContext } from '../../supabase/functions/_shared/gtm-audit/migrate.ts';
+import { audit } from '../../supabase/functions/_shared/gtm-audit/audit.ts';
 import {
   tag, tpl, cond, trigger, customEvent, triggerGroup, variable, template, tplType, needed, exportOf, CONSENT_INIT,
 } from '../../scripts/gtm-audit/fixture.mjs';
@@ -119,4 +122,86 @@ test('paused tags are neither providers nor dependents', () => {
     tags: [tag(1, 'Pusher', 'html', [push('x')], { paused: true }), tag(2, 'L', 'gaawe', [], { fire: [10] })],
     triggers: [customEvent(10, 'CE x', 'x')],
   }), []);
+});
+
+const ruleOf = (spec, key) => {
+  const c = parse(exportOf(spec));
+  return runRules(c, tagInfos(c)).find((f) => f.checkKey === key);
+};
+const classesOf = (spec) => {
+  const c = parse(exportOf(spec));
+  const infos = tagInfos(c);
+  const ctx = migrationContext(c, infos);
+  return Object.fromEntries(infos.map((i) => [i.tag.name, migrate(i, ctx)]));
+};
+
+test('gtm.dependencies: one line per relied-on tag, certain and possible', () => {
+  const f = ruleOf({
+    tags: [
+      tag(1, 'Form success push', 'html', [push('form_ok')]),
+      tag(2, 'Lead conversion', 'awct', [tpl('conversionId', '111111111')], { fire: [10] }),
+      tag(3, 'Lead GA4', 'gaawe', [tpl('eventName', 'generate_lead')], { fire: [11] }),
+    ],
+    triggers: [customEvent(10, 'CE form_ok', 'form_ok'), trigger(11, 'CE form*', 'CUSTOM_EVENT', { custom: [cond('STARTS_WITH', '{{_event}}', 'form')] })],
+  }, 'gtm.dependencies');
+  assert.equal(f.status, 'manual');
+  assert.equal(f.priority, 'medium');
+  assert.equal(f.typicalOwner, 'gtm');
+  assert.equal(f.title, '1 tag that other tags rely on');
+  assert.deepEqual(f.evidence.details.slice(1), [
+    "Form success push (Custom HTML) → Lead conversion (Google Ads) — event 'form_ok' (certain)",
+    "Form success push (Custom HTML) → Lead GA4 (Google Analytics 4) — event 'form_ok' (possible)",
+  ]);
+  assert.equal(f.explanation, 'Removing or changing these tags also stops the tags that rely on them. Only dependencies inside this container are shown.');
+  assert.equal(f.fix, 'Remove a tag together with the tags that rely on it, or move what it provides (the event, value or cookie) to the site before removing it.');
+});
+
+test('gtm.dependencies passes with no edges', () => {
+  const f = ruleOf({ tags: [tag(1, 'Inline', 'html', [tpl('html', '<p>')])] }, 'gtm.dependencies');
+  assert.equal(f.status, 'pass');
+  assert.equal(f.title, 'No tag relies on another tag');
+});
+
+test('guard: a remove tag with a certain dependent becomes review; UA and possible-only stay remove', () => {
+  const cls = classesOf({
+    tags: [
+      tag(1, 'Prep', 'html', [tpl('html', '<script>1</script>')], { fire: [] }),
+      tag(2, 'Main', 'gaawe', [tpl('eventName', 'x')], { setup: ['Prep', 'Old UA'] }),
+      tag(3, 'Old UA', 'ua', [tpl('trackingId', 'UA-1-1')], { fire: [] }),
+      tag(4, 'Lonely', 'html', [tpl('html', '<script>1</script>')], { fire: [] }),
+      tag(5, 'Paused pusher', 'html', [push('p')], { paused: true }),
+    ],
+  });
+  assert.deepEqual(cls.Prep, { migration: 'review', reason: 'Other tags rely on it: Main. Remove together or rewire first.' });
+  assert.equal(cls['Old UA'].migration, 'remove');
+  assert.equal(cls.Lonely.migration, 'remove');
+  assert.equal(cls['Paused pusher'].migration, 'remove');
+});
+
+test('guard: dependents that are themselves remove do not keep a tag', () => {
+  const cls = classesOf({
+    tags: [
+      tag(1, 'Prep', 'html', [tpl('html', '<script>1</script>')], { fire: [] }),
+      tag(2, 'Main', 'html', [tpl('html', '<script>2</script>')], { setup: ['Prep'], fire: [] }),
+    ],
+  });
+  assert.equal(cls.Prep.migration, 'remove');
+});
+
+test('dead(): a setup tag without its own trigger is not reported as trigger-less', () => {
+  const f = ruleOf({ tags: [tag(1, 'Prep', 'html', [], { fire: [] }), tag(2, 'Main', 'gaawe', [], { setup: ['Prep'] }), tag(3, 'Lonely', 'html', [], { fire: [] })] }, 'gtm.dead');
+  assert.deepEqual(f.evidence.details.slice(1), ['Tag without a firing trigger: Lonely']);
+});
+
+test('TagRow.reliedOnBy: names with confidence, certain wins', () => {
+  const r = audit(exportOf({
+    tags: [
+      tag(1, 'Pusher', 'html', [push('form_ok')]),
+      tag(2, 'Exact', 'gaawe', [], { fire: [10] }),
+      tag(3, 'Loose', 'gaawe', [], { fire: [11] }),
+    ],
+    triggers: [customEvent(10, 'CE', 'form_ok'), trigger(11, 'CE c', 'CUSTOM_EVENT', { custom: [cond('CONTAINS', '{{_event}}', 'form')] })],
+  }));
+  assert.deepEqual(r.tags[0].reliedOnBy, [{ name: 'Exact', confidence: 'certain' }, { name: 'Loose', confidence: 'possible' }]);
+  assert.deepEqual(r.tags[1].reliedOnBy, []);
 });

@@ -67,7 +67,8 @@ export function duplicate(infos: TagInfo[]): Finding {
 export function dead(container: Container, infos: TagInfo[]): Finding {
   const details: string[] = [];
   for (const i of infos) if (i.tag.paused) details.push(`Paused tag: ${i.tag.name}`);
-  for (const i of infos) if (!i.tag.paused && !i.tag.firingTriggerIds.length) details.push(`Tag without a firing trigger: ${i.tag.name}`);
+  const sequenced = new Set(container.tags.filter((t) => !t.paused).flatMap((t) => [...t.setupTagNames, ...t.teardownTagNames]));
+  for (const i of infos) if (!i.tag.paused && !i.tag.firingTriggerIds.length && !sequenced.has(i.tag.name)) details.push(`Tag without a firing trigger: ${i.tag.name}`);
   const used = new Set([
     ...container.tags.flatMap((t) => [...t.firingTriggerIds, ...t.blockingTriggerIds]),
     ...container.triggers.flatMap((t) => t.groupTriggerIds),

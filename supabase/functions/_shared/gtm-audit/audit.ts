@@ -6,6 +6,7 @@ import type { AuditResult, AuditSummary, Container, MigrationClass, ParseError, 
 import { MIGRATION_CLASSES } from './types.ts';
 import { isParseError, parse } from './parse.ts';
 import { destinationsOf } from './destinations.ts';
+import { dependencies } from './dependencies.ts';
 import { tagInfos } from './info.ts';
 import { runRules } from './rules/index.ts';
 import { missingConsent } from './rules/consent.ts';
@@ -18,6 +19,13 @@ function rows(container: Container, infos: TagInfo[]): TagRow[] {
   const ctx = migrationContext(container, infos);
   const triggerName = new Map(container.triggers.map((t) => [t.id, t.name]));
   const folderName = new Map(container.folders.map((f) => [f.id, f.name]));
+  const nameOf = new Map(infos.map((i) => [i.tag.id, i.tag.name || 'Unnamed tag']));
+  const relied = new Map<string, Map<string, 'certain' | 'possible'>>();
+  for (const d of dependencies(container, infos)) {
+    const m = relied.get(d.from) ?? new Map<string, 'certain' | 'possible'>();
+    if (m.get(d.to) !== 'certain') m.set(d.to, d.confidence);
+    relied.set(d.from, m);
+  }
   return infos.map((i) => {
     const { migration, reason } = migrate(i, ctx);
     return {
@@ -34,6 +42,7 @@ function rows(container: Container, infos: TagInfo[]): TagRow[] {
       migration,
       migrationLabel: MIGRATION_LABEL[migration],
       migrationReason: reason,
+      reliedOnBy: [...(relied.get(i.tag.id) ?? new Map())].map(([id, confidence]) => ({ name: nameOf.get(id) as string, confidence })),
       folder: (i.tag.folderId && folderName.get(i.tag.folderId)) || '',
       paused: i.tag.paused,
     };

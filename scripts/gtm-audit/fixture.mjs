@@ -126,6 +126,7 @@ export function sampleExport() {
       tag(15, 'Visitor helper', tplType(23), [], { fire: [11] }),
       tag(16, 'UA - pageview', 'ua', [tpl('trackingId', 'UA-000000-1')], { modified: OLD_2022, folder: 41 }),
       tag(17, 'Meta - PageView (old agency)', tplType(20), [tpl('pixelId', '9876543210'), tpl('eventName', 'standard'), tpl('standardEventName', 'PageView')], { fire: [10], modified: OLD_2023, folder: 40 }),
+      tag(18, 'Google Ads - lead conversion', 'awct', [tpl('conversionId', '000000000'), tpl('conversionLabel', 'SAMPLElead')], { fire: [15], folder: 40 }),
     ],
   });
 }
