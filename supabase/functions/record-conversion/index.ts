@@ -16,6 +16,7 @@ import { resolveSite } from "../_shared/resolve-site.ts";
 import { skipTrackingCheck } from '../_shared/tracking-check-ua.ts';
 import { resolveGeo, geoKey } from '../_shared/geo.ts';
 import { jurisdictionGate, signalsFrom, visitorFrom, type Ledger } from '../_shared/jurisdiction-edge.ts';
+import { isReportedChannel } from '../_shared/reported-channel.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -39,9 +40,9 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    const { siteId, sessionId, visitorId, hashedEmail, eventName, eventValue, contentId } = await req.json() as {
+    const { siteId, sessionId, visitorId, hashedEmail, eventName, eventValue, contentId, reportedChannel } = await req.json() as {
       siteId?: string; sessionId?: string; visitorId?: string; hashedEmail?: string;
-      eventName?: string; eventValue?: number; contentId?: string;
+      eventName?: string; eventValue?: number; contentId?: string; reportedChannel?: string;
     };
 
     if (typeof siteId !== 'string' || typeof sessionId !== 'string' || !siteId || !sessionId || sessionId.length > 255) {
@@ -144,6 +145,17 @@ Deno.serve(async (req) => {
       .maybeSingle();
     trackingSessionUuid = ts?.id ?? null;
 
+    // Self-reported source (attribution layer 1.5): a category mapped in the browser. Stored only
+    // when the session's latest consent grants analytics under the site's self-reported-source
+    // policy version (reported_channel_consent_ok fails closed). Never a raw answer.
+    let reported: string | null = null;
+    if (isReportedChannel(reportedChannel)) {
+      const { data: ok, error: rcError } = await supabase.rpc('reported_channel_consent_ok', {
+        p_site_id: site.id, p_session: sessionId, p_path: 'form',
+      });
+      if (!rcError && ok === true) reported = reportedChannel;
+    }
+
     const { data: inserted, error } = await supabase
       .from('conversion_events')
       .insert({
@@ -160,6 +172,7 @@ Deno.serve(async (req) => {
         click_id_consent_given: consent,
         upload_status: uploadStatus,
         form_data: { tracking_session_id: sessionId, ...(contentId ? { content_id: contentId } : {}) },
+        ...(reported && { reported_channel: reported }),
       })
       .select('id')
       .single();

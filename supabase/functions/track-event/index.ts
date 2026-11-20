@@ -8,6 +8,7 @@ import { browserAndOs } from '../_shared/user-agent.js';
 import { skipTrackingCheck } from '../_shared/tracking-check-ua.ts';
 import { sanitizeInteraction } from '../_shared/interaction.js';
 import { jurisdictionGate, signalsFrom, visitorFrom } from '../_shared/jurisdiction-edge.ts';
+import { cleanChannelMap, isReportedChannel } from '../_shared/reported-channel.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -59,6 +60,15 @@ Deno.serve(async (req) => {
 
     // Parse request body
     const body: TrackingEventRequest = await req.json();
+    // Self-reported source category from a form goal hit (attribution layer 1.5). Taken out of
+    // the metadata here so it is never stored in tracking_events next to the session; it only
+    // goes to record_conversion_event, which stores it after its own consent gate.
+    let reportedChannel: string | null = null;
+    if (body?.metadata && typeof body.metadata === 'object' && 'reported_channel' in body.metadata) {
+      const v = body.metadata.reported_channel;
+      delete body.metadata.reported_channel;
+      reportedChannel = isReportedChannel(v) ? v : null;
+    }
     console.log('Tracking event request:', {
       company_id: body.company_id,
       content_type: body.content_type,
@@ -370,9 +380,12 @@ Deno.serve(async (req) => {
                    selector: typeof m.form_id === 'string' ? m.form_id : null, value: num(m.value) };
         }
         if (conv) {
+          // Only a form goal carries a self-reported source; the SQL checks consent and policy version.
+          const reported = typeof m.goal_id === 'string' && conv.type === 'form_submission' ? reportedChannel : null;
           const { error: convError } = await supabase.rpc('record_conversion_event', {
             p_site_id: siteId, p_session: body.session_id ?? null, p_event_name: conv.name,
             p_event_type: conv.type, p_selector: conv.selector, p_value: conv.value,
+            ...(reported && { p_reported_channel: reported }),
           });
           if (convError) console.error('record_conversion_event failed (non-fatal):', convError);
         }
@@ -507,6 +520,7 @@ Deno.serve(async (req) => {
     let viewSiteId: string | null = null;
     let goalsForTracker: ReturnType<typeof clientGoals> | undefined;
     let sessionTimeoutMinutes: number | undefined;
+    let reportedChannelForTracker: { field: string; map: Record<string, string> } | undefined;
     if (body.event_type !== 'view') {
       try { await touchTrackingSession(eventSiteId); } catch (touchErr) { console.error('touch failed (non-fatal):', touchErr); }
     }
@@ -572,6 +586,23 @@ Deno.serve(async (req) => {
         } catch (_) {
           sessionTimeoutMinutes = normalizeSessionTimeout(null);
         }
+
+        // Self-reported source field for the tracker (full mode only, and only once the site set
+        // the policy version its updated banner sends). Its own query, like the timeout above.
+        try {
+          const { data: rcRow, error: rcError } = await supabase.from('sites')
+            .select('tracking_mode, reported_channel_policy_version, reported_channel_form_field, reported_channel_form_map')
+            .eq('id', viewSiteId).maybeSingle();
+          if (!rcError && rcRow && rcRow.tracking_mode !== 'cookieless'
+              && rcRow.reported_channel_policy_version && rcRow.reported_channel_form_field) {
+            reportedChannelForTracker = {
+              field: String(rcRow.reported_channel_form_field),
+              map: cleanChannelMap(rcRow.reported_channel_form_map),
+            };
+          }
+        } catch (_) {
+          reportedChannelForTracker = undefined;
+        }
       }
     }
 
@@ -581,6 +612,7 @@ Deno.serve(async (req) => {
         event_id: event.id,
         ...(goalsForTracker && { goals: goalsForTracker }),
         ...(sessionTimeoutMinutes !== undefined && { session_timeout_minutes: sessionTimeoutMinutes }),
+        ...(reportedChannelForTracker && { reported_channel: reportedChannelForTracker }),
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

@@ -1,7 +1,7 @@
 /**
  * CortIQ Advanced Tracking Script
  * Unified visitor profiling with AI agent detection
- * Version: 5.5.20 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
+ * Version: 5.5.21 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
  *
  * Usage:
  * <script>
@@ -17,7 +17,7 @@
   'use strict';
 
   // Keep in sync with wordpress-plugin/cortiq-analytics.php (CORTIQ_VERSION).
-  const CORTIQ_VERSION = '5.5.20';
+  const CORTIQ_VERSION = '5.5.21';
 
   // Configuration: window.cortiqConfig, overridden by data-* attributes on this script
   // tag, so a single-tag install (<script src=… data-site-id=…>) works and a tag that
@@ -427,8 +427,47 @@
     try { window.dispatchEvent(new CustomEvent('cortiq:pageview')); } catch (_) {}
     trackEvent('view', window.location.pathname).then(function (res) {
       if (res) applySessionTimeout(res.session_timeout_minutes);
+      if (res) applyReportedChannelConfig(res.reported_channel);
       if (res && Array.isArray(res.goals)) installConversionGoals(res.goals);
     });
+  }
+
+  // Self-reported source ("how did you hear about us?"), attribution layer 1.5. Full mode only.
+  // The site configures ONE field by name: a <select> or a radio group. On submit, with analytics
+  // consent, the tracker reads that field's selected option value, maps it to a category from the
+  // fixed list below (trim + lower-case exact match against the site's value list, else 'other')
+  // and sends only the category. Text inputs, textareas, contenteditable and any "other, please
+  // specify" text field are never read. Keep the list equal to
+  // supabase/functions/_shared/reported-channel.ts (tests/foundation/reported-channel.test.mjs).
+  const REPORTED_CHANNELS = ['organic_search', 'paid_search', 'paid_social', 'social', 'email', 'referral', 'direct',
+    'ai_assistant', 'podcast', 'community', 'event', 'colleague_or_friend', 'other'];
+  let reportedChannelConfig = null;
+  function applyReportedChannelConfig(raw) {
+    if (COOKIELESS || !raw || typeof raw.field !== 'string' || !raw.field || !raw.map || typeof raw.map !== 'object') {
+      reportedChannelConfig = null;
+      return;
+    }
+    const map = Object.create(null);
+    Object.keys(raw.map).forEach(function (k) {
+      if (REPORTED_CHANNELS.indexOf(raw.map[k]) >= 0) map[String(k).trim().toLowerCase()] = raw.map[k];
+    });
+    reportedChannelConfig = { field: raw.field, map: map };
+  }
+  function readReportedChannel(form) {
+    const cfg = reportedChannelConfig;
+    if (!cfg || COOKIELESS || !hasInteractionConsent() || !form || typeof form.querySelectorAll !== 'function') return null;
+    let value = null;
+    const fields = form.querySelectorAll('select, input[type="radio"]');
+    for (let i = 0; i < fields.length; i++) {
+      const el = fields[i];
+      if (el.name !== cfg.field) continue;
+      if (el.tagName === 'SELECT' && !el.multiple) { value = el.value; break; }
+      if (el.tagName === 'INPUT' && el.type === 'radio' && el.checked) { value = el.value; break; }
+    }
+    if (typeof value !== 'string') return null;
+    const key = value.trim().toLowerCase();
+    if (!key) return null;
+    return cfg.map[key] || 'other';
   }
 
   // Conversion goals from the dashboard (Goals tab). track-event returns the form/click goals
@@ -440,17 +479,21 @@
   function goalMatches(el, selector) {
     try { return !!(el && el.closest && el.closest(selector)); } catch (_) { return false; }
   }
-  function fireGoal(goal) {
+  function fireGoal(goal, form) {
     if (firedGoals.has(goal.id) || !hasInteractionConsent()) return;
     firedGoals.add(goal.id);
-    trackEvent('conversion', window.location.pathname, { goal_id: goal.id, goal_type: goal.type });
+    const generation = consentGeneration;
+    const reported = goal.type === 'form_submission' ? readReportedChannel(form) : null;
+    if (generation !== consentGeneration || !hasInteractionConsent()) return;
+    trackEvent('conversion', window.location.pathname, Object.assign(
+      { goal_id: goal.id, goal_type: goal.type }, reported ? { reported_channel: reported } : {}));
   }
   function installConversionGoals(goals) {
     conversionGoals = goals.filter(function (g) { return g && typeof g.id === 'string' && typeof g.selector === 'string'; });
     if (goalListenersInstalled || conversionGoals.length === 0) return;
     goalListenersInstalled = true;
     document.addEventListener('submit', function (e) {
-      conversionGoals.forEach(function (g) { if (g.type === 'form_submission' && goalMatches(e.target, g.selector)) fireGoal(g); });
+      conversionGoals.forEach(function (g) { if (g.type === 'form_submission' && goalMatches(e.target, g.selector)) fireGoal(g, e.target); });
     }, true);
     document.addEventListener('click', function (e) {
       conversionGoals.forEach(function (g) {
@@ -497,6 +540,8 @@
     if (!hasInteractionConsent()) return;
     if (COOKIELESS) return;
     const generation = consentGeneration;
+    // Read on submit, before any await: only the mapped category leaves the page.
+    const reportedChannel = readReportedChannel(form);
     try {
       let hashedEmail = null;
       const emailInput = hasMarketingConsent() && form.querySelector('input[type="email"], input[name*="email" i]');
@@ -519,6 +564,7 @@
           eventName: form.getAttribute('data-wfa-conversion') || 'Conversion',
           eventValue: valueAttr ? Number(valueAttr) : undefined,
           contentId,
+          ...(reportedChannel && { reportedChannel }),
         }),
         keepalive: true,
       });
@@ -949,7 +995,9 @@
   }
 
   // Form journey analytics — per-field focus time, error counts, completion vs
-  // abandonment. Field values are never read here. Behavioural: consent-gated.
+  // abandonment. This function never reads field values. The only field value the tracker
+  // reads is the site-configured "how did you hear about us" select/radio, in
+  // readReportedChannel (mapped to a category). Behavioural: consent-gated.
   function setupFormAnalytics() {
     if (!hasInteractionConsent()) { deferUntilInteractionConsent(setupFormAnalytics); return; }
     function formKey(form) {
