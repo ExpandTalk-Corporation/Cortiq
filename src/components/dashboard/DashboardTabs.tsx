@@ -6,6 +6,7 @@ import { FilterScopeNotice, type FilterScopeNotes } from './FilterScopeNotice';
 import { HIDDEN_TABS } from './nav/navSections';
 import { PixelReadinessCard } from './PixelReadinessCard';
 import { PipelineAlerts } from './overview/PipelineAlerts';
+import { HealthSummary, SignalTable } from './health/MeasurementHealth';
 import type { Site } from '@/types/dashboard';
 import type { SitePatch } from '@/hooks/useSites';
 import { useAnalytics } from '@/hooks/useAnalytics';
@@ -224,7 +225,9 @@ function DashboardTabsInner({ selectedSite, dateRange, onSiteDeleted, onSiteUpda
 
       <TabsContent value="alerts" className="space-y-6">
         <TabErrorBoundary tabName="Alerts">
+          <HealthSummary siteId={selectedSite.id} onNavigate={setActiveTab} />
           <PipelineAlerts siteId={selectedSite.id} showAllClear />
+          <SignalTable siteId={selectedSite.id} />
           <BehavioralAlertsTab selectedSite={selectedSite} />
         </TabErrorBoundary>
       </TabsContent>

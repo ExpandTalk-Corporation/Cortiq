@@ -126,7 +126,7 @@ test('siteUrl, snippet detection and classification', () => {
   assert.ok(hasSnippet(`<script defer src='https://cortiq.se/v/5.5.14/cortiq.js' integrity="sha384-x"></script>`));
   assert.ok(!hasSnippet(`<p>We use CortIQ for analytics.</p><script src="/app.js"></script>`));
 
-  assert.deepEqual(classify(200, '<script>window.cortiqConfig={}</script>'), { problem: null, status: 200, detail: null, snippetFound: true });
+  assert.deepEqual(classify(200, '<script>window.cortiqConfig={}</script>'), { problem: null, status: 200, detail: null, snippetFound: true, snippetVersion: null });
   assert.equal(classify(403, 'Webbplatsen har stängts').problem, 'down');
   assert.equal(classify(503, '<title>Just a moment...</title>').problem, 'inconclusive');
   assert.equal(classify(200, 'challenges.cloudflare.com').problem, 'inconclusive');
@@ -142,14 +142,14 @@ test('checkSite follows redirects, guards private hosts and turns failures into 
     if (url === 'https://a.test/') return new Response(null, { status: 301, headers: { location: '/sv/' } });
     return new Response('<script>window.cortiqConfig={}</script>', { status: 200 });
   };
-  assert.deepEqual(await checkSite('https://a.test/', { fetchImpl, resolve }), { problem: null, status: 200, detail: null, snippetFound: true });
+  assert.deepEqual(await checkSite('https://a.test/', { fetchImpl, resolve }), { problem: null, status: 200, detail: null, snippetFound: true, snippetVersion: null });
   assert.deepEqual(seen, [['https://a.test/', USER_AGENT, 'manual'], ['https://a.test/sv/', USER_AGENT, 'manual']]);
 
   const toPrivate = async () => new Response(null, { status: 302, headers: { location: 'http://169.254.169.254/' } });
   assert.equal((await checkSite('https://a.test/', { fetchImpl: toPrivate, resolve })).detail, 'Blocked address');
 
   const timeout = async () => { throw Object.assign(new Error('t'), { name: 'TimeoutError' }); };
-  assert.deepEqual(await checkSite('https://a.test/', { fetchImpl: timeout, resolve }), { problem: 'down', status: null, detail: 'No answer within 15 seconds', snippetFound: null });
+  assert.deepEqual(await checkSite('https://a.test/', { fetchImpl: timeout, resolve }), { problem: 'down', status: null, detail: 'No answer within 15 seconds', snippetFound: null, snippetVersion: null });
   const loop = async () => new Response(null, { status: 302, headers: { location: '/again' } });
   assert.equal((await checkSite('https://a.test/', { fetchImpl: loop, resolve })).detail, 'Redirect loop');
 });
@@ -188,7 +188,7 @@ test('function: rejects a wrong cron secret; checks active sites and emails the 
   const body = await (await handler(req())).json();
   assert.deepEqual(body, { checked: 1, pending: 1, emailed: 1 });
   const records = rpcCalls.filter(([n]) => n === 'record_uptime_check').map(([, a]) => a);
-  assert.deepEqual(records, [{ p_site_id: S1, p_problem: 'down', p_status: 403, p_detail: 'HTTP 403', p_snippet_found: null }]);
+  assert.deepEqual(records, [{ p_site_id: S1, p_problem: 'down', p_status: 403, p_detail: 'HTTP 403', p_snippet_found: null, p_snippet_version: null }]);
   assert.equal(sent.length, 1);
   assert.deepEqual(sent[0].to, ['owner@ekonom.test']);
   assert.equal(sent[0].subject, 'ekonom.biz is down');
