@@ -129,6 +129,8 @@ export function sampleExport() {
       tag(17, 'Meta - PageView (old agency)', tplType(20), [tpl('pixelId', '9876543210'), tpl('eventName', 'standard'), tpl('standardEventName', 'PageView')], { fire: [10], modified: OLD_2023, folder: 40 }),
       tag(18, 'Google Ads - lead conversion', 'awct', [tpl('conversionId', '000000000'), tpl('conversionLabel', 'SAMPLElead')], { fire: [15], folder: 40 }),
       tag(19, 'Google Ads - demo click', 'awct', [tpl('conversionId', '000000000'), tpl('conversionLabel', 'SAMPLEdemo')], { fire: [16], folder: 40 }),
+      tag(20, 'Google Ads - quote conversion', 'awct', [tpl('conversionId', '000000000'), tpl('conversionLabel', 'SAMPLEquote')], { fire: [ALL_PAGES], folder: 40 }),
+      tag(21, 'Meta - CompleteRegistration', tplType(20), [tpl('pixelId', '{{Meta Pixel ID}}'), tpl('eventName', 'standard'), tpl('standardEventName', 'CompleteRegistration')], { fire: [12], folder: 40 }),
     ],
   });
 }

@@ -17,6 +17,9 @@ test('the sample shows every check result and every migration class', () => {
     'gtm.identifies_visitors': 'fail',
     'gtm.consent_mode_default': 'pass',
     'gtm.multiple_destinations': 'manual',
+    'gtm.conversion_on_every_page': 'warning',
+    'gtm.conversion_double_count': 'warning',
+    'gtm.enhanced_conversions_off': 'manual',
     'gtm.dependencies': 'manual',
     'gtm.unknown_custom_html': 'manual',
     'gtm.community_template_injects': 'manual',
@@ -28,8 +31,8 @@ test('the sample shows every check result and every migration class', () => {
   for (const c of ['covered', 'consent_tool', 'pixel', 'conversion', 'third_party', 'keep_google', 'remove', 'review']) {
     assert.ok(s.summary.counts[c] > 0, c);
   }
-  assert.equal(s.tags.length, 19);
-  assert.equal(s.summary.headline, '3 of 19 tags have no consent condition · 1 identifies visitors · 3 removal candidates');
+  assert.equal(s.tags.length, 21);
+  assert.equal(s.summary.headline, '4 of 21 tags have no consent condition · 1 identifies visitors · 3 removal candidates');
 });
 
 test('the sample shows the CSS-selector conversion as medium', () => {
@@ -45,7 +48,15 @@ test('the sample shows the HubSpot listener feeding the lead conversions', () =>
 
 test('the sample shows two Meta pixel IDs', () => {
   const f = buildSample().findings.find((x) => x.checkKey === 'gtm.multiple_destinations');
-  assert.equal(f.evidence.details[1], 'Meta Pixel: 2 IDs — 1234567890 (2 tags, last changed 2026-10-01), 9876543210 (1 tag, last changed 2023-03-14)');
+  assert.equal(f.evidence.details[1], 'Meta Pixel: 2 IDs — 1234567890 (3 tags, last changed 2026-10-01), 9876543210 (1 tag, last changed 2023-03-14)');
+});
+
+test('the sample shows the conversion rules', () => {
+  const s = buildSample();
+  const details = (k) => s.findings.find((x) => x.checkKey === k).evidence.details.slice(1);
+  assert.deepEqual(details('gtm.conversion_on_every_page'), ['Google Ads - quote conversion (Google Ads): All Pages']);
+  assert.deepEqual(details('gtm.conversion_double_count'), ['Form submit - contact: Meta - Lead (Lead), Meta - CompleteRegistration (CompleteRegistration)']);
+  assert.equal(details('gtm.enhanced_conversions_off').length, 4);
 });
 
 test('the sample is synthetic and carries no raw HTML', () => {
