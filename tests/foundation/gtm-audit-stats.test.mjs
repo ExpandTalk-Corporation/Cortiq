@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { buildStats, validateStats, statsRows, bucketOf, MAX_COUNT } from '../../supabase/functions/_shared/gtm-audit/stats.ts';
 import { audit } from '../../supabase/functions/_shared/gtm-audit/audit.ts';
-import { tag, tpl, template, tplType, exportOf } from '../../scripts/gtm-audit/fixture.mjs';
+import { tag, tpl, template, tplType, exportOf, cond, trigger, customEvent } from '../../scripts/gtm-audit/fixture.mjs';
 import { loadEdge, mockDatabase } from './edge-harness.mjs';
 
 const result = () => audit(exportOf({
@@ -24,7 +24,7 @@ test('buckets', () => {
 
 test('buildStats: whitelisted keys only, no names, URLs or container IDs', () => {
   const s = buildStats(result());
-  assert.equal(s.v, 1);
+  assert.equal(s.v, 2);
   assert.equal(s.bucket, '1-10');
   assert.deepEqual(s.types, { html: 2, gaawe: 1, template: 1, other: 1 });
   assert.deepEqual(s.vendors, { linkedin: 1, ga4: 1, unknown: 3 });
@@ -36,6 +36,29 @@ test('buildStats: whitelisted keys only, no names, URLs or container IDs', () =>
     assert.equal(json.includes(secret), false, secret);
   }
   assert.deepEqual(validateStats(JSON.parse(json)), s);
+});
+
+test('the three new checks are counted, and nothing else from them reaches stats', () => {
+  const metaTpl = template(20, 'Meta Pixel', { permissions: { inject_script: ['https://connect.facebook.net/*'] }, gallery: ['facebookarchive', 'GoogleTagManager-WebTemplate-For-FacebookPixel'] });
+  const s = buildStats(audit(exportOf({
+    templates: [metaTpl],
+    tags: [
+      tag(1, 'Meta one', tplType(20), [tpl('pixelId', '1234567890')]),
+      tag(2, 'Meta two', tplType(20), [tpl('pixelId', '9876543210')]),
+      tag(3, 'Secret pusher', 'html', [tpl('html', "<script>dataLayer.push({event:'secret_event'})</script>")]),
+      tag(4, 'Lead', 'awct', [tpl('conversionId', '111111111')], { fire: [10] }),
+      tag(5, 'Demo', 'awct', [tpl('conversionId', '111111111')], { fire: [11] }),
+    ],
+    triggers: [customEvent(10, 'CE', 'secret_event'), trigger(11, 'Secret button', 'CLICK', { filter: [cond('CSS_SELECTOR', '{{Click Element}}', '.secret-btn')] })],
+  })));
+  assert.equal(s.checks['gtm.multiple_destinations'], 1);
+  assert.equal(s.checks['gtm.dependencies'], 1);
+  assert.equal(s.checks['gtm.fragile_dom'], 1);
+  const json = JSON.stringify(s);
+  for (const secret of ['1234567890', '9876543210', 'AW-111111111', 'secret_event', 'secret-btn', 'Secret']) assert.equal(json.includes(secret), false, secret);
+  assert.deepEqual(validateStats(JSON.parse(json)), s);
+  assert.equal(validateStats({ ...s, checks: { ...s.checks, 'gtm.fragile_dom': 'many' } }), null);
+  assert.equal(validateStats({ ...s, checks: { 'gtm.unknown_key': 1 } }), null);
 });
 
 test('validateStats rejects free text, unknown keys and bad counts; caps large counts', () => {

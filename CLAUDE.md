@@ -232,6 +232,13 @@ Spec: `docs/superpowers/specs/2026-11-17-gtm-container-audit-design.md`.
 - Engine: `parse` → `tagInfos` (vendor via the tracking-vendors registry, `gallery-map.ts`, template permissions,
   Custom HTML URLs; consent from triggers and consent settings) → 9 rules (`gtm.*`) + a migration class per tag.
   Evidence level is always "configuration" — never claim a tag fires.
+- Engine v2 (2026-11-20, spec `2026-11-20-gtm-audit-destinations-dependencies-design.md`): `destinations.ts`
+  (IDs per tag → `gtm.multiple_destinations`, "Sends to"), `dependencies.ts` (sequence/event/consent tool certain;
+  global/cookie/regex possible → `gtm.dependencies`, "Relied on by", and a certain dependent turns `remove` into
+  `review` except UA), `fragile.ts` (`gtm.fragile_dom`). Shared refs in `refs.ts` (variable chains ≤5 levels).
+  User regexes from the file run only when short and simple; the rest count as `possible`.
+- Destination IDs are shown in full on the page and in the local export, never in stats.
+  **Deploy order:** redeploy `gtm-audit-stats` before the dist FTP, or v2 stats (new keys, `v: 2`) are rejected.
 - Counters: `stats.ts` whitelist → `gtm-audit-stats` (public, rate-limited) → `gtm_audit_stats_daily` (service role only).
   New keys must go through `validateStats`; never add names, IDs, domains or URLs.
 - Sample report: `node scripts/gtm-audit/sample-report.mjs` after any engine change (freshness test). The sample

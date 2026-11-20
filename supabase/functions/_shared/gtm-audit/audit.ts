@@ -13,7 +13,7 @@ import { missingConsent } from './rules/consent.ts';
 import { isActive, plural, typeLabel } from './rules/finding.ts';
 import { MIGRATION_LABEL, migrate, migrationContext } from './migrate.ts';
 
-export const ENGINE_VERSION = 1;
+export const ENGINE_VERSION = 2;
 
 function rows(container: Container, infos: TagInfo[]): TagRow[] {
   const ctx = migrationContext(container, infos);

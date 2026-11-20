@@ -50,7 +50,8 @@ export default function GtmAudit() {
       <section className="container mx-auto max-w-5xl px-4 py-12 sm:py-16">
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">GTM container audit</h1>
         <p className="mt-3 max-w-3xl text-lg text-muted-foreground">
-          See which tags have no consent condition, which tools identify visitors, what is duplicated, paused or
+          See which tags have no consent condition, which tools identify visitors, which vendors send data to more than
+          one account, which tags other tags rely on, which ones depend on page markup, what is duplicated, paused or
           years old — and which tags CortIQ already covers if you want to measure without Google Tag Manager.
         </p>
         <p className="mt-3 flex max-w-3xl items-start gap-2 text-sm text-muted-foreground">
@@ -81,7 +82,8 @@ export default function GtmAudit() {
         <div className="rounded-xl border bg-muted/30 p-6">
           <h2 className="text-xl font-semibold">What the audit can and cannot see</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            It reads the container configuration. A consent check inside a Custom JavaScript variable, or a tag the site
+            It reads the container configuration. It cannot tell who owns an account ID, and it does not see code on the site or in another container that
+            relies on a tag. A consent check inside a Custom JavaScript variable, or a tag the site
             loads outside GTM, does not show up here. To see what actually loads before and after the banner, run the{" "}
             <Link to="/tracking-check/" className="underline">Tracking Check</Link> on the live site.
           </p>

@@ -16,7 +16,7 @@ const small = () => exportOf({
   folders: [{ folderId: '40', name: 'Marketing' }],
 });
 
-test('engine version is 1', () => assert.equal(ENGINE_VERSION, 1));
+test('engine version is 2', () => assert.equal(ENGINE_VERSION, 2));
 
 test('parse errors pass through unchanged', () => {
   assert.equal(audit('{').error, 'not_json');
