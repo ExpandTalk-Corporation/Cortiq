@@ -73,3 +73,57 @@ test('AC1: legacy columns and function gone, old values kept as log rows; skippe
     await assert.rejects(pg.query(`INSERT INTO conversion_events (site_id, upload_status) VALUES ('${S1}', 'nope')`), /check/i);
   } finally { await pg.close(); }
 });
+
+// 20261207000006: applied after 1-5 on a database where anon/authenticated start with ALL, as
+// Supabase's default privileges give them.
+async function hardenedDb() {
+  const pg = await jurisdictionDb(LEGACY + `
+    CREATE TABLE public.cookie_consents (site_id uuid, created_at timestamptz, consent_types jsonb, geo_country text, geo_source text);`);
+  for (const f of ['20261207000002_jurisdiction_decisions', '20261207000003_consent_banner_lang',
+    '20261207000004_aggregate_goal_countries', '20261207000005_coverage_by_country']) {
+    await pg.exec(read(`../../supabase/migrations/${f}.sql`));
+  }
+  await pg.exec('GRANT USAGE ON SCHEMA public TO anon; GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;');
+  await pg.exec(read('../../supabase/migrations/20261207000006_jurisdiction_hardening.sql'));
+  return pg;
+}
+
+test('hardening: grants match the RLS policies; anon gets nothing', async () => {
+  const pg = await hardenedDb();
+  try {
+    const expected = {
+      site_jurisdiction_tighten: ['SELECT', 'INSERT', 'UPDATE', 'DELETE'],
+      site_legal_profiles: ['SELECT'], site_legal_profile_log: ['SELECT'],
+      jurisdiction_decisions_daily: ['SELECT'], aggregate_goal_countries_daily: ['SELECT'],
+    };
+    for (const [table, privs] of Object.entries(expected)) {
+      for (const p of ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER']) {
+        const q = (role) => pg.query(`SELECT has_table_privilege('${role}', 'public.${table}', '${p}') a`).then((r) => r.rows[0].a);
+        assert.equal(await q('anon'), false, `anon ${p} ${table}`);
+        assert.equal(await q('authenticated'), privs.includes(p), `authenticated ${p} ${table}`);
+      }
+    }
+  } finally { await pg.close(); }
+});
+
+test('hardening: set_by is always the signed-in user; a negative count is refused', async () => {
+  const pg = await hardenedDb();
+  try {
+    await asUser(pg, OWNER, () => pg.query(
+      `INSERT INTO site_jurisdiction_tighten (site_id, purpose, setting, set_by) VALUES ('${S1}', 'statistics', 'opt_in', '${OTHER}')`));
+    await asUser(pg, OWNER, () => pg.query(
+      `INSERT INTO site_jurisdiction_tighten (site_id, purpose, setting) VALUES ('${S1}', 'attribution', 'off')`));
+    await asUser(pg, OWNER, () => pg.query(
+      `UPDATE site_jurisdiction_tighten SET setting = 'off', set_by = '${OTHER}' WHERE purpose = 'statistics'`));
+    const rows = (await pg.query('SELECT purpose, set_by FROM site_jurisdiction_tighten ORDER BY purpose')).rows;
+    assert.deepEqual(rows, [{ purpose: 'attribution', set_by: OWNER }, { purpose: 'statistics', set_by: OWNER }]);
+    // Service role (no auth.uid()) keeps the value it sends.
+    await pg.query(`INSERT INTO site_jurisdiction_tighten (site_id, purpose, setting, set_by) VALUES ('${S2}', 'statistics', 'off', '${OTHER}')`);
+    assert.equal((await pg.query(`SELECT set_by FROM site_jurisdiction_tighten WHERE site_id = '${S2}'`)).rows[0].set_by, OTHER);
+
+    await assert.rejects(log(pg, { count: -1 }), /negative_count/);
+    await log(pg, { count: 0 });
+    await log(pg, { count: null });
+    assert.equal((await pg.query('SELECT sum(count)::int n FROM jurisdiction_decisions_daily')).rows[0].n, 1);
+  } finally { await pg.close(); }
+});
