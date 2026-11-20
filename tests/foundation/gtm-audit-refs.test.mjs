@@ -87,3 +87,32 @@ test('varsUsedBy reads tag params and firing-trigger conditions', () => {
   }));
   assert.deepEqual(varsUsedBy(c.tags[0], c).map((v) => v.name).sort(), ['Btn', 'Ev']);
 });
+
+test('a dense variable graph (400 Custom JS variables referencing each other, 2000 tags) audits quickly', async () => {
+  const { audit } = await import('../../supabase/functions/_shared/gtm-audit/audit.ts');
+  const names = Array.from({ length: 400 }, (_, n) => `V${n}`);
+  const body = `function(){return [${names.map((x) => `{{${x}}}`).join(',')}].join('')}`;
+  const variables = names.map((name, n) => variable(n + 1, name, 'jsm', [tpl('javascript', body)]));
+  const tags = Array.from({ length: 2000 }, (_, n) => tag(n + 1, `T${n}`, 'gaawe', [tpl('eventName', `{{V${n % 400}}}`)]));
+  const t0 = performance.now();
+  const r = audit(exportOf({ tags, variables }));
+  const ms = performance.now() - t0;
+  assert.ok(!r.error);
+  assert.ok(ms < 2000, `took ${Math.round(ms)} ms`);
+});
+
+test('effectivelyActive: active tags plus their setup/teardown tags, transitively; never paused; cycle-safe', async () => {
+  const { effectivelyActive } = await import('../../supabase/functions/_shared/gtm-audit/refs.ts');
+  const c = parse(exportOf({
+    tags: [
+      tag(1, 'A', 'html', [], { fire: [], setup: ['B'] }),
+      tag(2, 'B', 'html', [], { fire: [], setup: ['A'], teardown: ['P'] }),
+      tag(3, 'C', 'gaawe', [], { setup: ['B'] }),
+      tag(4, 'P', 'html', [], { fire: [], paused: true }),
+      tag(5, 'Lonely', 'html', [], { fire: [] }),
+      tag(6, 'Paused main', 'gaawe', [], { paused: true, setup: ['Q'] }),
+      tag(7, 'Q', 'html', [], { fire: [] }),
+    ],
+  }));
+  assert.deepEqual([...effectivelyActive(c)].sort(), ['1', '2', '3']);
+});

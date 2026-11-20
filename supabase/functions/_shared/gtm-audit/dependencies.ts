@@ -4,9 +4,8 @@
  * match (contains/regex event, a global or cookie name). Code on the site or in another container is not seen.
  */
 import type { Container, GtmTrigger, ParamValue, TagInfo } from './types.ts';
-import { firingTriggers, varsUsedBy } from './refs.ts';
+import { effectivelyActive, firingTriggers, varsUsedBy } from './refs.ts';
 import { MAX_HTML } from './destinations.ts';
-import { isActive } from './rules/finding.ts';
 
 export type DepKind = 'sequence' | 'event' | 'consent_tool' | 'global' | 'cookie';
 export type Confidence = 'certain' | 'possible';
@@ -33,24 +32,36 @@ const htmlOf = (i: TagInfo): string => text(i.tag.params.html).slice(0, MAX_HTML
 const runnable = (p: string): boolean =>
   p.length <= MAX_USER_REGEX && !QUANTIFIED_GROUP.test(p) && (p.match(QUANTIFIER)?.length ?? 0) <= 1;
 
-/** How a trigger's custom-event condition treats an event name. */
-export function eventMatch(t: Pick<GtmTrigger, 'customEvent'>, event: string, budget = { runs: MAX_REGEX_RUNS }): Confidence | null {
+export interface RegexBudget { runs: number; compiled?: Map<string, RegExp | null> }
+
+/**
+ * How a trigger's custom-event condition treats an event name. Each pattern is compiled once per budget
+ * (an invalid pattern matches nothing); it is only run when runnable() and while the run budget lasts.
+ */
+export function eventMatch(t: Pick<GtmTrigger, 'customEvent'>, event: string, budget: RegexBudget = { runs: MAX_REGEX_RUNS }): Confidence | null {
   const ce = t.customEvent;
   if (!ce) return null;
   if (ce.match === 'equals') return ce.value === event ? 'certain' : null;
   if (ce.match === 'contains') return event.includes(ce.value) ? 'possible' : null;
   if (ce.match === 'starts_with') return event.startsWith(ce.value) ? 'possible' : null;
-  let compiled: RegExp;
-  try { compiled = new RegExp(ce.value); } catch { return null; }
+  const compiled = budget.compiled ?? (budget.compiled = new Map());
+  let re = compiled.get(ce.value);
+  if (re === undefined) {
+    try { re = new RegExp(ce.value); } catch { re = null; }
+    compiled.set(ce.value, re);
+  }
+  if (re === null) return null;
   if (!runnable(ce.value) || budget.runs <= 0) return 'possible';
   budget.runs -= 1;
-  return compiled.test(event) ? 'possible' : null;
+  return re.test(event) ? 'possible' : null;
 }
 
 const pushTo = <K, V>(m: Map<K, V[]>, k: K, v: V) => { const list = m.get(k) ?? []; if (!list.includes(v)) list.push(v); m.set(k, list); };
 
 export function dependencies(container: Container, infos: TagInfo[]): Dependency[] {
-  const active = infos.filter(isActive);
+  // Tags that can run: active ones plus their setup/teardown tags (which may have no trigger of their own).
+  const running = effectivelyActive(container);
+  const active = infos.filter((i) => running.has(i.tag.id));
   const edges = new Map<string, Dependency>();
   const add = (from: TagInfo, to: TagInfo, kind: DepKind, via: string, confidence: Confidence) => {
     if (from.tag.id === to.tag.id) return;
@@ -80,17 +91,21 @@ export function dependencies(container: Container, infos: TagInfo[]): Dependency
   }
 
   if (events.size) {
-    const budget = { runs: MAX_REGEX_RUNS };
-    const memo = new Map<string, Confidence | null>();
+    const budget: RegexBudget = { runs: MAX_REGEX_RUNS };
+    const eventList = [...events];
+    const matches = new Map<GtmTrigger, (Confidence | null)[]>();
     for (const b of active) {
+      const best: (Confidence | undefined)[] = [];
       for (const t of firingTriggers(b.tag, container)) {
         if (!t.customEvent) continue;
-        for (const [event, providers] of events) {
-          const key = `${t.id}|${event}`;
-          if (!memo.has(key)) memo.set(key, eventMatch(t, event, budget));
-          const conf = memo.get(key);
-          if (conf) for (const a of providers) add(a, b, 'event', event, conf);
-        }
+        let row = matches.get(t);
+        if (!row) { row = eventList.map(([event]) => eventMatch(t, event, budget)); matches.set(t, row); }
+        row.forEach((conf, k) => {
+          if (!conf || best[k] === 'certain' || best[k] === conf) return;
+          best[k] = conf;
+          const [event, providers] = eventList[k];
+          for (const a of providers) add(a, b, 'event', event, conf);
+        });
       }
     }
   }

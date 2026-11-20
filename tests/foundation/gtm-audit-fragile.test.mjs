@@ -65,11 +65,18 @@ test('gtm.fragile_dom: medium on a conversion, low otherwise; pass when none', (
   assert.equal(conv.typicalOwner, 'developer');
   assert.equal(conv.title, '1 tag relies on page markup');
   assert.deepEqual(conv.evidence.details.slice(1), ['Lead conversion (Google Ads): click trigger "CTA" matches CSS selector ".cta"']);
-  assert.equal(conv.explanation, 'These tags fire on page markup (a CSS class, element ID or button text). A redesign or a text change can stop them without any error, and the tag silently stops counting.');
+  assert.equal(conv.explanation, "These tags' triggers depend on page markup (a CSS class, element ID or button text). A redesign or a text change can stop them without any error, and the tag silently stops counting.");
   assert.equal(conv.fix, "Have the site push a named event when the action happens (for example `dataLayer.push({event: 'generate_lead'})`) and trigger on that event instead.");
   const ga = ruleOf({ tags: [tag(1, 'Click event', 'gaawe', [tpl('eventName', 'cta')], { fire: [10] })], triggers });
   assert.equal(ga.priority, 'low');
   const none = ruleOf({ tags: [tag(1, 'Inline', 'html', [tpl('html', '<p>')])] });
   assert.equal(none.status, 'pass');
   assert.equal(none.title, 'No tag relies on page markup');
+});
+
+test('a trigger-less setup tag of an active tag is checked', () => {
+  assert.deepEqual(uses({
+    tags: [tag(1, 'Prep', 'gaawe', [tpl('eventName', '{{Btn}}')], { fire: [] }), tag(2, 'Main', 'gaawe', [], { setup: ['Prep'] })],
+    variables: [variable(1, 'Btn', 'd', [tpl('elementId', 'cta')])],
+  }), ['Prep: DOM element variable "{{Btn}}"']);
 });

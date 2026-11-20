@@ -4,8 +4,7 @@
  * variables that read the page. Reached through firing triggers (groups included) and variable chains.
  */
 import type { Container, GtmTrigger, GtmVariable, ParamValue, TagInfo } from './types.ts';
-import { firingTriggers, varsUsedBy } from './refs.ts';
-import { isActive } from './rules/finding.ts';
+import { effectivelyActive, firingTriggers, varsUsedBy } from './refs.ts';
 
 export interface FragileUse { tag: TagInfo; source: string }
 
@@ -32,7 +31,15 @@ function triggerSources(t: GtmTrigger): string[] {
   return out;
 }
 
+const sourceMemo = new WeakMap<GtmVariable, string | null>();
+
 function variableSource(v: GtmVariable): string | null {
+  let s = sourceMemo.get(v);
+  if (s === undefined) { s = readVariableSource(v); sourceMemo.set(v, s); }
+  return s;
+}
+
+function readVariableSource(v: GtmVariable): string | null {
   if (v.type === 'd') return `DOM element variable "{{${v.name}}}"`;
   if (v.type === 'jsm' && READS_PAGE.test(text(v.params.javascript).slice(0, MAX_JS))) return `Custom JavaScript variable "{{${v.name}}}" reads the page`;
   return null;
@@ -40,8 +47,9 @@ function variableSource(v: GtmVariable): string | null {
 
 export function fragileUses(container: Container, infos: TagInfo[]): FragileUse[] {
   const out: FragileUse[] = [];
+  const running = effectivelyActive(container);
   for (const i of infos) {
-    if (!isActive(i)) continue;
+    if (!running.has(i.tag.id)) continue;
     const sources = new Set<string>();
     for (const t of firingTriggers(i.tag, container)) for (const s of triggerSources(t)) sources.add(s);
     for (const v of varsUsedBy(i.tag, container)) { const s = variableSource(v); if (s) sources.add(s); }

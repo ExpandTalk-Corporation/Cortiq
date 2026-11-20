@@ -157,3 +157,23 @@ test('TagRow.sendsTo lists IDs and unresolved references', () => {
   }));
   assert.deepEqual(r.tags.map((t) => t.sendsTo), [['1234567890'], ['Unresolved ({{DLV}})'], []]);
 });
+
+test('gtm.multiple_destinations: a trigger-less setup tag of an active tag counts', () => {
+  const f = rule([
+    tag(1, 'Meta base', tplType(20), [tpl('pixelId', '2222222222')], { fire: [] }),
+    tag(2, 'Meta lead', tplType(20), [tpl('pixelId', '1111111111')], { setup: ['Meta base'] }),
+  ]);
+  assert.equal(f.status, 'manual');
+  assert.deepEqual(f.evidence.details.slice(1), [
+    'Meta Pixel: 2 IDs — 2222222222 (1 tag, last changed 2026-10-01), 1111111111 (1 tag, last changed 2026-10-01)',
+  ]);
+});
+
+test('gtm.multiple_destinations: a setup tag of a paused or trigger-less-only tag does not count', () => {
+  const f = rule([
+    tag(1, 'Meta base', tplType(20), [tpl('pixelId', '2222222222')], { fire: [] }),
+    tag(2, 'Meta paused', tplType(20), [tpl('pixelId', '3333333333')], { setup: ['Meta base'], paused: true }),
+    tag(3, 'Meta lead', tplType(20), [tpl('pixelId', '1111111111')]),
+  ]);
+  assert.equal(f.status, 'pass');
+});

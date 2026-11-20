@@ -14,8 +14,7 @@ function how(d: Dependency): string {
   return `cookie '${d.via}'`;
 }
 
-export function reliedOn(container: Container, infos: TagInfo[]): Finding {
-  const deps = dependencies(container, infos);
+export function reliedOn(container: Container, infos: TagInfo[], deps: Dependency[] = dependencies(container, infos)): Finding {
   if (!deps.length) {
     return finding('gtm.dependencies', 'No tag relies on another tag', 'pass', 'medium', 'gtm',
       'No tag in this container provides an event, value, cookie or sequence step that another tag uses.', '', []);

@@ -186,7 +186,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "title": "1 tag relies on page markup",
       "status": "manual",
       "priority": "medium",
-      "explanation": "These tags fire on page markup (a CSS class, element ID or button text). A redesign or a text change can stop them without any error, and the tag silently stops counting.",
+      "explanation": "These tags' triggers depend on page markup (a CSS class, element ID or button text). A redesign or a text change can stop them without any error, and the tag silently stops counting.",
       "fix": "Have the site push a named event when the action happens (for example `dataLayer.push({event: 'generate_lead'})`) and trigger on that event instead.",
       "typicalOwner": "developer",
       "evidence": {

@@ -205,3 +205,38 @@ test('TagRow.reliedOnBy: names with confidence, certain wins', () => {
   assert.deepEqual(r.tags[0].reliedOnBy, [{ name: 'Exact', confidence: 'certain' }, { name: 'Loose', confidence: 'possible' }]);
   assert.deepEqual(r.tags[1].reliedOnBy, []);
 });
+
+test('event: 3000 regex triggers and 500 pushed events audit quickly', () => {
+  const html = Array.from({ length: 500 }, (_, n) => `dataLayer.push({event:'evt_${n}'});`).join('');
+  const triggers = Array.from({ length: 3000 }, (_, n) => trigger(100 + n, `R${n}`, 'CUSTOM_EVENT', { custom: [cond('MATCH_REGEX', '{{_event}}', `^nomatch_${n}$`)] }));
+  const listeners = Array.from({ length: 30 }, (_, k) => tag(10 + k, `L${k}`, 'gaawe', [], { fire: triggers.slice(k * 100, k * 100 + 100).map((_, n) => 100 + k * 100 + n) }));
+  const tags = [tag(1, 'Pusher', 'html', [tpl('html', `<script>${html}</script>`)]), ...listeners];
+  const t0 = performance.now();
+  const r = audit(exportOf({ tags, triggers }));
+  const ms = performance.now() - t0;
+  assert.ok(!r.error);
+  assert.ok(ms < 2000, `took ${Math.round(ms)} ms`);
+});
+
+test('guard: nested setup — A is setup of trigger-less B, B is setup of active C, so A and B are review', () => {
+  const cls = classesOf({
+    tags: [
+      tag(1, 'A', 'html', [tpl('html', '<script>1</script>')], { fire: [] }),
+      tag(2, 'B', 'html', [tpl('html', '<script>2</script>')], { fire: [], setup: ['A'] }),
+      tag(3, 'C', 'gaawe', [tpl('eventName', 'x')], { setup: ['B'] }),
+    ],
+  });
+  assert.deepEqual(cls.A, { migration: 'review', reason: 'Other tags rely on it: B. Remove together or rewire first.' });
+  assert.deepEqual(cls.B, { migration: 'review', reason: 'Other tags rely on it: C. Remove together or rewire first.' });
+});
+
+test('a trigger-less setup tag of an active tag provides events', () => {
+  assert.deepEqual(deps({
+    tags: [
+      tag(1, 'Prep', 'html', [push('ready')], { fire: [] }),
+      tag(2, 'Main', 'gaawe', [], { setup: ['Prep'] }),
+      tag(3, 'Listener', 'gaawe', [], { fire: [10] }),
+    ],
+    triggers: [customEvent(10, 'CE ready', 'ready')],
+  }), ['Prep -> Listener | event ready certain', 'Prep -> Main | sequence setup certain']);
+});

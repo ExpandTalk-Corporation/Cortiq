@@ -2,7 +2,8 @@ import type { Finding } from '../../tracking-check/types.ts';
 import type { Container, TagInfo } from '../types.ts';
 import { vendorById } from '../../tracking-vendors.ts';
 import { destinationsOf } from '../destinations.ts';
-import { finding, isActive, plural } from './finding.ts';
+import { effectivelyActive } from '../refs.ts';
+import { finding, plural } from './finding.ts';
 
 const day = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
 
@@ -14,8 +15,9 @@ function lastChanged(tags: TagInfo[]): string {
 export function multipleDestinations(container: Container, infos: TagInfo[]): Finding {
   const byVendor = new Map<string, Map<string, TagInfo[]>>();
   const unresolved = new Set<string>();
+  const running = effectivelyActive(container);
   for (const i of infos) {
-    if (!isActive(i)) continue;
+    if (!running.has(i.tag.id)) continue;
     for (const d of destinationsOf(i, container)) {
       if (d.id === null) { unresolved.add(i.tag.id); continue; }
       const ids = byVendor.get(d.vendorId) ?? new Map<string, TagInfo[]>();
