@@ -12,6 +12,17 @@
 
 ---
 
+## Decisions (Daniel, 2026-11-20)
+
+- Q1: the jurist agent first reviews the existing rules against primary sources (cited, dated); Daniel then approves
+  them in a reviewed git commit (Q6: git-reviewed approval is accepted until phase 4). Until then nothing is
+  `approved_internal`.
+- Q2: merge in **shadow mode**; enforcement one function at a time after a week of `jurisdiction_decisions_daily`.
+- Q4: time-zone-only geo = `unknown_geo` → the customer's strictest market.
+- Q7: pixel readiness defaults to analytics acceptance; marketing acceptance is an option.
+- Q3, Q5, Q8: the plan's recommendations apply (accept `tracker_gate` evidence and show the split; profile per site;
+  jurist review step in Task 19, no DPA text change).
+
 ## Open questions for Daniel (decide before Task 10 is merged)
 
 1. **Which rules are approved at launch.** Today's behaviour is written as three rules (Task 2). Only `eu.statistics.aggregate@1` has had a review (jurist agent, PR #69), so it is set to `reviewed_agent`, which is *not* production. Under enforcement without an approval, aggregate measurement stops for every visitor, and server-hit / non-EU aggregate stop too. Before any function is switched to enforce, you must either approve rules in the pack (Task 2 Step 6 shows how) or accept the stop. Please also confirm that the PR #69 review cited primary sources (CELEX 32002L0058, LEK 2022:482 9 kap. 28 §); if not, it cannot be raised to `approved_internal`.
