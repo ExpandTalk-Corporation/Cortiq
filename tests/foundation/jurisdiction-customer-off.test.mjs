@@ -63,7 +63,7 @@ async function run(name, request, { site, policy = null, ledger, extra, env = {}
   release();
   const res = await pending;
   if (slow) await Promise.all(handler.waitUntilWork);
-  const body = res.status === 200 ? await res.json() : null;
+  const body = res.status === 200 && (res.headers.get('content-type') ?? '').includes('json') ? await res.json() : null;
   return { res, body, d, answeredBeforeLog };
 }
 
@@ -321,4 +321,97 @@ test('policy timeout: a hung policy RPC falls back to the safe default and the h
   } finally {
     mock.timers.reset();
   }
+});
+
+// ---------- collectors wired 2026-11-20 (runbook "Not yet wired") ----------
+// Each: the customer's Off for its purpose drops without the flag and is logged as applied; opt_in is
+// not applied; with no tighten the response does not wait for the ledger read or the decision log.
+const rows = (d, table) => d.calls.filter((c) => c.table === table && (c.type === 'insert' || c.type === 'update'));
+const appliedOff = (d, purpose) => {
+  const [l] = logs(d.rpcCalls);
+  assert.deepEqual([l.p_purpose, l.p_reason, l.p_enforced], [purpose, 'customer_off', true]);
+};
+
+// ai-search-tracker
+const aiSearch = (opts) => run('ai-search-tracker', async () => post('ai-search-tracker',
+  { siteId: SITE, sessionId: 's-1', aiPlatform: 'chatgpt', url: 'https://shop.test/?utm_source=chatgpt' }),
+  { site: { id: SITE, is_active: true }, extra: (op) => (op.table === 'ai_search_traffic' && op.type === 'select' ? { data: null, error: null } : null), ...opts });
+
+test('ai-search-tracker: customer Off for statistics drops without the flag; opt_in does not', async () => {
+  const off = await aiSearch({ policy: tighten({ statistics: 'off' }) });
+  assert.deepEqual(off.body, { success: true, skipped: 'jurisdiction' });
+  assert.equal(rows(off.d, 'ai_search_traffic').length, 0);
+  appliedOff(off.d, 'statistics');
+  const optIn = await aiSearch({ policy: tighten({ statistics: 'opt_in' }) });
+  assert.equal(optIn.body.action, 'session_created');
+  assert.equal(logs(optIn.d.rpcCalls)[0].p_enforced, false);
+});
+
+test('ai-search-tracker: no tighten = answers before a slow ledger read and log', async () => {
+  const { body, answeredBeforeLog } = await aiSearch({ slow: true });
+  assert.equal(body.action, 'session_created');
+  assert.equal(answeredBeforeLog, true);
+});
+
+// link-click-counter (aggregate counter, no session id: no ledger read)
+const linkClick = (opts) => run('link-click-counter', async () => post('link-click-counter',
+  { siteId: SITE, pagePath: '/', linkKind: 'link', linkKey: 'shop.test/a', linkLabel: 'A', deviceType: 'desktop' },
+  { Authorization: `Bearer ${KEY}` }), { site: { id: SITE, is_active: true, tracking_id: KEY, user_id: OWNER }, ...opts });
+
+test('link-click-counter: customer Off for statistics drops without the flag; opt_in does not', async () => {
+  const off = await linkClick({ policy: tighten({ statistics: 'off' }) });
+  assert.deepEqual(off.body, { ok: true, skipped: 'jurisdiction' });
+  assert.equal(named(off.d.rpcCalls, 'increment_link_click').length, 0);
+  appliedOff(off.d, 'statistics');
+  const optIn = await linkClick({ policy: tighten({ statistics: 'opt_in' }) });
+  assert.deepEqual(optIn.body, { ok: true });
+  assert.equal(named(optIn.d.rpcCalls, 'increment_link_click').length, 1);
+});
+
+test('link-click-counter: no tighten = answers before a slow log', async () => {
+  const { body, answeredBeforeLog } = await linkClick({ slow: true });
+  assert.deepEqual(body, { ok: true });
+  assert.equal(answeredBeforeLog, true);
+});
+
+// ecommerce-tracking
+const ecommerce = (opts) => run('ecommerce-tracking', async () => post('ecommerce-tracking', {
+  siteId: SITE, sessionId: 's-1', eventType: 'purchase', consentGranted: true, userId: 'u-1',
+  transactionData: { id: 't-1', revenue: 100 },
+}), { site: { id: SITE }, ...opts });
+
+test('ecommerce-tracking: customer Off for statistics drops without the flag; opt_in does not', async () => {
+  const off = await ecommerce({ policy: tighten({ statistics: 'off' }) });
+  assert.deepEqual(off.body, { success: true, skipped: 'jurisdiction' });
+  assert.equal(inserts(off.d, 'ecommerce_events').length, 0);
+  assert.equal(named(off.d.rpcCalls, 'upsert_user_identity').length, 0);
+  appliedOff(off.d, 'statistics');
+  const optIn = await ecommerce({ policy: tighten({ statistics: 'opt_in' }) });
+  assert.equal(optIn.body.success, true);
+  assert.equal(inserts(optIn.d, 'ecommerce_events').length, 1);
+});
+
+test('ecommerce-tracking: no tighten = answers before a slow ledger read and log', async () => {
+  const { body, answeredBeforeLog } = await ecommerce({ slow: true });
+  assert.equal(body.success, true);
+  assert.equal(answeredBeforeLog, true);
+});
+
+// canary-tracker (agent_measurement; the pixel answer never depends on the gate)
+const canary = (opts) => run('canary-tracker', async () => new Request(`https://fn.test/canary-tracker/tok12345?s=${SITE}&v=px`,
+  { headers: { 'user-agent': 'python-requests/2.31' } }), { site: { id: SITE }, ...opts });
+
+test('canary-tracker: customer Off for agent_measurement drops the hit without the flag; the pixel is still served', async () => {
+  const off = await canary({ policy: tighten({ agent_measurement: 'off' }) });
+  assert.equal(off.res.headers.get('content-type'), 'image/gif');
+  assert.equal(inserts(off.d, 'canary_hits').length, 0);
+  appliedOff(off.d, 'agent_measurement');
+  const optIn = await canary({ policy: tighten({ agent_measurement: 'opt_in' }) });
+  assert.equal(inserts(optIn.d, 'canary_hits').length, 1);
+});
+
+test('canary-tracker: the pixel never waits for the gate', async () => {
+  const { res, answeredBeforeLog } = await canary({ slow: true, policy: tighten({ agent_measurement: 'off' }) });
+  assert.equal(res.headers.get('content-type'), 'image/gif');
+  assert.equal(answeredBeforeLog, true);
 });

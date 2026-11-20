@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from '../_shared/supabase.ts';
 import { resolveSite } from "../_shared/resolve-site.ts";
+import { resolveGeo, geoKey } from "../_shared/geo.ts";
+import { jurisdictionGate, signalsFrom, visitorFrom } from "../_shared/jurisdiction-edge.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -138,6 +140,19 @@ serve(async (req) => {
     if (!site) {
       return new Response(JSON.stringify({ error: 'Site not found' }), {
         status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Jurisdiction (statistics, same as track-event's events): the customer's own Off drops now; opt_in and
+    // market rules stay shadow. Shadow mode waits only for the cached site policy.
+    const drop = await jurisdictionGate(supabase, 'ecommerce-tracking', site.id, Deno.env.get('JURISDICTION_ENFORCE'), sessionId).gate(async (ledger) => ({
+      visitor: visitorFrom(await resolveGeo(req, { key: geoKey(), timeZone: null })), purpose: 'statistics',
+      signals: signalsFrom(ledger, { trackerGate: ['analytics'], gpcHeader: req.headers.get('sec-gpc') === '1' }),
+      technique: { storage: 'session', identifiers: 'session' },
+    }));
+    if (drop) {
+      return new Response(JSON.stringify({ success: true, skipped: 'jurisdiction' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
