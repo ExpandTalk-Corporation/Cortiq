@@ -2538,36 +2538,30 @@ export type Database = {
         Row: {
           ai_monthly_cost_cap: number | null
           api_key: string
-          auto_eu_geo_override: boolean
           consent_settings: Json | null
           created_at: string
           id: string
           is_active: boolean | null
-          jurisdiction: string
           name: string
           updated_at: string
         }
         Insert: {
           ai_monthly_cost_cap?: number | null
           api_key?: string
-          auto_eu_geo_override?: boolean
           consent_settings?: Json | null
           created_at?: string
           id?: string
           is_active?: boolean | null
-          jurisdiction?: string
           name: string
           updated_at?: string
         }
         Update: {
           ai_monthly_cost_cap?: number | null
           api_key?: string
-          auto_eu_geo_override?: boolean
           consent_settings?: Json | null
           created_at?: string
           id?: string
           is_active?: boolean | null
-          jurisdiction?: string
           name?: string
           updated_at?: string
         }
@@ -5106,6 +5100,132 @@ export type Database = {
           },
         ]
       }
+      jurisdiction_decisions_daily: {
+        Row: {
+          count: number
+          country: string
+          day: string
+          enforced: boolean
+          evidence: string
+          fn: string
+          outcome: string
+          purpose: string
+          reason: string
+          rule_id: string
+          site_id: string
+        }
+        Insert: {
+          count?: number
+          country?: string
+          day: string
+          enforced: boolean
+          evidence: string
+          fn: string
+          outcome: string
+          purpose: string
+          reason: string
+          rule_id: string
+          site_id: string
+        }
+        Update: {
+          count?: number
+          country?: string
+          day?: string
+          enforced?: boolean
+          evidence?: string
+          fn?: string
+          outcome?: string
+          purpose?: string
+          reason?: string
+          rule_id?: string
+          site_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jurisdiction_decisions_daily_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jurisdiction_exceptions: {
+        Row: {
+          approved_at: string
+          approved_by: string
+          assessment_ref: string
+          expires_at: string
+          id: string
+          jurisdiction: string
+          legal_basis: string
+          purpose: string
+          rule_id: string
+          site_id: string
+        }
+        Insert: {
+          approved_at: string
+          approved_by: string
+          assessment_ref: string
+          expires_at: string
+          id?: string
+          jurisdiction: string
+          legal_basis: string
+          purpose: string
+          rule_id: string
+          site_id: string
+        }
+        Update: {
+          approved_at?: string
+          approved_by?: string
+          assessment_ref?: string
+          expires_at?: string
+          id?: string
+          jurisdiction?: string
+          legal_basis?: string
+          purpose?: string
+          rule_id?: string
+          site_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jurisdiction_exceptions_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jurisdiction_test_sites: {
+        Row: {
+          flagged_at: string
+          flagged_by: string | null
+          note: string | null
+          site_id: string
+        }
+        Insert: {
+          flagged_at?: string
+          flagged_by?: string | null
+          note?: string | null
+          site_id: string
+        }
+        Update: {
+          flagged_at?: string
+          flagged_by?: string | null
+          note?: string | null
+          site_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jurisdiction_test_sites_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: true
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kpi_ai_insights: {
         Row: {
           generated_at: string
@@ -7236,6 +7356,114 @@ export type Database = {
             foreignKeyName: "site_integrations_site_id_fkey"
             columns: ["site_id"]
             isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      site_jurisdiction_tighten: {
+        Row: {
+          purpose: string
+          set_at: string
+          set_by: string | null
+          setting: string
+          site_id: string
+        }
+        Insert: {
+          purpose: string
+          set_at?: string
+          set_by?: string | null
+          setting: string
+          site_id: string
+        }
+        Update: {
+          purpose?: string
+          set_at?: string
+          set_by?: string | null
+          setting?: string
+          site_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_jurisdiction_tighten_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      site_legal_profile_log: {
+        Row: {
+          answers: Json | null
+          changed_at: string
+          changed_by: string | null
+          establishment_country: string | null
+          id: number
+          legacy_jurisdiction: string | null
+          markets: string[] | null
+          site_id: string
+        }
+        Insert: {
+          answers?: Json | null
+          changed_at?: string
+          changed_by?: string | null
+          establishment_country?: string | null
+          id?: number
+          legacy_jurisdiction?: string | null
+          markets?: string[] | null
+          site_id: string
+        }
+        Update: {
+          answers?: Json | null
+          changed_at?: string
+          changed_by?: string | null
+          establishment_country?: string | null
+          id?: number
+          legacy_jurisdiction?: string | null
+          markets?: string[] | null
+          site_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_legal_profile_log_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      site_legal_profiles: {
+        Row: {
+          answered_at: string
+          answered_by: string | null
+          answers: Json
+          establishment_country: string | null
+          markets: string[]
+          site_id: string
+        }
+        Insert: {
+          answered_at?: string
+          answered_by?: string | null
+          answers?: Json
+          establishment_country?: string | null
+          markets?: string[]
+          site_id: string
+        }
+        Update: {
+          answered_at?: string
+          answered_by?: string | null
+          answers?: Json
+          establishment_country?: string | null
+          markets?: string[]
+          site_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_legal_profiles_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: true
             referencedRelation: "sites"
             referencedColumns: ["id"]
           },
@@ -9835,10 +10063,6 @@ export type Database = {
         }
         Returns: number
       }
-      effective_pipeline_mode: {
-        Args: { p_company_id: string; p_visitor_country?: string }
-        Returns: string
-      }
       generate_geoheatmap_density: {
         Args: { p_date: string; p_site_id: string }
         Returns: undefined
@@ -10131,6 +10355,10 @@ export type Database = {
           cookie_count: number
           script_count: number
         }[]
+      }
+      get_site_jurisdiction: {
+        Args: { p_site_id: string }
+        Returns: Json
       }
       get_social_daily: {
         Args: {
@@ -10438,6 +10666,15 @@ export type Database = {
       run_bot_detection_retention: { Args: never; Returns: Json }
       run_canary_retention: { Args: never; Returns: Json }
       run_data_retention: { Args: never; Returns: Json }
+      save_site_legal_profile: {
+        Args: {
+          p_answers: Json
+          p_establishment: string | null
+          p_markets: string[]
+          p_site_id: string
+        }
+        Returns: undefined
+      }
       seed_cyber_alerts: { Args: { p_site_id: string }; Returns: Json }
       session_matches_filters: {
         Args: {
