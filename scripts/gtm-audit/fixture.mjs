@@ -13,13 +13,15 @@ export const needed = (...types) => ({
   consentStatus: 'NEEDED', consentType: { type: 'LIST', list: types.map((t) => ({ type: 'TEMPLATE', value: t })) },
 });
 
-export function tag(id, name, type, params = [], { fire = [ALL_PAGES], block = [], consent, paused, folder, modified } = {}) {
+export function tag(id, name, type, params = [], { fire = [ALL_PAGES], block = [], consent, paused, folder, modified, setup = [], teardown = [] } = {}) {
   return {
     tagId: String(id), name, type, parameter: params, fingerprint: String(modified ?? DEFAULT_MODIFIED),
     firingTriggerId: fire.map(String),
     ...(block.length ? { blockingTriggerId: block.map(String) } : {}),
     ...(paused ? { paused: true } : {}),
     ...(folder ? { parentFolderId: String(folder) } : {}),
+    ...(setup.length ? { setupTag: setup.map((tagName) => ({ tagName, stopOnSetupFailure: true })) } : {}),
+    ...(teardown.length ? { teardownTag: teardown.map((tagName) => ({ tagName, stopTeardownOnFailure: true })) } : {}),
     consentSettings: consent ?? { consentStatus: 'NOT_SET' },
   };
 }
@@ -40,6 +42,13 @@ export function trigger(id, name, type, { filter = [], custom = [], params = [],
 export const customEvent = (id, name, event, opts = {}) => trigger(id, name, 'CUSTOM_EVENT', { ...opts, custom: [cond('EQUALS', '{{_event}}', event)] });
 export const triggerGroup = (id, name, memberIds) => trigger(id, name, 'TRIGGER_GROUP', { params: [list('triggerIds', memberIds.map(ref))] });
 export const variable = (id, name, type, params = []) => ({ variableId: String(id), name, type, parameter: params });
+
+/** Lookup Table variable (smm). rows: [[input, output], …]; defaultValue switches on "Set default value". */
+export const lookup = (id, name, input, rows, defaultValue) => variable(id, name, 'smm', [
+  tpl('input', input),
+  list('map', rows.map(([key, value]) => ms({ key, value }))),
+  ...(defaultValue === undefined ? [] : [bool('setDefaultValue', true), tpl('defaultValue', defaultValue)]),
+]);
 
 /** permissions: { inject_script: ['https://cdn.example.com/*'], access_consent: [] } */
 export function template(id, name, { permissions = {}, gallery } = {}) {
@@ -86,6 +95,7 @@ export function sampleExport() {
       trigger(13, 'Consent Analytics Trigger', 'PAGEVIEW'),
       trigger(14, 'Old landing page', 'PAGEVIEW', { filter: [cond('EQUALS', '{{Page Path}}', '/spring-offer')] }),
       customEvent(15, 'CE - generate_lead', 'generate_lead', { folder: 41 }),
+      trigger(16, 'Click - Book demo button', 'CLICK', { filter: [cond('CSS_SELECTOR', '{{Click Element}}', '.btn-demo')] }),
     ],
     variables: [
       variable(30, 'Meta Pixel ID', 'c', [tpl('value', '1234567890')]),
@@ -116,6 +126,9 @@ export function sampleExport() {
       tag(14, 'Reddit pixel', 'html', [script('https://www.redditstatic.com/ads/pixel.js')], { paused: true, modified: OLD_2023, folder: 40 }),
       tag(15, 'Visitor helper', tplType(23), [], { fire: [11] }),
       tag(16, 'UA - pageview', 'ua', [tpl('trackingId', 'UA-000000-1')], { modified: OLD_2022, folder: 41 }),
+      tag(17, 'Meta - PageView (old agency)', tplType(20), [tpl('pixelId', '9876543210'), tpl('eventName', 'standard'), tpl('standardEventName', 'PageView')], { fire: [10], modified: OLD_2023, folder: 40 }),
+      tag(18, 'Google Ads - lead conversion', 'awct', [tpl('conversionId', '000000000'), tpl('conversionLabel', 'SAMPLElead')], { fire: [15], folder: 40 }),
+      tag(19, 'Google Ads - demo click', 'awct', [tpl('conversionId', '000000000'), tpl('conversionLabel', 'SAMPLEdemo')], { fire: [16], folder: 40 }),
     ],
   });
 }

@@ -6,7 +6,8 @@ import type { Container, MigrationClass, ParamValue, TagInfo } from './types.ts'
 import { GOOGLE_TYPES } from './tag-types.ts';
 import { coveredReason } from './covered.ts';
 import { isConsentTrigger } from './consent.ts';
-import { duplicateGroups } from './rules/index.ts';
+import { duplicateGroups } from './rules/hygiene.ts';
+import { dependencies, type Dependency } from './dependencies.ts';
 
 export const MIGRATION_LABEL: Record<MigrationClass, string> = {
   covered: 'Covered by CortIQ today',
@@ -31,14 +32,47 @@ export interface MigrateContext {
   container: Container;
   /** Tag id → name of the tag it duplicates (every member of a duplicate group except the first). */
   duplicateOf: Map<string, string>;
+  /** Tag id → tags that certainly rely on it (sequence, exact event, consent tool). */
+  reliedOnBy: Map<string, TagInfo[]>;
+  /** Ids of tags whose final class is not remove (filled in by migrationContext; see migrate()). */
+  kept: Set<string>;
 }
 
-export function migrationContext(container: Container, infos: TagInfo[]): MigrateContext {
+/** deps: dependencies(container, infos), when the caller already has them. */
+export function migrationContext(container: Container, infos: TagInfo[], deps: Dependency[] = dependencies(container, infos)): MigrateContext {
   const duplicateOf = new Map<string, string>();
   for (const group of duplicateGroups(infos)) {
     for (const i of group.slice(1)) if (!duplicateOf.has(i.tag.id)) duplicateOf.set(i.tag.id, group[0].tag.name);
   }
-  return { container, duplicateOf };
+  const byId = new Map(infos.map((i) => [i.tag.id, i]));
+  const reliedOnBy = new Map<string, TagInfo[]>();
+  for (const d of deps) {
+    const to = byId.get(d.to);
+    if (d.confidence !== 'certain' || !to) continue;
+    const list = reliedOnBy.get(d.from) ?? [];
+    if (!list.includes(to)) list.push(to);
+    reliedOnBy.set(d.from, list);
+  }
+  const ctx: MigrateContext = { container, duplicateOf, reliedOnBy, kept: new Set() };
+  // A removal candidate is kept (as review) when a tag that is itself kept certainly relies on it — through
+  // chains too (A is setup of B, B of C). Spread backwards from the tags classify() keeps; cycles end.
+  const providersOf = new Map<string, TagInfo[]>();
+  for (const [from, tos] of reliedOnBy) {
+    const p = byId.get(from);
+    if (!p) continue;
+    for (const to of tos) { const list = providersOf.get(to.tag.id) ?? []; list.push(p); providersOf.set(to.tag.id, list); }
+  }
+  const queue = infos.filter((i) => classify(i, ctx).migration !== 'remove');
+  for (const i of queue) ctx.kept.add(i.tag.id);
+  while (queue.length) {
+    const d = queue.pop() as TagInfo;
+    for (const p of providersOf.get(d.tag.id) ?? []) {
+      if (ctx.kept.has(p.tag.id) || p.tag.type === 'ua') continue;
+      ctx.kept.add(p.tag.id);
+      queue.push(p);
+    }
+  }
+  return ctx;
 }
 
 const text = (v: ParamValue | undefined): string => (typeof v === 'string' ? v : '');
@@ -62,7 +96,7 @@ function firesOnPageLoad(info: TagInfo, container: Container): boolean {
 type Result = { migration: MigrationClass; reason: string };
 const out = (migration: MigrationClass, reason: string): Result => ({ migration, reason });
 
-export function migrate(info: TagInfo, ctx: MigrateContext): Result {
+function classify(info: TagInfo, ctx: MigrateContext): Result {
   const { tag, vendor } = info;
   if (tag.paused) return out('remove', 'Paused: it does not run.');
   if (!tag.firingTriggerIds.length) return out('remove', 'No firing trigger: it never runs.');
@@ -87,4 +121,13 @@ export function migrate(info: TagInfo, ctx: MigrateContext): Result {
   }
   if (vendor && vendor.kind !== 'infrastructure') return out('third_party', `${vendor.name}: a third-party script that can be loaded directly on the site, behind consent.`);
   return out('review', 'Not identified: check what it loads and sends.');
+}
+
+/** classify(), plus the guard: a removal candidate that kept tags certainly rely on becomes review (UA excepted). */
+export function migrate(info: TagInfo, ctx: MigrateContext): Result {
+  const base = classify(info, ctx);
+  if (base.migration !== 'remove' || info.tag.type === 'ua') return base;
+  const keep = (ctx.reliedOnBy.get(info.tag.id) ?? []).filter((d) => ctx.kept.has(d.tag.id));
+  if (!keep.length) return base;
+  return out('review', `Other tags rely on it: ${keep.map((d) => d.tag.name || 'Unnamed tag').join(', ')}. Remove together or rewire first.`);
 }

@@ -33,14 +33,16 @@ export const CONSENT_LABEL: Record<ConsentStatus, string> = {
   google_consent_mode: 'Google Consent Mode',
 };
 
-export const TAG_COLUMNS = ['Tag', 'Type', 'Vendor', 'Triggers', 'Consent', 'Consent evidence', 'Plan', 'Why', 'Folder', 'Last changed', 'Paused'];
+export const TAG_COLUMNS = ['Tag', 'Type', 'Vendor', 'Sends to', 'Triggers', 'Consent', 'Consent evidence', 'Plan', 'Why', 'Relied on by', 'Folder', 'Last changed', 'Paused'];
 
 const day = (ms: number | null): string => (ms === null ? '' : new Date(ms).toISOString().slice(0, 10));
 
 export function toTagRows(tags: TagRow[]): (string | number)[][] {
   return tags.map((t) => [
-    t.name, t.typeLabel, t.vendorName, t.triggers.join('\n'), CONSENT_LABEL[t.consent], t.consentEvidence,
-    t.migrationLabel, t.migrationReason, t.folder, day(t.modifiedAt), t.paused ? 'Yes' : '',
+    t.name, t.typeLabel, t.vendorName, t.sendsTo.join('\n'), t.triggers.join('\n'), CONSENT_LABEL[t.consent], t.consentEvidence,
+    t.migrationLabel, t.migrationReason,
+    t.reliedOnBy.map((d) => (d.confidence === 'certain' ? d.name : `${d.name} (possible)`)).join('\n'),
+    t.folder, day(t.modifiedAt), t.paused ? 'Yes' : '',
   ]);
 }
 

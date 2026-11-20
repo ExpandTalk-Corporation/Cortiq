@@ -19,9 +19,15 @@ export interface GtmTag {
   folderId: string | null;
   /** ms epoch from the tag fingerprint; null when the fingerprint is not a timestamp. */
   modifiedAt: number | null;
+  /** Tag names in "Fire a tag before / after this tag fires" (setupTag / teardownTag). */
+  setupTagNames: string[];
+  teardownTagNames: string[];
 }
 
 export interface GtmCondition { type: string; arg0: string; arg1: string; negate: boolean }
+
+/** A trigger's custom-event condition on {{_event}}, when it has one that is not negated. */
+export interface CustomEventMatch { match: 'equals' | 'contains' | 'starts_with' | 'regex'; value: string }
 
 export interface GtmTrigger {
   id: string;
@@ -33,6 +39,8 @@ export interface GtmTrigger {
   /** Members of a TRIGGER_GROUP. */
   groupTriggerIds: string[];
   folderId: string | null;
+  params: Record<string, ParamValue>;
+  customEvent: CustomEventMatch | null;
 }
 
 export interface GtmVariable { id: string; name: string; type: string; params: Record<string, ParamValue> }
@@ -93,7 +101,8 @@ export type MigrationClass = typeof MIGRATION_CLASSES[number];
 
 export const CHECK_KEYS = [
   'gtm.consent_missing', 'gtm.consent_inferred', 'gtm.identifies_visitors', 'gtm.consent_mode_default',
-  'gtm.unknown_custom_html', 'gtm.community_template_injects', 'gtm.duplicate', 'gtm.dead', 'gtm.stale',
+  'gtm.multiple_destinations', 'gtm.dependencies',
+  'gtm.unknown_custom_html', 'gtm.community_template_injects', 'gtm.duplicate', 'gtm.fragile_dom', 'gtm.dead', 'gtm.stale',
 ] as const;
 export type CheckKey = typeof CHECK_KEYS[number];
 
@@ -103,6 +112,8 @@ export interface TagRow {
   typeLabel: string;
   vendorId: string | null;
   vendorName: string;
+  /** Destination IDs, or "Unresolved ({{Name}})". */
+  sendsTo: string[];
   triggers: string[];
   consent: ConsentStatus;
   consentEvidence: string;
@@ -110,6 +121,8 @@ export interface TagRow {
   migration: MigrationClass;
   migrationLabel: string;
   migrationReason: string;
+  /** Tags that rely on this one (inside the container), with how sure the audit is. */
+  reliedOnBy: { name: string; confidence: 'certain' | 'possible' }[];
   folder: string;
   paused: boolean;
 }

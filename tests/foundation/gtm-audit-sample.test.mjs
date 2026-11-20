@@ -16,17 +16,36 @@ test('the sample shows every check result and every migration class', () => {
     'gtm.consent_inferred': 'manual',
     'gtm.identifies_visitors': 'fail',
     'gtm.consent_mode_default': 'pass',
+    'gtm.multiple_destinations': 'manual',
+    'gtm.dependencies': 'manual',
     'gtm.unknown_custom_html': 'manual',
     'gtm.community_template_injects': 'manual',
     'gtm.duplicate': 'warning',
+    'gtm.fragile_dom': 'manual',
     'gtm.dead': 'warning',
     'gtm.stale': 'manual',
   });
   for (const c of ['covered', 'consent_tool', 'pixel', 'conversion', 'third_party', 'keep_google', 'remove', 'review']) {
     assert.ok(s.summary.counts[c] > 0, c);
   }
-  assert.equal(s.tags.length, 16);
-  assert.equal(s.summary.headline, '3 of 16 tags have no consent condition · 1 identifies visitors · 3 removal candidates');
+  assert.equal(s.tags.length, 19);
+  assert.equal(s.summary.headline, '3 of 19 tags have no consent condition · 1 identifies visitors · 3 removal candidates');
+});
+
+test('the sample shows the CSS-selector conversion as medium', () => {
+  const f = buildSample().findings.find((x) => x.checkKey === 'gtm.fragile_dom');
+  assert.equal(f.priority, 'medium');
+  assert.deepEqual(f.evidence.details.slice(1), ['Google Ads - demo click (Google Ads): click trigger "Click - Book demo button" matches CSS selector ".btn-demo"']);
+});
+
+test('the sample shows the HubSpot listener feeding the lead conversions', () => {
+  const f = buildSample().findings.find((x) => x.checkKey === 'gtm.dependencies');
+  assert.ok(f.evidence.details.some((d) => d.startsWith('HubSpot form listener (') && d.includes('Google Ads - lead conversion (Google Ads)') && d.endsWith("— event 'generate_lead' (certain)")), f.evidence.details.join('\n'));
+});
+
+test('the sample shows two Meta pixel IDs', () => {
+  const f = buildSample().findings.find((x) => x.checkKey === 'gtm.multiple_destinations');
+  assert.equal(f.evidence.details[1], 'Meta Pixel: 2 IDs — 1234567890 (2 tags, last changed 2026-10-01), 9876543210 (1 tag, last changed 2023-03-14)');
 });
 
 test('the sample is synthetic and carries no raw HTML', () => {

@@ -5,16 +5,16 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
   "publicId": "GTM-SAMPLE1",
   "exportedAt": 1793527200000,
   "summary": {
-    "headline": "3 of 16 tags have no consent condition · 1 identifies visitors · 3 removal candidates",
-    "tags": 16,
+    "headline": "3 of 19 tags have no consent condition · 1 identifies visitors · 3 removal candidates",
+    "tags": 19,
     "noConsent": 3,
     "identifies": 1,
     "removal": 3,
     "counts": {
       "covered": 2,
       "consent_tool": 1,
-      "pixel": 2,
-      "conversion": 2,
+      "pixel": 3,
+      "conversion": 4,
       "third_party": 1,
       "keep_google": 3,
       "remove": 3,
@@ -95,6 +95,41 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
     },
     {
       "scope": "GTM",
+      "checkKey": "gtm.multiple_destinations",
+      "title": "1 vendor sends data to more than one account",
+      "status": "manual",
+      "priority": "high",
+      "explanation": "Each ID is a separate account at the vendor. Check who owns each one. An ID nobody recognises often belongs to an old account or a former agency, and data sent to it is outside your control.",
+      "fix": "Keep the IDs your organisation owns and has access to. Remove or pause tags that send to the others.",
+      "typicalOwner": "marketing",
+      "evidence": {
+        "pages": [],
+        "details": [
+          "Evidence level: configuration (container export, not observed live)",
+          "Meta Pixel: 2 IDs — 1234567890 (2 tags, last changed 2026-10-01), 9876543210 (1 tag, last changed 2023-03-14)"
+        ]
+      }
+    },
+    {
+      "scope": "GTM",
+      "checkKey": "gtm.dependencies",
+      "title": "2 tags that other tags rely on",
+      "status": "manual",
+      "priority": "medium",
+      "explanation": "Removing or changing these tags also stops the tags that rely on them. Only dependencies inside this container are shown.",
+      "fix": "Remove a tag together with the tags that rely on it, or move what it provides (the event, value or cookie) to the site before removing it.",
+      "typicalOwner": "gtm",
+      "evidence": {
+        "pages": [],
+        "details": [
+          "Evidence level: configuration (container export, not observed live)",
+          "Cookiebot - CMP (Cookiebot) → Meta - PageView (Meta Pixel), Microsoft Clarity (Microsoft Clarity), Visitor helper (Visitor helper), Meta - PageView (old agency) (Meta Pixel) — consent tool Cookiebot (certain)",
+          "HubSpot form listener (Custom HTML) → GA4 - generate_lead (Google Analytics 4), GA4 - generate_lead (copy) (Google Analytics 4), Google Ads - lead conversion (Google Ads) — event 'generate_lead' (certain)"
+        ]
+      }
+    },
+    {
+      "scope": "GTM",
       "checkKey": "gtm.unknown_custom_html",
       "title": "1 Custom HTML tag the audit could not identify",
       "status": "manual",
@@ -147,6 +182,23 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
     },
     {
       "scope": "GTM",
+      "checkKey": "gtm.fragile_dom",
+      "title": "1 tag relies on page markup",
+      "status": "manual",
+      "priority": "medium",
+      "explanation": "These tags' triggers depend on page markup (a CSS class, element ID or button text). A redesign or a text change can stop them without any error, and the tag silently stops counting.",
+      "fix": "Have the site push a named event when the action happens (for example `dataLayer.push({event: 'generate_lead'})`) and trigger on that event instead.",
+      "typicalOwner": "developer",
+      "evidence": {
+        "pages": [],
+        "details": [
+          "Evidence level: configuration (container export, not observed live)",
+          "Google Ads - demo click (Google Ads): click trigger \"Click - Book demo button\" matches CSS selector \".btn-demo\""
+        ]
+      }
+    },
+    {
+      "scope": "GTM",
       "checkKey": "gtm.dead",
       "title": "3 paused or unused items",
       "status": "warning",
@@ -167,7 +219,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
     {
       "scope": "GTM",
       "checkKey": "gtm.stale",
-      "title": "1 tag unchanged for more than two years",
+      "title": "2 tags unchanged for more than two years",
       "status": "manual",
       "priority": "low",
       "explanation": "Old tags often belong to campaigns, agencies or tools that are no longer used.",
@@ -177,7 +229,8 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
         "pages": [],
         "details": [
           "Evidence level: configuration (container export, not observed live)",
-          "UA - pageview (Google Analytics 4): last changed 2022-06-01"
+          "UA - pageview (Google Analytics 4): last changed 2022-06-01",
+          "Meta - PageView (old agency) (Meta Pixel): last changed 2023-03-14"
         ]
       }
     }
@@ -189,6 +242,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "Cookiebot CMP",
       "vendorId": "cookiebot",
       "vendorName": "Cookiebot",
+      "sendsTo": [],
       "triggers": [
         "Consent Initialization - All Pages"
       ],
@@ -198,6 +252,24 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "migration": "consent_tool",
       "migrationLabel": "Consent tool — replaceable by the CortIQ banner",
       "migrationReason": "Cookiebot: the CortIQ consent banner can take its place.",
+      "reliedOnBy": [
+        {
+          "name": "Meta - PageView",
+          "confidence": "certain"
+        },
+        {
+          "name": "Microsoft Clarity",
+          "confidence": "certain"
+        },
+        {
+          "name": "Visitor helper",
+          "confidence": "certain"
+        },
+        {
+          "name": "Meta - PageView (old agency)",
+          "confidence": "certain"
+        }
+      ],
       "folder": "",
       "paused": false
     },
@@ -207,6 +279,9 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "Google tag",
       "vendorId": "ga4",
       "vendorName": "Google Analytics 4",
+      "sendsTo": [
+        "G-SAMPLE123"
+      ],
       "triggers": [
         "Initialization - All Pages"
       ],
@@ -216,6 +291,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "migration": "keep_google",
       "migrationLabel": "Keep in Google",
       "migrationReason": "Google tag: keep it in Google's own setup (gtag.js or GTM).",
+      "reliedOnBy": [],
       "folder": "Analytics",
       "paused": false
     },
@@ -225,6 +301,9 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "GA4 event",
       "vendorId": "ga4",
       "vendorName": "Google Analytics 4",
+      "sendsTo": [
+        "G-SAMPLE123"
+      ],
       "triggers": [
         "CE - generate_lead"
       ],
@@ -234,6 +313,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "migration": "keep_google",
       "migrationLabel": "Keep in Google",
       "migrationReason": "Google tag: keep it in Google's own setup (gtag.js or GTM).",
+      "reliedOnBy": [],
       "folder": "Analytics",
       "paused": false
     },
@@ -243,6 +323,9 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "GA4 event",
       "vendorId": "ga4",
       "vendorName": "Google Analytics 4",
+      "sendsTo": [
+        "G-SAMPLE123"
+      ],
       "triggers": [
         "CE - generate_lead"
       ],
@@ -252,6 +335,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "migration": "remove",
       "migrationLabel": "Removal candidate",
       "migrationReason": "Duplicate of GA4 - generate_lead: same vendor, ID and event on the same trigger.",
+      "reliedOnBy": [],
       "folder": "Analytics",
       "paused": false
     },
@@ -261,6 +345,9 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "Google Ads conversion",
       "vendorId": "google-ads",
       "vendorName": "Google Ads",
+      "sendsTo": [
+        "AW-000000000"
+      ],
       "triggers": [
         "Form submit - contact"
       ],
@@ -270,6 +357,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "migration": "conversion",
       "migrationLabel": "Conversion tag — can be sent server-side",
       "migrationReason": "Google Ads conversion: can be sent server-side as an offline or enhanced conversion.",
+      "reliedOnBy": [],
       "folder": "Marketing",
       "paused": false
     },
@@ -279,6 +367,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "Conversion Linker",
       "vendorId": "google-ads",
       "vendorName": "Google Ads",
+      "sendsTo": [],
       "triggers": [
         "All Pages"
       ],
@@ -288,6 +377,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "migration": "keep_google",
       "migrationLabel": "Keep in Google",
       "migrationReason": "Google tag: keep it in Google's own setup (gtag.js or GTM).",
+      "reliedOnBy": [],
       "folder": "Marketing",
       "paused": false
     },
@@ -297,6 +387,9 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "Meta Pixel",
       "vendorId": "meta",
       "vendorName": "Meta Pixel",
+      "sendsTo": [
+        "1234567890"
+      ],
       "triggers": [
         "CE - cookie_consent_marketing"
       ],
@@ -306,6 +399,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "migration": "pixel",
       "migrationLabel": "Pixel tag",
       "migrationReason": "Meta Pixel page view: the pixel loads in the browser.",
+      "reliedOnBy": [],
       "folder": "Marketing",
       "paused": false
     },
@@ -315,6 +409,9 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "Meta Pixel",
       "vendorId": "meta",
       "vendorName": "Meta Pixel",
+      "sendsTo": [
+        "1234567890"
+      ],
       "triggers": [
         "Form submit - contact"
       ],
@@ -324,6 +421,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "migration": "conversion",
       "migrationLabel": "Conversion tag — can be sent server-side",
       "migrationReason": "Meta Pixel conversion event: can be sent server-side through the vendor's conversions API.",
+      "reliedOnBy": [],
       "folder": "Marketing",
       "paused": false
     },
@@ -333,6 +431,9 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "LinkedIn Insight",
       "vendorId": "linkedin",
       "vendorName": "LinkedIn Insight Tag",
+      "sendsTo": [
+        "0000000"
+      ],
       "triggers": [
         "Consent Analytics Trigger"
       ],
@@ -342,6 +443,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "migration": "pixel",
       "migrationLabel": "Pixel tag",
       "migrationReason": "LinkedIn Insight Tag on page load: the pixel loads in the browser.",
+      "reliedOnBy": [],
       "folder": "Marketing",
       "paused": false
     },
@@ -351,6 +453,9 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "Custom HTML",
       "vendorId": "clarity",
       "vendorName": "Microsoft Clarity",
+      "sendsTo": [
+        "sample123"
+      ],
       "triggers": [
         "All Pages"
       ],
@@ -360,6 +465,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "migration": "covered",
       "migrationLabel": "Covered by CortIQ today",
       "migrationReason": "Session replay and heatmaps: CortIQ includes both.",
+      "reliedOnBy": [],
       "folder": "Analytics",
       "paused": false
     },
@@ -369,6 +475,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "Clay Web Intent",
       "vendorId": "claydar",
       "vendorName": "Claydar",
+      "sendsTo": [],
       "triggers": [
         "All Pages"
       ],
@@ -378,6 +485,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "migration": "third_party",
       "migrationLabel": "Third-party script",
       "migrationReason": "Claydar: a third-party script that can be loaded directly on the site, behind consent.",
+      "reliedOnBy": [],
       "folder": "Marketing",
       "paused": false
     },
@@ -387,6 +495,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "Custom HTML",
       "vendorId": null,
       "vendorName": "Unidentified",
+      "sendsTo": [],
       "triggers": [
         "All Pages"
       ],
@@ -396,6 +505,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "migration": "review",
       "migrationLabel": "Review",
       "migrationReason": "Not identified: check what it loads and sends.",
+      "reliedOnBy": [],
       "folder": "",
       "paused": false
     },
@@ -405,6 +515,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "Custom HTML",
       "vendorId": null,
       "vendorName": "Unidentified",
+      "sendsTo": [],
       "triggers": [
         "All Pages"
       ],
@@ -414,6 +525,20 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "migration": "covered",
       "migrationLabel": "Covered by CortIQ today",
       "migrationReason": "HubSpot form listener: CortIQ detects HubSpot forms and can count submissions as goals.",
+      "reliedOnBy": [
+        {
+          "name": "GA4 - generate_lead",
+          "confidence": "certain"
+        },
+        {
+          "name": "GA4 - generate_lead (copy)",
+          "confidence": "certain"
+        },
+        {
+          "name": "Google Ads - lead conversion",
+          "confidence": "certain"
+        }
+      ],
       "folder": "",
       "paused": false
     },
@@ -423,6 +548,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "Custom HTML",
       "vendorId": "reddit",
       "vendorName": "Reddit Pixel",
+      "sendsTo": [],
       "triggers": [
         "All Pages"
       ],
@@ -432,6 +558,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "migration": "remove",
       "migrationLabel": "Removal candidate",
       "migrationReason": "Paused: it does not run.",
+      "reliedOnBy": [],
       "folder": "Marketing",
       "paused": true
     },
@@ -441,6 +568,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "Visitor helper",
       "vendorId": null,
       "vendorName": "Unidentified",
+      "sendsTo": [],
       "triggers": [
         "CE - cookie_consent_analytics"
       ],
@@ -450,6 +578,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "migration": "review",
       "migrationLabel": "Review",
       "migrationReason": "Not identified: check what it loads and sends.",
+      "reliedOnBy": [],
       "folder": "",
       "paused": false
     },
@@ -459,6 +588,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "typeLabel": "Universal Analytics",
       "vendorId": "ga4",
       "vendorName": "Google Analytics 4",
+      "sendsTo": [],
       "triggers": [
         "All Pages"
       ],
@@ -468,7 +598,74 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "migration": "remove",
       "migrationLabel": "Removal candidate",
       "migrationReason": "Universal Analytics no longer processes data.",
+      "reliedOnBy": [],
       "folder": "Analytics",
+      "paused": false
+    },
+    {
+      "id": "17",
+      "name": "Meta - PageView (old agency)",
+      "typeLabel": "Meta Pixel",
+      "vendorId": "meta",
+      "vendorName": "Meta Pixel",
+      "sendsTo": [
+        "9876543210"
+      ],
+      "triggers": [
+        "CE - cookie_consent_marketing"
+      ],
+      "consent": "gated",
+      "consentEvidence": "Every firing trigger has a consent condition (CE - cookie_consent_marketing).",
+      "modifiedAt": 1678752000000,
+      "migration": "pixel",
+      "migrationLabel": "Pixel tag",
+      "migrationReason": "Meta Pixel page view: the pixel loads in the browser.",
+      "reliedOnBy": [],
+      "folder": "Marketing",
+      "paused": false
+    },
+    {
+      "id": "18",
+      "name": "Google Ads - lead conversion",
+      "typeLabel": "Google Ads conversion",
+      "vendorId": "google-ads",
+      "vendorName": "Google Ads",
+      "sendsTo": [
+        "AW-000000000"
+      ],
+      "triggers": [
+        "CE - generate_lead"
+      ],
+      "consent": "google_consent_mode",
+      "consentEvidence": "Google tag: adapts to Consent Mode instead of being blocked; judged by the Consent Mode default check.",
+      "modifiedAt": 1790812800000,
+      "migration": "conversion",
+      "migrationLabel": "Conversion tag — can be sent server-side",
+      "migrationReason": "Google Ads conversion: can be sent server-side as an offline or enhanced conversion.",
+      "reliedOnBy": [],
+      "folder": "Marketing",
+      "paused": false
+    },
+    {
+      "id": "19",
+      "name": "Google Ads - demo click",
+      "typeLabel": "Google Ads conversion",
+      "vendorId": "google-ads",
+      "vendorName": "Google Ads",
+      "sendsTo": [
+        "AW-000000000"
+      ],
+      "triggers": [
+        "Click - Book demo button"
+      ],
+      "consent": "google_consent_mode",
+      "consentEvidence": "Google tag: adapts to Consent Mode instead of being blocked; judged by the Consent Mode default check.",
+      "modifiedAt": 1790812800000,
+      "migration": "conversion",
+      "migrationLabel": "Conversion tag — can be sent server-side",
+      "migrationReason": "Google Ads conversion: can be sent server-side as an offline or enhanced conversion.",
+      "reliedOnBy": [],
+      "folder": "Marketing",
       "paused": false
     }
   ],
@@ -476,7 +673,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
     {
       "name": "CE - cookie_consent_marketing",
       "type": "CUSTOM_EVENT",
-      "tags": 1,
+      "tags": 2,
       "folder": "Marketing",
       "builtIn": false
     },
@@ -511,8 +708,15 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
     {
       "name": "CE - generate_lead",
       "type": "CUSTOM_EVENT",
-      "tags": 2,
+      "tags": 3,
       "folder": "Analytics",
+      "builtIn": false
+    },
+    {
+      "name": "Click - Book demo button",
+      "type": "CLICK",
+      "tags": 1,
+      "folder": "",
       "builtIn": false
     },
     {

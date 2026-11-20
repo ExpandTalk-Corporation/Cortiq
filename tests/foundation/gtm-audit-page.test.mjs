@@ -71,3 +71,10 @@ test('the page states where the file goes', () => {
   assert.match(page, /never leaves your browser/);
   assert.match(page, /seoFor\("\/gtm-audit\/"\)/);
 });
+
+test('the tag table shows Sends to, Relied on by and the dependency note', () => {
+  const src = read('src/components/gtm-audit/GtmAuditReport.tsx');
+  for (const s of ['Sends to', 'Relied on by', 'Only dependencies inside this container are shown. Code on the site or in another container can also rely on a tag.']) {
+    assert.ok(src.includes(s), s);
+  }
+});

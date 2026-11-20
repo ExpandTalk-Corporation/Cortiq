@@ -1,11 +1,11 @@
 import type { Finding } from '../../tracking-check/types.ts';
 import type { Container, ParamValue, TagInfo } from '../types.ts';
 import { coveredReason } from '../covered.ts';
+import { ID_KEYS } from '../destinations.ts';
 import { finding, isActive, plural, tagLabel } from './finding.ts';
 
 const DAY = 86_400_000;
 const STALE_DAYS = 730;
-const ID_KEYS = ['tagId', 'measurementIdOverride', 'measurementId', 'conversionId', 'pixelId', 'pixelIds', 'pixel_id', 'partnerId', 'trackingId'];
 // Meta's eventName is always the literal 'standard' for standard events — the real event lives in
 // standardEventName, so the key must join every field, not just the first truthy one (same approach as
 // migrate.ts's eventText), or PageView and ViewContent on the same pixel/trigger look identical.
@@ -67,7 +67,8 @@ export function duplicate(infos: TagInfo[]): Finding {
 export function dead(container: Container, infos: TagInfo[]): Finding {
   const details: string[] = [];
   for (const i of infos) if (i.tag.paused) details.push(`Paused tag: ${i.tag.name}`);
-  for (const i of infos) if (!i.tag.paused && !i.tag.firingTriggerIds.length) details.push(`Tag without a firing trigger: ${i.tag.name}`);
+  const sequenced = new Set(container.tags.filter((t) => !t.paused).flatMap((t) => [...t.setupTagNames, ...t.teardownTagNames]));
+  for (const i of infos) if (!i.tag.paused && !i.tag.firingTriggerIds.length && !sequenced.has(i.tag.name)) details.push(`Tag without a firing trigger: ${i.tag.name}`);
   const used = new Set([
     ...container.tags.flatMap((t) => [...t.firingTriggerIds, ...t.blockingTriggerIds]),
     ...container.triggers.flatMap((t) => t.groupTriggerIds),
