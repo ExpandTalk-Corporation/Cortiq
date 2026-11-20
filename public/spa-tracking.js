@@ -493,7 +493,10 @@
     if (firedGoals.has(goal.id) || !hasInteractionConsent()) return;
     firedGoals.add(goal.id);
     const generation = consentGeneration;
-    const reported = goal.type === 'form_submission' ? readReportedChannel(form) : null;
+    // A data-wfa-conversion form already sends the category with record-conversion: never twice.
+    const reported = goal.type === 'form_submission'
+      && !(form && typeof form.hasAttribute === 'function' && form.hasAttribute('data-wfa-conversion'))
+      ? readReportedChannel(form) : null;
     if (generation !== consentGeneration || !hasInteractionConsent()) return;
     trackEvent('conversion', window.location.pathname, Object.assign(
       { goal_id: goal.id, goal_type: goal.type }, reported ? { reported_channel: reported } : {}));

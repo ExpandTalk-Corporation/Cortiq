@@ -166,12 +166,20 @@ test('off without config, in cookieless mode and without consent', async () => {
   assert.equal(JSON.stringify(sent).includes('reported'), false);
 });
 
-test('record-conversion carries the category for data-wfa-conversion forms', async () => {
+test('record-conversion carries the category for data-wfa-conversion forms, the goal hit does not', async () => {
   const r = run();
   const sent = await submit(r, form([select('heard_from', 'google')], { conversion: true }));
   const rc = sent.find((x) => String(x.url).endsWith('/record-conversion'));
   assert.ok(rc, 'record-conversion called');
   assert.equal(rc.body.reportedChannel, 'organic_search');
+  // The same submit also matches a form goal: the category is sent once, not twice.
+  const hit = goalHit(sent);
+  assert.ok(hit, 'goal hit still sent');
+  assert.equal('reported_channel' in hit.body.metadata, false, 'no category on the goal hit');
+  assert.equal(JSON.stringify(sent).split('organic_search').length - 1, 1, 'category sent exactly once');
+  // The aggregate also counts one answer per visit and category (backstop).
+  const sql = read('../../supabase/migrations/20261210000001_reported_channel.sql');
+  assert.match(sql, /GROUP BY answer_key, reported/);
 });
 
 test('track-event: the category never reaches tracking_events and config is full mode only', () => {
