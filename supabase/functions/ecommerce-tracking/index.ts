@@ -3,6 +3,7 @@ import { createClient } from '../_shared/supabase.ts';
 import { resolveSite } from "../_shared/resolve-site.ts";
 import { resolveGeo, geoKey } from "../_shared/geo.ts";
 import { jurisdictionGate, signalsFrom, visitorFrom } from "../_shared/jurisdiction-edge.ts";
+import { getSessionConsent } from "../_shared/session-consent.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -45,8 +46,21 @@ function validateEcommerceEvent(data: any): { valid: boolean; errors: string[] }
     errors.push('Invalid eventType');
   }
   
-  if (typeof data.consentGranted !== 'boolean') {
+  // Optional: the tracker (spa-tracking.js trackEcommercePurchase) does not send it. Consent comes
+  // from the ledger by session id; a client `false` only tightens.
+  if (data.consentGranted !== undefined && typeof data.consentGranted !== 'boolean') {
     errors.push('Invalid consentGranted');
+  }
+
+  // The tracker's purchase shape: { orderId, currency, total, items: [{ id, name, price, quantity }] }.
+  if (data.items !== undefined && (!Array.isArray(data.items) || data.items.length > 100)) {
+    errors.push('Invalid items');
+  }
+  if (data.total !== undefined && (typeof data.total !== 'number' || !Number.isFinite(data.total) || data.total < 0 || data.total > 10000000)) {
+    errors.push('Invalid total');
+  }
+  if (data.orderId !== undefined && (typeof data.orderId !== 'string' || data.orderId.length > 200)) {
+    errors.push('Invalid orderId');
   }
   
   // Validate productData if present
@@ -108,10 +122,16 @@ serve(async (req) => {
       sessionId, 
       userId,
       eventType,
-      productData,
-      transactionData,
-      consentGranted 
+      orderId,
+      total,
+      items,
+      currency,
+      consentGranted
     } = requestData;
+    // Tracker payloads carry items/total/orderId instead of productData/transactionData.
+    const firstItem = Array.isArray(items) && items[0] && typeof items[0] === 'object' ? items[0] : null;
+    const productData = requestData.productData ?? (firstItem ? { ...firstItem, currency } : null);
+    const transactionData = requestData.transactionData ?? (total !== undefined ? { id: orderId, revenue: total } : null);
 
     // Rate limiting
     if (!checkRateLimit(siteId)) {
@@ -123,15 +143,16 @@ serve(async (req) => {
       });
     }
 
-    // GDPR: Only track if consent is granted
-    if (!consentGranted) {
-      return new Response(JSON.stringify({ 
-        success: false, 
-        message: 'Consent required for e-commerce tracking' 
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
+    const noConsent = () => new Response(JSON.stringify({
+      success: false,
+      skipped: 'no_consent',
+      message: 'Consent required for e-commerce tracking'
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+
+    // A client that says no is never overridden.
+    if (consentGranted === false) return noConsent();
 
     // Verify site exists
     // siteId may be an account id (WordPress plugin); resolved via the browser Origin.
@@ -143,6 +164,16 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
+
+    // GDPR: analytics consent from the consent ledger for this session (same check as record-conversion).
+    // Fail closed: no ledger row, a refusal, an expired row or a failed read = no write.
+    let analyticsConsent = false;
+    try {
+      analyticsConsent = (await getSessionConsent(supabase, site.id, sessionId)).analytics;
+    } catch (e) {
+      console.error('E-commerce consent check failed:', (e as Error).message);
+    }
+    if (!analyticsConsent) return noConsent();
 
     // Jurisdiction (statistics, same as track-event's events): the customer's own Off drops now; opt_in and
     // market rules stay shadow. Shadow mode waits only for the cached site policy.
@@ -196,7 +227,7 @@ serve(async (req) => {
         revenue: sanitizedTransactionData?.revenue,
         tax: sanitizedTransactionData?.tax,
         shipping: sanitizedTransactionData?.shipping,
-        consent_granted: consentGranted
+        consent_granted: true
       })
       .select()
       .single();

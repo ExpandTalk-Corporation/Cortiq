@@ -394,8 +394,10 @@ test('ecommerce-tracking: customer Off for statistics drops without the flag; op
   assert.equal(inserts(optIn.d, 'ecommerce_events').length, 1);
 });
 
-test('ecommerce-tracking: no tighten = answers before a slow ledger read and log', async () => {
-  const { body, answeredBeforeLog } = await ecommerce({ slow: true });
+// The consent-ledger read is on the response path here (consent comes from the ledger, fail closed),
+// so only the decision log is held.
+test('ecommerce-tracking: no tighten = answers before a slow log', async () => {
+  const { body, answeredBeforeLog } = await ecommerce({ slow: true, slowLedger: false });
   assert.equal(body.success, true);
   assert.equal(answeredBeforeLog, true);
 });
@@ -456,7 +458,7 @@ test('pixel-tracking: no tighten = answers before a slow ledger read and log', a
 });
 
 // content-tracking (three POST collectors)
-const content = (path, body, opts) => run('content-tracking', async () => post(`content-tracking/${path}`, body), { site: null, ...opts });
+const content = (path, body, opts) => run('content-tracking', async () => post(`content-tracking/${path}`, body), { site: { id: SITE, is_active: true }, ...opts });
 const INTERACTION = { site_id: SITE, session_id: 's-1', interaction: { element_id: 'e-1', page_url: '/', interaction_type: 'click', mouse_x: 1, mouse_y: 2 } };
 
 test('content-tracking: customer Off for statistics drops every POST collector without the flag; opt_in does not', async () => {
@@ -480,7 +482,7 @@ test('content-tracking: no tighten = answers before a slow ledger read and log',
 
 // media-analytics
 const media = (opts) => run('media-analytics', async () => post('media-analytics/event',
-  { site_id: SITE, session_id: 's-1', event: { media_id: 'm-1', media_type: 'video', event_type: 'play' } }), { site: null, ...opts });
+  { site_id: SITE, session_id: 's-1', event: { media_id: 'm-1', media_type: 'video', event_type: 'play' } }), { site: { id: SITE, is_active: true }, ...opts });
 
 test('media-analytics: customer Off for statistics drops without the flag; opt_in does not', async () => {
   const off = await media({ policy: tighten({ statistics: 'off' }) });

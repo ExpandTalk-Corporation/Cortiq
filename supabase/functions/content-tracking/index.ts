@@ -2,10 +2,14 @@
  * Content Tracking Analytics
  * Task #24: Content Tracking Advanced
  *
- * Handles element interactions, form analytics, and content heatmaps
+ * Collects element registrations, interactions and scroll depth (POST only).
+ *
+ * The GET read endpoints (performance, forms, heatmap) were removed 2026-11-20: they returned any
+ * site's data by site_id without auth and had no caller (the dashboard reads through RLS).
  */
 
 import { createClient } from '../_shared/supabase.ts';
+import { resolveSite } from '../_shared/resolve-site.ts';
 import { resolveGeo, geoKey } from '../_shared/geo.ts';
 import { jurisdictionGate, signalsFrom, visitorFrom } from '../_shared/jurisdiction-edge.ts';
 
@@ -203,117 +207,6 @@ async function trackScrollDepth(
   }
 }
 
-// Get content performance
-async function getContentPerformance(
-  supabase: any,
-  siteId: string,
-  pageUrl?: string,
-  dateRange?: { from: string; to: string }
-): Promise<any[]> {
-  try {
-    let query = supabase
-      .from('content_performance')
-      .select('*')
-      .eq('site_id', siteId);
-
-    if (pageUrl) {
-      query = query.eq('page_url', pageUrl);
-    }
-
-    if (dateRange) {
-      query = query
-        .gte('date', dateRange.from)
-        .lte('date', dateRange.to);
-    }
-
-    const { data, error } = await query.order('date', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching content performance:', error);
-      return [];
-    }
-
-    return data || [];
-  } catch (error) {
-    console.error('Error in getContentPerformance:', error);
-    return [];
-  }
-}
-
-// Get form analytics
-async function getFormAnalytics(
-  supabase: any,
-  siteId: string,
-  formName?: string,
-  dateRange?: { from: string; to: string }
-): Promise<any[]> {
-  try {
-    let query = supabase
-      .from('form_field_analytics')
-      .select('*')
-      .eq('site_id', siteId);
-
-    if (formName) {
-      query = query.eq('form_name', formName);
-    }
-
-    if (dateRange) {
-      query = query
-        .gte('date', dateRange.from)
-        .lte('date', dateRange.to);
-    }
-
-    const { data, error } = await query.order('date', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching form analytics:', error);
-      return [];
-    }
-
-    return data || [];
-  } catch (error) {
-    console.error('Error in getFormAnalytics:', error);
-    return [];
-  }
-}
-
-// Get heatmap data
-async function getHeatmapData(
-  supabase: any,
-  siteId: string,
-  pageUrl: string,
-  interactionType?: string,
-  date?: string
-): Promise<any[]> {
-  try {
-    let query = supabase
-      .from('content_heatmap_points')
-      .select('*')
-      .eq('site_id', siteId)
-      .eq('page_url', pageUrl);
-
-    if (interactionType) {
-      query = query.eq('interaction_type', interactionType);
-    }
-
-    if (date) {
-      query = query.eq('date', date);
-    }
-
-    const { data, error } = await query.order('intensity', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching heatmap:', error);
-      return [];
-    }
-
-    return data || [];
-  } catch (error) {
-    console.error('Error in getHeatmapData:', error);
-    return [];
-  }
-}
-
 // Main request handler
 Deno.serve(async (req) => {
   // CORS headers
@@ -321,10 +214,17 @@ Deno.serve(async (req) => {
     return new Response('ok', {
       headers: {
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       },
     });
+  }
+
+  if (req.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      { status: 405, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', Allow: 'POST, OPTIONS' } }
+    );
   }
 
   try {
@@ -338,12 +238,23 @@ Deno.serve(async (req) => {
 
     // Jurisdiction (statistics) for the three POST collectors: the customer's own Off drops now; opt_in and
     // market rules stay shadow. No caller in this repo sends a consent gate, so evidence is the ledger only.
-    const gated = (siteId: unknown, sessionId: unknown) =>
-      jurisdictionGate(supabase, 'content-tracking', String(siteId), Deno.env.get('JURISDICTION_ENFORCE'), sessionId ?? undefined).gate(async (ledger) => ({
+    const gated = (siteId: string, sessionId: unknown) =>
+      jurisdictionGate(supabase, 'content-tracking', siteId, Deno.env.get('JURISDICTION_ENFORCE'), sessionId ?? undefined).gate(async (ledger) => ({
         visitor: visitorFrom(await resolveGeo(req, { key: geoKey(), timeZone: null })), purpose: 'statistics',
         signals: signalsFrom(ledger, { trackerGate: [], gpcHeader: req.headers.get('sec-gpc') === '1' }),
         technique: { storage: 'session', identifiers: 'session' },
       }));
+    // The site must exist and be active, resolved the same way as the other collectors (an account id from
+    // the WordPress plugin is accepted only for a site of that account on the request's Origin).
+    const activeSite = async (siteId: unknown) => {
+      if (typeof siteId !== 'string' || !siteId || siteId.length > 100) return null;
+      const site = await resolveSite(supabase, siteId, req.headers.get('origin'), 'id, is_active');
+      return site && site.is_active ? site : null;
+    };
+    const invalidSite = () => new Response(
+      JSON.stringify({ error: 'Invalid or inactive site' }),
+      { status: 403, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+    );
     const skippedJurisdiction = () => new Response(
       JSON.stringify({ success: true, skipped: 'jurisdiction' }),
       { status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
@@ -361,9 +272,11 @@ Deno.serve(async (req) => {
         );
       }
 
-      if (await gated(site_id, undefined)) return skippedJurisdiction();
+      const site = await activeSite(site_id);
+      if (!site) return invalidSite();
+      if (await gated(site.id, undefined)) return skippedJurisdiction();
 
-      const success = await registerContentElement(supabase, site_id, element);
+      const success = await registerContentElement(supabase, site.id, element);
 
       return new Response(
         JSON.stringify({ success }),
@@ -386,11 +299,13 @@ Deno.serve(async (req) => {
         );
       }
 
-      if (await gated(site_id, session_id)) return skippedJurisdiction();
+      const site = await activeSite(site_id);
+      if (!site) return invalidSite();
+      if (await gated(site.id, session_id)) return skippedJurisdiction();
 
       const success = await trackContentInteraction(
         supabase,
-        site_id,
+        site.id,
         session_id,
         interaction,
         visitor_hash
@@ -400,7 +315,7 @@ Deno.serve(async (req) => {
       if (success && interaction.mouse_x !== undefined && interaction.mouse_y !== undefined) {
         await trackHeatmapPoint(
           supabase,
-          site_id,
+          site.id,
           interaction.page_url,
           interaction.interaction_type,
           interaction.mouse_x,
@@ -429,11 +344,13 @@ Deno.serve(async (req) => {
         );
       }
 
-      if (await gated(site_id, session_id)) return skippedJurisdiction();
+      const site = await activeSite(site_id);
+      if (!site) return invalidSite();
+      if (await gated(site.id, session_id)) return skippedJurisdiction();
 
       const success = await trackScrollDepth(
         supabase,
-        site_id,
+        site.id,
         session_id,
         page_url,
         scroll_depth,
@@ -450,94 +367,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // GET /content-tracking/performance - Get content performance
-    if (path === '/content-tracking/performance' && req.method === 'GET') {
-      const siteId = url.searchParams.get('site_id');
-      const pageUrl = url.searchParams.get('page_url');
-      const fromDate = url.searchParams.get('from');
-      const toDate = url.searchParams.get('to');
-
-      if (!siteId) {
-        return new Response(
-          JSON.stringify({ error: 'site_id required' }),
-          { status: 400, headers: { 'Content-Type': 'application/json' } }
-        );
-      }
-
-      const dateRange = (fromDate && toDate) ? { from: fromDate, to: toDate } : undefined;
-      const performance = await getContentPerformance(
-        supabase,
-        siteId,
-        pageUrl || undefined,
-        dateRange
-      );
-
-      return new Response(
-        JSON.stringify({ data: performance }),
-        {
-          status: 200,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        }
-      );
-    }
-
-    // GET /content-tracking/forms - Get form analytics
-    if (path === '/content-tracking/forms' && req.method === 'GET') {
-      const siteId = url.searchParams.get('site_id');
-      const formName = url.searchParams.get('form_name');
-      const fromDate = url.searchParams.get('from');
-      const toDate = url.searchParams.get('to');
-
-      if (!siteId) {
-        return new Response(
-          JSON.stringify({ error: 'site_id required' }),
-          { status: 400, headers: { 'Content-Type': 'application/json' } }
-        );
-      }
-
-      const dateRange = (fromDate && toDate) ? { from: fromDate, to: toDate } : undefined;
-      const analytics = await getFormAnalytics(supabase, siteId, formName || undefined, dateRange);
-
-      return new Response(
-        JSON.stringify({ data: analytics }),
-        {
-          status: 200,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        }
-      );
-    }
-
-    // GET /content-tracking/heatmap - Get heatmap data
-    if (path === '/content-tracking/heatmap' && req.method === 'GET') {
-      const siteId = url.searchParams.get('site_id');
-      const pageUrl = url.searchParams.get('page_url');
-      const interactionType = url.searchParams.get('interaction_type');
-      const date = url.searchParams.get('date');
-
-      if (!siteId || !pageUrl) {
-        return new Response(
-          JSON.stringify({ error: 'site_id and page_url required' }),
-          { status: 400, headers: { 'Content-Type': 'application/json' } }
-        );
-      }
-
-      const heatmapData = await getHeatmapData(
-        supabase,
-        siteId,
-        pageUrl,
-        interactionType || undefined,
-        date || undefined
-      );
-
-      return new Response(
-        JSON.stringify({ data: heatmapData }),
-        {
-          status: 200,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        }
-      );
-    }
-
     return new Response(
       JSON.stringify({ error: 'Not found' }),
       { status: 404, headers: { 'Content-Type': 'application/json' } }
@@ -545,7 +374,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Error:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error', details: error.message }),
+      JSON.stringify({ error: 'Internal server error', details: (error as Error).message }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }

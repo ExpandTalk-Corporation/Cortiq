@@ -127,37 +127,9 @@ Response:
 }
 ```
 
-**GET /media-analytics/engagement**
-```
-Query Parameters:
-- site_id: UUID (required)
-- media_id: string (optional)
-- from: YYYY-MM-DD (optional)
-- to: YYYY-MM-DD (optional)
-
-Response: Array of MediaEngagement objects
-```
-
-**GET /media-analytics/timeline**
-```
-Query Parameters:
-- site_id: UUID (required)
-- media_id: string (required)
-- date: YYYY-MM-DD (required)
-
-Response: Array of hourly MediaPerformance objects
-```
-
-**GET /media-analytics/quality**
-```
-Query Parameters:
-- site_id: UUID (required)
-- media_id: string (required)
-- from: YYYY-MM-DD (optional)
-- to: YYYY-MM-DD (optional)
-
-Response: Array of QualityDistribution objects
-```
+The POST body's `site_id` must be an active site (or, from the WordPress plugin, the account id of the site on the
+request's Origin); anything else gets 403. The GET read endpoints were removed on 2026-11-20 (they returned any site's
+data without auth) and now answer 405. Read the tables through the Supabase client, where RLS applies.
 
 ### React Components
 

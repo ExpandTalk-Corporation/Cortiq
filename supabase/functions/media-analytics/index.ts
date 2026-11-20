@@ -2,10 +2,14 @@
  * Media Analytics - Video, Audio, Document Tracking
  * Task #22: Media Analytics
  *
- * Handles media event tracking and analytics aggregation
+ * Collects media events (POST only).
+ *
+ * The GET read endpoints (engagement, timeline, quality) were removed 2026-11-20: they returned any
+ * site's data by site_id without auth and had no caller (the dashboard reads through RLS).
  */
 
 import { createClient } from '../_shared/supabase.ts';
+import { resolveSite } from '../_shared/resolve-site.ts';
 import { resolveGeo, geoKey } from '../_shared/geo.ts';
 import { jurisdictionGate, signalsFrom, visitorFrom } from '../_shared/jurisdiction-edge.ts';
 
@@ -161,105 +165,6 @@ async function recordProgressPoint(
   }
 }
 
-// Get media engagement stats
-async function getMediaEngagement(
-  supabase: any,
-  siteId: string,
-  mediaId?: string,
-  dateRange?: { from: string; to: string }
-): Promise<any[]> {
-  try {
-    let query = supabase
-      .from('media_engagement')
-      .select('*')
-      .eq('site_id', siteId);
-
-    if (mediaId) {
-      query = query.eq('media_id', mediaId);
-    }
-
-    if (dateRange) {
-      query = query
-        .gte('date', dateRange.from)
-        .lte('date', dateRange.to);
-    }
-
-    const { data, error } = await query.order('date', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching media engagement:', error);
-      return [];
-    }
-
-    return data || [];
-  } catch (error) {
-    console.error('Error in getMediaEngagement:', error);
-    return [];
-  }
-}
-
-// Get media performance timeline
-async function getMediaPerformanceTimeline(
-  supabase: any,
-  siteId: string,
-  mediaId: string,
-  date: string
-): Promise<any[]> {
-  try {
-    const { data, error } = await supabase
-      .from('media_performance_timeline')
-      .select('*')
-      .eq('site_id', siteId)
-      .eq('media_id', mediaId)
-      .eq('date', date)
-      .order('hour', { ascending: true });
-
-    if (error) {
-      console.error('Error fetching timeline:', error);
-      return [];
-    }
-
-    return data || [];
-  } catch (error) {
-    console.error('Error in getMediaPerformanceTimeline:', error);
-    return [];
-  }
-}
-
-// Get quality distribution
-async function getQualityDistribution(
-  supabase: any,
-  siteId: string,
-  mediaId: string,
-  dateRange?: { from: string; to: string }
-): Promise<any[]> {
-  try {
-    let query = supabase
-      .from('media_quality_distribution')
-      .select('*')
-      .eq('site_id', siteId)
-      .eq('media_id', mediaId);
-
-    if (dateRange) {
-      query = query
-        .gte('date', dateRange.from)
-        .lte('date', dateRange.to);
-    }
-
-    const { data, error } = await query.order('date', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching quality distribution:', error);
-      return [];
-    }
-
-    return data || [];
-  } catch (error) {
-    console.error('Error in getQualityDistribution:', error);
-    return [];
-  }
-}
-
 // Main request handler
 Deno.serve(async (req) => {
   // CORS headers
@@ -267,10 +172,17 @@ Deno.serve(async (req) => {
     return new Response('ok', {
       headers: {
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       },
     });
+  }
+
+  if (req.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      { status: 405, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', Allow: 'POST, OPTIONS' } }
+    );
   }
 
   try {
@@ -294,9 +206,21 @@ Deno.serve(async (req) => {
         );
       }
 
+      // The site must exist and be active, resolved the same way as the other collectors (an account id from
+      // the WordPress plugin is accepted only for a site of that account on the request's Origin).
+      const site = typeof site_id === 'string' && site_id.length <= 100
+        ? await resolveSite(supabase, site_id, req.headers.get('origin'), 'id, is_active')
+        : null;
+      if (!site || !site.is_active) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid or inactive site' }),
+          { status: 403, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+        );
+      }
+
       // Jurisdiction (statistics): the customer's own Off drops now; opt_in and market rules stay shadow.
       // No caller in this repo sends a consent gate, so evidence comes from the ledger only.
-      const drop = await jurisdictionGate(supabase, 'media-analytics', String(site_id), Deno.env.get('JURISDICTION_ENFORCE'), session_id).gate(async (ledger) => ({
+      const drop = await jurisdictionGate(supabase, 'media-analytics', site.id, Deno.env.get('JURISDICTION_ENFORCE'), session_id).gate(async (ledger) => ({
         visitor: visitorFrom(await resolveGeo(req, { key: geoKey(), timeZone: null })), purpose: 'statistics',
         signals: signalsFrom(ledger, { trackerGate: [], gpcHeader: req.headers.get('sec-gpc') === '1' }),
         technique: { storage: 'session', identifiers: 'session' },
@@ -310,11 +234,11 @@ Deno.serve(async (req) => {
 
       // Record metadata if provided
       if (metadata) {
-        await recordMediaMetadata(supabase, site_id, metadata);
+        await recordMediaMetadata(supabase, site.id, metadata);
       }
 
       // Track the event
-      const tracked = await trackMediaEvent(supabase, site_id, session_id, event);
+      const tracked = await trackMediaEvent(supabase, site.id, session_id, event);
 
       // Track progress points for completion analysis
       if (event.event_type === 'progress' && body.visitor_hash) {
@@ -328,7 +252,7 @@ Deno.serve(async (req) => {
           if (Math.abs(progressPercent - milestone) < 5) {
             await recordProgressPoint(
               supabase,
-              site_id,
+              site.id,
               session_id,
               event.media_id,
               body.visitor_hash,
@@ -349,82 +273,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // GET /media-analytics/engagement - Get media engagement stats
-    if (path === '/media-analytics/engagement' && req.method === 'GET') {
-      const siteId = url.searchParams.get('site_id');
-      const mediaId = url.searchParams.get('media_id');
-      const fromDate = url.searchParams.get('from');
-      const toDate = url.searchParams.get('to');
-
-      if (!siteId) {
-        return new Response(
-          JSON.stringify({ error: 'site_id required' }),
-          { status: 400, headers: { 'Content-Type': 'application/json' } }
-        );
-      }
-
-      const dateRange = (fromDate && toDate) ? { from: fromDate, to: toDate } : undefined;
-      const engagement = await getMediaEngagement(supabase, siteId, mediaId || undefined, dateRange);
-
-      return new Response(
-        JSON.stringify({ data: engagement }),
-        {
-          status: 200,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        }
-      );
-    }
-
-    // GET /media-analytics/timeline - Get hourly performance timeline
-    if (path === '/media-analytics/timeline' && req.method === 'GET') {
-      const siteId = url.searchParams.get('site_id');
-      const mediaId = url.searchParams.get('media_id');
-      const date = url.searchParams.get('date');
-
-      if (!siteId || !mediaId || !date) {
-        return new Response(
-          JSON.stringify({ error: 'site_id, media_id, and date required' }),
-          { status: 400, headers: { 'Content-Type': 'application/json' } }
-        );
-      }
-
-      const timeline = await getMediaPerformanceTimeline(supabase, siteId, mediaId, date);
-
-      return new Response(
-        JSON.stringify({ data: timeline }),
-        {
-          status: 200,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        }
-      );
-    }
-
-    // GET /media-analytics/quality - Get quality distribution
-    if (path === '/media-analytics/quality' && req.method === 'GET') {
-      const siteId = url.searchParams.get('site_id');
-      const mediaId = url.searchParams.get('media_id');
-      const fromDate = url.searchParams.get('from');
-      const toDate = url.searchParams.get('to');
-
-      if (!siteId || !mediaId) {
-        return new Response(
-          JSON.stringify({ error: 'site_id and media_id required' }),
-          { status: 400, headers: { 'Content-Type': 'application/json' } }
-        );
-      }
-
-      const dateRange = (fromDate && toDate) ? { from: fromDate, to: toDate } : undefined;
-      const quality = await getQualityDistribution(supabase, siteId, mediaId, dateRange);
-
-      return new Response(
-        JSON.stringify({ data: quality }),
-        {
-          status: 200,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        }
-      );
-    }
-
     return new Response(
       JSON.stringify({ error: 'Not found' }),
       { status: 404, headers: { 'Content-Type': 'application/json' } }
@@ -432,7 +280,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Error:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error', details: error.message }),
+      JSON.stringify({ error: 'Internal server error', details: (error as Error).message }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
