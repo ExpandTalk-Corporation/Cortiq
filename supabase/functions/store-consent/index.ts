@@ -5,6 +5,7 @@ import { anonymizeIP } from "../_shared/ip.ts";
 import { consentGeo, gpcRequested } from "../_shared/consent-geo.ts";
 import { resolveGeo, geoKey } from "../_shared/geo.ts";
 import { loadSitePolicy, decideAndLog, visitorFrom } from "../_shared/jurisdiction-edge.ts";
+import { bannerLangOf } from "../_shared/banner-langs.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -26,6 +27,7 @@ interface ConsentRequest {
   user_agent?: string;
   source?: string;
   locale?: string;
+  banner_lang?: string;
   gpc_signal?: boolean;
   policy_version?: string;
   page_url?: string; // used to resolve the site by domain (most reliable)
@@ -185,6 +187,7 @@ serve(async (req) => {
       user_agent: requestData.user_agent ? requestData.user_agent.substring(0, 500) : null, // Reasonable limit
       source: requestData.source ? requestData.source.substring(0, 50) : 'cookie_banner',
       locale: requestData.locale ? requestData.locale.substring(0, 10) : 'sv',
+      banner_lang: bannerLangOf(requestData.banner_lang),
       gpc_signal: gpc,
       ...consentGeo(geo),
       policy_version: requestData.policy_version ? requestData.policy_version.substring(0, 20) : '1.0',
@@ -214,6 +217,7 @@ serve(async (req) => {
           gpc_signal: consentData.gpc_signal,
           source: consentData.source,
           locale: consentData.locale,
+          banner_lang: consentData.banner_lang,
           geo_country: consentData.geo_country,
           geo_region: consentData.geo_region,
           geo_source: consentData.geo_source,
