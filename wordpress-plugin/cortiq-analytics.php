@@ -3,7 +3,7 @@
  * Plugin Name: CortIQ Analytics
  * Plugin URI: https://cortiq.se
  * Description: Analytics for the agentic web. Classifies AI crawlers and agent fetches (GPTBot, ClaudeBot, ChatGPT-User, PerplexityBot…) and measures human visitors after consent — cookieless mode, heatmaps, conversions and a built-in consent banner.
- * Version: 5.5.17
+ * Version: 5.5.18
  * Author: CortIQ
  * Author URI: https://cortiq.se
  * Requires at least: 5.6
@@ -21,7 +21,7 @@ if ( defined( 'CORTIQ_LOADED' ) ) return;
 define( 'CORTIQ_LOADED', true );
 
 // Shared with public/spa-tracking.js (CORTIQ_VERSION) — also the ?ver= cache-bust for it.
-define( 'CORTIQ_VERSION',    '5.5.17' );
+define( 'CORTIQ_VERSION',    '5.5.18' );
 define( 'CORTIQ_OPTION_KEY', 'cortiq_options' );
 // Supabase Edge Functions base — used for the GDPR consent ledger (store-consent).
 define( 'CORTIQ_API',        'https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1' );
@@ -211,7 +211,7 @@ function cortiq_banner_strings( $lang ) {
         ),
         'nl' => array(
             'title'          => '🍪 Cookie-instellingen',
-            'intro'          => 'We willen begrijpen wat lezers waarderen en u relevante inhoud tonen. Kies wat u toestaat.',
+            'intro'          => 'We willen begrijpen wat lezers waarderen en je relevante inhoud tonen. Kies wat je toestaat.',
             'necessary'      => 'Noodzakelijk',
             'necessary_desc' => 'Nodig om de site te laten werken. Altijd aan.',
             'preferences'    => 'Voorkeuren',
@@ -230,10 +230,10 @@ function cortiq_banner_strings( $lang ) {
             'consent_id'     => 'Toestemmings-ID',
             'categories'     => 'Categorieën',
             'close'          => 'Sluiten',
-            'gpc'            => 'Uw browser verstuurt Global Privacy Control (GPC). Marketing staat hier daarom uit.',
+            'gpc'            => 'Je browser verstuurt Global Privacy Control (GPC). Daarom is marketing hier uitgeschakeld.',
         ),
         'nb' => array(
-            'title'          => '🍪 Informasjonskapsler',
+            'title'          => '🍪 Cookie-innstillinger',
             'intro'          => 'Vi vil forstå hva leserne liker og vise deg relevant innhold. Velg hva du tillater.',
             'necessary'      => 'Nødvendige',
             'necessary_desc' => 'Kreves for at nettstedet skal fungere. Alltid på.',
@@ -248,7 +248,7 @@ function cortiq_banner_strings( $lang ) {
             'accept_all'     => 'Godta alle',
             'only_necessary' => 'Bare nødvendige',
             'save'           => 'Lagre valg',
-            'reopen'         => 'Informasjonskapsler',
+            'reopen'         => 'Cookie-innstillinger',
             'consent_date'   => 'Samtykkedato',
             'consent_id'     => 'Samtykke-ID',
             'categories'     => 'Kategorier',
@@ -264,7 +264,7 @@ function cortiq_banner_strings( $lang ) {
             'preferences_desc' => 'Husker valg som sprog og layout.',
             'statistics'     => 'Statistik',
             'statistics_desc' => 'Hjælper os med at se, hvilke sider og hvilket indhold besøgende synes om.',
-            'marketing'      => 'Marketing',
+            'marketing'      => 'Markedsføring',
             'marketing_desc' => 'Bruges til at vise relevante annoncer og måle kampagner.',
             'show_details'   => 'Vis detaljer',
             'hide_details'   => 'Skjul detaljer',
@@ -276,7 +276,7 @@ function cortiq_banner_strings( $lang ) {
             'consent_id'     => 'Samtykke-ID',
             'categories'     => 'Kategorier',
             'close'          => 'Luk',
-            'gpc'            => 'Din browser sender Global Privacy Control (GPC). Marketing er derfor slået fra her.',
+            'gpc'            => 'Din browser sender Global Privacy Control (GPC). Markedsføring er derfor slået fra her.',
         ),
         'fi' => array(
             'title'          => '🍪 Evästeasetukset',
@@ -391,7 +391,7 @@ function cortiq_banner_strings( $lang ) {
             'consent_id'     => 'Auðkenni samþykkis',
             'categories'     => 'Flokkar',
             'close'          => 'Loka',
-            'gpc'            => 'Vafrinn þinn sendir Global Privacy Control (GPC) merki og því er slökkt á markaðssetningu hér.',
+            'gpc'            => 'Vafrinn þinn sendir Global Privacy Control (GPC) og því er slökkt á markaðssetningu hér.',
         ),
     );
     return isset( $s[ $lang ] ) ? $s[ $lang ] : $s['en'];

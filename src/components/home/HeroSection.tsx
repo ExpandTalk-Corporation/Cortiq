@@ -49,7 +49,7 @@ export function HeroSection() {
             Source: TollBit, State of the Bots, Q4 2025, across its publisher network (up from 1 in 200 in Q1 2025).
           </p>
           <p className="text-lg text-foreground/80 mb-8 leading-relaxed">
-            Plus consent-first visitor analytics, heatmaps and form analytics behind a built-in consent banner in five languages. EU-hosted.
+            Plus consent-first visitor analytics, heatmaps and form analytics behind a built-in consent banner in 13 languages. EU-hosted.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center xl:justify-start items-center">
             <Link to="/auth">

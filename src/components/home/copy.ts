@@ -1,7 +1,7 @@
 export const BANNER_POINTS = [
   {
-    title: "Five languages",
-    text: "Swedish, English, German, French and Portuguese, picked from the page language or set with data-lang.",
+    title: "13 languages",
+    text: "Swedish, English, German, French, Portuguese, Dutch, Norwegian, Danish, Finnish, Polish, Italian, Spanish and Icelandic, picked from the page language or set with data-lang.",
   },
   {
     title: "Reject is as easy as accept",

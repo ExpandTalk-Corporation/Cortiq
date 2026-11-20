@@ -241,7 +241,7 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   {
     path: '/integrations/wordpress/',
     title: 'WordPress Plugin: Analytics & Consent Banner — CortIQ',
-    description: 'One WordPress plugin for CortIQ tracking, a consent banner in five languages and Google Consent Mode v2 for GA4. Cookieless mode and geo-gating.',
+    description: 'One WordPress plugin for CortIQ tracking, a consent banner in 13 languages and Google Consent Mode v2 for GA4. Cookieless mode and geo-gating.',
     published: '2026-10-03',
     changefreq: 'monthly',
     priority: 0.7,

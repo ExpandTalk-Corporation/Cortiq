@@ -234,7 +234,7 @@
         necessary    : ['Noodzakelijk',  'Bewaart je keuzes in dit venster 12 maanden op je apparaat. De keuze wordt ook door CortIQ vastgelegd als bewijs van toestemming. Altijd aan.'],
         analytics    : ['Statistieken',  'Meet hoe de website wordt gebruikt: welke pagina’s je bezoekt, klikken en waar op de pagina je klikt, scrollen, hoe formulieren worden gebruikt (niet wat je invult) en waar het bezoek vandaan kwam. Om terugkerende bezoeken te herkennen worden gegevens over je browser en apparaat gebruikt, zoals browsertype, schermgrootte, taal en tijdzone. De gegevens bevatten je naam niet, maar zijn wel persoonsgegevens. CortIQ verwerkt ze namens de website.'],
         analyticsLite: ['Statistieken',  'Meet hoe de website wordt gebruikt: welke pagina’s je bezoekt, klikken, scrollen en waar het bezoek vandaan kwam. Na het bezoek blijft er niets op je apparaat bewaard en terugkerende bezoeken worden niet herkend. De gegevens bevatten je naam niet, maar zijn wel persoonsgegevens. CortIQ verwerkt ze namens de website.'],
-        marketing    : ['Marketing',     'Bewaart de ID van de advertentie waarop je hebt geklikt (bijvoorbeeld van Google, Meta, Microsoft, TikTok of LinkedIn). Als je een formulier verstuurt, wordt ook een hash van je e-mailadres bewaard – een afgeleide code, niet het adres zelf. De gegevens worden naar Google Ads gestuurd, zodat de website kan meten welke advertenties tot aanvragen en aankopen leiden. Google krijgt daardoor toegang tot de gegevens.'],
+        marketing    : ['Marketing',     'Bewaart de ID van de advertentie waarop je hebt geklikt (bijvoorbeeld van Google, Meta, Microsoft, TikTok of LinkedIn). Als je een formulier verstuurt, wordt ook een hash van je e-mailadres bewaard – een afgeleide code, niet het adres in leesbare tekst. De gegevens worden naar Google Ads gestuurd, zodat de website kan meten welke advertenties tot aanvragen en aankopen leiden. Google krijgt daardoor toegang tot de gegevens.'],
         preferences  : ['Voorkeuren',    'Onthoudt keuzes zoals taal en indeling.'],
       }
     },
@@ -297,7 +297,7 @@
       save       : 'Tallenna valintani',
       reopen     : 'Evästeasetukset',
       dialog     : 'Suostumus evästeisiin',
-      storage    : ' Tallennetaan laitteellesi vain käynnin ajaksi. Sivuston tietojen säilytysaika kerrotaan tietosuojaselosteessa.',
+      storage    : ' Tallennetaan laitteellesi vain käynnin ajaksi. Kuinka kauan sivusto säilyttää tietoja, kerrotaan tietosuojaselosteessa.',
       gpc        : 'Selaimesi lähettää Global Privacy Control (GPC) -signaalin, joten markkinointi on tässä pois päältä.',
       cats: {
         necessary    : ['Välttämättömät', 'Tallentaa tämän ikkunan valintasi laitteellesi 12 kuukaudeksi. CortIQ kirjaa valinnan myös todisteeksi suostumuksesta. Aina käytössä.'],
@@ -395,7 +395,7 @@
         necessary    : ['Nauðsynlegar',   'Vistar val þitt í þessum glugga í tækinu þínu í 12 mánuði. CortIQ skráir valið einnig sem sönnun á samþykki. Alltaf virkt.'],
         analytics    : ['Tölfræði',       'Mælir hvernig vefurinn er notaður: hvaða síður þú heimsækir, smelli og hvar á síðunni þú smellir, skrun, hvernig eyðublöð eru notuð (ekki hvað þú skrifar) og hvaðan heimsóknin kom. Til að þekkja endurteknar heimsóknir eru notaðar upplýsingar um vafrann þinn og tækið, svo sem tegund vafra, skjástærð, tungumál og tímabelti. Gögnin innihalda ekki nafn þitt en eru persónuupplýsingar. CortIQ vinnur þau fyrir hönd vefsins.'],
         analyticsLite: ['Tölfræði',       'Mælir hvernig vefurinn er notaður: hvaða síður þú heimsækir, smelli, skrun og hvaðan heimsóknin kom. Ekkert er geymt í tækinu þínu eftir heimsóknina og endurteknar heimsóknir eru ekki þekktar. Gögnin innihalda ekki nafn þitt en eru persónuupplýsingar. CortIQ vinnur þau fyrir hönd vefsins.'],
-        marketing    : ['Markaðssetning', 'Vistar auðkenni auglýsingarinnar sem þú smelltir á (til dæmis frá Google, Meta, Microsoft, TikTok eða LinkedIn). Ef þú sendir inn eyðublað er einnig vistað tætigildi (hash) netfangsins þíns – reiknaður kóði, ekki netfangið sjálft. Gögnin eru send til Google Ads svo vefurinn geti mælt hvaða auglýsingar leiða til fyrirspurna og kaupa. Google fær þá aðgang að þeim.'],
+        marketing    : ['Markaðssetning', 'Vistar auðkenni auglýsingarinnar sem þú smelltir á (til dæmis frá Google, Meta, Microsoft, TikTok eða LinkedIn). Ef þú sendir inn eyðublað er einnig vistað tætigildi (hash) netfangsins þíns – reiknaður kóði, ekki netfangið í læsilegu formi. Gögnin eru send til Google Ads svo vefurinn geti mælt hvaða auglýsingar leiða til fyrirspurna og kaupa. Google fær þá aðgang að þeim.'],
         preferences  : ['Kjörstillingar', 'Man val eins og tungumál og útlit.'],
       }
     }
