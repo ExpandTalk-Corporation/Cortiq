@@ -58,27 +58,35 @@ function run({ cookieless = false, consent = true, config = CONFIG } = {}) {
   return { requests, document, window };
 }
 
-// A form whose querySelectorAll honours the tracker's selector, so a text input or textarea
-// named like the configured field is only reachable if the tracker asks for it.
+// A form whose elements.namedItem behaves like the browser's: one field -> that element, several with
+// the same name (including fields outside the form tag via form="id") -> a RadioNodeList-like list.
+// The tracker must never fall back to querySelectorAll.
 function form(fields, { conversion = false } = {}) {
-  const selectors = [];
+  const names = [];
   return {
-    selectors,
+    names,
     id: 'contact',
     closest: (sel) => (sel === '#contact' ? {} : null),
     hasAttribute: (n) => conversion && n === 'data-wfa-conversion',
     getAttribute: () => null,
     querySelector: () => null,
-    querySelectorAll(sel) {
-      selectors.push(sel);
-      const parts = sel.split(',').map((s) => s.trim());
-      return fields.filter((f) => parts.some((p) =>
-        (p === 'select' && f.tagName === 'SELECT') || (p === 'input[type="radio"]' && f.tagName === 'INPUT' && f.type === 'radio')));
+    querySelectorAll() { throw new Error('querySelectorAll must not be used'); },
+    elements: {
+      namedItem(name) {
+        names.push(name);
+        const hits = fields.filter((f) => f.name === name);
+        if (hits.length === 0) return null;
+        if (hits.length === 1) return hits[0];
+        return Object.assign(hits.slice(), { item: (i) => hits[i] ?? null });
+      },
     },
   };
 }
-const select = (name, value) => ({ tagName: 'SELECT', name, value, multiple: false });
-const radio = (name, value, checked) => ({ tagName: 'INPUT', type: 'radio', name, value, checked });
+const select = (name, value, { disabled = false, optionDisabled = false, multiple = false } = {}) => ({
+  tagName: 'SELECT', name, value, multiple, disabled, selectedIndex: 0, length: 1,
+  options: [{ value, disabled: optionDisabled }],
+});
+const radio = (name, value, checked, disabled = false) => ({ tagName: 'INPUT', type: 'radio', name, value, checked, disabled });
 const text = (name, value) => ({ tagName: 'INPUT', type: 'text', name, value });
 const textarea = (name, value) => ({ tagName: 'TEXTAREA', name, value });
 
@@ -101,7 +109,7 @@ test('a configured select: only the mapped category is sent with the goal hit', 
   const hit = goalHit(await submit(r, f));
   assert.ok(hit, 'goal hit sent');
   assert.equal(hit.body.metadata.reported_channel, 'ai_assistant');
-  assert.deepEqual(f.selectors, ['select, input[type="radio"]'], 'only select/radio are queried');
+  assert.deepEqual(f.names, ['heard_from'], 'only the configured name is looked up');
   assert.equal(JSON.stringify(r.requests).includes('my secret note'), false);
   assert.equal(JSON.stringify(r.requests).toLowerCase().includes('chatgpt'), false, 'raw answer never leaves the page');
 });
@@ -116,6 +124,29 @@ test('radio group: the checked option; unknown value becomes other; invalid map 
   r = run();
   hit = goalHit(await submit(r, form([radio('heard_from', 'Google', false)])));
   assert.equal('reported_channel' in hit.body.metadata, false, 'nothing chosen: nothing sent');
+});
+
+test('an empty or disabled choice sends nothing; a multiple select is not read', async () => {
+  for (const fields of [
+    [select('heard_from', '')],
+    [select('heard_from', 'ChatGPT', { optionDisabled: true })],
+    [select('heard_from', 'ChatGPT', { disabled: true })],
+    [select('heard_from', 'ChatGPT', { multiple: true })],
+    [radio('heard_from', 'ChatGPT', true, true)],
+    [radio('heard_from', '', true)],
+  ]) {
+    const r = run();
+    const hit = goalHit(await submit(r, form(fields)));
+    assert.equal('reported_channel' in hit.body.metadata, false, JSON.stringify(fields));
+  }
+});
+
+test('a radio group from namedItem (RadioNodeList), also with form="id" fields', async () => {
+  const r = run();
+  const f = form([radio('heard_from', 'Google', false), radio('heard_from', 'ChatGPT', true)]);
+  const hit = goalHit(await submit(r, f));
+  assert.equal(hit.body.metadata.reported_channel, 'ai_assistant');
+  assert.match(tracker, /form\.elements\.namedItem\(cfg\.field\)/);
 });
 
 test('text inputs, textareas and other field names are never read', async () => {

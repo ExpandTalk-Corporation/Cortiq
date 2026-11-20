@@ -453,17 +453,27 @@
     });
     reportedChannelConfig = { field: raw.field, map: map };
   }
+  // The selected option of a single-choice <select>, or a checked radio; disabled or empty = nothing.
+  function reportedChoice(el) {
+    if (!el || el.disabled) return null;
+    if (el.tagName === 'SELECT' && !el.multiple) {
+      const opt = el.options && el.selectedIndex >= 0 ? el.options[el.selectedIndex] : null;
+      return opt && !opt.disabled ? opt.value : null;
+    }
+    if (el.tagName === 'INPUT' && el.type === 'radio' && el.checked) return el.value;
+    return null;
+  }
   function readReportedChannel(form) {
     const cfg = reportedChannelConfig;
-    if (!cfg || COOKIELESS || !hasInteractionConsent() || !form || typeof form.querySelectorAll !== 'function') return null;
+    if (!cfg || COOKIELESS || !hasInteractionConsent() || !form || !form.elements
+        || typeof form.elements.namedItem !== 'function') return null;
+    // namedItem also finds fields outside the form tag (form="id"); a radio group comes back as a
+    // RadioNodeList. Only a select or radio is ever read from it.
+    const named = form.elements.namedItem(cfg.field);
+    if (!named) return null;
+    const fields = typeof named.length === 'number' && !named.tagName ? named : [named];
     let value = null;
-    const fields = form.querySelectorAll('select, input[type="radio"]');
-    for (let i = 0; i < fields.length; i++) {
-      const el = fields[i];
-      if (el.name !== cfg.field) continue;
-      if (el.tagName === 'SELECT' && !el.multiple) { value = el.value; break; }
-      if (el.tagName === 'INPUT' && el.type === 'radio' && el.checked) { value = el.value; break; }
-    }
+    for (let i = 0; i < fields.length && value === null; i++) value = reportedChoice(fields[i]);
     if (typeof value !== 'string') return null;
     const key = value.trim().toLowerCase();
     if (!key) return null;
