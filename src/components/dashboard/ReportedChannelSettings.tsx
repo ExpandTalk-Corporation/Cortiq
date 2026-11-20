@@ -12,7 +12,7 @@ import {
 } from '@/hooks/useReportedChannel';
 import {
   REPORTED_CHANNELS, REPORTED_CHANNEL_LABELS, MAX_MAP_ENTRIES, FORM_FIELD_PATTERN, HUBSPOT_PROPERTY_PATTERN,
-  rowsToMap, mapToRows, noticeTemplate, type MapRow, type ReportedChannel,
+  rowsToMap, mapToRows, noticeTemplate, NOTICE_ADAPT_NOTE, type MapRow, type ReportedChannel,
 } from '@/lib/reportedChannel';
 import type { Site } from '@/types/dashboard';
 
@@ -76,10 +76,13 @@ export function ReportedChannelSettings({ selectedSite }: { selectedSite: Site }
   const [hubspotRows, setHubspotRows] = useState<MapRow[]>([]);
   const [formField, setFormField] = useState('');
   const [formRows, setFormRows] = useState<MapRow[]>([]);
+  const [confirmed, setConfirmed] = useState(false);
 
   useEffect(() => {
     if (!config) return;
-    setPolicyVersion(config.policyVersion ?? config.bannerPolicyVersion ?? '');
+    // Never prefilled from the banner: the version in effect today was consented to without the notice.
+    setPolicyVersion(config.policyVersion ?? '');
+    setConfirmed(false);
     setHubspotProperty(config.hubspotProperty ?? '');
     setHubspotRows(mapToRows(config.hubspotMap));
     setFormField(config.formField ?? '');
@@ -102,6 +105,14 @@ export function ReportedChannelSettings({ selectedSite }: { selectedSite: Site }
   if (ff && !FORM_FIELD_PATTERN.test(ff)) errors.push('Form field: use the field name attribute, not a CSS selector.');
   if (hp) errors.push(...hubspot.errors.map((e) => `HubSpot: ${e}`));
   if (ff) errors.push(...form.errors.map((e) => `Form: ${e}`));
+  // Switching a path on, or changing the version, needs a NEW version: consents already given under the
+  // banner's current version were given without the notice. The server also ignores consents older
+  // than the switch-on time (sites.reported_channel_enabled_at).
+  const enabling = (!!hp && !config.hubspotProperty) || (!!ff && !config.formField) || (!!(hp || ff) && pv !== (config.policyVersion ?? ''));
+  if (enabling && pv && config.bannerPolicyVersion && pv === config.bannerPolicyVersion) {
+    errors.push(`Enter a new policy version. ${pv} is the version your banner sends now, and those consents were given without the notice.`);
+  }
+  if (enabling && !confirmed) errors.push('Confirm that you have updated the texts and will raise the policy version.');
   const bannerMismatch = !!pv && !!config.bannerPolicyVersion && pv !== config.bannerPolicyVersion;
   const cookieless = config.trackingMode === 'cookieless';
 
@@ -152,12 +163,21 @@ export function ReportedChannelSettings({ selectedSite }: { selectedSite: Site }
             <ol className="list-decimal pl-4 space-y-1">
               <li>
                 Your consent texts must say that the answer may be stored. The CortIQ banner names it from version 5.5.21 in all its
-                languages. If you use the WordPress plugin&apos;s built-in banner texts or your own consent tool, add the sentence there yourself.
+                languages. If you use your own consent tool, add the sentence there yourself.
+              </li>
+              <li>
+                The WordPress plugin&apos;s built-in banner never qualifies: it records the choice under its own id, not the visit, so
+                no answer is stored. Use the CortIQ banner (5.5.21 or later) instead.
               </li>
               <li>Update your privacy policy (see the GDPR template, &quot;Self-reported source&quot;) and add the notice below next to the question.</li>
               <li>
-                Raise the policy version in Consent settings so visitors are asked again, and enter the same version here. Answers are
-                only stored for consents given under this version.
+                Enter a new policy version here (not the one your banner sends now) and save. Then raise the policy version in Consent
+                settings to the same value so visitors are asked again. Answers are only stored for consents given under this version
+                after you switched this on.
+              </li>
+              <li>
+                Only conversions in the same visit where the visitor made the banner choice qualify. A conversion in a later visit,
+                without a new banner choice, is stored without an answer.
               </li>
             </ol>
           </AlertDescription>
@@ -188,6 +208,14 @@ export function ReportedChannelSettings({ selectedSite }: { selectedSite: Site }
             CortIQ maps the value in memory and keeps only the category; the value itself is not stored. Only contacts whose hashed email
             matches a conversion recorded with marketing consent are counted.
           </p>
+          <p className="text-xs text-amber-600">
+            The contact must fill in the property themselves, in a HubSpot form. Do not let staff set it after a call or meeting: the
+            consent and the notice cover the visitor&apos;s own answer only.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            HubSpot&apos;s contact.propertyChange webhook usually carries no email address, and without one nothing is matched. Send the
+            change from a HubSpot workflow webhook that includes the contact&apos;s email.
+          </p>
           <Input placeholder="how_did_you_hear" value={hubspotProperty} maxLength={100} onChange={(e) => setHubspotProperty(e.target.value)} />
           {hp && <MapEditor rows={hubspotRows} onChange={setHubspotRows} />}
           {hp && <Notice text={noticeTemplate('hubspot', selectedSite.site_name ?? '')} />}
@@ -206,9 +234,14 @@ export function ReportedChannelSettings({ selectedSite }: { selectedSite: Site }
         </div>
 
         <p className="text-xs text-muted-foreground">
-          The notices are a starting point for your own text, not legal advice. The category stays in CortIQ: it is not sent to Google Ads,
+          The notices are a starting point for your own text, not legal advice. {NOTICE_ADAPT_NOTE} The category stays in CortIQ: it is not sent to Google Ads,
           Google Analytics or AI insights, and it is only shown as totals.
         </p>
+
+        <label className="flex items-start gap-2 text-xs">
+          <input type="checkbox" className="mt-0.5" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
+          <span>I have updated the banner and privacy texts, and I will raise the policy version in Consent settings to the version above.</span>
+        </label>
 
         {errors.length > 0 && (
           <ul className="text-xs text-red-600 list-disc pl-4">{errors.map((e) => <li key={e}>{e}</li>)}</ul>

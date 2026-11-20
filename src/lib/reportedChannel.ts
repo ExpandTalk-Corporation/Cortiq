@@ -133,20 +133,29 @@ export function mapToRows(raw: unknown): MapRow[] {
 
 /**
  * Art. 13 notice the customer can put next to the question on its own form (form path)
- * or HubSpot form (HubSpot path). A starting point for the customer's own text, not legal advice.
+ * or HubSpot form (HubSpot path). A starting point for the customer's own text, not legal advice:
+ * the customer must translate it and adapt it to its own banner, categories and privacy policy.
  */
 export function noticeTemplate(path: 'form' | 'hubspot', siteName: string): string {
   const who = siteName || '[company name]';
   if (path === 'form') {
-    return `How did you hear about us? (optional)\n\n`
-      + `If you have accepted statistics cookies, ${who} stores the option you select as a category together with `
-      + `the statistics for your visit, to understand which channels bring visitors. We use CortIQ as our processor. `
-      + `Text you type in other fields is not read for this purpose. You can withdraw your consent at any time in the `
-      + `cookie settings. Read more in our privacy policy: [link].`;
+    return `How did you hear about us? (optional)
+
+`
+      + `If you have accepted the Statistics category in our cookie settings, ${who} stores the option you select as a `
+      + `category together with the statistics for your visit, to understand which channels bring visitors. We use CortIQ `
+      + `as our processor. Text you type in other fields is not read for this purpose. You can withdraw your consent at any `
+      + `time in the cookie settings. Read more in our privacy policy: [link].`;
   }
-  return `How did you hear about us? (optional)\n\n`
-    + `${who} stores your answer in our customer system. If you have accepted marketing cookies on our website, `
+  return `How did you hear about us? (optional)
+
+`
+    + `${who} stores your answer in our customer system. If you have accepted the Marketing category in our cookie settings, `
     + `a hashed form of your email address is used to link your visit to your answer, and only a category is kept `
     + `with the visit statistics. We use CortIQ as our processor; the category is not sent to advertising platforms. `
     + `You can withdraw your consent at any time in the cookie settings. Read more in our privacy policy: [link].`;
 }
+
+/** Shown under the notices: the templates are English and generic. */
+export const NOTICE_ADAPT_NOTE =
+  'Translate the notice into the language of your form and adapt it to your own banner categories and privacy policy before you use it.';

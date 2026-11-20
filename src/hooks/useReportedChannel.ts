@@ -26,7 +26,7 @@ export interface ReportedChannelConfig {
   hubspotMap: Record<string, ReportedChannel>;
   formField: string | null;
   formMap: Record<string, ReportedChannel>;
-  /** Banner policy version from Consent settings, used to prefill. */
+  /** Banner policy version from Consent settings. Never used to prefill: a new version is required to switch on. */
   bannerPolicyVersion: string | null;
   hubspotQualityProperty: string | null;
   trackingMode: string | null;

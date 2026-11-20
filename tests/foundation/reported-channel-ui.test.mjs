@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   parseReportedChannel, formatCount, formatShare, percent, mismatches, mismatchLabel,
-  rowsToMap, mapToRows, noticeTemplate, FORM_FIELD_PATTERN, HUBSPOT_PROPERTY_PATTERN,
+  rowsToMap, mapToRows, noticeTemplate, NOTICE_ADAPT_NOTE, FORM_FIELD_PATTERN, HUBSPOT_PROPERTY_PATTERN,
   REPORTED_CHANNELS,
 } from '../../src/lib/reportedChannel.ts';
 
@@ -72,9 +72,27 @@ test('notice templates name the consent and the category, not a promise of compl
     assert.match(t, /Acme/);
     assert.match(t, /category/);
     assert.match(t, /withdraw your consent/);
+    assert.match(t, /\(optional\)/);
   }
-  assert.match(noticeTemplate('form', ''), /statistics cookies/);
-  assert.match(noticeTemplate('hubspot', ''), /marketing cookies/);
+  assert.match(noticeTemplate('form', ''), /the Statistics category in our cookie settings/);
+  assert.match(noticeTemplate('hubspot', ''), /the Marketing category in our cookie settings/);
+  assert.match(read(UI[1]), /NOTICE_ADAPT_NOTE/);
+  assert.match(NOTICE_ADAPT_NOTE, /[Tt]ranslate/);
+});
+
+test('policy-version gate: no prefill from the banner, a new version and a confirmation to switch on', () => {
+  const settings = read(UI[1]);
+  assert.doesNotMatch(settings, /config\.bannerPolicyVersion \?\?/, 'never prefilled from the banner version');
+  assert.match(settings, /pv === config\.bannerPolicyVersion/);
+  assert.match(settings, /type="checkbox"/);
+  assert.match(settings, /I have updated the banner and privacy texts/);
+  assert.match(settings, /built-in banner never qualifies/);
+  assert.match(settings, /same visit where the visitor made the banner choice/);
+  assert.match(settings, /fill in the property themselves/);
+  assert.match(settings, /workflow webhook that includes the contact&apos;s email/);
+  const sql = read('../../supabase/migrations/20261210000001_reported_channel.sql');
+  assert.match(sql, /coalesce\(c\.updated_at, c\.created_at\) >= s\.reported_channel_enabled_at/);
+  assert.match(sql, /s\.reported_channel_enabled_at IS NOT NULL/);
 });
 
 test('copy: allowed wording present, never-list absent', () => {

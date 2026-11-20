@@ -80,21 +80,28 @@ BEGIN
     (a, 's-withdrawn', true, '{"analytics": true}', now() + interval '1 day', '2', now() - interval '1 hour'),
     (a, 's-withdrawn', false, '{"analytics": false}', now() + interval '1 day', '2', now()),
     (a, 's-hub', true, '{"analytics": true, "marketing": true}', now() + interval '1 day', '2', now()),
-    (a, 's-expired', true, '{"analytics": true, "marketing": true}', now() - interval '1 day', '2', now());
+    (a, 's-expired', true, '{"analytics": true, "marketing": true}', now() - interval '1 day', '2', now()),
+    -- Right version, but given before the path was switched on (a version reused from before the notice).
+    (a, 's-before', true, '{"analytics": true, "marketing": true}', now() + interval '1 day', '2', now() - interval '1 hour');
 
   ASSERT NOT public.reported_channel_consent_ok(a, 's-form', 'form'), 'off until configured';
   PERFORM public.record_conversion_event(a, 's-form', 'Lead', 'form_submission', 'form', NULL, 'podcast');
   ASSERT (SELECT reported_channel FROM public.conversion_events WHERE event_name = 'Lead') IS NULL, 'not stored while off';
   DELETE FROM public.conversion_events;
 
+  ASSERT (SELECT reported_channel_enabled_at FROM public.sites WHERE id = a) IS NULL, 'enabled_at unset while off';
   UPDATE public.sites SET reported_channel_policy_version = '2', reported_channel_form_field = 'heard_about',
     reported_channel_form_map = '{"pod": "podcast"}' WHERE id = a;
+  ASSERT (SELECT reported_channel_enabled_at FROM public.sites WHERE id = a) = now(), 'enabled_at set on off -> on';
+  UPDATE public.sites SET reported_channel_enabled_at = now() - interval '1 year' WHERE id = a;
+  ASSERT (SELECT reported_channel_enabled_at FROM public.sites WHERE id = a) = now(), 'enabled_at is not writable by the client';
 
   ASSERT public.reported_channel_consent_ok(a, 's-form', 'form'), 'form: analytics + version 2';
   ASSERT NOT public.reported_channel_consent_ok(a, 's-form', 'hubspot'), 'hubspot path not configured';
   ASSERT NOT public.reported_channel_consent_ok(a, 's-old', 'form'), 'older policy version';
   ASSERT NOT public.reported_channel_consent_ok(a, 's-withdrawn', 'form'), 'withdrawal wins';
   ASSERT NOT public.reported_channel_consent_ok(a, 's-expired', 'form'), 'expired';
+  ASSERT NOT public.reported_channel_consent_ok(a, 's-before', 'form'), 'consent older than enabled_at';
   ASSERT NOT public.reported_channel_consent_ok(a, 'nope', 'form') AND NOT public.reported_channel_consent_ok(a, NULL, 'form'), 'no consent row';
 
   -- Form path through record_conversion_event (the 6-argument call still works).

@@ -10,8 +10,9 @@
 --       apply_reported_channel_hubspot onto marketing-consented rows (hashed email match).
 --     Form: a select/radio field, mapped in the browser, written by record_conversion_event /
 --       record-conversion when the session has analytics consent.
---   Either way the session's latest consent row must carry that policy_version, so only visitors
---   who saw the updated banner text count. Fails closed.
+--   Either way the session's latest consent row must carry that policy_version and be newer than
+--   sites.reported_channel_enabled_at (set by a trigger), so only visitors who saw the updated
+--   banner text count. Fails closed.
 -- - Read only in aggregate: get_reported_channel (SECURITY INVOKER, owner check, counts 1-4 as
 --   "fewer than 5"). The value never leaves CortIQ (Google Ads upload, GA4, AI insights): test-enforced.
 
@@ -73,10 +74,46 @@ ALTER TABLE public.sites
     AND (reported_channel_form_field IS NULL OR reported_channel_form_field ~ '^[A-Za-z0-9_.:\[\]-]{1,100}$')
   );
 
+-- When a capture path was last switched on, or the policy version changed. Set only by the trigger
+-- below (the dashboard cannot write it): consents given before this moment never qualify, so a
+-- policy version that was already in effect before the notice text was added cannot be reused.
+ALTER TABLE public.sites
+  ADD COLUMN IF NOT EXISTS reported_channel_enabled_at timestamptz;
+
+CREATE OR REPLACE FUNCTION public.sites_reported_channel_enabled_at()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+DECLARE
+  v_form_on boolean := NEW.reported_channel_policy_version IS NOT NULL AND NEW.reported_channel_form_field IS NOT NULL;
+  v_hub_on  boolean := NEW.reported_channel_policy_version IS NOT NULL AND NEW.reported_channel_hubspot_property IS NOT NULL;
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    NEW.reported_channel_enabled_at := CASE WHEN v_form_on OR v_hub_on THEN now() END;
+    RETURN NEW;
+  END IF;
+  -- Never taken from the client: keep the stored value unless a path goes off → on or the version changes.
+  NEW.reported_channel_enabled_at := OLD.reported_channel_enabled_at;
+  IF (v_form_on AND NOT (OLD.reported_channel_policy_version IS NOT NULL AND OLD.reported_channel_form_field IS NOT NULL))
+     OR (v_hub_on AND NOT (OLD.reported_channel_policy_version IS NOT NULL AND OLD.reported_channel_hubspot_property IS NOT NULL))
+     OR ((v_form_on OR v_hub_on) AND NEW.reported_channel_policy_version IS DISTINCT FROM OLD.reported_channel_policy_version) THEN
+    NEW.reported_channel_enabled_at := now();
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS sites_reported_channel_enabled_at ON public.sites;
+CREATE TRIGGER sites_reported_channel_enabled_at
+  BEFORE INSERT OR UPDATE ON public.sites
+  FOR EACH ROW EXECUTE FUNCTION public.sites_reported_channel_enabled_at();
+
 -- ---------------------------------------------------------------------------------------------
 -- Consent gate: the session's latest consent row (picked BEFORE any filter, so a withdrawal is
 -- never skipped) is given, not expired, grants the purpose and carries the policy version the
--- site set when it enabled self-reported source. Cookieless sites never qualify.
+-- site set when it enabled self-reported source, and was given (or last changed) after the path was
+-- switched on (reported_channel_enabled_at; NULL fails closed). Cookieless sites never qualify.
 --   p_path 'form'    → analytics purpose, form field configured
 --   p_path 'hubspot' → marketing purpose, HubSpot property configured
 -- ---------------------------------------------------------------------------------------------
@@ -99,9 +136,11 @@ AS $$
        AND c.expires_at > now()
        AND c.consent_types -> CASE p_path WHEN 'hubspot' THEN 'marketing' ELSE 'analytics' END = 'true'::jsonb
        AND c.policy_version = s.reported_channel_policy_version
+       AND s.reported_channel_enabled_at IS NOT NULL
+       AND coalesce(c.updated_at, c.created_at) >= s.reported_channel_enabled_at
     FROM public.sites s
     CROSS JOIN LATERAL (
-      SELECT cc.consent_given, cc.consent_types, cc.expires_at, cc.policy_version
+      SELECT cc.consent_given, cc.consent_types, cc.expires_at, cc.policy_version, cc.updated_at, cc.created_at
       FROM public.cookie_consents cc
       WHERE cc.site_id = s.id AND cc.session_id = p_session
       ORDER BY cc.updated_at DESC NULLS LAST, cc.created_at DESC NULLS LAST
