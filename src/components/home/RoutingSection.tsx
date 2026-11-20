@@ -15,8 +15,8 @@ export function RoutingSection() {
       <div className="container mx-auto max-w-6xl">
         <SectionHeader
           eyebrow="Routing per country"
-          title="One engine decides per country and purpose"
-          intro="Each request is matched to a market and a purpose, and a versioned rule decides what CortIQ may collect. The rules are logged against real traffic before they stop any data. Your own Off and GPC already do."
+          title="One engine checks each request per country and purpose"
+          intro="Each request is matched to a market and a purpose, and a versioned rule says what CortIQ would collect. Market rules are logged against real traffic and do not stop data yet. Your own Off already stops data, and GPC does in the places listed below."
         />
 
         <figure className="mb-12">
@@ -54,7 +54,7 @@ export function RoutingSection() {
             <li key={s.market} className="rounded-lg border bg-background p-4 text-sm">
               <p className="font-medium text-foreground">{MARKET_LABEL[s.market]}</p>
               <dl className="mt-2 space-y-2">
-                <div><dt className="text-xs text-muted-foreground">Status</dt><dd className="text-foreground">{s.status}</dd></div>
+                <div><dt className="text-xs text-muted-foreground">Engine status (logged, not applied)</dt><dd className="text-foreground">{s.status}</dd></div>
                 <div><dt className="text-xs text-muted-foreground">Main laws</dt><dd className="text-muted-foreground">{ROUTING_LAWS[s.market]}</dd></div>
                 <div>
                   <dt className="text-xs text-muted-foreground">Rules on file</dt>
@@ -72,7 +72,7 @@ export function RoutingSection() {
                 <th scope="col" className="p-3 font-medium">Market</th>
                 <th scope="col" className="p-3 font-medium">Main laws</th>
                 <th scope="col" className="p-3 font-medium">Rules on file</th>
-                <th scope="col" className="p-3 font-medium">Status</th>
+                <th scope="col" className="p-3 font-medium">Engine status (logged, not applied)</th>
               </tr>
             </thead>
             <tbody>
@@ -92,7 +92,7 @@ export function RoutingSection() {
           </table>
         </div>
         <p className="mt-3 text-center text-xs text-muted-foreground">
-          {ROUTING_RULES_NOTE} Status is computed from rule pack {PACK_VERSION}.
+          {ROUTING_RULES_NOTE} Status shows what the engine logs, computed from rule pack {PACK_VERSION}. It does not change what is collected today. {DISCLAIMER}
         </p>
 
         <h3 className="text-2xl font-bold text-center mt-16 mb-6">What works in every market today</h3>

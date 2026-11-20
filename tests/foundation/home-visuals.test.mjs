@@ -54,6 +54,9 @@ test('sample data names no bots (names come from the registry)', () => {
 // moved to Routing per country; both unchanged. The rest of the routing copy is not jurist-reviewed yet, so it
 // is not listed here; home-routing.test.mjs ties its status column to the engine and bans compliance claims.
 const REVIEWED = [
+  "Each request is matched to a market and a purpose, and a versioned rule says what CortIQ would collect. Market rules are logged against real traffic and do not stop data yet. Your own Off already stops data, and GPC does in the places listed below.",
+  "Applied now for purposes you turn Off, and for marketing data, aggregate counts and server-side requests when GPC is present (listed below). Opt-in and market rules are logged only, not yet applied.",
+  "It does not change what is collected today.",
   "Storing information on the visitor's device, or gaining access to information already there, needs consent unless it is strictly necessary to transmit a communication or to provide a service the visitor explicitly asked for. Regulators generally do not treat analytics for the site owner as strictly necessary, so CortIQ's browser tracking waits for consent (EDPB Guidelines 2/2023). National laws implement the rule and differ in detail.",
   "Server-side request data (truncated IP, user agent, path) is still personal data. Legitimate interest can support measuring bots and protecting the site when the site owner's balancing test shows the processing is proportionate and minimal.",
   "Server-side adapters truncate IPs on your server and send only bot-like requests. Truncated IPs are cleared after 30 days and records follow the site's retention (default 365 days). EU-hosted.",
@@ -100,7 +103,7 @@ test('the hero figure links to its full source, which sits in the AI traffic sec
   const hero = read(HOME + 'HeroSection.tsx');
   const ai = read(HOME + 'AiTrafficSection.tsx');
   assert.match(hero, /href=\{`#\$\{AI_TRAFFIC_SOURCE_ID\}`\}/);
-  assert.match(hero, /\(TollBit, H1 2026\)/);
+  assert.match(hero, />\s*TollBit, H1 2026\s*<\/a>/);
   assert.doesNotMatch(hero, /Source: TollBit/, 'the full source sentence lives in AiTrafficSection');
   assert.match(ai, /export const AI_TRAFFIC_SOURCE_ID = "ai-traffic-source"/);
   assert.match(ai, /<p id=\{AI_TRAFFIC_SOURCE_ID\}[^>]*>\s*Source: TollBit, State of the Bots H1 2026, median European publisher site on its network \(North America: 1 in 93\)\. Self-identified bots only\./);

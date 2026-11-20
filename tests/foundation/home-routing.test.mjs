@@ -43,7 +43,7 @@ test('status per market agrees with decide()', () => {
     const e = engineView(row.market);
     assert.deepEqual(row.approved, e.approved, `${row.market}: approved purposes`);
     if (e.approved.length) {
-      assert.match(row.status, /^Approved rule/, `${row.market}: an approved rule decides, status says ${row.status}`);
+      assert.match(row.status, /^Approved internally/, `${row.market}: an approved rule decides, status says ${row.status}`);
       continue;
     }
     assert.ok(e.decisions.every((d) => d.ruleIds.every((id) => id.startsWith('baseline.'))), `${row.market}: baseline only`);

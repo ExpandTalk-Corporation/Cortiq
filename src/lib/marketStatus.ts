@@ -47,8 +47,8 @@ export function marketStatus(market: Market): MarketStatus {
   let status: string;
   if (approved.length) {
     status = approved.length === PURPOSES.length
-      ? 'Approved rules for every purpose'
-      : `Approved rule for ${purposeList(approved).toLowerCase()}; baseline opt-in for the rest`;
+      ? 'Approved internally for every purpose'
+      : `Approved internally for ${purposeList(approved).toLowerCase()}; baseline opt-in for the rest`;
   } else if (!baselineOnly) {
     status = 'Stricter than opt-in (no approved rule yet)';
   } else if (statuses.has('reviewed_agent')) {

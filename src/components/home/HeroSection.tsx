@@ -44,11 +44,12 @@ export function HeroSection() {
             Every AI visit, classified.
           </h1>
           <p className="text-xl md:text-2xl font-semibold text-foreground mb-6 leading-snug">
-            On European sites, one AI bot visit for every 33 human visits. CortIQ shows which ones train on your content, which ones act for real users, and which ones cite you.{" "}
-            {/* Short reference; the full source sentence is the footnote under the Europe vs North America figures. */}
-            <a href={`#${AI_TRAFFIC_SOURCE_ID}`} className="whitespace-nowrap text-sm font-normal text-muted-foreground underline underline-offset-2 hover:text-foreground">
-              (TollBit, H1 2026)
+            On European sites, one AI bot visit for every 33 human visits
+            {/* Short reference next to the figure it sources; the full source sentence is the footnote under the Europe vs North America figures. */}
+            <a href={`#${AI_TRAFFIC_SOURCE_ID}`} className="ml-1 align-super whitespace-nowrap text-xs font-normal text-muted-foreground underline underline-offset-2 hover:text-foreground">
+              TollBit, H1 2026
             </a>
+            . CortIQ shows which ones train on your content, which ones act for real users, and which ones cite you.
           </p>
           <p className="text-lg text-foreground/80 mb-8 leading-relaxed">
             Plus consent-first visitor analytics, heatmaps and form analytics behind a built-in consent banner in 13 languages. EU-hosted.

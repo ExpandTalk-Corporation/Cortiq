@@ -86,7 +86,7 @@ export const ROUTING_FLOW = [
   },
   {
     step: "Country",
-    text: "Taken only from the signed edge location. Without one, CortIQ uses the markets you have selected, or EU/EEA, UK and Québec if you have selected none. Until you have answered where you operate, EU/EEA, UK and Québec are also checked.",
+    text: "Taken only from the signed edge location. Without one, CortIQ uses the markets you have selected (including your country of establishment), or EU/EEA, UK and Québec if you have selected none. Until you have answered where you operate, EU/EEA, UK and Québec are also checked.",
   },
   {
     step: "Purpose",
@@ -94,7 +94,7 @@ export const ROUTING_FLOW = [
   },
   {
     step: "Rule",
-    text: "The strictest matching rule decides. On customer sites only approved rules count; without one, the baseline is opt-in for every purpose. You can make a purpose stricter, never looser.",
+    text: "The strictest matching rule decides. On customer sites only approved rules count; without one, the baseline is opt-in for every purpose. You can make a purpose stricter, not looser.",
   },
 ];
 
@@ -105,7 +105,7 @@ export const ROUTING_OUTCOMES = [
   },
   {
     outcome: "Drop",
-    text: "Applied now for purposes you turn Off and for requests that carry GPC, as listed below. Opt-in and market rules are recorded only, not yet applied.",
+    text: "Applied now for purposes you turn Off, and for marketing data, aggregate counts and server-side requests when GPC is present (listed below). Opt-in and market rules are logged only, not yet applied.",
   },
   {
     outcome: "Log decision",
@@ -117,15 +117,15 @@ export const ROUTING_TODAY_LINE =
   "Today CortIQ does the same in every market: browser analytics waits for consent, aggregate counting runs only on sites that turn it on, server-side AI-agent measurement runs from the site's own server, and the market rules below are logged, not applied.";
 
 export const ROUTING_LAWS: Record<Market, string> = {
-  eu: "ePrivacy Directive art. 5(3) as implemented in each country (Sweden: LEK 9 kap. 28 §), and the GDPR",
+  eu: "ePrivacy Directive art. 5(3) as implemented in each country (Sweden: Electronic Communications Act (2022:482), ch. 9 s. 28), and the GDPR",
   uk: "PECR as amended by the Data (Use and Access) Act 2025, and the UK GDPR",
-  ch: "Federal Act on Data Protection (FADP) and Telecommunications Act art. 45c",
-  us_ca: "CCPA as amended by the CPRA",
-  us_other: "State privacy laws; several require honouring a universal opt-out signal such as GPC",
-  ca_qc: "Law 25 (CQLR c. P-39.1)",
-  ca_other: "PIPEDA, or a substantially similar provincial law",
-  br: "LGPD",
-  other: "No rule pack yet. Local law is the site owner's assessment.",
+  ch: "Federal Act on Data Protection (FADP, SR 235.1) and Telecommunications Act (SR 784.10) art. 45c",
+  us_ca: "CCPA as amended by the CPRA, and its regulations (incl. opt-out preference signals)",
+  us_other: "State privacy laws; several require honouring a universal opt-out signal such as GPC for sale and targeted advertising",
+  ca_qc: "Québec private-sector privacy act (CQLR c. P-39.1) as amended by Law 25",
+  ca_other: "PIPEDA (S.C. 2000, c. 5), or a substantially similar provincial law",
+  br: "LGPD (Law 13.709/2018)",
+  other: "No market-specific law reviewed. Local law is the site owner's assessment.",
 };
 
 export const ROUTING_RULES_NOTE =
@@ -142,11 +142,11 @@ export const ROUTING_WORKS_TODAY = [
   },
   {
     title: "Your own Off",
-    text: `A purpose you turn off is dropped now in ${ROUTING_OFF_COLLECTORS}`,
+    text: `New data for a purpose you turn off is dropped, within about a minute, in ${ROUTING_OFF_COLLECTORS}`,
   },
   {
     title: "Country of each consent",
-    text: "CortIQ already records which country each consent was given from. It comes from the signed edge location, or the browser time zone when that is missing.",
+    text: "CortIQ already records which country each consent was given from. It comes from the signed edge location, or the browser time zone when that is missing. Rules never use the time zone.",
   },
   {
     title: "Coverage per country",
