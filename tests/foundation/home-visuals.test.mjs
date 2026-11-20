@@ -60,7 +60,7 @@ const REVIEWED = [
   "the site owner confirms a checklist of what the privacy policy must cover. The confirmation is logged with its version and asked again when the checklist changes.",
   "CortIQ already records which country each consent was given from.",
   "CortIQ gives you the tools. The site operator makes the final legal assessment.",
-  "Source: TollBit, State of the Bots, Q4 2025, across its publisher network (up from 1 in 200 in Q1 2025).",
+  "Source: TollBit, State of the Bots H1 2026, median European publisher site on its network (North America: 1 in 93). Self-identified bots only.",
   "AI bots (excluding Googlebot) made up 4.2% of HTML requests in 2025 (Cloudflare Radar 2025 Year in Review), and training accounts for nearly 80% of AI crawling (Cloudflare, The crawl-to-click gap).",
   "gclid, fbclid, msclkid, ttclid and li_fat_id are kept only with marketing consent.",
   "Only visits with marketing consent are uploaded.",

@@ -18,6 +18,14 @@ const CATEGORY_STYLE: Record<BotCategory, { icon: LucideIcon; tag: string }> = {
   citation: { icon: Globe, tag: "Visibility signal" },
 };
 
+// TollBit, State of the Bots H1 2026 (publisher sites on its network, self-identified bots only).
+const REGIONS = [
+  { value: "1 : 33", compare: "North America 1 : 93", label: "AI bot visits per human visit, median site" },
+  { value: "179 : 1", compare: "North America 53 : 1", label: "AI assistant fetches per visitor they send back" },
+  { value: "227 : 1", compare: "Q1 2026: 150 : 1", label: "The same exchange in Europe in Q2 2026" },
+  { value: "41%", compare: "North America: 49% real-time fetches", label: "Of AI scraping in Europe is for training" },
+];
+
 export function AiTrafficSection() {
   return (
     <section className="py-20 px-4">
@@ -60,6 +68,28 @@ export function AiTrafficSection() {
               </Card>
             );
           })}
+        </div>
+        <div className="mt-16">
+          <h3 className="text-2xl font-bold text-center mb-2">Europe gets read more and visited less</h3>
+          <p className="text-center text-muted-foreground max-w-3xl mx-auto mb-8">
+            Europe vs North America, first half of 2026. The lower the first ratio and the higher the others, the worse for the site.
+          </p>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {REGIONS.map((r) => (
+              <Card key={r.label}>
+                <CardContent className="pt-6">
+                  <div className="text-3xl font-black text-foreground">{r.value}</div>
+                  <p className="mt-2 text-sm font-medium text-foreground">{r.label}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{r.compare}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <p className="mt-4 text-center text-sm text-muted-foreground max-w-3xl mx-auto">
+            Source: TollBit, State of the Bots H1 2026, publisher sites on its network. Counts only bots that identify themselves, so the real
+            numbers are likely higher. Daily requests from AI agents grew by more than 1,700% in a year (Cloudflare, The Internet has a second
+            audience, September 2026).
+          </p>
         </div>
         <p className="mt-8 text-center text-sm text-muted-foreground max-w-3xl mx-auto">
           AI bots (excluding Googlebot) made up 4.2% of HTML requests in 2025 (Cloudflare Radar 2025 Year in Review), and training accounts for nearly 80% of AI crawling (Cloudflare, The crawl-to-click gap).
