@@ -55,12 +55,20 @@ const CMP_LABELS: Record<ConsentCmp, string> = {
 };
 
 const LANGUAGE_LABELS: Record<BannerLanguage, string> = {
-  auto: 'Automatic (from the page’s <html lang>)',
+  auto: 'Automatic (from the page’s <html lang>, all languages)',
   sv: 'Swedish',
   en: 'English',
   de: 'German',
   fr: 'French',
   pt: 'Portuguese',
+  nl: 'Dutch',
+  nb: 'Norwegian',
+  da: 'Danish',
+  fi: 'Finnish',
+  pl: 'Polish',
+  it: 'Italian',
+  es: 'Spanish',
+  is: 'Icelandic',
 };
 
 /** Settings → Consent & cookie banner: the one place for banner choice, language and tracking mode. */
@@ -168,7 +176,11 @@ export function ConsentTab({ selectedSite, onSiteUpdated, onNavigate }: ConsentT
         <Card>
           <CardHeader>
             <CardTitle>Banner language</CardTitle>
-            <CardDescription>The CortIQ banner ships in Swedish, English, German, French and Portuguese.</CardDescription>
+            <CardDescription>
+              The CortIQ banner ships in Swedish, English, German, French, Portuguese, Dutch, Norwegian, Danish,
+              Finnish, Polish, Italian, Spanish and Icelandic. Pick your site’s language: the banner then loads a
+              file with only that language, about a third of the size of the automatic one.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Select value={language} onValueChange={(v) => changeLanguage(v as BannerLanguage)} disabled={saving}>

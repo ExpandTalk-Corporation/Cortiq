@@ -185,9 +185,18 @@ s.crossOrigin = 'anonymous';`,
         {
           type: 'code',
           lang: 'html',
-          code: `<script src="${SRI_BASE}/consent-banner.js"
-  integrity="${SRI_FILES['consent-banner.js']}" crossorigin="anonymous"
+          code: `<script src="${SRI_BASE}/consent-banner.min.js"
+  integrity="${SRI_FILES['consent-banner.min.js'] ?? SRI_FILES['consent-banner.js']}" crossorigin="anonymous"
   defer></script>`,
+        },
+        { type: 'p', text: 'That file carries every banner language and picks one from the page. A site with a fixed banner language loads a file with only that language instead. All banner files in this version and their hashes:' },
+        {
+          type: 'code',
+          lang: 'text',
+          code: Object.entries(SRI_FILES)
+            .filter(([name]) => name.startsWith('consent-banner'))
+            .map(([name, hash]) => `${name.padEnd(24)}${hash}`)
+            .join('\n'),
         },
         { type: 'note', tone: 'info', text: `These are the values for version ${SRI_VERSION}, the latest. Copy the full snippet from the dashboard rather than from this page: it also contains your Site ID and tracking key.` },
       ],

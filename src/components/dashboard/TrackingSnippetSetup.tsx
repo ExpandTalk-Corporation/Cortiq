@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { supabase } from '@/integrations/supabase/client';
 import { POLICY_CHECKLIST_VERSION, policyChecklist, type TrackingMode } from '@/lib/policyChecklist';
-import { bannerDetailsProblem, buildTrackingSnippet, type BannerLanguage, type ConsentSetup } from '@/lib/trackingSnippet';
+import { bannerDetailsProblem, bannerFile, buildTrackingSnippet, type BannerLanguage, type ConsentSetup } from '@/lib/trackingSnippet';
 import { defaultPinned, pinnedScripts, pinStatus, type SriManifest } from '@/lib/sriPin';
 import sriManifest from '@/lib/sri-manifest.json';
 import { toast } from 'sonner';
@@ -143,7 +143,7 @@ export function TrackingSnippetSetup({
   const bannerProblem = consentSetup === 'cortiq-banner' ? bannerDetailsProblem({ company, policyUrl }) : null;
   const gateProblem = bannerProblem
     ?? (withConsent && !confirmed ? 'Confirm that your privacy policy covers the items above to get the snippet.' : null);
-  const pin = pinnedScripts(scriptOrigin, sriManifest as SriManifest);
+  const pin = pinnedScripts(scriptOrigin, sriManifest as SriManifest, bannerFile(bannerLanguage));
   const usePin = pinned && withConsent;
   const status = pinStatus(pinnedVersion, sriManifest as SriManifest);
   const snippet = gateProblem ? '' : buildTrackingSnippet({
@@ -152,7 +152,7 @@ export function TrackingSnippetSetup({
     trackingKey,
     ...(usePin
       ? pin
-      : { scriptSrc: `${scriptOrigin}/cortiq.js`, bannerSrc: `${scriptOrigin}/consent-banner.js` }),
+      : { scriptSrc: `${scriptOrigin}/cortiq.js`, bannerSrc: `${scriptOrigin}/${bannerFile(bannerLanguage)}` }),
     aggregate: aggregateOn,
     consentSetup,
     company,
@@ -399,8 +399,9 @@ export function TrackingSnippetSetup({
               signals only if it is listed in <code>data-categories</code>.</li>
           )}
           <li>Language: {bannerLanguage === 'auto'
-            ? <>picked from <code>&lt;html lang&gt;</code> (Swedish, English, German, French, Portuguese).</>
-            : <>fixed with <code>data-lang="{bannerLanguage}"</code>.</>}
+            ? <>picked from <code>&lt;html lang&gt;</code>, so the file carries every language. A fixed language
+              loads a file with only its own texts, about a third of the size.</>
+            : <>fixed with <code>data-lang="{bannerLanguage}"</code>; the file carries only that language.</>}
             {' '}Change it under Settings → Consent &amp; cookie banner.</li>
           <li>The banner helps you collect and document consent. You remain responsible for your policy text and the
             purposes you list.</li>
