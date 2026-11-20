@@ -6,6 +6,8 @@
  */
 
 import { createClient } from '../_shared/supabase.ts';
+import { resolveGeo, geoKey } from '../_shared/geo.ts';
+import { jurisdictionGate, signalsFrom, visitorFrom } from '../_shared/jurisdiction-edge.ts';
 
 interface MediaEvent {
   media_id: string;
@@ -289,6 +291,20 @@ Deno.serve(async (req) => {
         return new Response(
           JSON.stringify({ error: 'site_id and event required' }),
           { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Jurisdiction (statistics): the customer's own Off drops now; opt_in and market rules stay shadow.
+      // No caller in this repo sends a consent gate, so evidence comes from the ledger only.
+      const drop = await jurisdictionGate(supabase, 'media-analytics', String(site_id), Deno.env.get('JURISDICTION_ENFORCE'), session_id).gate(async (ledger) => ({
+        visitor: visitorFrom(await resolveGeo(req, { key: geoKey(), timeZone: null })), purpose: 'statistics',
+        signals: signalsFrom(ledger, { trackerGate: [], gpcHeader: req.headers.get('sec-gpc') === '1' }),
+        technique: { storage: 'session', identifiers: 'session' },
+      }));
+      if (drop) {
+        return new Response(
+          JSON.stringify({ success: true, skipped: 'jurisdiction' }),
+          { status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
         );
       }
 

@@ -6,6 +6,8 @@
  */
 
 import { createClient } from '../_shared/supabase.ts';
+import { resolveGeo, geoKey } from '../_shared/geo.ts';
+import { jurisdictionGate, signalsFrom, visitorFrom } from '../_shared/jurisdiction-edge.ts';
 
 interface ContentInteraction {
   element_id: string;
@@ -334,6 +336,19 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const path = url.pathname;
 
+    // Jurisdiction (statistics) for the three POST collectors: the customer's own Off drops now; opt_in and
+    // market rules stay shadow. No caller in this repo sends a consent gate, so evidence is the ledger only.
+    const gated = (siteId: unknown, sessionId: unknown) =>
+      jurisdictionGate(supabase, 'content-tracking', String(siteId), Deno.env.get('JURISDICTION_ENFORCE'), sessionId ?? undefined).gate(async (ledger) => ({
+        visitor: visitorFrom(await resolveGeo(req, { key: geoKey(), timeZone: null })), purpose: 'statistics',
+        signals: signalsFrom(ledger, { trackerGate: [], gpcHeader: req.headers.get('sec-gpc') === '1' }),
+        technique: { storage: 'session', identifiers: 'session' },
+      }));
+    const skippedJurisdiction = () => new Response(
+      JSON.stringify({ success: true, skipped: 'jurisdiction' }),
+      { status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+    );
+
     // POST /content-tracking/element - Register content element
     if (path === '/content-tracking/element' && req.method === 'POST') {
       const body = await req.json();
@@ -345,6 +360,8 @@ Deno.serve(async (req) => {
           { status: 400, headers: { 'Content-Type': 'application/json' } }
         );
       }
+
+      if (await gated(site_id, undefined)) return skippedJurisdiction();
 
       const success = await registerContentElement(supabase, site_id, element);
 
@@ -368,6 +385,8 @@ Deno.serve(async (req) => {
           { status: 400, headers: { 'Content-Type': 'application/json' } }
         );
       }
+
+      if (await gated(site_id, session_id)) return skippedJurisdiction();
 
       const success = await trackContentInteraction(
         supabase,
@@ -409,6 +428,8 @@ Deno.serve(async (req) => {
           { status: 400, headers: { 'Content-Type': 'application/json' } }
         );
       }
+
+      if (await gated(site_id, session_id)) return skippedJurisdiction();
 
       const success = await trackScrollDepth(
         supabase,

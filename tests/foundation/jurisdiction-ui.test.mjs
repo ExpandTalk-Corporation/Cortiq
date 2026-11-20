@@ -36,7 +36,7 @@ test('CMPDashboard registers the tab', () => {
 
 test('Off applies now, opt-in and market rules are recorded only; Stopped column explains what it counts', () => {
   const tab = read('RulesByMarketTab.tsx');
-  assert.match(tab, /"Off" is applied now to page views and events, aggregate counts, AI-bot detection in the browser, conversions, click IDs, server-side AI-agent requests and ad-platform uploads\. Some other collectors do not check it yet\./);
+  assert.match(tab, /"Off" is applied now to page views and events, aggregate counts, link clicks, AI-search referrals, e-commerce purchases, Core Web Vitals, content and media interactions, AI-bot detection in the browser and canary links, conversions, click IDs, server-side AI-agent requests, Cloudflare traffic, imported server logs and ad-platform uploads\. Some other collectors do not check it yet\./);
   assert.doesNotMatch(tab, /stops data for that purpose on this site/, 'Off is not wired into every collector yet');
   assert.match(tab, /"Require opt-in" and the market rules are recorded only, not yet applied/);
   assert.match(tab, /your own Off is applied now to the data listed above/);

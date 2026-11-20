@@ -21,6 +21,7 @@ import { anonymizeIP } from '../_shared/ip.ts';
 import { deriveUACategory } from '../_shared/bot-detection.ts';
 import { dispatchNotifications } from '../_shared/notify.ts';
 import { resolveGeo, geoKey } from '../_shared/geo.ts';
+import { jurisdictionGate, runShadow, signalsFrom, visitorFrom } from '../_shared/jurisdiction-edge.ts';
 
 // 1×1 transparent GIF — served for pixel requests.
 const TRANSPARENT_GIF = new Uint8Array([
@@ -83,9 +84,21 @@ Deno.serve(async (req) => {
     const ipAnon     = anonymizeIP(rawIP);
     const uaCategory = deriveUACategory(rawUA);
 
-    // Persist hit + create incident — fire-and-forget so pixel response is immediate
-    logAndAlert(supabase, site.id, token, canaryType, ipAnon, uaCategory, country, referrer)
-      .catch(e => console.warn('[canary-tracker] logAndAlert error:', e));
+    // Jurisdiction: a canary hit is automated-agent evidence, so purpose agent_measurement (same as
+    // ai-bot-tracker). The customer's own Off drops now; opt_in and market rules stay shadow. No ledger:
+    // the token is not a CortIQ session. The gate runs with the write, after the response, so the
+    // answer never reveals whether anything was stored.
+    const gate = jurisdictionGate(supabase, 'canary-tracker', site.id, Deno.env.get('JURISDICTION_ENFORCE')).gate(() => ({
+      visitor: visitorFrom(geo), purpose: 'agent_measurement',
+      signals: signalsFrom(null, { trackerGate: [], gpcHeader: req.headers.get('sec-gpc') === '1' }),
+      technique: { storage: 'none', identifiers: 'none' },
+    }));
+
+    // Persist hit + create incident — off the response path so pixel response is immediate
+    runShadow((async () => {
+      if (await gate) return;
+      await logAndAlert(supabase, site.id, token, canaryType, ipAnon, uaCategory, country, referrer);
+    })().catch(e => console.warn('[canary-tracker] logAndAlert error:', e)));
 
     return respond(canaryType);
 

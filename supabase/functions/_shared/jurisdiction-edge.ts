@@ -8,7 +8,10 @@ import {
 } from './jurisdiction/index.ts';
 
 export const INGEST_FUNCTIONS = ['aggregate-hit', 'server-hit', 'ai-bot-tracker', 'track-event', 'visitor-identification',
-  'record-conversion', 'store-consent', 'google-ads-quality-upload'] as const;
+  'record-conversion', 'store-consent', 'google-ads-quality-upload',
+  // Wired 2026-11-20; migration 20261208000002 adds them to the decision log's fn CHECK (keep both lists equal).
+  'ai-search-tracker', 'link-click-counter', 'ecommerce-tracking', 'canary-tracker', 'track-web-vitals',
+  'pixel-tracking', 'content-tracking', 'media-analytics', 'cloudflare-ingest', 'import-server-logs'] as const;
 export type IngestFn = typeof INGEST_FUNCTIONS[number];
 
 export interface SitePolicy { customer: CustomerProfile | null; tighten: Partial<Record<Purpose, string>>; exceptions: ApprovedException[]; testSite: boolean }

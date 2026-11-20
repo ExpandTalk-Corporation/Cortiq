@@ -152,3 +152,16 @@ test('followups: purpose security becomes agent_measurement; daily counts merge 
     await assert.rejects(pg.query(`INSERT INTO site_jurisdiction_tighten (site_id, purpose, setting) VALUES ('${S2}', 'security', 'off')`), /check/i);
   } finally { await pg.close(); }
 });
+
+test('more collectors (20261208000002): the fn CHECK accepts exactly INGEST_FUNCTIONS', async () => {
+  const { INGEST_FUNCTIONS } = await import('../../supabase/functions/_shared/jurisdiction-edge.ts');
+  const pg = await hardenedDb();
+  try {
+    await pg.exec(read('../../supabase/migrations/20261208000002_jurisdiction_more_collectors.sql'));
+    for (const fn of INGEST_FUNCTIONS) await log(pg, { fn, purpose: 'statistics' });
+    assert.equal((await pg.query('SELECT count(DISTINCT fn)::int n FROM jurisdiction_decisions_daily')).rows[0].n, INGEST_FUNCTIONS.length);
+    await assert.rejects(log(pg, { fn: 'agent-telemetry' }), /check/i);
+    const def = (await pg.query(`SELECT pg_get_constraintdef(oid) d FROM pg_constraint WHERE conname = 'jurisdiction_decisions_daily_fn_check'`)).rows[0].d;
+    assert.equal((def.match(/'[a-z-]+'/g) ?? []).length, INGEST_FUNCTIONS.length, 'CHECK and INGEST_FUNCTIONS list the same names');
+  } finally { await pg.close(); }
+});

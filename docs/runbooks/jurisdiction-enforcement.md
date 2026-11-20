@@ -24,13 +24,34 @@ A policy load that fails or takes more than 1.5 s falls back to the safe default
 The server adapters (5.5.20+) do not send a request that carries `Sec-GPC: 1`, so server-hit's GPC skip count and its
 `agent_measurement` decisions only see GPC from older adapters and own integrations. A near-zero count is expected.
 
+### 2026-11-20 second follow-up (ten more collectors)
+1. `supabase db push --remote --yes` for `20261208000002_jurisdiction_more_collectors.sql` (the decision log's `fn`
+   CHECK accepts the ten names below). Deploy the functions after it: in the other order their decision logs fail the
+   CHECK (reported in the function log only; the customer's Off still applies and no hit is lost).
+2. `supabase functions deploy ai-search-tracker link-click-counter ecommerce-tracking canary-tracker track-web-vitals
+   pixel-tracking content-tracking media-analytics cloudflare-ingest import-server-logs`.
+3. `npm run build` and dist FTP for the dashboard copy in `RulesByMarketTab.tsx`. No tracker or plugin change.
+
+Purposes: `statistics` for all of them except `canary-tracker` (`agent_measurement`: its hits are bot evidence) and
+`cloudflare-ingest`, which decides per hit (`agent_measurement` for automated traffic, `statistics` for the anonymous
+human count). `import-server-logs` is `statistics`: it skips bots and aggregates human page views only.
+`cloudflare-ingest` drops a hit sent with `gpc: true` and `import-server-logs` skips JSON log lines with `gpc: true` or
+`sec_gpc: "1"` (counted as `objected_lines`); both only log those decisions, as server-hit does. The current Worker never
+sends such a hit.
+
+Found while wiring (not fixed here):
+- `ecommerce-tracking`: `spa-tracking.js` `trackEcommercePurchase` sends no `consentGranted`, so the function answers 400.
+- `content-tracking`, `media-analytics`: no live caller (the dashboard calls relative `/api/...` URLs); the POST body's
+  `site_id` is not validated against a key, and the GET endpoints return any site's data by `site_id` without auth.
+  Recommend removing both functions or adding auth.
+- `track-web-vitals`: no caller in this repo.
+
 ## Not yet wired
-These collectors receive data for the same purposes but do not call the gate, so a customer Off does not reach them
-yet and the dashboard copy does not claim it does. Wire each through `jurisdictionGate` (or `decideAndLog`) and add it
-to the copy in `RulesByMarketTab.tsx` when it is done.
-- statistics, called by `spa-tracking.js`: `ai-search-tracker`, `link-click-counter`, `ecommerce-tracking`, `canary-tracker`.
-- statistics, other: `track-web-vitals`, `pixel-tracking`, `content-tracking`, `media-analytics`, `agent-telemetry`.
-- agent_measurement (`ai_bot_traffic`): `cloudflare-ingest`, `import-server-logs`. Neither honours `Sec-GPC` either.
+These collectors do not call the gate, so a customer Off does not reach them and the dashboard copy does not claim it
+does. Wire each through `jurisdictionGate` (or `decideAndLog`) and add it to the copy in `RulesByMarketTab.tsx` when done.
+- `agent-telemetry`: not wired on purpose. It stores company-scoped OpenTelemetry spans from the customer's own AI agents
+  (no `site_id`, no visitor data), so no site purpose applies. Revisit if it ever records site visitors.
+- Not assessed in the 2026-11-20 pass: `hubspot-lead-webhook` (updates lead quality on existing conversion rows).
 
 ## Before turning on enforcement for a function
 1. Run in shadow for at least 14 days after deploy.

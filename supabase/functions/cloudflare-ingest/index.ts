@@ -3,6 +3,7 @@ import { createClient } from "../_shared/supabase.ts";
 // Canonical AI-bot classifier — shared with ai-bot-tracker so server-log hits are
 // classified identically to JS-tag hits and merge cleanly in the dashboard.
 import { classifyBot, storedBotCategory } from "../_shared/ai-bot-registry.ts";
+import { jurisdictionGate, runShadow, signalsFrom } from "../_shared/jurisdiction-edge.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -248,6 +249,29 @@ serve(async (req) => {
     const ai = classifyBot(userAgent ?? '');
     const automated = ai.registryMatch || (visitorType !== 'human' && visitorType !== 'unknown');
     const path = String(urlPath).split('?')[0].slice(0, 500) || '/';
+
+    // Jurisdiction: automated hits are agent measurement, the anonymous human count is statistics.
+    // The Worker geo is unsigned, so the engine judges by the site's markets (as server-hit does).
+    const jurisdiction = jurisdictionGate(supabase, 'cloudflare-ingest', siteId, Deno.env.get('JURISDICTION_ENFORCE'));
+    const decide = (gpcHeader: boolean) => jurisdiction.gate(() => ({
+      visitor: { country: null, region: null, geoSource: 'adapter' },
+      purpose: automated ? 'agent_measurement' : 'statistics',
+      signals: signalsFrom(null, { trackerGate: [], gpcHeader }),
+      technique: { storage: 'none', identifiers: 'none' },
+    }));
+    // The visitor objected (Sec-GPC: 1 forwarded as gpc: true by an own integration; the current
+    // Worker never sends such a hit): store nothing, only log the decision.
+    if (body.gpc === true) {
+      runShadow(decide(true));
+      return new Response(JSON.stringify({ ok: true, skipped: 'gpc' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    if (await decide(false)) {
+      return new Response(JSON.stringify({ ok: true, skipped: 'jurisdiction' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     await supabase.from('cloudflare_traffic').insert({
       site_id:      siteId,
