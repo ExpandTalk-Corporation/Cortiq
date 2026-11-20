@@ -109,14 +109,18 @@ function cortiq_hit( $status ) {
 		'userAgent' => isset( $_SERVER['HTTP_USER_AGENT'] ) ? substr( (string) $_SERVER['HTTP_USER_AGENT'], 0, 512 ) : '',
 		'referrer'  => cortiq_clean_referrer(),
 		'ip'        => cortiq_truncate_ip( isset( $_SERVER['REMOTE_ADDR'] ) ? $_SERVER['REMOTE_ADDR'] : '' ),
-		// The visitor's objection (GDPR art. 21): CortIQ stores nothing for this hit.
-		'gpc'       => ( $_SERVER['HTTP_SEC_GPC'] ?? '' ) === '1',
 	);
+}
+
+function cortiq_gpc() {
+	return ( $_SERVER['HTTP_SEC_GPC'] ?? '' ) === '1';
 }
 
 // Sent after the response: the crawler gets the page first, the report follows.
 function cortiq_send( array $hit ) {
 	if ( strlen( CORTIQ_SITE_KEY ) < 20 || strpos( CORTIQ_SITE_KEY, 'YOUR_' ) !== false ) return;
+	// Sec-GPC: 1 – CortIQ treats it as an objection (GDPR art. 21(5)); this hit is not sent.
+	if ( cortiq_gpc() ) return;
 	ignore_user_abort( true );
 	if ( function_exists( 'fastcgi_finish_request' ) ) {
 		fastcgi_finish_request();

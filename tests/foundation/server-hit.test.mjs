@@ -169,9 +169,30 @@ test('objection: a hit with gpc: true is counted as ignored and never stored; it
   assert.equal(inserted(only.calls).length, 0);
 });
 
-test('adapters forward Sec-GPC per hit', () => {
-  assert.match(readFileSync('public/cortiq-server.mjs', 'utf8'), /gpc: header\(request\.headers, 'sec-gpc'\) === '1'/);
-  assert.match(readFileSync('public/cloudflare-worker.js', 'utf8'), /gpc: request\.headers\.get\('sec-gpc'\) === '1'/);
-  assert.match(readFileSync('public/cortiq-server-php.txt', 'utf8'), /'gpc'\s*=>\s*\( \$_SERVER\['HTTP_SEC_GPC'\] \?\? '' \) === '1'/);
-  assert.match(readFileSync('wordpress-plugin/cortiq-analytics.php', 'utf8'), /'gpc'\s*=>\s*\( isset\( \$_SERVER\['HTTP_SEC_GPC'\] \)[^\n]*\) === '1'/);
+test('adapters do not send a request that carries Sec-GPC: 1, and hits carry no gpc field', () => {
+  // The GPC check is the first thing in the function that decides or sends, so no request leaves the server.
+  const firstIn = (src, fn, check) => {
+    const at = src.indexOf(fn);
+    assert.ok(at >= 0, fn);
+    const body = src.slice(at, src.indexOf('\n}', at) >= 0 ? src.indexOf('\n}', at) : undefined);
+    const checkAt = body.indexOf(check);
+    assert.ok(checkAt > 0, `${fn} checks ${check}`);
+    for (const send of ['fetch(', 'doFetch(', 'curl_', 'wp_remote_post', 'toHit(', '$GLOBALS']) {
+      const s = body.indexOf(send);
+      if (s >= 0) assert.ok(checkAt < s, `${fn}: GPC check before ${send}`);
+    }
+  };
+  const mjs = readFileSync('public/cortiq-server.mjs', 'utf8');
+  firstIn(mjs, 'function shouldReport(request)', "if (header(request.headers, 'sec-gpc') === '1') return false;");
+  assert.match(mjs, /if \(!shouldReport\(request\)\) return Promise\.resolve\(\);/);
+  const worker = readFileSync('public/cloudflare-worker.js', 'utf8');
+  firstIn(worker, 'async function report(', "if (request.headers.get('sec-gpc') === '1') return;");
+  const php = readFileSync('public/cortiq-server-php.txt', 'utf8');
+  assert.match(php, /function cortiq_gpc\(\) \{\s+return \( \$_SERVER\['HTTP_SEC_GPC'\] \?\? '' \) === '1';/);
+  firstIn(php, 'function cortiq_send( array $hit )', 'if ( cortiq_gpc() ) return;');
+  const wp = readFileSync('wordpress-plugin/cortiq-analytics.php', 'utf8');
+  assert.match(wp, /function cortiq_gpc\(\) \{\s+return isset\( \$_SERVER\['HTTP_SEC_GPC'\] \) && [^\n]*=== '1';/);
+  firstIn(wp, 'function cortiq_report_request( $opts, $status )', 'if ( cortiq_gpc() ) return;');
+  for (const src of [mjs, worker]) assert.doesNotMatch(src, /\bgpc:/);
+  for (const src of [php, wp]) assert.doesNotMatch(src, /'gpc'\s*=>\s*\(/);
 });

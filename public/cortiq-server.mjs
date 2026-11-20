@@ -6,10 +6,12 @@
  *   - requests whose User-Agent looks like a bot or AI agent,
  *   - fetches of /robots.txt, /llms.txt, /llms-full.txt,
  *   - hits on the hidden honeypot link (/cortiq-trap/) you put in your HTML.
- * Ordinary human requests are never sent. The client IP is truncated here (/24 IPv4,
+ * Ordinary human page requests are not sent. The client IP is truncated here (/24 IPv4,
  * /48 IPv6) before anything leaves your server, and query strings are dropped.
  * Nothing is read from or stored on the visitor's device, so no consent banner is
  * involved; the data is still personal data under GDPR (mention it in your privacy policy).
+ * A request that carries Sec-GPC: 1 is not sent at all: CortIQ treats it as an objection
+ * (GDPR art. 21(5)). Your privacy policy still needs your own way for visitors to object.
  *
  * Works anywhere with the Fetch API: Next.js middleware, Vercel/Netlify edge functions,
  * Cloudflare Workers, Deno, Bun, Node 18+ (Express helper below).
@@ -86,6 +88,8 @@ export function createCortiq({ siteKey, endpoint = DEFAULT_ENDPOINT, fetchImpl }
 
   function shouldReport(request) {
     if (!enabled) return false;
+    // Sec-GPC: 1 – CortIQ treats it as an objection (GDPR art. 21(5)); this hit is not sent.
+    if (header(request.headers, 'sec-gpc') === '1') return false;
     if (isTrap(request) || WATCHED_FILES.has(pathOf(request.url))) return true;
     return AGENT_UA.test(header(request.headers, 'user-agent') || '');
   }
@@ -100,8 +104,6 @@ export function createCortiq({ siteKey, endpoint = DEFAULT_ENDPOINT, fetchImpl }
       userAgent: (header(request.headers, 'user-agent') || '').slice(0, 512),
       referrer: cleanReferrer(header(request.headers, 'referer')),
       ip: truncateIp(clientIp(request.headers)) || undefined,
-      // The visitor's objection (GDPR art. 21): CortIQ stores nothing for this hit.
-      gpc: header(request.headers, 'sec-gpc') === '1',
     };
   }
 

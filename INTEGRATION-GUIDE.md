@@ -304,7 +304,7 @@ Most AI training and citation crawlers (GPTBot, ClaudeBot, PerplexityBot, Google
 - fetches of `/robots.txt`, `/llms.txt`, `/llms-full.txt`,
 - hits on a hidden honeypot link (`/cortiq-trap/`) that `robots.txt` disallows.
 
-Human requests are never sent. The IP is truncated (/24 IPv4, /48 IPv6) and the query string dropped before anything leaves your server. Nothing runs in the visitor's browser.
+Ordinary human page requests are not sent (a person who opens the honeypot link is counted as a signal only, without IP or user agent). A request that carries `Sec-GPC: 1` is not sent either. The IP is truncated (/24 IPv4, /48 IPv6) and the query string dropped before anything leaves your server. Nothing runs in the visitor's browser.
 
 | Stack | Adapter |
 |---|---|
@@ -375,12 +375,12 @@ POST https://[YOUR_PROJECT_REF].supabase.co/functions/v1/server-hit
 Authorization: Bearer tk_…
 Content-Type: application/json
 
-{"hits":[{"url":"https://example.com/page","userAgent":"Mozilla/5.0 (compatible; GPTBot/1.2)","ip":"203.0.113.0","status":200,"referrer":"https://…","gpc":false}]}
+{"hits":[{"url":"https://example.com/page","userAgent":"Mozilla/5.0 (compatible; GPTBot/1.2)","ip":"203.0.113.0","status":200,"referrer":"https://…"}]}
 ```
 
 Up to 100 hits per request. Every hit's host must belong to the key's site (other hosts are rejected). Response: `{ accepted, stored, ignored, rejected }`. CortIQ stores AI-registry bots and honeypot visitors (`ai_bot_traffic`, `source = 'server_log'`, `server_signal = request | robots_txt | llms_txt | honeypot`) and discards everything else. Honeypot hits from user agents the registry does not classify are kept as a signal only, without IP, user agent, country or referrer. The truncated IP is cleared after 30 days.
 
-`gpc` is `true` when the request carried `Sec-GPC: 1`: the visitor objects (GDPR art. 21), and CortIQ counts the hit as ignored and stores nothing. The bundled adapters (`cortiq-server.mjs`, the Cloudflare Worker, the PHP adapter and the WordPress plugin from 5.5.20) send it on every hit; a hit without the field is treated as not objected.
+CortIQ treats `Sec-GPC: 1` as an objection by automated means (GDPR art. 21(5)): the bundled adapters (`cortiq-server.mjs`, the Cloudflare Worker, the PHP adapter and the WordPress plugin from 5.5.20) do not send such a request, so nothing is stored for it. If you call the endpoint yourself, skip those requests too; a hit sent with `"gpc": true` is counted as ignored and discarded. This does not replace your own objection channel: your privacy policy still needs to say how visitors can object in other ways.
 
 ---
 

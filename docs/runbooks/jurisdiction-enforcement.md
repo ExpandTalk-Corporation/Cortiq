@@ -15,7 +15,8 @@ Technical defaults, not legal advice. Every step that changes what is measured n
    track-event, visitor-identification, record-conversion, google-ads-quality-upload, store-consent, geo-check.
    From this deploy, a customer `off` drops data without `JURISDICTION_ENFORCE`.
 3. `npm run build` (shared version 5.5.20, pinned `public/v/5.5.20/`), dist FTP, then publish WP plugin 5.5.20 so
-   WordPress sites forward `Sec-GPC`. Customers using `cortiq-server.mjs`, the Worker or the PHP adapter re-copy the file.
+   WordPress sites stop sending requests that carry `Sec-GPC: 1`. Customers using `cortiq-server.mjs`, the Worker or
+   the PHP adapter re-copy the file.
 
 The ingest functions cache each site's policy for 60 s per isolate, so a new Off can take up to a minute to apply.
 A policy load that fails or takes more than 1.5 s falls back to the safe default, which applies no Off for that request.

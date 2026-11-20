@@ -20,8 +20,9 @@
  *
  * Body: { hits: [{ url, userAgent, method?, status?, referrer?, ip?, country?, region?, gpc? }] }  (max 25, ≤ 64 KB)
  *
- * Objection (GDPR art. 21): adapters forward the request's `Sec-GPC: 1` as `gpc: true`. Such a hit is
- * counted with the ignored hits and nothing is stored. Old adapters send no field = no objection.
+ * Objection (GDPR art. 21(5)): the bundled adapters (5.5.20+) do not send a request that carries
+ * `Sec-GPC: 1`. A hit that still arrives with `gpc: true` (an own integration or an older adapter build)
+ * is counted with the ignored hits and nothing is stored. No field = no objection.
  * Honeypot hits from user agents the registry does not classify are kept as a count/signal only:
  * no IP, user agent, country/region or referrer.
  */
@@ -127,7 +128,7 @@ Deno.serve(async (req) => {
     // Store registry-classified AI bots, and anyone following the honeypot link
     // (a hidden, robots.txt-disallowed URL no human navigates to).
     if (!bot.registryMatch && signal !== 'honeypot') { ignored++; continue; }
-    // The visitor objected (Sec-GPC: 1 forwarded by the adapter): store nothing.
+    // The visitor objected (Sec-GPC: 1 forwarded by an own integration or older adapter): store nothing.
     if (raw.gpc === true) { ignored++; objected++; continue; }
 
     // An unclassified honeypot visitor may be a person: keep only that the trap was hit.

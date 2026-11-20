@@ -88,7 +88,7 @@ The tracking script is loaded with `defer` so it does not block rendering.
 == Changelog ==
 
 = 5.5.20 =
-* Server-side agent measurement forwards the visitor's Global Privacy Control signal (Sec-GPC) with each hit; CortIQ stores nothing for a hit that carries it.
+* Server-side agent measurement does not send a request that carries Global Privacy Control (Sec-GPC: 1); CortIQ treats it as an objection.
 
 = 5.5.19 =
 * The consent banner sends the language it was shown in with each answer, so acceptance can be compared per language.
