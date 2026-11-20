@@ -39,16 +39,44 @@ export function parseSitePolicy(raw: unknown): SitePolicy {
   return { customer, tighten, exceptions, testSite: raw.testSite === true };
 }
 
+// null = the load failed (caller falls back to STRICT_POLICY).
 // deno-lint-ignore no-explicit-any
-export async function loadSitePolicy(client: any, siteId: string): Promise<SitePolicy> {
+async function fetchSitePolicy(client: any, siteId: string): Promise<SitePolicy | null> {
   try {
     const { data, error } = await client.rpc('get_site_jurisdiction', { p_site_id: siteId });
-    if (error) { console.error('jurisdiction: policy load failed:', error.message); return STRICT_POLICY; }
+    if (error) { console.error('jurisdiction: policy load failed:', error.message); return null; }
     return parseSitePolicy(data);
   } catch (e) {
     console.error('jurisdiction: policy load threw:', (e as Error).message);
-    return STRICT_POLICY;
+    return null;
   }
+}
+
+// deno-lint-ignore no-explicit-any
+export async function loadSitePolicy(client: any, siteId: string): Promise<SitePolicy> {
+  return (await fetchSitePolicy(client, siteId)) ?? STRICT_POLICY;
+}
+
+// Ingest path: the policy is cached per isolate for 60 s (a new Off can take up to a minute to apply)
+// and the RPC gets 1.5 s. A failure or timeout is not cached and gives STRICT_POLICY, which has no
+// tighten and so never drops in shadow.
+export const POLICY_TTL_MS = 60_000;
+export const POLICY_TIMEOUT_MS = 1_500;
+const policyCache = new Map<string, { policy: SitePolicy; expires: number }>();
+/** Test seam: forget every cached policy. */
+export const resetPolicyCache = (): void => policyCache.clear();
+
+// deno-lint-ignore no-explicit-any
+export async function cachedSitePolicy(client: any, siteId: string): Promise<SitePolicy> {
+  const hit = policyCache.get(siteId);
+  if (hit && hit.expires > Date.now()) return hit.policy;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), POLICY_TIMEOUT_MS); });
+  const loaded = await Promise.race([fetchSitePolicy(client, siteId), timeout]);
+  clearTimeout(timer);
+  if (!loaded) return STRICT_POLICY;
+  policyCache.set(siteId, { policy: loaded, expires: Date.now() + POLICY_TTL_MS });
+  return loaded;
 }
 
 export function isEnforced(fn: IngestFn, flag: string | null | undefined): boolean {
@@ -108,7 +136,9 @@ const NEVER_DROPS: ReadonlySet<IngestFn> = new Set(['store-consent']);
 
 // The customer's own Off is the controller's documented instruction (GDPR art. 28(3)(a)) and
 // applies now; opt_in and every market rule stay shadow until JURISDICTION_ENFORCE lists the function.
-// STRICT_POLICY (failed policy load) has no tighten, so it never matches and never drops in shadow.
+// Read from the policy, not from decide()'s reason: a market rule that already blocks reports
+// rule_blocked, and the Off must still apply. STRICT_POLICY (failed policy load) has no tighten,
+// so it never matches and never drops in shadow.
 export const customerOff = (fn: IngestFn, policy: SitePolicy, purpose?: Purpose): boolean =>
   !NEVER_DROPS.has(fn) && (purpose ? policy.tighten[purpose] === 'off' : Object.values(policy.tighten).includes('off'));
 
@@ -123,8 +153,15 @@ function decideOnly(fn: IngestFn, input: DecideInput, policy: SitePolicy, enforc
     return null;
   }
   // `enforce` (logged as p_enforced) = the decision was applied: the flag, or the customer's own Off.
-  const applied = enforce || (d.reason === 'customer_off' && !NEVER_DROPS.has(fn));
-  return { ...d, enforce: applied, drop: applied && !d.permit };
+  const off = customerOff(fn, policy, input.purpose);
+  return { ...d, enforce: enforce || off, drop: off || (enforce && !d.permit) };
+}
+
+// decide() threw: fail closed when enforced or when the customer turned this purpose off.
+function decideFailed(fn: IngestFn, input: DecideInput, policy: SitePolicy, enforce: boolean): GateDecision {
+  const drop = enforce || customerOff(fn, policy, input.purpose);
+  if (drop) console.error(`jurisdiction: ${fn} dropped ${input.purpose} because decide failed`);
+  return { ...DECIDE_FAILED, enforce: drop, drop };
 }
 
 // deno-lint-ignore no-explicit-any
@@ -148,8 +185,8 @@ export async function decideAndLog(
 ): Promise<GateDecision> {
   const enforce = isEnforced(fn, flag);
   const d = decideOnly(fn, input, policy, enforce);
-  // Fail closed when enforced; in shadow mode nothing changes. Nothing valid to log.
-  if (!d) return { ...DECIDE_FAILED, enforce, drop: enforce };
+  // Fail closed when enforced or Off; otherwise nothing changes in shadow. Nothing valid to log.
+  if (!d) return decideFailed(fn, input, policy, enforce);
   await logDecision(client, fn, siteId, input, d, count);
   return d;
 }
@@ -165,7 +202,7 @@ export function runShadow(p: Promise<unknown>): void {
 
 // One request's jurisdiction gate. Policy and ledger load once (sessionId undefined = no ledger read).
 // Enforced: policy and ledger load in parallel and gate() waits for the decision.
-// Not enforced: gate() waits only for the policy. Without a customer Off for the purpose being
+// Not enforced: gate() waits only for the policy (cached, see cachedSitePolicy). Without a customer Off for the purpose being
 // handled, ledger, decide and log run inside runShadow and gate() resolves false. With one, it
 // decides inline and drops; the log still runs in the background. store-consent never waits.
 export function jurisdictionGate(
@@ -175,7 +212,7 @@ export function jurisdictionGate(
   const enforce = isEnforced(fn, flag);
   let policyP: Promise<SitePolicy> | null = null;
   let ledgerP: Promise<Ledger | null> | null = null;
-  const policy = () => (policyP ??= loadSitePolicy(client, siteId));
+  const policy = () => (policyP ??= cachedSitePolicy(client, siteId));
   const ledger = () => (ledgerP ??= sessionId === undefined ? Promise.resolve(null) : readLedger(client, siteId, sessionId));
   return {
     enforce,
@@ -200,7 +237,7 @@ export function jurisdictionGate(
         return false;
       }
       const d = decideOnly(fn, input, p, false);
-      if (!d) return false;
+      if (!d) return decideFailed(fn, input, p, false).drop;
       runShadow(logDecision(client, fn, siteId, input, d, count));
       return d.drop;
     },

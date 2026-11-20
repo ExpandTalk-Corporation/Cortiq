@@ -1,11 +1,12 @@
 // tests/foundation/jurisdiction-customer-off.test.mjs
 // Decided 2026-11-20: the customer's own "Off" applies now, without JURISDICTION_ENFORCE; "Require opt-in"
 // and the market rules stay shadow. Sites without an Off keep the shadow path off the response.
-import { test } from 'node:test';
+import { test, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadEdge, mockDatabase } from './edge-harness.mjs';
 import { signGeo, GEO_HEADER } from '../../supabase/functions/_shared/geo-token.js';
-import { gateAdsUpload, STRICT_POLICY } from '../../supabase/functions/_shared/jurisdiction-edge.ts';
+import { gateAdsUpload, jurisdictionGate, resetPolicyCache, STRICT_POLICY, POLICY_TIMEOUT_MS } from '../../supabase/functions/_shared/jurisdiction-edge.ts';
+import { PACK } from '../../supabase/functions/_shared/jurisdiction/packs.ts';
 
 const SITE = '11111111-1111-4111-8111-111111111111';
 const OWNER = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -40,17 +41,25 @@ const post = (path, body, headers = {}) => new Request(`https://fn.test/${path}`
   method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) });
 const geoHeader = async (country) => ({ [GEO_HEADER]: await signGeo({ country, region: null, ip: '203.0.113.9' }, GEO_KEY, Math.floor(Date.now() / 1000)) });
 
-// Runs one request. With `slow`, the log (and the gate's ledger read, unless slowLedger is false) hang until
-// after the response is checked.
+// Resolves 'answered' when `p` settles, or 'stuck' if it has not after 2 s. The 2 s only bounds a
+// failing test; a passing one never depends on timing, because the held work is released only after.
+async function answered(p) {
+  let timer;
+  const stuck = new Promise((r) => { timer = setTimeout(() => r('stuck'), 2000); });
+  const out = await Promise.race([p.then(() => 'answered'), stuck]);
+  clearTimeout(timer);
+  return out;
+}
+
+// Runs one request. With `slow`, the log (and the gate's ledger read, unless slowLedger is false) are held
+// on a promise the test releases only after the response has arrived.
 async function run(name, request, { site, policy = null, ledger, extra, env = {}, slow = false, slowLedger = true }) {
   let release = () => {};
   const hold = slow ? new Promise((r) => { release = r; }) : null;
   const d = db({ site, policy, ledger, extra, hold, holdLedger: slowLedger });
   const handler = loadEdge(name, d.client, { env: { GEO_SIGNING_KEY: GEO_KEY, ...env }, flushWaitUntil: !slow });
-  let settled = false;
-  const pending = handler(await request()).then((res) => { settled = true; return res; });
-  if (slow) await new Promise((r) => setTimeout(r, 20));
-  const answeredBeforeLog = settled;
+  const pending = handler(await request());
+  const answeredBeforeLog = slow ? (await answered(pending)) === 'answered' : true;
   release();
   const res = await pending;
   if (slow) await Promise.all(handler.waitUntilWork);
@@ -236,4 +245,80 @@ test('gateAdsUpload: customer Off for ad_platform_sharing drops without the flag
   assert.equal((await gateAdsUpload(ledgerDb().client, SITE, 's-1', { ...STRICT_POLICY, tighten: { ad_platform_sharing: 'opt_in' } }, undefined)).drop, false);
   // A failed policy load (STRICT_POLICY) never drops in shadow.
   assert.equal((await gateAdsUpload(ledgerDb().client, SITE, 's-1', STRICT_POLICY, undefined)).drop, false);
+});
+
+// ---------- Off is read from the policy, and fails closed ----------
+const statsInput = (over = {}) => () => ({ visitor: { country: 'SE', region: null, geoSource: 'ip' }, purpose: 'statistics',
+  signals: { consent: { analytics: true, marketing: true }, evidence: 'ledger', gpc: false }, technique: { storage: 'none', identifiers: 'none' }, ...over });
+const policyClient = (policy) => db({ site: null, policy }).client;
+// A rule that already blocks statistics in every market: decide() then reports rule_blocked, not customer_off.
+const BLOCKING = { version: 'test-blocking', rules: [{ ...PACK.rules[0], id: 'test.block', version: 1,
+  markets: ['eu', 'uk', 'ch', 'us_ca', 'us_other', 'ca_qc', 'ca_other', 'br', 'other'], purposes: ['statistics'], outcome: 'blocked',
+  relaxable: false, status: 'approved_internal', law: null, effectiveFrom: '2020-01-01',
+  technique: { storage: 'persistent', identifiers: 'cross_site' }, approval: { approvedBy: 'test', approvedAt: '2026-11-01', reviewDue: '2027-01-31' } }] };
+
+test('Off still drops in shadow when a market rule already blocks the purpose', async () => {
+  resetPolicyCache();
+  const off = jurisdictionGate(policyClient(tighten({ statistics: 'off' })), 'track-event', SITE, undefined);
+  assert.equal(await off.gate(statsInput({ pack: BLOCKING })), true);
+  resetPolicyCache();
+  const noOff = jurisdictionGate(policyClient(tighten({ conversion: 'off' })), 'track-event', SITE, undefined);
+  assert.equal(await noOff.gate(statsInput({ pack: BLOCKING })), false, 'a blocking rule alone stays shadow');
+});
+
+test('Off fails closed: decide() throwing on an Off purpose drops; other purposes and store-consent do not', async () => {
+  const broken = { pack: { version: 'broken', rules: null } };
+  resetPolicyCache();
+  assert.equal(await jurisdictionGate(policyClient(tighten({ statistics: 'off' })), 'track-event', SITE, undefined).gate(statsInput(broken)), true);
+  resetPolicyCache();
+  assert.equal(await jurisdictionGate(policyClient(tighten({ conversion: 'off' })), 'track-event', SITE, undefined).gate(statsInput(broken)), false);
+  resetPolicyCache();
+  assert.equal(await jurisdictionGate(policyClient(tighten({ statistics: 'off' })), 'store-consent', SITE, undefined).gate(statsInput(broken)), false,
+    'store-consent never drops');
+});
+
+// ---------- policy cache and timeout ----------
+test('policy cache: two requests for the same site within the TTL load the policy once', async () => {
+  const d = db({ site: AGG_SITE, policy: tighten({ statistics: 'opt_in' }) });
+  const handler = loadEdge('aggregate-hit', d.client, { env: { GEO_SIGNING_KEY: GEO_KEY } });
+  const req = async () => post('aggregate-hit', { siteId: SITE, kind: 'pageview', url: 'https://shop.test/' },
+    { Authorization: `Bearer ${KEY}`, 'user-agent': CHROME, ...(await geoHeader('SE')) });
+  assert.equal((await handler(await req())).status, 200);
+  assert.equal((await handler(await req())).status, 200);
+  assert.equal(named(d.rpcCalls, 'get_site_jurisdiction').length, 1);
+  assert.equal(named(d.rpcCalls, 'ingest_aggregate_hit').length, 2);
+});
+
+test('policy cache: a failed load is not cached', async () => {
+  resetPolicyCache();
+  let calls = 0;
+  const client = { rpc: async (name) => { if (name === 'get_site_jurisdiction') calls++; return { data: null, error: { message: 'down' } }; } };
+  for (let i = 0; i < 2; i++) assert.equal(await jurisdictionGate(client, 'track-event', SITE, undefined).gate(statsInput()), false);
+  assert.equal(calls, 2);
+});
+
+test('policy timeout: a hung policy RPC falls back to the safe default and the handler stores the hit', async () => {
+  mock.timers.enable({ apis: ['setTimeout'] });
+  try {
+    let called;
+    const policyCalled = new Promise((r) => { called = r; });
+    const d = db({ site: AGG_SITE });
+    const rpc = d.client.rpc;
+    d.client.rpc = (name, args) => {
+      if (name !== 'get_site_jurisdiction') return rpc(name, args);
+      d.rpcCalls.push({ name, args });
+      called();
+      return new Promise(() => {});
+    };
+    const handler = loadEdge('aggregate-hit', d.client, { env: { GEO_SIGNING_KEY: GEO_KEY } });
+    const pending = handler(post('aggregate-hit', { siteId: SITE, kind: 'pageview', url: 'https://shop.test/' },
+      { Authorization: `Bearer ${KEY}`, 'user-agent': CHROME }));
+    await policyCalled;
+    mock.timers.tick(POLICY_TIMEOUT_MS);
+    const res = await pending;
+    assert.deepEqual(await res.json(), { goals: [] });
+    assert.equal(named(d.rpcCalls, 'ingest_aggregate_hit').length, 1, 'nothing dropped');
+  } finally {
+    mock.timers.reset();
+  }
 });
