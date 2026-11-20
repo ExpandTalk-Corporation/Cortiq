@@ -135,6 +135,7 @@ test('copy: allowed wording present, never-list absent', () => {
   assert.match(card, /[Aa]nswer rate/);
   assert.match(card, /[Ww]hat buyers say/);
   assert.match(card, /formatShare\(data\.answered, data\.conversions\)/, 'answer rate is always shown with n');
+  assert.match(card, /Answers are counted only when the visitor made the consent choice in the same visit\./);
   assert.match(settings, /sensitive/i);
   assert.match(settings, /noticeTemplate\(/);
   for (const f of UI) {

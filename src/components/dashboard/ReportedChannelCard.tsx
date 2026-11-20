@@ -59,6 +59,9 @@ export function ReportedChannelCard({ selectedSite, onNavigate }: { selectedSite
                 consented visits can carry one{config?.hubspotProperty ? ', and the HubSpot path also needs marketing consent and a matching email' : ''},
                 so the rate is usually low.
               </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Answers are counted only when the visitor made the consent choice in the same visit.
+              </p>
             </div>
 
             {data.answered.n === 0 && !data.answered.lt5 ? (
