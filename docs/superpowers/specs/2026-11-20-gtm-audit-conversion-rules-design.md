@@ -23,7 +23,7 @@ Only effectively active tags count (`effectivelyActive` from `refs.ts`).
 A conversion tag whose firing trigger matches every page: the built-in All Pages / Initialization /
 Consent Initialization trigger, or a Page View / DOM Ready / Window Loaded trigger with no conditions.
 A page-view trigger with a condition (e.g. Page Path contains /thank-you) is the normal setup and passes.
-A trigger group counts as every-page only when every member does.
+A trigger group counts as every-page only when every member does. A tag with a blocking trigger has an exception and passes.
 
 Copy: title "N conversion tags fire on every page". Explanation: a conversion counted on every page view
 inflates conversions and feeds the bidding algorithm the wrong signal. Fix: fire it on the confirmation page or
@@ -33,7 +33,8 @@ the form-submit event only. Details: `Tag (Vendor): trigger name`.
 
 Two or more conversion tags of the same vendor share a firing trigger but send different events
 (different event text, e.g. two Google Ads conversion labels, or Meta Lead + CompleteRegistration).
-Same vendor + same event + same trigger is already `gtm.duplicate` and is not repeated here.
+Same vendor + same event + same trigger is already `gtm.duplicate` and is not repeated here. GA4 events are skipped:
+they only become conversions as key events in GA4, and several events on one trigger is normal.
 
 Copy: one detail line per trigger: `Trigger: Tag A (label/event), Tag B (…)`. Explanation: one action is
 counted as several conversions. In Google Ads only Primary actions are used for bidding — if one of them is set to
@@ -44,7 +45,7 @@ Secondary in Google Ads.
 
 Active `awct` tags where the container shows no Enhanced Conversions:
 EC counts as on when the tag's `enableEnhancedConversion` param is `"true"`, or the container has an active
-`awud` / `awcc` tag, or a Google tag (`googtag`) whose params mention user-provided data
+`awud` tag (not `awcc`, which is call tracking), or a Google tag (`googtag`) whose params mention user-provided data
 (`user_data` / `allow_enhanced_conversions`). Pass when no `awct` tag is active.
 
 Status is `manual`: Enhanced Conversions can also be switched on in Google Ads itself (automatic EC), which the

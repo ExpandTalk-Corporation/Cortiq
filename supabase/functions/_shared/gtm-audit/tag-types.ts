@@ -19,7 +19,7 @@ export const BUILTIN_VENDOR: Record<string, string> = {
 
 export const TYPE_LABEL: Record<string, string> = {
   gaawe: 'GA4 event', gaawc: 'GA4 configuration', googtag: 'Google tag', ua: 'Universal Analytics',
-  awct: 'Google Ads conversion', awcc: 'Google Ads enhanced conversions', awud: 'Google Ads user data', sp: 'Google Ads remarketing',
+  awct: 'Google Ads conversion', awcc: 'Google Ads calls from website', awud: 'Google Ads user data', sp: 'Google Ads remarketing',
   gclidw: 'Conversion Linker', flc: 'Floodlight counter', fls: 'Floodlight sales',
   baut: 'Microsoft Advertising UET', hjtc: 'Hotjar', bzi: 'LinkedIn Insight', pntr: 'Pinterest', twitter_website_tag: 'X website tag', crto: 'Criteo OneTag',
   html: 'Custom HTML', img: 'Custom image',

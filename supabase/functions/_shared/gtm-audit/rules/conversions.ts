@@ -22,6 +22,8 @@ const triggerName = (id: string, c: Container): string => triggerById(id, c)?.na
 export function conversionOnEveryPage(container: Container, infos: TagInfo[]): Finding {
   const lines: string[] = [];
   for (const i of conversionTags(container, infos)) {
+    // A blocking trigger is an exception, so the tag no longer fires on every page.
+    if (i.tag.blockingTriggerIds.length) continue;
     const hits = i.tag.firingTriggerIds.filter((id) => { const t = triggerById(id, container); return !!t && everyPage(t, container); });
     if (hits.length) lines.push(`${tagLabel(i)}: ${hits.map((id) => triggerName(id, container)).join(', ')}`);
   }
@@ -38,7 +40,9 @@ export function conversionOnEveryPage(container: Container, infos: TagInfo[]): F
 
 export function conversionDoubleCount(container: Container, infos: TagInfo[]): Finding {
   const groups = new Map<string, TagInfo[]>();
+  // GA4 events only become conversions when marked as key events in GA4, and several events on one trigger is normal.
   for (const i of conversionTags(container, infos)) {
+    if (i.ident.vendorId === 'ga4') continue;
     for (const trig of new Set(i.tag.firingTriggerIds)) {
       const key = `${i.ident.vendorId}|${trig}`;
       groups.set(key, [...(groups.get(key) ?? []), i]);
@@ -66,7 +70,7 @@ export function enhancedConversionsOff(container: Container, infos: TagInfo[]): 
   const running = effectivelyActive(container);
   const active = infos.filter((i) => running.has(i.tag.id));
   const awct = active.filter((i) => i.tag.type === 'awct');
-  const containerWide = active.some((i) => i.tag.type === 'awud' || i.tag.type === 'awcc'
+  const containerWide = active.some((i) => i.tag.type === 'awud'
     || (i.tag.type === 'googtag' && USER_DATA_RE.test(JSON.stringify(i.tag.params))));
   const hits = containerWide ? [] : awct.filter((i) => i.tag.params.enableEnhancedConversion !== 'true');
   if (!hits.length) {

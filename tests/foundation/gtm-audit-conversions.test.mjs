@@ -84,6 +84,11 @@ test('gtm.conversion_on_every_page: a trigger group is every-page only when ever
   assert.equal(ruleOf(spec([]), 'gtm.conversion_on_every_page').status, 'pass');
 });
 
+test('gtm.conversion_on_every_page: a tag with a blocking trigger is an exception and passes', () => {
+  const f = ruleOf({ tags: [ads(1, 'Ads all pages, blocked', 'a', { block: [12] })], triggers: [thankYou] }, 'gtm.conversion_on_every_page');
+  assert.equal(f.status, 'pass');
+});
+
 test('an awct tag that only runs as a setup tag still counts (effectivelyActive)', () => {
   const f = ruleOf({
     tags: [ads(1, 'Ads setup', 'a', { fire: [] }), tag(2, 'Runner', 'html', [tpl('html', '<p>')], { fire: [13], setup: ['Ads setup'] })],
@@ -121,6 +126,8 @@ test('gtm.conversion_double_count: same event is left to gtm.duplicate; other ve
   assert.equal(ruleOf(paused, 'gtm.conversion_double_count').status, 'pass');
   const pageView = { tags: [meta(1, 'Meta PageView', 'PageView', { fire: [13] }), meta(2, 'Meta Lead', 'Lead', { fire: [13] })], triggers: [formSubmit] };
   assert.equal(ruleOf(pageView, 'gtm.conversion_double_count').status, 'pass');
+  const ga4 = { tags: [tag(1, 'GA4 lead', 'gaawe', [tpl('eventName', 'generate_lead')], { fire: [13] }), tag(2, 'GA4 submit', 'gaawe', [tpl('eventName', 'form_submit')], { fire: [13] })], triggers: [formSubmit] };
+  assert.equal(ruleOf(ga4, 'gtm.conversion_double_count').status, 'pass');
 });
 
 test('gtm.enhanced_conversions_off: manual when no awct tag shows Enhanced Conversions', () => {
@@ -136,7 +143,7 @@ test('gtm.enhanced_conversions_off: manual when no awct tag shows Enhanced Conve
   assert.doesNotMatch(JSON.stringify(f), /you should/i);
 });
 
-test('gtm.enhanced_conversions_off: passes on the tag param, an awud/awcc tag or Google tag user data', () => {
+test('gtm.enhanced_conversions_off: passes on the tag param, an awud tag or Google tag user data (not awcc, which is call tracking)', () => {
   const key = 'gtm.enhanced_conversions_off';
   const base = ads(1, 'Ads', 'a', { fire: [13] });
   const triggers = [formSubmit];
@@ -144,7 +151,7 @@ test('gtm.enhanced_conversions_off: passes on the tag param, an awud/awcc tag or
   assert.equal(ruleOf({ tags: [ads(1, 'Ads', 'a', { fire: [13] }, [bool('enableEnhancedConversion', true)])], triggers }, key).status, 'pass');
   assert.equal(ruleOf({ tags: [ads(1, 'Ads', 'a', { fire: [13] }, [bool('enableEnhancedConversion', false)])], triggers }, key).status, 'manual');
   assert.equal(ruleOf({ tags: [base, tag(2, 'User data', 'awud', [], { fire: [13] })], triggers }, key).status, 'pass');
-  assert.equal(ruleOf({ tags: [base, tag(2, 'User data', 'awcc', [], { fire: [13] })], triggers }, key).status, 'pass');
+  assert.equal(ruleOf({ tags: [base, tag(2, 'Calls', 'awcc', [], { fire: [13] })], triggers }, key).status, 'manual');
   assert.equal(ruleOf({ tags: [base, tag(2, 'User data', 'awud', [], { fire: [13], paused: true })], triggers }, key).status, 'manual');
   const googtag = (params) => tag(2, 'Google tag', 'googtag', [tpl('tagId', 'AW-123456789'), ...params], { fire: [INIT] });
   assert.equal(ruleOf({ tags: [base, googtag([tpl('user_data', '{{User data}}')])], triggers }, key).status, 'pass');
