@@ -133,6 +133,12 @@ export function HubSpotIntegrationWizard({ selectedSite, isConfigured = false }:
             <li>Property: <strong>lead_quality</strong> (or your custom property)</li>
             <li>Copy the <strong>Client Secret</strong> — you'll need it in step 2</li>
           </ul>
+          <p className="text-xs text-muted-foreground">
+            CortIQ matches a change to a conversion by the contact&apos;s email (hashed on arrival). A plain{' '}
+            <strong>contact.propertyChange</strong> subscription usually carries no email, and without one nothing is matched.
+            Send the change from a HubSpot workflow webhook (&quot;Send a webhook&quot; action) that includes the contact&apos;s
+            email. This applies to lead quality and to the &quot;how did you hear about us?&quot; property.
+          </p>
           <Button size="sm" className="gap-2" onClick={() => window.open('https://app.hubspot.com/settings/integrations/webhooks', '_blank')}>
             Open HubSpot Webhooks <ExternalLink className="h-3.5 w-3.5" />
           </Button>
@@ -170,6 +176,10 @@ export function HubSpotIntegrationWizard({ selectedSite, isConfigured = false }:
           <p className="text-xs text-muted-foreground">
             CortIQ expects values: <strong>Priority</strong>, <strong>Qualified</strong>, or <strong>Challenge</strong>.
             These map to conversion values 300, 100, and 0 for Smart Bidding.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Also ask &quot;how did you hear about us?&quot; in HubSpot? Set that property up separately under Self-reported source on
+            this page. It must be a different property, ideally a dropdown or radio select.
           </p>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => setStep(2)}>Back</Button>

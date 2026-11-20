@@ -306,6 +306,37 @@ Spec: `docs/superpowers/specs/2026-11-19-measurement-health-design.md`.
 
 ---
 
+## Self-reported attribution (added 2026-11-20)
+
+Spec: `docs/superpowers/specs/2026-11-12-attribution-models-and-ai-influence.md` (layer 1.5 + jurist review 2026-11-20).
+Plan: `docs/superpowers/plans/2026-11-20-attribution-layer-1-5.md`.
+
+- "How did you hear about us?" → `conversion_reported_channel` (one row per conversion, `ON DELETE CASCADE` from
+  `conversion_events`), a fixed category list (`_shared/reported-channel.ts`, SQL `is_reported_channel`; no custom
+  labels). Unmapped answers = `other`. RLS on with **no policy** and no grants to anon/authenticated: written only by
+  SECURITY DEFINER functions (`record_conversion_event`, `attach_reported_channel`, `apply_reported_channel_hubspot`),
+  read only by `get_reported_channel` (SECURITY DEFINER, explicit owner check).
+  Migration `20261210000001_reported_channel.sql`. Full mode only (cookieless records no conversions).
+- **Two paths, one gate** (`reported_channel_consent_ok`: latest consent row, policy version = `sites.reported_channel_policy_version`):
+  HubSpot property (`hubspot-lead-webhook`, marketing consent, hashed-email match, unmatched dropped, never touches
+  `upload_status`) and one select/radio form field (tracker 5.5.21+, analytics consent, mapped in the browser, only the
+  category is sent; `track-event` hands the field config out, `record-conversion` stores it via `attach_reported_channel`). Raw values are never stored or logged.
+  The HubSpot match needs the contact's email in the webhook payload: a plain `contact.propertyChange` subscription
+  usually has none, so the customer sends the change from a workflow webhook that includes the email (wizard step 1,
+  settings card, GDPR.md). No contact fetch from HubSpot is built.
+- **Never leaves CortIQ and aggregate only:** not in Google Ads upload, GA4, AI insights, public API or MCP; the dashboard
+  reads only `get_reported_channel`: ranges ≥ 7 whole days, counts 1–4 → "fewer than 5", complementary suppression
+  (one hidden leaf in a group hides the next smallest → `hidden`), totals rounded to 5, one answer per visit and
+  category. `observed_channel` gets the site host (own-host referrer = direct; display/cpm/cpv/banner = other).
+  `tests/foundation/reported-channel-boundaries.test.mjs`
+  enforces both. UI: `ReportedChannelCard` (Ads → Attribution), `ReportedChannelSettings` (Settings → Integrations).
+- Texts: banner (13 languages), Privacy §5A, GDPR.md "Self-reported source", DPA 1.7. WP built-in banner texts and own CMPs
+  do not name it — the settings card says so. Jurist-agent check of the banner texts before any customer turns it on.
+- Copy: "self-reported source", "what buyers say", "answer rate", "recall, not fact". Never "true source/attribution",
+  "dark funnel revealed", "AI assistants drove X", "anonymous", consent-free or compliance claims, or anything about one lead (full list in the spec).
+
+---
+
 ## Deployment
 
 ```bash

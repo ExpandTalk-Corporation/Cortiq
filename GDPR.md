@@ -49,7 +49,8 @@ Activated only when a visitor accepts the "Statistics" category in the cookie ba
 - **IP address** — not stored by visitor analytics. Where an IP is kept (consent ledger, bot records) it is truncated before storage (e.g. 192.168.1.0); on bot records it is cleared after 30 days
 - **Click positions** — x/y coordinates for heatmap generation
 - **Scroll depth** — how far the visitor scrolled (25%, 50%, 75%, 100% milestones)
-- **Form interactions** — which fields were filled, when the form was abandoned (not the content of the fields)
+- **Form interactions** — which fields were filled, when the form was abandoned (not the content of the fields, except the self-reported source below)
+- **Self-reported source (Full mode, opt-in per site)** — if you configure a "how did you hear about us?" select or radio field, the option the visitor selects is mapped in the browser to a category from a fixed list (search engine, AI assistant, podcast, colleague or friend, other, …) and only the category is stored on the conversion. No other field is read for this, and text inputs and textareas are never read for it. See [Self-reported source](#self-reported-source-how-did-you-hear-about-us)
 - **E-commerce and conversion events**
 - **A/B test assignment**
 
@@ -58,6 +59,21 @@ Activated only when a visitor accepts the "Statistics" category in the cookie ba
 **Full mode:** a persistent visitor ID (derived from device characteristics) lets returning visits be recognised, and a session ID is kept in sessionStorage. Data is associated with a hashed visitor ID, not a name or email address.
 
 **Legal basis:** Consent (Art. 6.1.a GDPR / ePrivacy Art. 5.3).
+
+---
+
+## Self-reported source ("how did you hear about us?")
+
+Optional, Full mode only, off until you configure it (Settings → Integrations → Self-reported source). It records what buyers say about how they found you, one answer per conversion, as a category from a fixed list. Answers are recall, not fact.
+
+- **Form path (analytics consent):** you name one select or radio field. On submit, with analytics consent, the tracking script reads the selected option, maps it to a category with your value list (trim + lower-case exact match, anything else becomes "other") and sends only the category. Free text, textareas and "other, please specify" fields are never read for this.
+- **HubSpot path (marketing consent):** you name a HubSpot contact property (an enumeration/dropdown property is recommended). CortIQ maps its value to a category in memory and links it to a conversion through the email hash, which exists only with marketing consent. The raw value is not stored or logged. Unmatched contacts are dropped. The contact must fill in the property themselves in a HubSpot form; do not let staff set it after a call. HubSpot's `contact.propertyChange` webhook usually carries no email address, and without one nothing is matched: send the change from a HubSpot workflow webhook that includes the contact's email.
+- **Policy version:** enter a new policy version (not the one your banner sends today), save, then raise the banner's policy version to the same value so visitors are asked again. Answers are only stored for visitors whose latest consent was given under that version after you switched the path on (CortIQ records the switch-on time server-side; earlier consents never count).
+- **Same visit only:** the answer counts only when the conversion happens in the visit where the visitor made the banner choice. The WordPress plugin's built-in banner records the choice under its own id rather than the visit, so it never qualifies; use the CortIQ banner (5.5.21 or later).
+- **Never shared:** the category is not sent to Google Ads, GA4 or AI services, and the dashboard shows it only in aggregate (counts below 5 are shown as "fewer than 5").
+- **Your form:** tell people at the question itself that their answer is stored with their enquiry (Art. 13); a template is in Settings and in the [Privacy Policy Template](#privacy-policy-template). Do not offer answer options that reveal sensitive data (health, religion, political opinion, union membership, sexual orientation).
+
+The CortIQ banner texts mention both paths. If you use your own CMP, update its Statistics and Marketing texts and bump your policy version.
 
 ---
 
@@ -156,7 +172,10 @@ The legal basis is our legitimate interest (Art. 6(1)(f) GDPR) in statistics on 
 
 **Analytics (only after consent)**
 
-If you accept the Statistics category in our cookie banner, we collect: visited pages, referrer, device type, browser family, anonymised IP address, click positions (heatmaps), scroll depth, form interaction data and conversion events. Without your consent, none of this is collected.
+If you accept the Statistics category in our cookie banner, we collect: visited pages, referrer, device type, browser family, anonymised IP address, click positions (heatmaps), scroll depth, form interaction data (not the content of the fields, except as described below) and conversion events. Without your consent, none of this is collected.
+
+[If you use the self-reported source form field:] When our form asks how you heard about us, the option you select is stored with your enquiry as a category from a fixed list (for example "search engine" or "podcast"). We use it, together with other enquiries, to see which channels people say led them to us. Text you type in other fields is not read for this purpose.
+[If you use the HubSpot path, add under Marketing:] If you accept the Marketing category, a hash of your email address is used to link your answer to "how did you hear about us?" in our customer system to your visit. Only a category is stored, and it is not sent to Google or other advertising platforms.
 
 [Cookieless mode:] No cookies are set and no persistent identifier is stored. A session identifier is kept in your browser (sessionStorage) until you close the tab, so that page views within one visit can be linked; separate visits are not linked to each other. [If you chose memory only: The session identifier is held in memory and not stored in your browser.]
 [Full mode:] We use a persistent visitor identifier, derived from technical characteristics of your device, so that returning visits can be recognised, and store a session identifier in your browser for the duration of your visit.

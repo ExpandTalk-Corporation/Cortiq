@@ -8,7 +8,7 @@ import { useSEO } from "@/hooks/useSEO";
 import { seoFor } from "@/marketing-routes";
 import { Shield, CheckCircle, Mail, FileText, Database, Users, BarChart3, Megaphone, FileSearch } from "lucide-react";
 
-const LAST_UPDATED = "November 18, 2026";
+const LAST_UPDATED = "November 20, 2026";
 
 const Privacy = () => {
   useSEO(seoFor("/privacy/"));
@@ -370,7 +370,7 @@ const Privacy = () => {
                   'Sessions, device type, browser and country (for the United States and Canada also state or province), derived from the IP address or, if that is unavailable, estimated from the browser time zone',
                   'Clicks and link clicks',
                   'Scroll depth and heatmaps',
-                  'Form interactions (field content is not captured) and form submissions',
+                  'Form interactions and form submissions. Field content is not captured, with one exception in Full mode, only if the site operator sets it up: when a form asks how you heard about the site, the option you select in that one list or choice field is stored as a source category from a fixed list (for example "search engine" or "podcast"). No other field is read for this, and free text is never read for it. (Hashing of an email address with marketing consent is described in section 5A.)',
                   'E-commerce events and conversions',
                   'In-browser bot checks — bot probe (device capability signals, sent only for clients that look automated), honeypot and canary links'
                 ].map((item, index) => (
@@ -433,6 +433,7 @@ const Privacy = () => {
               <ul className="space-y-2 text-muted-foreground text-sm ml-4">
                 <li>• Advertising click IDs from the page URL (<code>gclid</code>, <code>fbclid</code>, <code>msclkid</code>, <code>ttclid</code>, <code>li_fat_id</code>), kept in sessionStorage for the tab session and linked to conversions.</li>
                 <li>• Conversion feedback to advertising platforms (e.g. Google Ads Enhanced Conversions), using a SHA-256 hash of an email address submitted in a form together with the click ID (section 5B). The tracking script hashes the email in the browser; the plain email is not sent to CortIQ.</li>
+                <li>• Linking your answer to &quot;how did you hear about us?&quot; — if the site operator connects HubSpot and asks this question there, the email hash is used to link your answer to your conversion. Only a source category from a fixed list is stored; the answer as written is not stored, and the category is not sent to advertising platforms or AI services.</li>
                 <li>• Canvas/WebGL device signals for visitor identification — only where the site operator has explicitly enabled this feature.</li>
               </ul>
               <p className="text-sm text-muted-foreground">
@@ -475,7 +476,7 @@ const Privacy = () => {
               <ul className="space-y-3 text-muted-foreground text-sm ml-4">
                 <li>• <strong>Anthropic</strong> (AI assistant &amp; GEO analysis, USA) — when the operator uses AI features with their own Anthropic API key, relevant analytics results are sent to the Claude API on the operator&apos;s instruction.</li>
                 <li>• <strong>Google Ads</strong> (Enhanced Conversions for Leads, USA) — when the operator enables conversion feedback and marketing consent was given, a SHA-256 hash of the email plus the ad click ID (gclid) and conversion value are uploaded to the operator&apos;s Google Ads account.</li>
-                <li>• <strong>HubSpot</strong> (CRM lead-quality feedback) — when the operator connects HubSpot, the operator&apos;s HubSpot account sends CortIQ a contact&apos;s email address and lead status when the status changes. CortIQ hashes the email immediately on receipt and never stores it in plain text. The hash and lead status are kept only if they match a conversion recorded with marketing consent; otherwise they are discarded.</li>
+                <li>• <strong>HubSpot</strong> (CRM lead-quality feedback) — when the operator connects HubSpot, the operator&apos;s HubSpot account sends CortIQ a contact&apos;s email address and lead status when the status changes. CortIQ hashes the email immediately on receipt and never stores it in plain text. The hash and lead status are kept only if they match a conversion recorded with marketing consent; otherwise they are discarded. If the operator also names a &quot;how did you hear about us?&quot; property, its value is mapped to a source category in memory; only the category is kept, under the same matching rule (section 5A).</li>
                 <li>• <strong>Google Analytics and Search Console</strong> — when the operator connects its own property, CortIQ reads reports from it and can send conversion events to it.</li>
               </ul>
               <div className="bg-accent/5 p-4 rounded-lg mt-4">
