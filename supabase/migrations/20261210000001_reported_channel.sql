@@ -340,18 +340,42 @@ $$;
 
 -- ---------------------------------------------------------------------------------------------
 -- Aggregate read for the dashboard. SECURITY DEFINER (the category table has no read policy) with an
--- explicit owner check on auth.uid(); never granted to anon.
--- Every count is returned as {n, lt5}: 1-4 become {n: null, lt5: true} ("fewer than 5").
--- No row-level output: never a session, visitor, hash or conversion id.
+-- explicit owner check on auth.uid(); never granted to anon. No row-level output: never a session,
+-- visitor, hash or conversion id.
+--
+-- Small-count protection (review B-2):
+-- - Ranges are whole days (date parameters) and at least 7 days long, so two overlapping short
+--   ranges cannot be subtracted to isolate one day's answers.
+-- - Leaf counts (one row of "what buyers say", one answer x observed cell): 1-4 become
+--   {n: null, lt5: true}. Complementary suppression: when exactly one leaf in a group is hidden
+--   (cells within one answer; answers within all answers), the next smallest leaf in that group
+--   is hidden too, as {n: null, lt5: false, hidden: true}.
+-- - Totals (conversions, answered, matched) are always rounded to the nearest 5 ({rounded: true});
+--   1-4 are "fewer than 5" as above. Chosen over hiding totals: the answer rate stays readable,
+--   and a total that is off by up to 2 cannot be used to recover a hidden 1-4.
+-- - One answer per visit and category (distinct session, falling back to the conversion): a form
+--   that records both a goal and a conversion for the same submit counts once (review B-3).
 -- ---------------------------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.reported_channel_count(p bigint)
+CREATE OR REPLACE FUNCTION public.reported_channel_count(p bigint, p_hidden boolean DEFAULT false)
 RETURNS jsonb
 LANGUAGE sql
 IMMUTABLE
 SET search_path = ''
 AS $$
   SELECT CASE WHEN p BETWEEN 1 AND 4 THEN jsonb_build_object('n', NULL, 'lt5', true)
+              WHEN p_hidden THEN jsonb_build_object('n', NULL, 'lt5', false, 'hidden', true)
               ELSE jsonb_build_object('n', coalesce(p, 0), 'lt5', false) END
+$$;
+
+CREATE OR REPLACE FUNCTION public.reported_channel_total(p bigint)
+RETURNS jsonb
+LANGUAGE sql
+IMMUTABLE
+SET search_path = ''
+AS $$
+  SELECT CASE WHEN p BETWEEN 1 AND 4 THEN jsonb_build_object('n', NULL, 'lt5', true)
+              WHEN coalesce(p, 0) = 0 THEN jsonb_build_object('n', 0, 'lt5', false)
+              ELSE jsonb_build_object('n', (round(p / 5.0) * 5)::bigint, 'lt5', false, 'rounded', true) END
 $$;
 
 CREATE OR REPLACE FUNCTION public.get_reported_channel(p_site_id uuid, p_from date, p_to date)
@@ -370,9 +394,13 @@ BEGIN
   IF p_from IS NULL OR p_to IS NULL OR p_to < p_from OR p_to - p_from > 366 THEN
     RAISE EXCEPTION 'invalid range' USING ERRCODE = '22023';
   END IF;
+  IF p_to - p_from < 6 THEN
+    RAISE EXCEPTION 'range must be at least 7 days' USING ERRCODE = '22023';
+  END IF;
 
   WITH conv AS (
-    SELECT r.channel AS reported,
+    SELECT coalesce(ce.session_id::text, r.conversion_id::text) AS answer_key,
+           r.channel AS reported,
            CASE WHEN t.id IS NULL THEN 'unknown'
                 ELSE public.observed_channel(coalesce(nullif(t.referrer, ''), t.referrer_url), t.utm_source, t.utm_medium,
                                              (SELECT domain FROM public.sites WHERE id = p_site_id)) END AS observed
@@ -382,21 +410,38 @@ BEGIN
     WHERE ce.site_id = p_site_id
       AND ce.created_at >= p_from AND ce.created_at < p_to + 1
   ),
+  answers AS (
+    SELECT reported, min(observed) AS observed FROM conv WHERE reported IS NOT NULL GROUP BY answer_key, reported
+  ),
+  cell_counts AS (
+    SELECT reported, observed, n,
+           count(*) FILTER (WHERE n BETWEEN 1 AND 4) OVER (PARTITION BY reported) AS small_in_group,
+           row_number() OVER (PARTITION BY reported, n BETWEEN 1 AND 4 ORDER BY n, observed) AS rank_in_part
+    FROM (SELECT reported, observed, count(*) AS n FROM answers GROUP BY 1, 2) c
+  ),
   cells AS (
-    SELECT reported, observed, count(*) AS n FROM conv WHERE reported IS NOT NULL GROUP BY 1, 2
+    SELECT reported, observed, n, small_in_group = 1 AND n > 4 AND rank_in_part = 1 AS hidden FROM cell_counts
+  ),
+  rep_counts AS (
+    SELECT reported, n,
+           count(*) FILTER (WHERE n BETWEEN 1 AND 4) OVER () AS small_in_group,
+           row_number() OVER (PARTITION BY n BETWEEN 1 AND 4 ORDER BY n, reported) AS rank_in_part
+    FROM (SELECT reported, count(*) AS n FROM answers GROUP BY 1) c
   ),
   rep AS (
-    SELECT reported, count(*) AS n FROM conv WHERE reported IS NOT NULL GROUP BY 1
+    SELECT reported, n, small_in_group = 1 AND n > 4 AND rank_in_part = 1 AS hidden FROM rep_counts
   )
   SELECT jsonb_build_object(
-    'conversions', public.reported_channel_count((SELECT count(*) FROM conv)),
-    'answered', public.reported_channel_count((SELECT count(*) FROM conv WHERE reported IS NOT NULL)),
-    'matched', public.reported_channel_count((SELECT count(*) FROM conv WHERE reported IS NOT NULL AND reported = observed)),
-    'reported', coalesce((SELECT jsonb_agg(jsonb_build_object('channel', reported) || public.reported_channel_count(n)
-                                           ORDER BY n DESC, reported) FROM rep), '[]'::jsonb),
+    'conversions', public.reported_channel_total((SELECT count(*) FROM conv)),
+    'answered', public.reported_channel_total((SELECT count(*) FROM answers)),
+    'matched', public.reported_channel_total((SELECT count(*) FROM answers WHERE reported = observed)),
+    -- Shown counts first (largest first), then hidden ones by name: the order never ranks a hidden count.
+    'reported', coalesce((SELECT jsonb_agg(jsonb_build_object('channel', reported) || public.reported_channel_count(n, hidden)
+                                           ORDER BY CASE WHEN hidden OR n < 5 THEN 0 ELSE n END DESC, reported) FROM rep), '[]'::jsonb),
     'cells', coalesce((SELECT jsonb_agg(jsonb_build_object('reported', reported, 'observed', observed)
-                                        || public.reported_channel_count(n)
-                                        ORDER BY n DESC, reported, observed) FROM cells), '[]'::jsonb)
+                                        || public.reported_channel_count(n, hidden)
+                                        ORDER BY CASE WHEN hidden OR n < 5 THEN 0 ELSE n END DESC, reported, observed)
+                       FROM cells), '[]'::jsonb)
   ) INTO v_result;
 
   RETURN v_result;

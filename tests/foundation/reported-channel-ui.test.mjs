@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import {
   parseReportedChannel, formatCount, formatShare, percent, mismatches, mismatchLabel,
   rowsToMap, mapToRows, noticeTemplate, NOTICE_ADAPT_NOTE, FORM_FIELD_PATTERN, HUBSPOT_PROPERTY_PATTERN,
-  REPORTED_CHANNELS,
+  REPORTED_CHANNELS, rangeDays, MIN_RANGE_DAYS,
 } from '../../src/lib/reportedChannel.ts';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
@@ -41,6 +41,38 @@ test('parse: hidden counts stay hidden, never become a number', () => {
   const empty = parseReportedChannel(null);
   assert.deepEqual(empty.conversions, { n: 0, lt5: false });
   assert.equal(formatShare(empty.answered, empty.conversions), '0 of 0');
+});
+
+test('parse: complementary-hidden counts and rounded totals', () => {
+  const s = parseReportedChannel({
+    conversions: { n: 20, lt5: false, rounded: true },
+    answered: { n: 15, lt5: false, rounded: true },
+    matched: { n: 0, lt5: false },
+    reported: [{ channel: 'colleague_or_friend', n: null, lt5: false, hidden: true }, { channel: 'podcast', n: null, lt5: true }],
+    cells: [{ reported: 'colleague_or_friend', observed: 'unknown', n: 5, lt5: false, hidden: true }],
+  });
+  assert.equal(s.cells[0].n, null, 'a hidden count never carries a number');
+  assert.equal(formatCount(s.reported[0]), 'hidden');
+  assert.equal(formatCount(s.answered), 'about 15');
+  assert.equal(formatShare(s.reported[0], s.answered), 'hidden of about 15');
+  assert.equal(percent(s.reported[0], s.answered), null);
+  assert.equal(formatShare(s.answered, s.conversions), 'about 15 of about 20 (75 %)');
+});
+
+test('date range: at least 7 whole days, in the database and in the card', () => {
+  assert.equal(rangeDays('2026-11-14', '2026-11-20'), 7, 'the "Last 7 days" preset qualifies');
+  assert.equal(rangeDays('2026-11-15', '2026-11-20'), 6);
+  assert.equal(rangeDays('2026-11-20', '2026-11-19'), 0);
+  assert.equal(MIN_RANGE_DAYS, 7);
+  const hook = read('../../src/hooks/useReportedChannel.ts');
+  assert.match(hook, /enabled: !!siteId && !tooShort/, 'a short range is never sent');
+  const card = read(UI[0]);
+  assert.match(card, /tooShort/);
+  assert.match(card, /at least \{MIN_RANGE_DAYS\} days/);
+  assert.match(card, /Counts are suppressed or rounded/);
+  assert.match(card, /totals are rounded to the nearest 5/);
+  const sql = read('../../supabase/migrations/20261210000001_reported_channel.sql');
+  assert.match(sql, /p_to - p_from < 6 THEN\s+RAISE EXCEPTION 'range must be at least 7 days'/);
 });
 
 test('settings: value map and field validation match the database constraint', () => {

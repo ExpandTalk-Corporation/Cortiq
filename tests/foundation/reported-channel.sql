@@ -162,10 +162,10 @@ BEGIN
   ASSERT public.apply_reported_channel_hubspot(a, 'not-a-hash', 'podcast') = 0, 'hash only';
   ASSERT public.apply_reported_channel_hubspot(a, h, 'Podcast') = 0, 'category only';
 
-  -- Aggregate read. Owner a.
+  -- Aggregate read. Owner a. Ranges are at least 7 whole days.
   PERFORM set_config('request.jwt.claim.sub', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', true);
-  r := public.get_reported_channel(a, current_date - 1, current_date);
-  ASSERT (r->'conversions'->>'n')::int = 8, 'conversions: ' || r::text;
+  r := public.get_reported_channel(a, current_date - 6, current_date);
+  ASSERT r->'conversions' = '{"n": 10, "lt5": false, "rounded": true}'::jsonb, 'conversions 8, rounded to 10: ' || r::text;
   ASSERT (r->'answered'->>'lt5')::boolean AND r->'answered'->'n' = 'null'::jsonb, 'answered 2 = fewer than 5: ' || r::text;
   ASSERT jsonb_array_length(r->'cells') = 2, 'cells: ' || (r->'cells')::text;
   ASSERT EXISTS (SELECT 1 FROM jsonb_array_elements(r->'cells') x
@@ -174,27 +174,74 @@ BEGIN
                  WHERE x->>'reported' = 'podcast' AND x->>'observed' = 'direct'), 'said podcast, arrived direct';
   ASSERT r::text !~ 's-hub|s-form|abab|aaaaaaaa-0000', 'no session, hash or row ids in the output';
 
-  -- Five answers: counts shown.
+  -- Five answers without a tracked visit; six from Bing (referrer_url only, older writer), one per visit;
+  -- one visit from the site's own host with two conversions (goal + conversion for one submit).
   WITH ins AS (
     INSERT INTO public.conversion_events (site_id, event_name) SELECT a, 'Bulk ' || g FROM generate_series(1, 5) g RETURNING id
   )
   INSERT INTO public.conversion_reported_channel (conversion_id, site_id, channel) SELECT id, a, 'colleague_or_friend' FROM ins;
-  r := public.get_reported_channel(a, current_date - 1, current_date);
+  INSERT INTO public.tracking_sessions (id, site_id, session_id, referrer, referrer_url)
+    SELECT ('bbbbbbbb-0000-4000-8000-00000000000' || g)::uuid, a, 's-bing-' || g, NULL, 'https://www.bing.com/' FROM generate_series(1, 6) g;
+  INSERT INTO public.tracking_sessions (id, site_id, session_id, referrer) VALUES
+    ('bbbbbbbb-0000-4000-8000-000000000009', a, 's-own', 'https://shop.example/pricing');
+  WITH ins AS (
+    INSERT INTO public.conversion_events (site_id, session_id, event_name)
+      SELECT a, ('bbbbbbbb-0000-4000-8000-00000000000' || g)::uuid, 'Bing ' || g FROM generate_series(1, 6) g
+      UNION ALL SELECT a, 'bbbbbbbb-0000-4000-8000-000000000009'::uuid, 'Goal'
+      UNION ALL SELECT a, 'bbbbbbbb-0000-4000-8000-000000000009'::uuid, 'Lead'
+    RETURNING id
+  )
+  INSERT INTO public.conversion_reported_channel (conversion_id, site_id, channel) SELECT id, a, 'colleague_or_friend' FROM ins;
+
+  r := public.get_reported_channel(a, current_date - 6, current_date);
+  ASSERT r->'conversions' = '{"n": 20, "lt5": false, "rounded": true}'::jsonb, 'conversions 21 -> 20: ' || r::text;
+  ASSERT r->'answered' = '{"n": 15, "lt5": false, "rounded": true}'::jsonb, 'answered 14 (the double submit counts once) -> 15: ' || r::text;
+  ASSERT r->'matched' = '{"n": 0, "lt5": false}'::jsonb, 'matched 0: ' || r::text;
   ASSERT EXISTS (SELECT 1 FROM jsonb_array_elements(r->'cells') x
-                 WHERE x->>'reported' = 'colleague_or_friend' AND x->>'observed' = 'unknown' AND (x->>'n')::int = 5), 'count shown at 5';
-  ASSERT (r->'answered'->>'n')::int = 7, 'answered 7';
+                 WHERE x->>'reported' = 'colleague_or_friend' AND x->>'observed' = 'organic_search' AND (x->>'n')::int = 6),
+         'referrer_url fallback, one per visit: ' || (r->'cells')::text;
+  ASSERT EXISTS (SELECT 1 FROM jsonb_array_elements(r->'cells') x
+                 WHERE x->>'reported' = 'colleague_or_friend' AND x->>'observed' = 'direct' AND (x->>'lt5')::boolean),
+         'own host = direct, two conversions in one visit = one answer (fewer than 5)';
+  -- Exactly one hidden cell in the colleague row: the next smallest (5, no tracked visit) is hidden too.
+  ASSERT EXISTS (SELECT 1 FROM jsonb_array_elements(r->'cells') x
+                 WHERE x->>'reported' = 'colleague_or_friend' AND x->>'observed' = 'unknown'
+                   AND x = '{"reported": "colleague_or_friend", "observed": "unknown", "n": null, "lt5": false, "hidden": true}'::jsonb),
+         'complementary suppression in a row: ' || (r->'cells')::text;
+  -- Shown counts first, hidden ones after, so the order never ranks a hidden count.
+  ASSERT (r->'cells'->0->>'n')::int = 6, 'largest shown first';
+  ASSERT (SELECT bool_and(x ? 'hidden' OR (x->>'lt5')::boolean) FROM jsonb_array_elements(r->'cells') WITH ORDINALITY e(x, i) WHERE i > 1),
+         'the rest are hidden: ' || (r->'cells')::text;
+  -- Answers list: colleague 12, podcast 1, AI 1 -> two small rows, nothing more hidden.
+  ASSERT EXISTS (SELECT 1 FROM jsonb_array_elements(r->'reported') x WHERE x->>'channel' = 'colleague_or_friend' AND (x->>'n')::int = 12),
+         'colleague 12: ' || (r->'reported')::text;
+  -- Remove the AI answer: one small row left, so the next smallest (colleague) is hidden too.
+  DELETE FROM public.conversion_reported_channel WHERE channel = 'ai_assistant';
+  r := public.get_reported_channel(a, current_date - 6, current_date);
+  ASSERT r->'reported' = '[{"channel": "colleague_or_friend", "n": null, "lt5": false, "hidden": true},
+                           {"channel": "podcast", "n": null, "lt5": true}]'::jsonb,
+         'complementary suppression in the answers list: ' || (r->'reported')::text;
 
   BEGIN
     PERFORM public.get_reported_channel(a, current_date, current_date - 1);
     ASSERT false, 'reversed range must fail';
   EXCEPTION WHEN invalid_parameter_value THEN NULL;
   END;
+  BEGIN
+    PERFORM public.get_reported_channel(a, current_date - 5, current_date);
+    ASSERT false, 'a 6-day range must fail';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL;
+  END;
+  ASSERT public.reported_channel_total(7) = '{"n": 5, "lt5": false, "rounded": true}'::jsonb
+     AND public.reported_channel_total(8) = '{"n": 10, "lt5": false, "rounded": true}'::jsonb
+     AND public.reported_channel_total(0) = '{"n": 0, "lt5": false}'::jsonb
+     AND public.reported_channel_total(3) = '{"n": null, "lt5": true}'::jsonb, 'totals rounded to 5';
 END $$;
 
 SELECT set_config('request.jwt.claim.sub', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', true);
 DO $$
 BEGIN
-  PERFORM public.get_reported_channel('11111111-1111-4111-8111-111111111111', current_date - 1, current_date);
+  PERFORM public.get_reported_channel('11111111-1111-4111-8111-111111111111', current_date - 6, current_date);
   ASSERT false, 'non-owner must be refused';
 EXCEPTION WHEN insufficient_privilege THEN NULL;
 END $$;

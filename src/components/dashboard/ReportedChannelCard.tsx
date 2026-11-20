@@ -2,18 +2,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { MessageSquareQuote } from 'lucide-react';
 import { useReportedChannel, useReportedChannelConfig, isReportedChannelConfigured } from '@/hooks/useReportedChannel';
-import { formatCount, formatShare, mismatches, mismatchLabel, reportedLabel } from '@/lib/reportedChannel';
+import { formatCount, formatShare, mismatches, mismatchLabel, reportedLabel, MIN_RANGE_DAYS } from '@/lib/reportedChannel';
 import type { Site } from '@/types/dashboard';
 
 /**
  * Attribution layer 1.5: what buyers say ("how did you hear about us?") next to the observed source of
- * the converting visit. Aggregate only; counts of 1–4 are shown as "fewer than 5", and every
- * percentage has its count next to it.
+ * the converting visit. Aggregate only; counts of 1–4 are shown as "fewer than 5" (with a second count
+ * hidden where needed), totals are rounded to 5, and every percentage has its count next to it.
  */
 export function ReportedChannelCard({ selectedSite, onNavigate }: { selectedSite: Site; onNavigate?: (tab: string) => void }) {
   const { data: config, isLoading: configLoading } = useReportedChannelConfig(selectedSite.id);
   const configured = isReportedChannelConfigured(config);
-  const { data, isLoading, error } = useReportedChannel(configured ? selectedSite.id : '');
+  const { data, isLoading, error, tooShort } = useReportedChannel(configured ? selectedSite.id : '');
 
   const settingsLink = onNavigate && (
     <button type="button" className="underline" onClick={() => onNavigate('integrations')}>
@@ -42,7 +42,13 @@ export function ReportedChannelCard({ selectedSite, onNavigate }: { selectedSite
             radio field on your form) to categories, and update your banner and privacy texts first. {settingsLink}
           </p>
         )}
-        {configured && isLoading && <p className="text-muted-foreground">Loading self-reported source...</p>}
+        {configured && tooShort && (
+          <p className="text-xs text-muted-foreground">
+            Pick a date range of at least {MIN_RANGE_DAYS} days to see self-reported source. Shorter ranges are not shown, so
+            single answers cannot be worked out by comparing ranges.
+          </p>
+        )}
+        {configured && !tooShort && isLoading && <p className="text-muted-foreground">Loading self-reported source...</p>}
         {configured && error && <p className="text-muted-foreground">Self-reported source could not be loaded.</p>}
         {configured && data && (
           <>
@@ -96,7 +102,10 @@ export function ReportedChannelCard({ selectedSite, onNavigate }: { selectedSite
             )}
 
             <p className="text-xs text-muted-foreground">
-              Counts of 1–4 are shown as &quot;{formatCount({ n: null, lt5: true })}&quot;. One answer per conversion, not a journey.
+              Counts are suppressed or rounded to protect individual answers: counts of 1–4 are shown as
+              &quot;{formatCount({ n: null, lt5: true })}&quot;, where that alone would let the number be worked out a second count
+              is &quot;{formatCount({ n: null, lt5: false, hidden: true })}&quot;, and totals are rounded to the nearest 5, so
+              percentages are approximate. One answer per visit and category, not a journey.
               The category stays in CortIQ: it is not sent to Google Ads, Google Analytics or AI insights.
             </p>
           </>

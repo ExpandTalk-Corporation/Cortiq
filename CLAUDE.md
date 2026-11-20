@@ -314,7 +314,10 @@ Plan: `docs/superpowers/plans/2026-11-20-attribution-layer-1-5.md`.
   `upload_status`) and one select/radio form field (tracker 5.5.21+, analytics consent, mapped in the browser, only the
   category is sent; `track-event` hands the field config out, `record-conversion` stores it via `attach_reported_channel`). Raw values are never stored or logged.
 - **Never leaves CortIQ and aggregate only:** not in Google Ads upload, GA4, AI insights, public API or MCP; the dashboard
-  reads only `get_reported_channel` (counts 1–4 → "fewer than 5"). `tests/foundation/reported-channel-boundaries.test.mjs`
+  reads only `get_reported_channel`: ranges ≥ 7 whole days, counts 1–4 → "fewer than 5", complementary suppression
+  (one hidden leaf in a group hides the next smallest → `hidden`), totals rounded to 5, one answer per visit and
+  category. `observed_channel` gets the site host (own-host referrer = direct; display/cpm/cpv/banner = other).
+  `tests/foundation/reported-channel-boundaries.test.mjs`
   enforces both. UI: `ReportedChannelCard` (Ads → Attribution), `ReportedChannelSettings` (Settings → Integrations).
 - Texts: banner (13 languages), Privacy §5A, GDPR.md "Self-reported source", DPA 1.7. WP built-in banner texts and own CMPs
   do not name it — the settings card says so. Jurist-agent check of the banner texts before any customer turns it on.

@@ -1,14 +1,20 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useDashboardFilters } from '@/contexts/DashboardFiltersContext';
-import { parseReportedChannel, cleanChannelMap, type ReportedChannelSummary, type ReportedChannel } from '@/lib/reportedChannel';
+import {
+  parseReportedChannel, cleanChannelMap, rangeDays, MIN_RANGE_DAYS, type ReportedChannelSummary, type ReportedChannel,
+} from '@/lib/reportedChannel';
 
-/** Aggregate self-reported source for the global date range. Never reads conversion rows. */
+/**
+ * Aggregate self-reported source for the global date range. Never reads conversion rows.
+ * Ranges shorter than 7 days are not sent (the database refuses them); `tooShort` says so.
+ */
 export function useReportedChannel(siteId: string) {
   const { filters } = useDashboardFilters();
   const p_from = filters.from;
   const p_to = filters.to;
-  return useQuery({
+  const tooShort = rangeDays(p_from, p_to) < MIN_RANGE_DAYS;
+  const query = useQuery({
     queryKey: ['reported-channel', siteId, p_from, p_to],
     queryFn: async (): Promise<ReportedChannelSummary> => {
       // Newer than the generated types; cast at the boundary.
@@ -16,8 +22,9 @@ export function useReportedChannel(siteId: string) {
       if (error) throw error;
       return parseReportedChannel(data);
     },
-    enabled: !!siteId,
+    enabled: !!siteId && !tooShort,
   });
+  return { ...query, tooShort };
 }
 
 export interface ReportedChannelConfig {

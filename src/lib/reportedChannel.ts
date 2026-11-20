@@ -4,7 +4,8 @@
  *
  * The category list lives in supabase/functions/_shared/reported-channel.ts; this file re-exports it
  * and parses the aggregate get_reported_channel payload. Aggregate display only: nothing here reads
- * conversion rows, and counts of 1–4 arrive from the database as "fewer than 5" without a number.
+ * conversion rows. Counts of 1–4 arrive from the database as "fewer than 5" without a number, a count
+ * hidden to protect one of those arrives as `hidden`, and totals arrive rounded to the nearest 5.
  */
 import {
   REPORTED_CHANNELS,
@@ -23,8 +24,11 @@ export {
 };
 export type { ReportedChannel };
 
-/** A count from the database: an exact number, or "fewer than 5" (1–4) with no number. */
-export interface Count { n: number | null; lt5: boolean }
+/**
+ * A count from the database: an exact number, "fewer than 5" (1–4) with no number, hidden (so a
+ * "fewer than 5" next to it cannot be worked out) or a total rounded to the nearest 5.
+ */
+export interface Count { n: number | null; lt5: boolean; hidden?: boolean; rounded?: boolean }
 export interface ReportedRow extends Count { channel: string }
 export interface ReportedCell extends Count { reported: string; observed: string }
 
@@ -37,6 +41,17 @@ export interface ReportedChannelSummary {
 }
 
 export const FEWER_THAN_5 = 'fewer than 5';
+export const HIDDEN_COUNT = 'hidden';
+/** get_reported_channel refuses shorter ranges (two short ranges could be subtracted). */
+export const MIN_RANGE_DAYS = 7;
+
+/** Days in an inclusive yyyy-mm-dd range, or 0 when either side is missing or invalid. */
+export function rangeDays(from: string, to: string): number {
+  const a = Date.parse(`${from}T00:00:00Z`);
+  const b = Date.parse(`${to}T00:00:00Z`);
+  if (!Number.isFinite(a) || !Number.isFinite(b) || b < a) return 0;
+  return Math.round((b - a) / 86_400_000) + 1;
+}
 
 /** Observed source of the converting visit, in the same codes plus `unknown` (no tracked visit). */
 export function observedLabel(code: string): string {
@@ -52,8 +67,11 @@ export function reportedLabel(code: string): string {
 function count(v: unknown): Count {
   const r = (v ?? {}) as Record<string, unknown>;
   if (r.lt5 === true) return { n: null, lt5: true };
+  if (r.hidden === true) return { n: null, lt5: false, hidden: true };
   const n = Number(r.n);
-  return { n: Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0, lt5: false };
+  const c: Count = { n: Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0, lt5: false };
+  if (r.rounded === true) c.rounded = true;
+  return c;
 }
 
 /** Normalises the get_reported_channel payload; missing parts become zero or empty. */
@@ -73,14 +91,17 @@ export function parseReportedChannel(raw: unknown): ReportedChannelSummary {
   };
 }
 
-/** "12" or "fewer than 5". */
+/** "12", "about 40" (rounded total), "fewer than 5" or "hidden". */
 export function formatCount(c: Count): string {
-  return c.lt5 ? FEWER_THAN_5 : (c.n ?? 0).toLocaleString('en');
+  if (c.lt5) return FEWER_THAN_5;
+  if (c.hidden) return HIDDEN_COUNT;
+  const n = (c.n ?? 0).toLocaleString('en');
+  return c.rounded ? `about ${n}` : n;
 }
 
 /** Whole-number percentage, or null when either side is hidden or the base is zero. */
 export function percent(part: Count, whole: Count): number | null {
-  if (part.lt5 || whole.lt5 || part.n === null || whole.n === null || whole.n === 0) return null;
+  if (part.lt5 || whole.lt5 || part.hidden || whole.hidden || part.n === null || whole.n === null || whole.n === 0) return null;
   return Math.round((part.n / whole.n) * 100);
 }
 
