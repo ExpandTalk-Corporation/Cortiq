@@ -21,14 +21,21 @@ test('the sample shows every check result and every migration class', () => {
     'gtm.unknown_custom_html': 'manual',
     'gtm.community_template_injects': 'manual',
     'gtm.duplicate': 'warning',
+    'gtm.fragile_dom': 'manual',
     'gtm.dead': 'warning',
     'gtm.stale': 'manual',
   });
   for (const c of ['covered', 'consent_tool', 'pixel', 'conversion', 'third_party', 'keep_google', 'remove', 'review']) {
     assert.ok(s.summary.counts[c] > 0, c);
   }
-  assert.equal(s.tags.length, 18);
-  assert.equal(s.summary.headline, '3 of 18 tags have no consent condition · 1 identifies visitors · 3 removal candidates');
+  assert.equal(s.tags.length, 19);
+  assert.equal(s.summary.headline, '3 of 19 tags have no consent condition · 1 identifies visitors · 3 removal candidates');
+});
+
+test('the sample shows the CSS-selector conversion as medium', () => {
+  const f = buildSample().findings.find((x) => x.checkKey === 'gtm.fragile_dom');
+  assert.equal(f.priority, 'medium');
+  assert.deepEqual(f.evidence.details.slice(1), ['Google Ads - demo click (Google Ads): click trigger "Click - Book demo button" matches CSS selector ".btn-demo"']);
 });
 
 test('the sample shows the HubSpot listener feeding the lead conversions', () => {

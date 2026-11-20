@@ -95,6 +95,7 @@ export function sampleExport() {
       trigger(13, 'Consent Analytics Trigger', 'PAGEVIEW'),
       trigger(14, 'Old landing page', 'PAGEVIEW', { filter: [cond('EQUALS', '{{Page Path}}', '/spring-offer')] }),
       customEvent(15, 'CE - generate_lead', 'generate_lead', { folder: 41 }),
+      trigger(16, 'Click - Book demo button', 'CLICK', { filter: [cond('CSS_SELECTOR', '{{Click Element}}', '.btn-demo')] }),
     ],
     variables: [
       variable(30, 'Meta Pixel ID', 'c', [tpl('value', '1234567890')]),
@@ -127,6 +128,7 @@ export function sampleExport() {
       tag(16, 'UA - pageview', 'ua', [tpl('trackingId', 'UA-000000-1')], { modified: OLD_2022, folder: 41 }),
       tag(17, 'Meta - PageView (old agency)', tplType(20), [tpl('pixelId', '9876543210'), tpl('eventName', 'standard'), tpl('standardEventName', 'PageView')], { fire: [10], modified: OLD_2023, folder: 40 }),
       tag(18, 'Google Ads - lead conversion', 'awct', [tpl('conversionId', '000000000'), tpl('conversionLabel', 'SAMPLElead')], { fire: [15], folder: 40 }),
+      tag(19, 'Google Ads - demo click', 'awct', [tpl('conversionId', '000000000'), tpl('conversionLabel', 'SAMPLEdemo')], { fire: [16], folder: 40 }),
     ],
   });
 }

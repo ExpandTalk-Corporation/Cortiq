@@ -3,6 +3,7 @@ import type { Container, TagInfo } from '../types.ts';
 import { consentInferred, consentMissing, consentModeDefault, identifiesVisitors } from './consent.ts';
 import { multipleDestinations } from './destinations.ts';
 import { reliedOn } from './dependencies.ts';
+import { fragileDom } from './fragile.ts';
 import { communityTemplateInjects, dead, duplicate, stale, unknownCustomHtml } from './hygiene.ts';
 
 export { duplicateGroups } from './hygiene.ts';
@@ -19,6 +20,7 @@ export function runRules(container: Container, infos: TagInfo[]): Finding[] {
     unknownCustomHtml(infos),
     communityTemplateInjects(infos),
     duplicate(infos),
+    fragileDom(container, infos),
     dead(container, infos),
     stale(container, infos),
   ];

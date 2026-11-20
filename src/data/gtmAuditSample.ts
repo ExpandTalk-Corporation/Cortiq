@@ -5,8 +5,8 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
   "publicId": "GTM-SAMPLE1",
   "exportedAt": 1793527200000,
   "summary": {
-    "headline": "3 of 18 tags have no consent condition · 1 identifies visitors · 3 removal candidates",
-    "tags": 18,
+    "headline": "3 of 19 tags have no consent condition · 1 identifies visitors · 3 removal candidates",
+    "tags": 19,
     "noConsent": 3,
     "identifies": 1,
     "removal": 3,
@@ -14,7 +14,7 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "covered": 2,
       "consent_tool": 1,
       "pixel": 3,
-      "conversion": 3,
+      "conversion": 4,
       "third_party": 1,
       "keep_google": 3,
       "remove": 3,
@@ -177,6 +177,23 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
         "details": [
           "Evidence level: configuration (container export, not observed live)",
           "GA4 - generate_lead (Google Analytics 4) = GA4 - generate_lead (copy) (Google Analytics 4)"
+        ]
+      }
+    },
+    {
+      "scope": "GTM",
+      "checkKey": "gtm.fragile_dom",
+      "title": "1 tag relies on page markup",
+      "status": "manual",
+      "priority": "medium",
+      "explanation": "These tags fire on page markup (a CSS class, element ID or button text). A redesign or a text change can stop them without any error, and the tag silently stops counting.",
+      "fix": "Have the site push a named event when the action happens (for example `dataLayer.push({event: 'generate_lead'})`) and trigger on that event instead.",
+      "typicalOwner": "developer",
+      "evidence": {
+        "pages": [],
+        "details": [
+          "Evidence level: configuration (container export, not observed live)",
+          "Google Ads - demo click (Google Ads): click trigger \"Click - Book demo button\" matches CSS selector \".btn-demo\""
         ]
       }
     },
@@ -628,6 +645,28 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "reliedOnBy": [],
       "folder": "Marketing",
       "paused": false
+    },
+    {
+      "id": "19",
+      "name": "Google Ads - demo click",
+      "typeLabel": "Google Ads conversion",
+      "vendorId": "google-ads",
+      "vendorName": "Google Ads",
+      "sendsTo": [
+        "AW-000000000"
+      ],
+      "triggers": [
+        "Click - Book demo button"
+      ],
+      "consent": "google_consent_mode",
+      "consentEvidence": "Google tag: adapts to Consent Mode instead of being blocked; judged by the Consent Mode default check.",
+      "modifiedAt": 1790812800000,
+      "migration": "conversion",
+      "migrationLabel": "Conversion tag — can be sent server-side",
+      "migrationReason": "Google Ads conversion: can be sent server-side as an offline or enhanced conversion.",
+      "reliedOnBy": [],
+      "folder": "Marketing",
+      "paused": false
     }
   ],
   "triggers": [
@@ -671,6 +710,13 @@ export const GTM_AUDIT_SAMPLE: ReportData = {
       "type": "CUSTOM_EVENT",
       "tags": 3,
       "folder": "Analytics",
+      "builtIn": false
+    },
+    {
+      "name": "Click - Book demo button",
+      "type": "CLICK",
+      "tags": 1,
+      "folder": "",
       "builtIn": false
     },
     {
