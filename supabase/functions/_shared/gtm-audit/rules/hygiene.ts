@@ -1,11 +1,11 @@
 import type { Finding } from '../../tracking-check/types.ts';
 import type { Container, ParamValue, TagInfo } from '../types.ts';
 import { coveredReason } from '../covered.ts';
+import { ID_KEYS } from '../destinations.ts';
 import { finding, isActive, plural, tagLabel } from './finding.ts';
 
 const DAY = 86_400_000;
 const STALE_DAYS = 730;
-const ID_KEYS = ['tagId', 'measurementIdOverride', 'measurementId', 'conversionId', 'pixelId', 'pixelIds', 'pixel_id', 'partnerId', 'trackingId'];
 // Meta's eventName is always the literal 'standard' for standard events — the real event lives in
 // standardEventName, so the key must join every field, not just the first truthy one (same approach as
 // migrate.ts's eventText), or PageView and ViewContent on the same pixel/trigger look identical.
