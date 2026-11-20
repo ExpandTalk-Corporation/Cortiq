@@ -4,6 +4,7 @@ import { createClient } from '../_shared/supabase.ts';
 import { anonymizeIP } from "../_shared/ip.ts";
 import { consentGeo, gpcRequested } from "../_shared/consent-geo.ts";
 import { resolveGeo, geoKey } from "../_shared/geo.ts";
+import { loadSitePolicy, decideAndLog, visitorFrom } from "../_shared/jurisdiction-edge.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -265,6 +266,14 @@ serve(async (req) => {
         // Don't fail the entire request for validation errors
       }
     }
+
+    // Log only, never block: the ledger must record every choice, including refusals.
+    // Flag null = always shadow, whatever JURISDICTION_ENFORCE says.
+    await decideAndLog(supabase, 'store-consent', site_id, {
+      visitor: visitorFrom(geo), purpose: 'statistics',
+      signals: { consent: { analytics: requestData.consent_types.analytics, marketing: requestData.consent_types.marketing }, evidence: 'ledger', gpc },
+      technique: { storage: 'session', identifiers: 'session' },
+    }, await loadSitePolicy(supabase, site_id), null);
 
     return new Response(
       JSON.stringify({

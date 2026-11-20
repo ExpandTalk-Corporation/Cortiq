@@ -15,6 +15,7 @@
 import { createClient } from '../_shared/supabase.ts';
 import { getSessionConsent } from '../_shared/session-consent.ts';
 import { type AdsAuth, isAdsAuth, loadSiteAdsAuth, toAdsDateTime, uploadClickConversions } from '../_shared/google-ads.ts';
+import { loadSitePolicy, gateAdsUpload } from '../_shared/jurisdiction-edge.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -150,6 +151,8 @@ Deno.serve(async (req) => {
       // Consent Mode v2 ad_user_data is not stored as its own field: the tracker
       // only records marketing=true when ad_storage AND ad_user_data are granted
       // (spa-tracking.js readGoogleConsent), so `marketing` is the ad_user_data gate.
+      const policy = await loadSitePolicy(supabase, site.id);
+      const flag = Deno.env.get('JURISDICTION_ENFORCE');
       const pending = [];
       const now = new Date().toISOString();
       for (const conversion of claimed) {
@@ -164,13 +167,19 @@ Deno.serve(async (req) => {
         const current = typeof sessionId === 'string'
           ? await getSessionConsent(supabase, site.id, sessionId)
           : { analytics: false, marketing: false };
-        if (current.analytics && current.marketing) {
-          pending.push(conversion);
-        } else {
+        if (!(current.analytics && current.marketing)) {
           await supabase.from('conversion_events')
             .update({ upload_status: 'skipped_no_consent', upload_claimed_at: null })
             .eq('id', conversion.id).eq('upload_status', 'uploading');
+          continue;
         }
+        if ((await gateAdsUpload(supabase, site.id, sessionId, policy, flag)).drop) {
+          await supabase.from('conversion_events')
+            .update({ upload_status: 'skipped_jurisdiction', upload_claimed_at: null })
+            .eq('id', conversion.id).eq('upload_status', 'uploading');
+          continue;
+        }
+        pending.push(conversion);
       }
       if (pending.length === 0) continue;
 

@@ -116,4 +116,17 @@ export async function decideAndLog(
   return { ...d, enforce, drop: enforce && !d.permit };
 }
 
+// Ad-platform export of a stored conversion. No country is stored on conversion_events, so the
+// visitor is unknown and the site's strictest market decides (fail closed). Ledger evidence only.
+// deno-lint-ignore no-explicit-any
+export async function gateAdsUpload(client: any, siteId: string, sessionId: unknown, policy: SitePolicy, flag: string | null | undefined): Promise<{ drop: boolean }> {
+  const d = await decideAndLog(client, 'google-ads-quality-upload', siteId, {
+    visitor: { country: null, region: null, geoSource: 'unknown' },
+    purpose: 'ad_platform_sharing',
+    signals: signalsFrom(await readLedger(client, siteId, sessionId), { trackerGate: [], gpcHeader: false }),
+    technique: { storage: 'persistent', identifiers: 'cross_site' },
+  }, policy, flag);
+  return { drop: d.drop };
+}
+
 export type { Market };
