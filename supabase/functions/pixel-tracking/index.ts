@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from '../_shared/supabase.ts';
 import { sanitizeInteraction } from '../_shared/interaction.js';
+import { resolveGeo, geoKey } from '../_shared/geo.ts';
+import { jurisdictionGate, signalsFrom, visitorFrom } from '../_shared/jurisdiction-edge.ts';
 
 // CORS Headers
 const corsHeaders = {
@@ -125,6 +127,21 @@ serve(async (req) => {
         console.error('Site not found for tracking ID:', siteId);
         return new Response(JSON.stringify({ error: 'Invalid tracking ID' }), {
           status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // Jurisdiction (statistics, same as track-event): the customer's own Off drops now; opt_in and market
+      // rules stay shadow. Shadow mode waits only for the cached site policy; geo, ledger and log run after.
+      const isBatch = event.type === 'batch' && Array.isArray(event.events);
+      const drop = await jurisdictionGate(supabase, 'pixel-tracking', site.id, Deno.env.get('JURISDICTION_ENFORCE'), sessionId).gate(async (ledger) => ({
+        visitor: visitorFrom(await resolveGeo(req, { key: geoKey(), timeZone: null })), purpose: 'statistics',
+        signals: signalsFrom(ledger, { trackerGate: ['analytics'], gpcHeader: req.headers.get('sec-gpc') === '1' }),
+        technique: { storage: 'session', identifiers: 'session' },
+      }), isBatch ? event.events!.length : 1);
+      if (drop) {
+        return new Response(JSON.stringify({ success: true, skipped: 'jurisdiction' }), {
+          status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }

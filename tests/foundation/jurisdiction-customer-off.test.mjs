@@ -410,6 +410,91 @@ test('canary-tracker: customer Off for agent_measurement drops the hit without t
   assert.equal(inserts(optIn.d, 'canary_hits').length, 1);
 });
 
+// track-web-vitals (no caller in this repo; per-page-load id, no ledger read)
+const webVitals = (opts) => run('track-web-vitals', async () => post('track-web-vitals', {
+  tracking_id: KEY, session_id: 'p-1', metric_name: 'LCP', metric_value: 1200, metric_rating: 'good', page_url: 'https://shop.test/a',
+}, { apikey: 'anon' }), { site: { id: SITE }, ...opts });
+
+test('track-web-vitals: customer Off for statistics drops without the flag; opt_in does not', async () => {
+  const off = await webVitals({ policy: tighten({ statistics: 'off' }) });
+  assert.deepEqual(off.body, { success: true, skipped: 'jurisdiction' });
+  assert.equal(off.d.calls.filter((c) => c.table === 'web_vitals').length, 0);
+  appliedOff(off.d, 'statistics');
+  const optIn = await webVitals({ policy: tighten({ statistics: 'opt_in' }) });
+  assert.deepEqual(optIn.body, { success: true });
+  assert.equal(optIn.d.calls.filter((c) => c.table === 'web_vitals' && c.type === 'upsert').length, 1);
+});
+
+test('track-web-vitals: no tighten = answers before a slow log', async () => {
+  const { body, answeredBeforeLog } = await webVitals({ slow: true });
+  assert.deepEqual(body, { success: true });
+  assert.equal(answeredBeforeLog, true);
+});
+
+// pixel-tracking (first-party proxy path; the caller sets consent.analytics)
+const pixel = (opts) => run('pixel-tracking', async () => post('pixel-tracking', {
+  type: 'pageview', siteId: KEY, sessionId: 'sess_1_abc', consent: { analytics: true }, data: { url: 'https://shop.test/' },
+}), { site: { id: SITE }, ...opts });
+
+test('pixel-tracking: customer Off for statistics drops without the flag; opt_in does not', async () => {
+  const off = await pixel({ policy: tighten({ statistics: 'off' }) });
+  assert.deepEqual(off.body, { success: true, skipped: 'jurisdiction' });
+  assert.equal(off.d.calls.some((c) => c.type !== 'select' && c.table !== 'cookie_consents'), false);
+  appliedOff(off.d, 'statistics');
+  const optIn = await pixel({ policy: tighten({ statistics: 'opt_in' }) });
+  assert.deepEqual(optIn.body, { success: true });
+  assert.equal(inserts(optIn.d, 'page_views').length, 1);
+});
+
+test('pixel-tracking: no tighten = answers before a slow ledger read and log', async () => {
+  const { body, answeredBeforeLog } = await pixel({ slow: true });
+  assert.deepEqual(body, { success: true });
+  assert.equal(answeredBeforeLog, true);
+});
+
+// content-tracking (three POST collectors)
+const content = (path, body, opts) => run('content-tracking', async () => post(`content-tracking/${path}`, body), { site: null, ...opts });
+const INTERACTION = { site_id: SITE, session_id: 's-1', interaction: { element_id: 'e-1', page_url: '/', interaction_type: 'click', mouse_x: 1, mouse_y: 2 } };
+
+test('content-tracking: customer Off for statistics drops every POST collector without the flag; opt_in does not', async () => {
+  for (const [path, body] of [['element', { site_id: SITE, element: { element_id: 'e-1', element_type: 'a', element_selector: '#a', page_url: '/' } }],
+    ['interaction', INTERACTION], ['scroll', { site_id: SITE, session_id: 's-1', page_url: '/', scroll_depth: 50 }]]) {
+    const off = await content(path, body, { policy: tighten({ statistics: 'off' }) });
+    assert.deepEqual(off.body, { success: true, skipped: 'jurisdiction' }, path);
+    assert.equal(off.d.calls.some((c) => c.type !== 'select'), false, path);
+    appliedOff(off.d, 'statistics');
+    const optIn = await content(path, body, { policy: tighten({ statistics: 'opt_in' }) });
+    assert.deepEqual(optIn.body, { success: true }, path);
+    assert.equal(optIn.d.calls.some((c) => c.type !== 'select'), true, path);
+  }
+});
+
+test('content-tracking: no tighten = answers before a slow ledger read and log', async () => {
+  const { body, answeredBeforeLog } = await content('interaction', INTERACTION, { slow: true });
+  assert.deepEqual(body, { success: true });
+  assert.equal(answeredBeforeLog, true);
+});
+
+// media-analytics
+const media = (opts) => run('media-analytics', async () => post('media-analytics/event',
+  { site_id: SITE, session_id: 's-1', event: { media_id: 'm-1', media_type: 'video', event_type: 'play' } }), { site: null, ...opts });
+
+test('media-analytics: customer Off for statistics drops without the flag; opt_in does not', async () => {
+  const off = await media({ policy: tighten({ statistics: 'off' }) });
+  assert.deepEqual(off.body, { success: true, skipped: 'jurisdiction' });
+  assert.equal(inserts(off.d, 'media_events').length, 0);
+  appliedOff(off.d, 'statistics');
+  const optIn = await media({ policy: tighten({ statistics: 'opt_in' }) });
+  assert.deepEqual(optIn.body, { success: true });
+  assert.equal(inserts(optIn.d, 'media_events').length, 1);
+});
+
+test('media-analytics: no tighten = answers before a slow ledger read and log', async () => {
+  const { body, answeredBeforeLog } = await media({ slow: true });
+  assert.deepEqual(body, { success: true });
+  assert.equal(answeredBeforeLog, true);
+});
+
 test('canary-tracker: the pixel never waits for the gate', async () => {
   const { res, answeredBeforeLog } = await canary({ slow: true, policy: tighten({ agent_measurement: 'off' }) });
   assert.equal(res.headers.get('content-type'), 'image/gif');

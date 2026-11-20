@@ -1,4 +1,6 @@
 import { createClient } from '../_shared/supabase.ts';
+import { resolveGeo, geoKey } from '../_shared/geo.ts';
+import { jurisdictionGate, signalsFrom, visitorFrom } from '../_shared/jurisdiction-edge.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -77,6 +79,21 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'Unknown tracking_id' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Jurisdiction (statistics): the customer's own Off drops now; opt_in and market rules stay shadow.
+    // No ledger read: session_id here is a per-page-load id, not a CortIQ session. No caller in this repo
+    // sends a consent gate, so evidence is none.
+    const drop = await jurisdictionGate(supabase, 'track-web-vitals', site.id, Deno.env.get('JURISDICTION_ENFORCE')).gate(async () => ({
+      visitor: visitorFrom(await resolveGeo(req, { key: geoKey(), timeZone: null })), purpose: 'statistics',
+      signals: signalsFrom(null, { trackerGate: [], gpcHeader: req.headers.get('sec-gpc') === '1' }),
+      technique: { storage: 'none', identifiers: 'session' },
+    }));
+    if (drop) {
+      return new Response(
+        JSON.stringify({ success: true, skipped: 'jurisdiction' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

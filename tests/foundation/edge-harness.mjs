@@ -88,6 +88,7 @@ export function mockDatabase(resolve, rpc = async () => ({ data: true, error: nu
         select(columns) { operation.columns = columns; return query; },
         insert(payload) { operation.type = 'insert'; operation.payload = payload; return query; },
         update(payload) { operation.type = 'update'; operation.payload = payload; return query; },
+        upsert(payload) { operation.type = 'upsert'; operation.payload = payload; return query; },
         eq(key, value) { operation.filters.push([key, value]); return query; },
         order() { return query; }, limit() { return query; }, not() { return query; },
         in() { return query; }, or() { return query; },
