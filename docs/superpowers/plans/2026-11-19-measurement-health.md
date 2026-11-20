@@ -15,7 +15,7 @@
 - Branch `feat/measurement-health`, one PR. Commit trailer: `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`.
 - Migrations: `SECURITY DEFINER` functions use `SET search_path = ''` and fully qualified names; `REVOKE ALL … FROM PUBLIC, anon, authenticated` then `GRANT EXECUTE … TO service_role`. Exception: `get_measurement_health` is `SECURITY INVOKER`, executable by `authenticated`.
 - RLS read policy on new tables: `site_id IN (SELECT id FROM public.sites WHERE user_id = auth.uid())`. Writes are service role only.
-- New migration file names: `20261204000001_…`, `20261204000002_…`, `20261204000003_…` (latest on main is `20261203000002`).
+- New migration file names: `20261206000001_…`, `20261206000002_…`, `20261206000003_…` (latest on main is `20261203000002`).
 - Do **not** redefine `run_data_retention()`. Retention of resolved conversion alerts (365 d) runs inside `check_conversion_alerts()` (planned deviation from spec §2.1; it is hourly, so the effect is the same).
 - No change to `public/spa-tracking.js`, `cortiq.js`, `consent-banner.js` or the WP plugin → no version bump, no `sri-manifest.json` change.
 - Code, comments and UI copy in English. Copy is factual and contains no compliance claims.
@@ -38,9 +38,9 @@
 
 | File | Responsibility |
 |---|---|
-| `supabase/migrations/20261204000001_uptime_snippet_version.sql` | `site_uptime.snippet_version`; `record_uptime_check` gains `p_snippet_version` |
-| `supabase/migrations/20261204000002_conversion_alerts.sql` | `conversion_alerts` table, `conversion_alert_stats()`, `check_conversion_alerts()` |
-| `supabase/migrations/20261204000003_measurement_health.sql` | `get_measurement_health()` |
+| `supabase/migrations/20261206000001_uptime_snippet_version.sql` | `site_uptime.snippet_version`; `record_uptime_check` gains `p_snippet_version` |
+| `supabase/migrations/20261206000002_conversion_alerts.sql` | `conversion_alerts` table, `conversion_alert_stats()`, `check_conversion_alerts()` |
+| `supabase/migrations/20261206000003_measurement_health.sql` | `get_measurement_health()` |
 | `supabase/functions/_shared/uptime.ts` | + `snippetVersion(html)`, `UptimeCheck.snippetVersion` |
 | `supabase/functions/_shared/resend.ts` (new) | One Resend send + HTML escape, used by both alert functions |
 | `supabase/functions/_shared/conversion-alerts.ts` (new) | Thresholds (mirrors SQL), kinds, sentences, email body |
@@ -61,7 +61,7 @@
 ### Task 1: Tracker version from the uptime check
 
 **Files:**
-- Create: `supabase/migrations/20261204000001_uptime_snippet_version.sql`
+- Create: `supabase/migrations/20261206000001_uptime_snippet_version.sql`
 - Modify: `supabase/functions/_shared/uptime.ts` (`UptimeCheck`, `classify`, `checkSite` return values)
 - Modify: `supabase/functions/site-uptime/index.ts` (the `record_uptime_check` rpc call)
 - Create: `tests/foundation/uptime-snippet-version.test.mjs`
@@ -110,7 +110,7 @@ async function db() {
     INSERT INTO public.sites (id, user_id, domain) VALUES ('${S1}', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'example.test');
   `);
   await pg.exec(read('../../supabase/migrations/20261130000001_site_uptime.sql'));
-  await pg.exec(read('../../supabase/migrations/20261204000001_uptime_snippet_version.sql'));
+  await pg.exec(read('../../supabase/migrations/20261206000001_uptime_snippet_version.sql'));
   return pg;
 }
 const record = (pg, problem, found, version, minute) => pg.query(
@@ -155,7 +155,7 @@ Expected: FAIL — `snippetVersion` is not exported / migration file not found.
 
 - [ ] **Step 3: Implement**
 
-`supabase/migrations/20261204000001_uptime_snippet_version.sql`:
+`supabase/migrations/20261206000001_uptime_snippet_version.sql`:
 
 ```sql
 -- Tracker version seen on the home page by the 5-minute uptime check (spec 2026-11-19 §1.2).
@@ -261,7 +261,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add supabase/migrations/20261204000001_uptime_snippet_version.sql supabase/functions/_shared/uptime.ts supabase/functions/site-uptime/index.ts tests/foundation/uptime-snippet-version.test.mjs tests/foundation/site-uptime.test.mjs
+git add supabase/migrations/20261206000001_uptime_snippet_version.sql supabase/functions/_shared/uptime.ts supabase/functions/site-uptime/index.ts tests/foundation/uptime-snippet-version.test.mjs tests/foundation/site-uptime.test.mjs
 git commit -m "feat(uptime): record the tracker version seen on the home page"
 ```
 
@@ -271,7 +271,7 @@ git commit -m "feat(uptime): record the tracker version seen on the home page"
 
 **Files:**
 - Create: `tests/foundation/measurement-fixture.mjs`
-- Create: `supabase/migrations/20261204000002_conversion_alerts.sql`
+- Create: `supabase/migrations/20261206000002_conversion_alerts.sql`
 - Create: `supabase/functions/_shared/conversion-alerts.ts`
 - Create: `tests/foundation/conversion-alerts.test.mjs`
 - Create: `tests/foundation/conversion-alert-thresholds.test.mjs`
@@ -283,7 +283,7 @@ git commit -m "feat(uptime): record the tracker version seen on the home page"
   - SQL `public.conversion_alert_stats(p_now timestamptz DEFAULT now()) RETURNS TABLE (site_id uuid, kind text, subject text, should_open boolean, should_resolve boolean, detail jsonb)` — service role only.
   - SQL `public.check_conversion_alerts(p_now timestamptz DEFAULT now()) RETURNS SETOF public.conversion_alerts` — opens/resolves, deletes resolved > 365 d, returns rows that still need an email.
   - TS `CONVERSION_ALERT_THRESHOLDS`, `type ConversionAlertKind`, `interface ConversionAlert`, `CONVERSION_ALERT_KINDS`, `conversionAlertSentence(alert)`, `conversionEmailBody(domain, opened, resolved)`.
-  - Test helper `measurementDb()` → PGlite with stubs + migrations 20261115000001, 20261130000001, 20261204000001, 20261204000002 (and 20261204000003 once it exists — the helper loads every path in its list that exists on disk).
+  - Test helper `measurementDb()` → PGlite with stubs + migrations 20261115000001, 20261130000001, 20261206000001, 20261206000002 (and 20261206000003 once it exists — the helper loads every path in its list that exists on disk).
 
 - [ ] **Step 1: Write the shared fixture**
 
@@ -303,9 +303,9 @@ export const S2 = '22222222-2222-4222-8222-222222222222';
 const MIGRATIONS = [
   '20261115000001_pipeline_freshness.sql',
   '20261130000001_site_uptime.sql',
-  '20261204000001_uptime_snippet_version.sql',
-  '20261204000002_conversion_alerts.sql',
-  '20261204000003_measurement_health.sql',
+  '20261206000001_uptime_snippet_version.sql',
+  '20261206000002_conversion_alerts.sql',
+  '20261206000003_measurement_health.sql',
 ];
 
 export async function measurementDb() {
@@ -515,7 +515,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { CONVERSION_ALERT_THRESHOLDS } from '../../supabase/functions/_shared/conversion-alerts.ts';
 
-const sql = readFileSync(new URL('../../supabase/migrations/20261204000002_conversion_alerts.sql', import.meta.url), 'utf8');
+const sql = readFileSync(new URL('../../supabase/migrations/20261206000002_conversion_alerts.sql', import.meta.url), 'utf8');
 const constant = (name) => {
   const m = sql.match(new RegExp(`${name}\\s+CONSTANT\\s+\\w+\\s*:=\\s*([0-9.]+)`));
   assert.ok(m, `${name} is declared in the migration`);
@@ -542,7 +542,7 @@ Expected: FAIL — module `conversion-alerts.ts` not found.
 
 - [ ] **Step 4: Implement the migration**
 
-`supabase/migrations/20261204000002_conversion_alerts.sql`:
+`supabase/migrations/20261206000002_conversion_alerts.sql`:
 
 ```sql
 -- Rule-based conversion alerts (spec 2026-11-19 §2). Evaluated hourly by the pipeline-freshness Edge
@@ -708,7 +708,7 @@ Note for the implementer: the hysteresis test inserts rows at `0.9…0.5 h` and 
 
 ```ts
 // Conversion alerts (spec 2026-11-19 §2): thresholds, labels and sentences. The rules run in SQL
-// (conversion_alert_stats in 20261204000002_conversion_alerts.sql); the numbers below repeat that
+// (conversion_alert_stats in 20261206000002_conversion_alerts.sql); the numbers below repeat that
 // file's constants for UI text, and conversion-alert-thresholds.test.mjs keeps them equal.
 // No imports: the dashboard, the Edge Functions and the tests import this file directly.
 
@@ -791,7 +791,7 @@ Expected: PASS.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add supabase/migrations/20261204000002_conversion_alerts.sql supabase/functions/_shared/conversion-alerts.ts src/lib/goalMatching.ts tests/foundation/measurement-fixture.mjs tests/foundation/conversion-alerts.test.mjs tests/foundation/conversion-alert-thresholds.test.mjs
+git add supabase/migrations/20261206000002_conversion_alerts.sql supabase/functions/_shared/conversion-alerts.ts src/lib/goalMatching.ts tests/foundation/measurement-fixture.mjs tests/foundation/conversion-alerts.test.mjs tests/foundation/conversion-alert-thresholds.test.mjs
 git commit -m "feat(alerts): rule-based conversion alerts for goals and forms"
 ```
 
@@ -1010,7 +1010,7 @@ git commit -m "feat(alerts): hourly conversion alert check and shared Resend hel
 ### Task 4: `get_measurement_health` RPC
 
 **Files:**
-- Create: `supabase/migrations/20261204000003_measurement_health.sql`
+- Create: `supabase/migrations/20261206000003_measurement_health.sql`
 - Create: `tests/foundation/measurement-health-sql.test.mjs`
 
 **Interfaces:**
@@ -1129,7 +1129,7 @@ Expected: FAIL — `function public.get_measurement_health(...) does not exist`.
 
 - [ ] **Step 3: Implement the migration**
 
-`supabase/migrations/20261204000003_measurement_health.sql`:
+`supabase/migrations/20261206000003_measurement_health.sql`:
 
 ```sql
 -- Measurement health for one site (spec 2026-11-19 §1): checks + signal inventory in one JSON object.
@@ -1301,7 +1301,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add supabase/migrations/20261204000003_measurement_health.sql tests/foundation/measurement-health-sql.test.mjs
+git add supabase/migrations/20261206000003_measurement_health.sql tests/foundation/measurement-health-sql.test.mjs
 git commit -m "feat(health): get_measurement_health RPC with checks and signal inventory"
 ```
 

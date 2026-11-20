@@ -33,7 +33,7 @@ async function db() {
     INSERT INTO public.sites (id, user_id, domain) VALUES ('${S1}', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'example.test');
   `);
   await pg.exec(read('../../supabase/migrations/20261130000001_site_uptime.sql'));
-  await pg.exec(read('../../supabase/migrations/20261204000001_uptime_snippet_version.sql'));
+  await pg.exec(read('../../supabase/migrations/20261206000001_uptime_snippet_version.sql'));
   return pg;
 }
 const record = (pg, problem, found, version, minute) => pg.query(

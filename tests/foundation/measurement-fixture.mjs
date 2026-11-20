@@ -11,9 +11,9 @@ export const S2 = '22222222-2222-4222-8222-222222222222';
 const MIGRATIONS = [
   '20261115000001_pipeline_freshness.sql',
   '20261130000001_site_uptime.sql',
-  '20261204000001_uptime_snippet_version.sql',
-  '20261204000002_conversion_alerts.sql',
-  '20261204000003_measurement_health.sql',
+  '20261206000001_uptime_snippet_version.sql',
+  '20261206000002_conversion_alerts.sql',
+  '20261206000003_measurement_health.sql',
 ];
 
 export async function measurementDb() {

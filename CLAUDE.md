@@ -240,6 +240,22 @@ Spec: `docs/superpowers/specs/2026-11-17-gtm-container-audit-design.md`.
 
 ---
 
+## Measurement health & conversion alerts (added 2026-11-19)
+
+Spec: `docs/superpowers/specs/2026-11-19-measurement-health-design.md`.
+
+- `get_measurement_health(site)` (SECURITY INVOKER) → checks (uptime, pipelines, goals, goal health, consent rate,
+  conversions) + a 7/28-day signal inventory. Sentences live in `_shared/measurement-health.ts`. The "Alerts" tab
+  (value `alerts`) is labelled "Measurement health".
+- Tracker version: `site-uptime` reads `/v/<x.y.z>/cortiq.js` or `cortiq*.js?ver=` from the home page into
+  `site_uptime.snippet_version`; the UI compares it with `src/lib/sri-manifest.json`.
+- `conversion_alerts`: `goal_silent`, `form_zero_completions`, `form_abandon_spike`, run hourly from `pipeline-freshness`
+  via `check_conversion_alerts()`. Thresholds in SQL and `_shared/conversion-alerts.ts` (test keeps them equal).
+- AI insights cite server facts as `{{mN}}` (`_shared/insight-facts.ts`); `validateInsight` rejects bare digits,
+  one retry, then the insight is dropped (`agent_runs.data_snapshot.rejected`). Facts are in `data_snapshot.facts`.
+
+---
+
 ## Deployment
 
 ```bash

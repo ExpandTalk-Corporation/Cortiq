@@ -1,5 +1,5 @@
 // Conversion alerts (spec 2026-11-19 §2): thresholds, labels and sentences. The rules run in SQL
-// (conversion_alert_stats in 20261204000002_conversion_alerts.sql); the numbers below repeat that
+// (conversion_alert_stats in 20261206000002_conversion_alerts.sql); the numbers below repeat that
 // file's constants for UI text, and conversion-alert-thresholds.test.mjs keeps them equal.
 // No imports: the dashboard, the Edge Functions and the tests import this file directly.
 

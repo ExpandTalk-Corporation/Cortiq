@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { CONVERSION_ALERT_THRESHOLDS } from '../../supabase/functions/_shared/conversion-alerts.ts';
 
-const sql = readFileSync(new URL('../../supabase/migrations/20261204000002_conversion_alerts.sql', import.meta.url), 'utf8');
+const sql = readFileSync(new URL('../../supabase/migrations/20261206000002_conversion_alerts.sql', import.meta.url), 'utf8');
 const constant = (name) => {
   const m = sql.match(new RegExp(`${name}\\s+CONSTANT\\s+\\w+\\s*:=\\s*([0-9.]+)`));
   assert.ok(m, `${name} is declared in the migration`);
