@@ -88,13 +88,16 @@
     var candidates = [attr('data-lang'), document.documentElement && document.documentElement.lang, navigator.language];
     for (var i = 0; i < candidates.length; i++) {
       var code = String(candidates[i] || '').slice(0, 2).toLowerCase();
+      code = LANG_ALIAS[code] || code;
       if (T[code]) return code;
     }
-    return 'en';
+    return FALLBACK_LANG;
   }
 
-  // Texts reviewed by the jurist agent 2026-11-05 (sv/en). de/fr/pt carry the same content and
-  // need a native legal read before they are marketed in those countries.
+  // Texts reviewed by the jurist agent 2026-11-05 (sv/en). The other languages carry the same content
+  // and need a native legal read before they are marketed in those countries.
+  // Each language is one block that starts at `    xx: {`: scripts/banner-languages.mjs cuts them
+  // into consent-banner.<lang>.js, so keep that layout.
   // analytics = standard mode (recognises returning visits); analyticsLite = cookieless mode.
   var T = {
     sv: {
@@ -211,8 +214,197 @@
         marketing    : ['Marketing',    'Guarda o ID do anúncio em que clicou (por exemplo do Google, Meta, Microsoft, TikTok ou LinkedIn). Se enviar um formulário, é também guardado um hash do seu endereço de e-mail – um código derivado, não o endereço em texto simples. Os dados são enviados para o Google Ads para que o site possa medir que anúncios levam a pedidos e compras. A Google tem então acesso a eles.'],
         preferences  : ['Preferências', 'Memoriza escolhas como idioma e esquema.'],
       }
+    },
+    nl: {
+      title      : 'Mogen we je bezoek meten?',
+      titleAds   : 'Mogen we je bezoek en onze advertenties meten?',
+      body       : ' is verantwoordelijk voor je persoonsgegevens en wil cookies en vergelijkbare technieken gebruiken voor de onderstaande doeleinden. Je kunt je keuze op elk moment wijzigen of intrekken via de knop ‘Cookie-instellingen’ rechtsonder.',
+      moreInfo   : 'Lees de privacyverklaring',
+      acceptAll  : 'Alles accepteren',
+      accept     : 'Accepteren',
+      necessary  : 'Alleen noodzakelijke',
+      settings   : 'Zelf kiezen',
+      manage     : 'Kies wat je accepteert. Alleen het noodzakelijke is vooraf geselecteerd.',
+      save       : 'Mijn keuzes opslaan',
+      reopen     : 'Cookie-instellingen',
+      dialog     : 'Toestemming voor cookies',
+      storage    : ' Alleen tijdens het bezoek op je apparaat bewaard. Hoe lang de website de gegevens bewaart, staat in de privacyverklaring.',
+      gpc        : 'Je browser verstuurt Global Privacy Control (GPC). Daarom is marketing hier uitgeschakeld.',
+      cats: {
+        necessary    : ['Noodzakelijk',  'Bewaart je keuzes in dit venster 12 maanden op je apparaat. De keuze wordt ook door CortIQ vastgelegd als bewijs van toestemming. Altijd aan.'],
+        analytics    : ['Statistieken',  'Meet hoe de website wordt gebruikt: welke pagina’s je bezoekt, klikken en waar op de pagina je klikt, scrollen, hoe formulieren worden gebruikt (niet wat je invult) en waar het bezoek vandaan kwam. Om terugkerende bezoeken te herkennen worden gegevens over je browser en apparaat gebruikt, zoals browsertype, schermgrootte, taal en tijdzone. De gegevens bevatten je naam niet, maar zijn wel persoonsgegevens. CortIQ verwerkt ze namens de website.'],
+        analyticsLite: ['Statistieken',  'Meet hoe de website wordt gebruikt: welke pagina’s je bezoekt, klikken, scrollen en waar het bezoek vandaan kwam. Na het bezoek blijft er niets op je apparaat bewaard en terugkerende bezoeken worden niet herkend. De gegevens bevatten je naam niet, maar zijn wel persoonsgegevens. CortIQ verwerkt ze namens de website.'],
+        marketing    : ['Marketing',     'Bewaart de ID van de advertentie waarop je hebt geklikt (bijvoorbeeld van Google, Meta, Microsoft, TikTok of LinkedIn). Als je een formulier verstuurt, wordt ook een hash van je e-mailadres bewaard – een afgeleide code, niet het adres zelf. De gegevens worden naar Google Ads gestuurd, zodat de website kan meten welke advertenties tot aanvragen en aankopen leiden. Google krijgt daardoor toegang tot de gegevens.'],
+        preferences  : ['Voorkeuren',    'Onthoudt keuzes zoals taal en indeling.'],
+      }
+    },
+    nb: {
+      title      : 'Kan vi måle besøket ditt?',
+      titleAds   : 'Kan vi måle besøket ditt og annonsene våre?',
+      body       : ' er ansvarlig for personopplysningene dine og ønsker å bruke informasjonskapsler (cookies) og lignende teknologi til formålene nedenfor. Du kan når som helst endre eller trekke tilbake valget ditt via knappen «Cookie-innstillinger» nederst til høyre.',
+      moreInfo   : 'Les personvernerklæringen',
+      acceptAll  : 'Godta alle',
+      accept     : 'Godta',
+      necessary  : 'Bare nødvendige',
+      settings   : 'Velg selv',
+      manage     : 'Velg hva du godtar. Ingenting utenom det nødvendige er forhåndsvalgt.',
+      save       : 'Lagre valgene mine',
+      reopen     : 'Cookie-innstillinger',
+      dialog     : 'Samtykke til informasjonskapsler',
+      storage    : ' Lagres på enheten din bare under besøket. Hvor lenge nettstedet lagrer opplysningene, står i personvernerklæringen.',
+      gpc        : 'Nettleseren din sender Global Privacy Control (GPC). Derfor er markedsføring slått av her.',
+      cats: {
+        necessary    : ['Nødvendige',    'Lagrer valgene dine i denne boksen i 12 måneder på enheten din. Valget logges også hos CortIQ som bevis på samtykket. Alltid på.'],
+        analytics    : ['Statistikk',    'Måler hvordan nettstedet brukes: hvilke sider du besøker, klikk og hvor på siden du klikker, rulling, hvordan skjemaer brukes (ikke hva du skriver) og hvor besøket kom fra. For å kjenne igjen gjentatte besøk brukes opplysninger om nettleseren og enheten din, for eksempel nettlesertype, skjermstørrelse, språk og tidssone. Opplysningene inneholder ikke navnet ditt, men er personopplysninger. CortIQ behandler dem på vegne av nettstedet.'],
+        analyticsLite: ['Statistikk',    'Måler hvordan nettstedet brukes: hvilke sider du besøker, klikk, rulling og hvor besøket kom fra. Ingenting lagres på enheten din etter besøket, og gjentatte besøk gjenkjennes ikke. Opplysningene inneholder ikke navnet ditt, men er personopplysninger. CortIQ behandler dem på vegne av nettstedet.'],
+        marketing    : ['Markedsføring', 'Lagrer ID-en til annonsen du klikket på (for eksempel fra Google, Meta, Microsoft, TikTok eller LinkedIn). Hvis du sender inn et skjema, lagres også en hash av e-postadressen din – en omregnet kode, ikke adressen i klartekst. Opplysningene sendes til Google Ads slik at nettstedet kan måle hvilke annonser som fører til henvendelser og kjøp. Google får da tilgang til dem.'],
+        preferences  : ['Preferanser',   'Husker valg som språk og oppsett.'],
+      }
+    },
+    da: {
+      title      : 'Må vi måle dit besøg?',
+      titleAds   : 'Må vi måle dit besøg og vores annoncer?',
+      body       : ' er ansvarlig for dine personoplysninger og vil gerne bruge cookies og lignende teknologier til formålene nedenfor. Du kan til enhver tid ændre eller trække dit valg tilbage via knappen »Cookieindstillinger« nederst til højre.',
+      moreInfo   : 'Læs privatlivspolitikken',
+      acceptAll  : 'Accepter alle',
+      accept     : 'Accepter',
+      necessary  : 'Kun nødvendige',
+      settings   : 'Vælg selv',
+      manage     : 'Vælg, hvad du accepterer. Intet ud over det nødvendige er forvalgt.',
+      save       : 'Gem mine valg',
+      reopen     : 'Cookieindstillinger',
+      dialog     : 'Samtykke til cookies',
+      storage    : ' Gemmes kun på din enhed under besøget. Hvor længe hjemmesiden gemmer oplysningerne, står i privatlivspolitikken.',
+      gpc        : 'Din browser sender Global Privacy Control (GPC). Derfor er markedsføring slået fra her.',
+      cats: {
+        necessary    : ['Nødvendige',    'Gemmer dine valg i denne boks i 12 måneder på din enhed. Valget logges også hos CortIQ som bevis på samtykket. Altid slået til.'],
+        analytics    : ['Statistik',     'Måler, hvordan hjemmesiden bruges: hvilke sider du besøger, klik og hvor på siden du klikker, scrolling, hvordan formularer bruges (ikke hvad du skriver), og hvor besøget kom fra. For at genkende gentagne besøg bruges oplysninger om din browser og enhed, fx browsertype, skærmstørrelse, sprog og tidszone. Oplysningerne indeholder ikke dit navn, men er personoplysninger. CortIQ behandler dem på vegne af hjemmesiden.'],
+        analyticsLite: ['Statistik',     'Måler, hvordan hjemmesiden bruges: hvilke sider du besøger, klik, scrolling, og hvor besøget kom fra. Intet gemmes på din enhed efter besøget, og gentagne besøg genkendes ikke. Oplysningerne indeholder ikke dit navn, men er personoplysninger. CortIQ behandler dem på vegne af hjemmesiden.'],
+        marketing    : ['Markedsføring', 'Gemmer ID’et fra den annonce, du klikkede på (fx fra Google, Meta, Microsoft, TikTok eller LinkedIn). Hvis du sender en formular, gemmes også en hash af din e-mailadresse – en omregnet kode, ikke adressen i klartekst. Oplysningerne sendes til Google Ads, så hjemmesiden kan måle, hvilke annoncer der fører til henvendelser og køb. Google får dermed adgang til dem.'],
+        preferences  : ['Præferencer',   'Husker valg som sprog og layout.'],
+      }
+    },
+    fi: {
+      title      : 'Saammeko mitata käyntiäsi?',
+      titleAds   : 'Saammeko mitata käyntiäsi ja mainoksiamme?',
+      body       : ' vastaa henkilötiedoistasi ja haluaa käyttää evästeitä ja vastaavia tekniikoita alla mainittuihin tarkoituksiin. Voit muuttaa tai peruuttaa valintasi milloin tahansa oikean alakulman ”Evästeasetukset”-painikkeesta.',
+      moreInfo   : 'Lue tietosuojaseloste',
+      acceptAll  : 'Hyväksy kaikki',
+      accept     : 'Hyväksy',
+      necessary  : 'Vain välttämättömät',
+      settings   : 'Valitse itse',
+      manage     : 'Valitse, mitä hyväksyt. Mitään muuta kuin välttämätöntä ei ole valittu valmiiksi.',
+      save       : 'Tallenna valintani',
+      reopen     : 'Evästeasetukset',
+      dialog     : 'Suostumus evästeisiin',
+      storage    : ' Tallennetaan laitteellesi vain käynnin ajaksi. Sivuston tietojen säilytysaika kerrotaan tietosuojaselosteessa.',
+      gpc        : 'Selaimesi lähettää Global Privacy Control (GPC) -signaalin, joten markkinointi on tässä pois päältä.',
+      cats: {
+        necessary    : ['Välttämättömät', 'Tallentaa tämän ikkunan valintasi laitteellesi 12 kuukaudeksi. CortIQ kirjaa valinnan myös todisteeksi suostumuksesta. Aina käytössä.'],
+        analytics    : ['Tilastot',       'Mittaa, miten sivustoa käytetään: millä sivuilla käyt, klikkaukset ja mihin kohtaan sivua klikkaat, vieritys, miten lomakkeita käytetään (ei sitä, mitä kirjoitat) ja mistä käynti tuli. Toistuvien käyntien tunnistamiseen käytetään tietoja selaimestasi ja laitteestasi, kuten selaimen tyyppiä, näytön kokoa, kieltä ja aikavyöhykettä. Tiedot eivät sisällä nimeäsi, mutta ne ovat henkilötietoja. CortIQ käsittelee niitä sivuston puolesta.'],
+        analyticsLite: ['Tilastot',       'Mittaa, miten sivustoa käytetään: millä sivuilla käyt, klikkaukset, vieritys ja mistä käynti tuli. Laitteellesi ei jää käynnin jälkeen mitään, eikä toistuvia käyntejä tunnisteta. Tiedot eivät sisällä nimeäsi, mutta ne ovat henkilötietoja. CortIQ käsittelee niitä sivuston puolesta.'],
+        marketing    : ['Markkinointi',   'Tallentaa klikkaamasi mainoksen tunnisteen (esimerkiksi Googlelta, Metalta, Microsoftilta, TikTokilta tai LinkedIniltä). Jos lähetät lomakkeen, tallennetaan myös sähköpostiosoitteesi tiiviste – siitä laskettu koodi, ei osoitetta selkokielisenä. Tiedot lähetetään Google Adsiin, jotta sivusto voi mitata, mitkä mainokset johtavat yhteydenottoihin ja ostoihin. Google saa näin pääsyn niihin.'],
+        preferences  : ['Mieltymykset',   'Muistaa valinnat, kuten kielen ja asettelun.'],
+      }
+    },
+    pl: {
+      title      : 'Czy możemy mierzyć Twoją wizytę?',
+      titleAds   : 'Czy możemy mierzyć Twoją wizytę i nasze reklamy?',
+      body       : ' jest administratorem Twoich danych osobowych i chce używać plików cookie oraz podobnych technologii w celach opisanych poniżej. Możesz w każdej chwili zmienić lub wycofać swój wybór za pomocą przycisku „Ustawienia cookie” w prawym dolnym rogu.',
+      moreInfo   : 'Przeczytaj politykę prywatności',
+      acceptAll  : 'Akceptuj wszystkie',
+      accept     : 'Akceptuj',
+      necessary  : 'Tylko niezbędne',
+      settings   : 'Wybierz samodzielnie',
+      manage     : 'Wybierz, na co się zgadzasz. Poza niezbędnymi nic nie jest zaznaczone domyślnie.',
+      save       : 'Zapisz moje wybory',
+      reopen     : 'Ustawienia cookie',
+      dialog     : 'Zgoda na pliki cookie',
+      storage    : ' Przechowywane na Twoim urządzeniu tylko podczas wizyty. Jak długo witryna przechowuje dane, podano w polityce prywatności.',
+      gpc        : 'Twoja przeglądarka wysyła sygnał Global Privacy Control (GPC), dlatego marketing jest tu wyłączony.',
+      cats: {
+        necessary    : ['Niezbędne',   'Zapisuje Twoje wybory w tym oknie na Twoim urządzeniu na 12 miesięcy. Wybór jest też rejestrowany przez CortIQ jako dowód zgody. Zawsze włączone.'],
+        analytics    : ['Statystyki',  'Mierzy, jak używana jest witryna: które strony odwiedzasz, kliknięcia i miejsca, w które klikasz, przewijanie, sposób korzystania z formularzy (nie to, co wpisujesz) oraz skąd pochodzi wizyta. Aby rozpoznać powracające wizyty, wykorzystywane są informacje o Twojej przeglądarce i urządzeniu, np. typ przeglądarki, rozmiar ekranu, język i strefa czasowa. Dane nie zawierają Twojego imienia i nazwiska, ale są danymi osobowymi. CortIQ przetwarza je w imieniu witryny.'],
+        analyticsLite: ['Statystyki',  'Mierzy, jak używana jest witryna: które strony odwiedzasz, kliknięcia, przewijanie oraz skąd pochodzi wizyta. Po wizycie nic nie pozostaje na Twoim urządzeniu, a powracające wizyty nie są rozpoznawane. Dane nie zawierają Twojego imienia i nazwiska, ale są danymi osobowymi. CortIQ przetwarza je w imieniu witryny.'],
+        marketing    : ['Marketing',   'Zapisuje identyfikator reklamy, którą kliknięto (na przykład z Google, Meta, Microsoft, TikTok lub LinkedIn). Jeśli wyślesz formularz, zapisywany jest też skrót (hash) Twojego adresu e-mail – wyliczony kod, a nie adres w postaci jawnej. Dane są przesyłane do Google Ads, aby witryna mogła mierzyć, które reklamy prowadzą do zapytań i zakupów. Google uzyskuje wtedy do nich dostęp.'],
+        preferences  : ['Preferencje', 'Zapamiętuje wybory, takie jak język i układ.'],
+      }
+    },
+    it: {
+      title      : 'Possiamo misurare la tua visita?',
+      titleAds   : 'Possiamo misurare la tua visita e i nostri annunci?',
+      body       : ' è titolare del trattamento dei tuoi dati personali e vorrebbe usare cookie e tecnologie simili per le finalità indicate di seguito. Puoi modificare o revocare la tua scelta in qualsiasi momento tramite il pulsante «Impostazioni cookie» in basso a destra.',
+      moreInfo   : 'Leggi l’informativa sulla privacy',
+      acceptAll  : 'Accetta tutti',
+      accept     : 'Accetta',
+      necessary  : 'Solo necessari',
+      settings   : 'Scegli tu',
+      manage     : 'Scegli cosa accetti. Nulla è preselezionato tranne ciò che è necessario.',
+      save       : 'Salva le mie scelte',
+      reopen     : 'Impostazioni cookie',
+      dialog     : 'Consenso ai cookie',
+      storage    : ' Conservato sul tuo dispositivo solo durante la visita. Per quanto tempo il sito conserva i dati è indicato nell’informativa sulla privacy.',
+      gpc        : 'Il tuo browser invia il segnale Global Privacy Control (GPC), quindi il marketing qui è disattivato.',
+      cats: {
+        necessary    : ['Necessari',   'Salva le tue scelte in questa finestra sul tuo dispositivo per 12 mesi. La scelta viene inoltre registrata da CortIQ come prova del consenso. Sempre attivi.'],
+        analytics    : ['Statistiche', 'Misura come viene usato il sito: pagine visitate, clic e punto della pagina in cui fai clic, scorrimento, uso dei moduli (non ciò che scrivi) e provenienza della visita. Per riconoscere le visite ripetute vengono usate informazioni sul tuo browser e dispositivo, come tipo di browser, dimensioni dello schermo, lingua e fuso orario. I dati non contengono il tuo nome, ma sono dati personali. CortIQ li tratta per conto del sito.'],
+        analyticsLite: ['Statistiche', 'Misura come viene usato il sito: pagine visitate, clic, scorrimento e provenienza della visita. Dopo la visita non resta nulla sul tuo dispositivo e le visite ripetute non vengono riconosciute. I dati non contengono il tuo nome, ma sono dati personali. CortIQ li tratta per conto del sito.'],
+        marketing    : ['Marketing',   'Salva l’ID dell’annuncio su cui hai fatto clic (ad esempio di Google, Meta, Microsoft, TikTok o LinkedIn). Se invii un modulo, viene salvato anche un hash del tuo indirizzo e-mail – un codice derivato, non l’indirizzo in chiaro. I dati vengono inviati a Google Ads affinché il sito possa misurare quali annunci portano a richieste e acquisti. Google vi ha quindi accesso.'],
+        preferences  : ['Preferenze',  'Ricorda scelte come la lingua e il layout.'],
+      }
+    },
+    es: {
+      title      : '¿Podemos medir tu visita?',
+      titleAds   : '¿Podemos medir tu visita y nuestros anuncios?',
+      body       : ' es responsable de tus datos personales y quiere usar cookies y tecnologías similares para las finalidades indicadas a continuación. Puedes cambiar o retirar tu elección en cualquier momento con el botón «Configuración de cookies» abajo a la derecha.',
+      moreInfo   : 'Leer la política de privacidad',
+      acceptAll  : 'Aceptar todas',
+      accept     : 'Aceptar',
+      necessary  : 'Solo necesarias',
+      settings   : 'Elegir',
+      manage     : 'Elige qué aceptas. Solo lo necesario está preseleccionado.',
+      save       : 'Guardar mis opciones',
+      reopen     : 'Configuración de cookies',
+      dialog     : 'Consentimiento de cookies',
+      storage    : ' Se guarda en tu dispositivo solo durante la visita. El tiempo que el sitio conserva los datos se indica en la política de privacidad.',
+      gpc        : 'Tu navegador envía la señal Global Privacy Control (GPC), por lo que el marketing está desactivado aquí.',
+      cats: {
+        necessary    : ['Necesarias',   'Guarda tus elecciones en esta ventana en tu dispositivo durante 12 meses. CortIQ también registra la elección como prueba del consentimiento. Siempre activas.'],
+        analytics    : ['Estadísticas', 'Mide cómo se usa el sitio: las páginas que visitas, los clics y dónde haces clic en la página, el desplazamiento, cómo se usan los formularios (no lo que escribes) y de dónde vino la visita. Para reconocer las visitas repetidas se usan datos de tu navegador y dispositivo, como el tipo de navegador, el tamaño de pantalla, el idioma y la zona horaria. Los datos no incluyen tu nombre, pero son datos personales. CortIQ los trata por cuenta del sitio.'],
+        analyticsLite: ['Estadísticas', 'Mide cómo se usa el sitio: las páginas que visitas, los clics, el desplazamiento y de dónde vino la visita. No queda nada guardado en tu dispositivo después de la visita y las visitas repetidas no se reconocen. Los datos no incluyen tu nombre, pero son datos personales. CortIQ los trata por cuenta del sitio.'],
+        marketing    : ['Marketing',    'Guarda el ID del anuncio en el que hiciste clic (por ejemplo de Google, Meta, Microsoft, TikTok o LinkedIn). Si envías un formulario, también se guarda un hash de tu dirección de correo electrónico – un código derivado, no la dirección en texto claro. Los datos se envían a Google Ads para que el sitio pueda medir qué anuncios generan consultas y compras. Google tiene entonces acceso a ellos.'],
+        preferences  : ['Preferencias', 'Recuerda elecciones como el idioma y el diseño.'],
+      }
+    },
+    is: {
+      title      : 'Megum við mæla heimsókn þína?',
+      titleAds   : 'Megum við mæla heimsókn þína og auglýsingar okkar?',
+      body       : ' ber ábyrgð á persónuupplýsingum þínum og vill nota vafrakökur og sambærilega tækni í þeim tilgangi sem lýst er hér að neðan. Þú getur breytt eða afturkallað val þitt hvenær sem er með hnappnum „Vafrakökustillingar“ neðst til hægri.',
+      moreInfo   : 'Lesa persónuverndarstefnuna',
+      acceptAll  : 'Samþykkja allt',
+      accept     : 'Samþykkja',
+      necessary  : 'Aðeins nauðsynlegar',
+      settings   : 'Sérsníða',
+      manage     : 'Veldu hvað þú samþykkir. Ekkert er forvalið nema það sem er nauðsynlegt.',
+      save       : 'Vista valið mitt',
+      reopen     : 'Vafrakökustillingar',
+      dialog     : 'Samþykki fyrir vafrakökum',
+      storage    : ' Geymt í tækinu þínu aðeins meðan á heimsókninni stendur. Hve lengi vefurinn geymir gögnin kemur fram í persónuverndarstefnunni.',
+      gpc        : 'Vafrinn þinn sendir Global Privacy Control (GPC) og því er slökkt á markaðssetningu hér.',
+      cats: {
+        necessary    : ['Nauðsynlegar',   'Vistar val þitt í þessum glugga í tækinu þínu í 12 mánuði. CortIQ skráir valið einnig sem sönnun á samþykki. Alltaf virkt.'],
+        analytics    : ['Tölfræði',       'Mælir hvernig vefurinn er notaður: hvaða síður þú heimsækir, smelli og hvar á síðunni þú smellir, skrun, hvernig eyðublöð eru notuð (ekki hvað þú skrifar) og hvaðan heimsóknin kom. Til að þekkja endurteknar heimsóknir eru notaðar upplýsingar um vafrann þinn og tækið, svo sem tegund vafra, skjástærð, tungumál og tímabelti. Gögnin innihalda ekki nafn þitt en eru persónuupplýsingar. CortIQ vinnur þau fyrir hönd vefsins.'],
+        analyticsLite: ['Tölfræði',       'Mælir hvernig vefurinn er notaður: hvaða síður þú heimsækir, smelli, skrun og hvaðan heimsóknin kom. Ekkert er geymt í tækinu þínu eftir heimsóknina og endurteknar heimsóknir eru ekki þekktar. Gögnin innihalda ekki nafn þitt en eru persónuupplýsingar. CortIQ vinnur þau fyrir hönd vefsins.'],
+        marketing    : ['Markaðssetning', 'Vistar auðkenni auglýsingarinnar sem þú smelltir á (til dæmis frá Google, Meta, Microsoft, TikTok eða LinkedIn). Ef þú sendir inn eyðublað er einnig vistað tætigildi (hash) netfangsins þíns – reiknaður kóði, ekki netfangið sjálft. Gögnin eru send til Google Ads svo vefurinn geti mælt hvaða auglýsingar leiða til fyrirspurna og kaupa. Google fær þá aðgang að þeim.'],
+        preferences  : ['Kjörstillingar', 'Man val eins og tungumál og útlit.'],
+      }
     }
   };
+
+  // Norwegian arrives as nb, nn or no; all read the bokmål text. A single-language build
+  // (consent-banner.<lang>.js, scripts/banner-languages.mjs) has no en, so it falls back to its own.
+  var LANG_ALIAS = { no: 'nb', nn: 'nb' };
+  var FALLBACK_LANG = T.en ? 'en' : Object.keys(T)[0];
 
   var DIRECT_URL = 'https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1';
   var GEO_URL = 'https://cortiq-geo.cortiq.workers.dev';
@@ -231,7 +423,7 @@
     geoUrl        : attr('data-geo-url') === 'false' ? false : (attr('data-geo-url') || null),
   };
 
-  function t() { return T[cfg.lang] || T.en; }
+  function t() { return T[cfg.lang] || T[FALLBACK_LANG]; }
 
   // Without these the banner cannot name the controller, link the policy or log proof (Art. 7(1)).
   if (!attr('data-company'))     warn('data-company is missing — set it to your legal company name.');

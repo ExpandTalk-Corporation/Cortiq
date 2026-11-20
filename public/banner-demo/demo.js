@@ -2,7 +2,7 @@
 // consent is logged; the homepage frames this page with sandbox="allow-scripts", so nothing is
 // stored either.
 (function () {
-  var LANGS = ['sv', 'en', 'de', 'fr', 'pt'];
+  var LANGS = ['sv', 'en', 'de', 'fr', 'pt', 'nl', 'nb', 'da', 'fi', 'pl', 'it', 'es', 'is'];
   var match = /[?&]lang=([^&]*)/.exec(location.search);
   var lang = match && LANGS.indexOf(match[1]) !== -1 ? match[1] : 'en';
   document.documentElement.lang = lang;

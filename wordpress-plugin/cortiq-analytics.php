@@ -3,7 +3,7 @@
  * Plugin Name: CortIQ Analytics
  * Plugin URI: https://cortiq.se
  * Description: Analytics for the agentic web. Classifies AI crawlers and agent fetches (GPTBot, ClaudeBot, ChatGPT-User, PerplexityBot…) and measures human visitors after consent — cookieless mode, heatmaps, conversions and a built-in consent banner.
- * Version: 5.5.16
+ * Version: 5.5.17
  * Author: CortIQ
  * Author URI: https://cortiq.se
  * Requires at least: 5.6
@@ -21,7 +21,7 @@ if ( defined( 'CORTIQ_LOADED' ) ) return;
 define( 'CORTIQ_LOADED', true );
 
 // Shared with public/spa-tracking.js (CORTIQ_VERSION) — also the ?ver= cache-bust for it.
-define( 'CORTIQ_VERSION',    '5.5.16' );
+define( 'CORTIQ_VERSION',    '5.5.17' );
 define( 'CORTIQ_OPTION_KEY', 'cortiq_options' );
 // Supabase Edge Functions base — used for the GDPR consent ledger (store-consent).
 define( 'CORTIQ_API',        'https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1' );
@@ -47,7 +47,7 @@ function cortiq_defaults() {
         'accent_color'          => '#6366f1',
         'tracking_mode'         => 'full',   // 'cookieless' (no fingerprint/profile) | 'full'
         'cookieless_memory_only'=> false,    // cookieless: keep the session id in memory only (no sessionStorage)
-        'banner_language'       => 'auto',   // 'auto' (WP locale) | 'en' | 'sv' | 'de'
+        'banner_language'       => 'auto',   // 'auto' (WP locale) | a code from cortiq_banner_languages()
         'consent_mode'          => 'basic',  // GA4 Consent Mode: 'basic' | 'advanced'
         'policy_version'        => '1',      // change to re-prompt every visitor
         'reprompt_cooldown_days'=> 365,      // how long an accepted choice is respected before re-asking
@@ -78,13 +78,18 @@ function cortiq_banner_lang( $opts ) {
     $choice = isset( $opts['banner_language'] ) ? $opts['banner_language'] : 'auto';
     if ( 'auto' === $choice ) {
         $loc = strtolower( (string) get_locale() );
-        if ( 0 === strpos( $loc, 'sv' ) ) return 'sv';
-        if ( 0 === strpos( $loc, 'de' ) ) return 'de';
-        if ( 0 === strpos( $loc, 'fr' ) ) return 'fr';
-        if ( 0 === strpos( $loc, 'pt' ) ) return 'pt';
+        // Norwegian locales are nb_NO, nn_NO or no; all get the bokmål texts.
+        if ( preg_match( '/^(nb|nn|no)(_|$)/', $loc ) ) return 'nb';
+        foreach ( array( 'sv', 'de', 'fr', 'pt', 'nl', 'da', 'fi', 'pl', 'it', 'es', 'is' ) as $code ) {
+            if ( 0 === strpos( $loc, $code ) ) return $code;
+        }
         return 'en';
     }
-    return in_array( $choice, array( 'en', 'sv', 'de', 'fr', 'pt' ), true ) ? $choice : 'en';
+    return in_array( $choice, cortiq_banner_languages(), true ) ? $choice : 'en';
+}
+
+function cortiq_banner_languages() {
+    return array( 'en', 'sv', 'de', 'fr', 'pt', 'nl', 'nb', 'da', 'fi', 'pl', 'it', 'es', 'is' );
 }
 
 function cortiq_banner_strings( $lang ) {
@@ -203,6 +208,190 @@ function cortiq_banner_strings( $lang ) {
             'categories'     => 'Categorias',
             'close'          => 'Fechar',
             'gpc'            => 'O seu navegador envia o sinal Global Privacy Control (GPC), por isso o marketing está desativado aqui.',
+        ),
+        'nl' => array(
+            'title'          => '🍪 Cookie-instellingen',
+            'intro'          => 'We willen begrijpen wat lezers waarderen en u relevante inhoud tonen. Kies wat u toestaat.',
+            'necessary'      => 'Noodzakelijk',
+            'necessary_desc' => 'Nodig om de site te laten werken. Altijd aan.',
+            'preferences'    => 'Voorkeuren',
+            'preferences_desc' => 'Onthoudt keuzes zoals taal en indeling.',
+            'statistics'     => 'Statistieken',
+            'statistics_desc' => 'Helpt ons te zien welke pagina’s en inhoud bezoekers waarderen.',
+            'marketing'      => 'Marketing',
+            'marketing_desc' => 'Gebruikt om relevante advertenties te tonen en campagnes te meten.',
+            'show_details'   => 'Details tonen',
+            'hide_details'   => 'Details verbergen',
+            'accept_all'     => 'Alles accepteren',
+            'only_necessary' => 'Alleen noodzakelijk',
+            'save'           => 'Selectie opslaan',
+            'reopen'         => 'Cookie-instellingen',
+            'consent_date'   => 'Datum toestemming',
+            'consent_id'     => 'Toestemmings-ID',
+            'categories'     => 'Categorieën',
+            'close'          => 'Sluiten',
+            'gpc'            => 'Uw browser verstuurt Global Privacy Control (GPC). Marketing staat hier daarom uit.',
+        ),
+        'nb' => array(
+            'title'          => '🍪 Informasjonskapsler',
+            'intro'          => 'Vi vil forstå hva leserne liker og vise deg relevant innhold. Velg hva du tillater.',
+            'necessary'      => 'Nødvendige',
+            'necessary_desc' => 'Kreves for at nettstedet skal fungere. Alltid på.',
+            'preferences'    => 'Preferanser',
+            'preferences_desc' => 'Husker valg som språk og oppsett.',
+            'statistics'     => 'Statistikk',
+            'statistics_desc' => 'Hjelper oss å se hvilke sider og hvilket innhold besøkende liker.',
+            'marketing'      => 'Markedsføring',
+            'marketing_desc' => 'Brukes til å vise relevante annonser og måle kampanjer.',
+            'show_details'   => 'Vis detaljer',
+            'hide_details'   => 'Skjul detaljer',
+            'accept_all'     => 'Godta alle',
+            'only_necessary' => 'Bare nødvendige',
+            'save'           => 'Lagre valg',
+            'reopen'         => 'Informasjonskapsler',
+            'consent_date'   => 'Samtykkedato',
+            'consent_id'     => 'Samtykke-ID',
+            'categories'     => 'Kategorier',
+            'close'          => 'Lukk',
+            'gpc'            => 'Nettleseren din sender Global Privacy Control (GPC). Markedsføring er derfor slått av her.',
+        ),
+        'da' => array(
+            'title'          => '🍪 Cookie-indstillinger',
+            'intro'          => 'Vi vil gerne forstå, hvad læserne synes om, og vise dig relevant indhold. Vælg, hvad du tillader.',
+            'necessary'      => 'Nødvendige',
+            'necessary_desc' => 'Kræves for at sitet virker. Altid slået til.',
+            'preferences'    => 'Præferencer',
+            'preferences_desc' => 'Husker valg som sprog og layout.',
+            'statistics'     => 'Statistik',
+            'statistics_desc' => 'Hjælper os med at se, hvilke sider og hvilket indhold besøgende synes om.',
+            'marketing'      => 'Marketing',
+            'marketing_desc' => 'Bruges til at vise relevante annoncer og måle kampagner.',
+            'show_details'   => 'Vis detaljer',
+            'hide_details'   => 'Skjul detaljer',
+            'accept_all'     => 'Accepter alle',
+            'only_necessary' => 'Kun nødvendige',
+            'save'           => 'Gem valg',
+            'reopen'         => 'Cookie-indstillinger',
+            'consent_date'   => 'Samtykkedato',
+            'consent_id'     => 'Samtykke-ID',
+            'categories'     => 'Kategorier',
+            'close'          => 'Luk',
+            'gpc'            => 'Din browser sender Global Privacy Control (GPC). Marketing er derfor slået fra her.',
+        ),
+        'fi' => array(
+            'title'          => '🍪 Evästeasetukset',
+            'intro'          => 'Haluamme ymmärtää, mistä lukijat pitävät, ja näyttää sinulle kiinnostavaa sisältöä. Valitse, mitä sallit.',
+            'necessary'      => 'Välttämättömät',
+            'necessary_desc' => 'Tarvitaan sivuston toimintaan. Aina käytössä.',
+            'preferences'    => 'Mieltymykset',
+            'preferences_desc' => 'Muistaa valinnat, kuten kielen ja asettelun.',
+            'statistics'     => 'Tilastot',
+            'statistics_desc' => 'Auttaa meitä näkemään, mistä sivuista ja sisällöstä kävijät pitävät.',
+            'marketing'      => 'Markkinointi',
+            'marketing_desc' => 'Käytetään kiinnostavien mainosten näyttämiseen ja kampanjoiden mittaamiseen.',
+            'show_details'   => 'Näytä tiedot',
+            'hide_details'   => 'Piilota tiedot',
+            'accept_all'     => 'Hyväksy kaikki',
+            'only_necessary' => 'Vain välttämättömät',
+            'save'           => 'Tallenna valinnat',
+            'reopen'         => 'Evästeasetukset',
+            'consent_date'   => 'Suostumuksen päivämäärä',
+            'consent_id'     => 'Suostumustunnus',
+            'categories'     => 'Luokat',
+            'close'          => 'Sulje',
+            'gpc'            => 'Selaimesi lähettää Global Privacy Control (GPC) -signaalin, joten markkinointi on tässä pois päältä.',
+        ),
+        'pl' => array(
+            'title'          => '🍪 Ustawienia plików cookie',
+            'intro'          => 'Chcemy wiedzieć, co podoba się czytelnikom, i pokazywać Ci trafne treści. Wybierz, na co się zgadzasz.',
+            'necessary'      => 'Niezbędne',
+            'necessary_desc' => 'Wymagane do działania strony. Zawsze włączone.',
+            'preferences'    => 'Preferencje',
+            'preferences_desc' => 'Zapamiętują wybory, takie jak język i układ.',
+            'statistics'     => 'Statystyki',
+            'statistics_desc' => 'Pomagają nam zobaczyć, które strony i treści podobają się odwiedzającym.',
+            'marketing'      => 'Marketing',
+            'marketing_desc' => 'Służą do wyświetlania trafnych reklam i mierzenia kampanii.',
+            'show_details'   => 'Pokaż szczegóły',
+            'hide_details'   => 'Ukryj szczegóły',
+            'accept_all'     => 'Akceptuj wszystkie',
+            'only_necessary' => 'Tylko niezbędne',
+            'save'           => 'Zapisz wybór',
+            'reopen'         => 'Ustawienia plików cookie',
+            'consent_date'   => 'Data zgody',
+            'consent_id'     => 'ID zgody',
+            'categories'     => 'Kategorie',
+            'close'          => 'Zamknij',
+            'gpc'            => 'Twoja przeglądarka wysyła sygnał Global Privacy Control (GPC), dlatego marketing jest tu wyłączony.',
+        ),
+        'it' => array(
+            'title'          => '🍪 Impostazioni dei cookie',
+            'intro'          => 'Vogliamo capire cosa apprezzano i lettori e mostrarti contenuti pertinenti. Scegli cosa consentire.',
+            'necessary'      => 'Necessari',
+            'necessary_desc' => 'Indispensabili per il funzionamento del sito. Sempre attivi.',
+            'preferences'    => 'Preferenze',
+            'preferences_desc' => 'Ricordano scelte come la lingua e il layout.',
+            'statistics'     => 'Statistiche',
+            'statistics_desc' => 'Ci aiutano a capire quali pagine e contenuti piacciono ai visitatori.',
+            'marketing'      => 'Marketing',
+            'marketing_desc' => 'Usati per mostrare annunci pertinenti e misurare le campagne.',
+            'show_details'   => 'Mostra dettagli',
+            'hide_details'   => 'Nascondi dettagli',
+            'accept_all'     => 'Accetta tutti',
+            'only_necessary' => 'Solo necessari',
+            'save'           => 'Salva selezione',
+            'reopen'         => 'Impostazioni dei cookie',
+            'consent_date'   => 'Data del consenso',
+            'consent_id'     => 'ID del consenso',
+            'categories'     => 'Categorie',
+            'close'          => 'Chiudi',
+            'gpc'            => 'Il tuo browser invia il segnale Global Privacy Control (GPC), quindi il marketing qui è disattivato.',
+        ),
+        'es' => array(
+            'title'          => '🍪 Configuración de cookies',
+            'intro'          => 'Queremos entender qué les gusta a los lectores y mostrarte contenido relevante. Elige lo que permites.',
+            'necessary'      => 'Necesarias',
+            'necessary_desc' => 'Imprescindibles para que el sitio funcione. Siempre activas.',
+            'preferences'    => 'Preferencias',
+            'preferences_desc' => 'Recuerdan opciones como el idioma y el diseño.',
+            'statistics'     => 'Estadísticas',
+            'statistics_desc' => 'Nos ayudan a ver qué páginas y contenidos gustan a los visitantes.',
+            'marketing'      => 'Marketing',
+            'marketing_desc' => 'Se usan para mostrar anuncios relevantes y medir campañas.',
+            'show_details'   => 'Mostrar detalles',
+            'hide_details'   => 'Ocultar detalles',
+            'accept_all'     => 'Aceptar todas',
+            'only_necessary' => 'Solo necesarias',
+            'save'           => 'Guardar selección',
+            'reopen'         => 'Configuración de cookies',
+            'consent_date'   => 'Fecha del consentimiento',
+            'consent_id'     => 'ID del consentimiento',
+            'categories'     => 'Categorías',
+            'close'          => 'Cerrar',
+            'gpc'            => 'Tu navegador envía la señal Global Privacy Control (GPC), por lo que el marketing está desactivado aquí.',
+        ),
+        'is' => array(
+            'title'          => '🍪 Vafrakökustillingar',
+            'intro'          => 'Við viljum skilja hvað lesendum líkar og sýna þér viðeigandi efni. Veldu hvað þú leyfir.',
+            'necessary'      => 'Nauðsynlegar',
+            'necessary_desc' => 'Nauðsynlegar til að vefurinn virki. Alltaf virkar.',
+            'preferences'    => 'Kjörstillingar',
+            'preferences_desc' => 'Muna val eins og tungumál og útlit.',
+            'statistics'     => 'Tölfræði',
+            'statistics_desc' => 'Hjálpa okkur að sjá hvaða síður og efni gestum líkar.',
+            'marketing'      => 'Markaðssetning',
+            'marketing_desc' => 'Notaðar til að sýna viðeigandi auglýsingar og mæla herferðir.',
+            'show_details'   => 'Sýna nánar',
+            'hide_details'   => 'Fela nánar',
+            'accept_all'     => 'Samþykkja allar',
+            'only_necessary' => 'Aðeins nauðsynlegar',
+            'save'           => 'Vista val',
+            'reopen'         => 'Vafrakökustillingar',
+            'consent_date'   => 'Dagsetning samþykkis',
+            'consent_id'     => 'Auðkenni samþykkis',
+            'categories'     => 'Flokkar',
+            'close'          => 'Loka',
+            'gpc'            => 'Vafrinn þinn sendir Global Privacy Control (GPC) merki og því er slökkt á markaðssetningu hér.',
         ),
     );
     return isset( $s[ $lang ] ) ? $s[ $lang ] : $s['en'];
@@ -834,7 +1023,7 @@ function cortiq_sanitize_options( $input ) {
     $clean['tracking_mode']    = ( isset( $input['tracking_mode'] ) && 'cookieless' === $input['tracking_mode'] ) ? 'cookieless' : 'full';
     $clean['cookieless_memory_only'] = ! empty( $input['cookieless_memory_only'] );
     $bl = isset( $input['banner_language'] ) ? $input['banner_language'] : 'auto';
-    $clean['banner_language']  = in_array( $bl, array( 'auto', 'en', 'sv', 'de', 'fr', 'pt' ), true ) ? $bl : 'auto';
+    $clean['banner_language']  = ( 'auto' === $bl || in_array( $bl, cortiq_banner_languages(), true ) ) ? $bl : 'auto';
     $clean['consent_mode']     = ( isset( $input['consent_mode'] ) && 'advanced' === $input['consent_mode'] ) ? 'advanced' : 'basic';
     $pv = isset( $input['policy_version'] ) ? substr( sanitize_text_field( $input['policy_version'] ), 0, 20 ) : '1';
     $clean['policy_version']   = ( '' !== $pv ) ? $pv : '1';
@@ -1027,6 +1216,14 @@ function cortiq_settings_page() {
                             <option value="de"   <?php selected( 'de',   $opts['banner_language'] ); ?>>Deutsch</option>
                             <option value="fr"   <?php selected( 'fr',   $opts['banner_language'] ); ?>>Français</option>
                             <option value="pt"   <?php selected( 'pt',   $opts['banner_language'] ); ?>>Português</option>
+                            <option value="nl"   <?php selected( 'nl',   $opts['banner_language'] ); ?>>Nederlands</option>
+                            <option value="nb"   <?php selected( 'nb',   $opts['banner_language'] ); ?>>Norsk (bokmål)</option>
+                            <option value="da"   <?php selected( 'da',   $opts['banner_language'] ); ?>>Dansk</option>
+                            <option value="fi"   <?php selected( 'fi',   $opts['banner_language'] ); ?>>Suomi</option>
+                            <option value="pl"   <?php selected( 'pl',   $opts['banner_language'] ); ?>>Polski</option>
+                            <option value="it"   <?php selected( 'it',   $opts['banner_language'] ); ?>>Italiano</option>
+                            <option value="es"   <?php selected( 'es',   $opts['banner_language'] ); ?>>Español</option>
+                            <option value="is"   <?php selected( 'is',   $opts['banner_language'] ); ?>>Íslenska</option>
                         </select>
                         <p class="description">Language for the cookie banner. Auto follows your site's WordPress language.</p>
                     </td>
