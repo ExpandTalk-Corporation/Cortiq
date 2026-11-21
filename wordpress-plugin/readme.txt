@@ -3,7 +3,7 @@ Contributors: cortiq
 Tags: analytics, ai-tracking, heatmap, cookie-free, gdpr, chatgpt, ai-bots
 Requires at least: 5.6
 Tested up to: 6.8
-Stable tag: 5.5.23
+Stable tag: 5.5.24
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -87,6 +87,9 @@ The tracking script is loaded with `defer` so it does not block rendering.
 
 == Changelog ==
 
+= 5.5.24 =
+* The built-in consent banner sends the language it was shown in with each answer (as CortIQ's own banner has done since 5.5.19), so acceptance can be compared per language.
+
 = 5.5.23 =
 * A visitor arriving from an AI service (ChatGPT, Perplexity, …) is now reported once, as AI-referred traffic, and no longer also sent to the bot endpoint where it was counted as an unknown bot.
 
@@ -94,7 +97,7 @@ The tracking script is loaded with `defer` so it does not block rendering.
 * Click tracking no longer reads the value of form fields: clicks on inputs, text areas and selects (such as a search box in the menu) are not recorded.
 
 = 5.5.21 =
-* Optional self-reported source: a site can name one "how did you hear about us?" select or radio field; with analytics consent the tracker sends only a category mapped from the chosen option. Text fields are never read. Off unless configured, full mode only.
+* Optional self-reported source: a site can name one "how did you hear about us?" select or radio field; with analytics consent the tracker sends only a category mapped from the chosen option. Free-text fields are never read for it. Off unless configured, full mode only.
 
 = 5.5.20 =
 * Server-side agent measurement does not send a request that carries Global Privacy Control (Sec-GPC: 1); CortIQ treats it as an objection.

@@ -73,7 +73,7 @@ function bannerScript() {
   const values = [
     'https://api.test', 'https://api.test', 'site-1', 'tk_1',
     JSON.stringify({ show: 's', hide: 'h', nec: 'N', pref: 'P', stat: 'S', mark: 'M', cdate: 'd', cid: 'i', cats: 'c' }),
-    '1', '365', '180', 'false',
+    '1', 'sv', '365', '180', 'false',
   ];
   let i = 0;
   const js = php.slice(from + '<script>'.length, to).replace(/<\?php[\s\S]*?\?>/g, () => values[i++]);
