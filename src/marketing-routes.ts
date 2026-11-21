@@ -105,6 +105,16 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
     footer: { group: 'product', label: 'GTM container audit' },
   },
   {
+    path: '/markets/',
+    title: 'Rule Status per Market: Markets the Engine Knows — CortIQ',
+    description: "A world map of the markets CortIQ's rule engine knows, with main laws, rules on file and rule status per market. Market rules are logged, not applied.",
+    published: '2026-11-21',
+    changefreq: 'monthly',
+    priority: 0.6,
+    source: 'src/pages/Markets.tsx',
+    footer: { group: 'resources', label: 'Rule status per market' },
+  },
+  {
     path: '/cookie-consent-checker/',
     title: 'Cookie Checker: Scan Before & After Consent — CortIQ',
     description: 'Free cookie checker: a real browser visits your pages before the banner is answered, after "Reject all" and "Accept all", and lists cookies, pixels and tags.',

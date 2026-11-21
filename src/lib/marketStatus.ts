@@ -20,7 +20,7 @@ export const RULE_STATUS_LABEL: Record<RuleStatus, string> = {
   reviewed_counsel: 'reviewed by counsel', suspended: 'suspended',
 };
 
-export interface RuleOnFile { id: string; purposes: Purpose[]; status: RuleStatus; text: string }
+export interface RuleOnFile { id: string; markets: Market[]; purposes: Purpose[]; status: RuleStatus; text: string }
 export interface MarketStatus {
   market: Market;
   /** Purposes where an approved rule decides (production status). The rest fall back to the baseline. */
@@ -41,7 +41,7 @@ export function marketStatus(market: Market): MarketStatus {
   const baselineOnly = approved.length === 0 && rows.every((r) => r.outcome === 'needs_opt_in');
   const rulesOnFile = PACK.rules
     .filter((r) => r.markets.includes(market))
-    .map((r) => ({ id: r.id, purposes: [...r.purposes], status: r.status, text: `${purposeList(r.purposes)}: ${RULE_STATUS_LABEL[r.status]}` }));
+    .map((r) => ({ id: r.id, markets: [...r.markets], purposes: [...r.purposes], status: r.status, text: `${purposeList(r.purposes)}: ${RULE_STATUS_LABEL[r.status]}` }));
   const statuses = new Set(rulesOnFile.map((r) => r.status));
 
   let status: string;

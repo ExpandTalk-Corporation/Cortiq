@@ -72,10 +72,13 @@ test('no market is described as approved while no rule has a production status',
 
 test('the section renders status from the engine, never as hand-written text', () => {
   const src = read(HOME + 'RoutingSection.tsx');
-  assert.match(src, /marketStatuses\(\)/);
-  assert.match(src, /\{s\.status\}/);
+  assert.match(src, /<MarketTable \/>/);
   assert.match(src, /\{DISCLAIMER\}/);
-  for (const f of ['RoutingSection.tsx', 'copy.ts']) {
+  const table = read(HOME + 'MarketTable.tsx');
+  assert.match(table, /marketStatuses\(\)/);
+  assert.match(table, /\{s\.status\}/);
+  assert.match(table, /\{DISCLAIMER\}/);
+  for (const f of ['RoutingSection.tsx', 'MarketTable.tsx', 'MarketMap.tsx', 'copy.ts']) {
     assert.doesNotMatch(read(HOME + f), /Baseline opt-in|draft rules only|rule in review|none approved/i, `${f} hardcodes a status`);
   }
   assert.match(read('src/pages/Index.tsx'), /<AiTrafficSection \/>\s*<RoutingSection \/>\s*<ToolsSection \/>/);

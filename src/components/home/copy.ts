@@ -149,7 +149,7 @@ export const ROUTING_WORKS_TODAY = [
     text: "CortIQ already records which country each consent was given from. It comes from the signed edge location, or the browser time zone when that is missing. Rules never use the time zone.",
   },
   {
-    title: "Coverage per country",
+    title: "Consent impact per country",
     text: "Consent → Impact shows per country what the rules would allow, banner answers by language, and pixel readiness.",
   },
 ];
