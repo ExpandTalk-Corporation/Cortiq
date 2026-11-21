@@ -106,8 +106,6 @@ test('pixel-tracking: no site_id on user_interactions, uuid visit ids, nothing s
   const gate = src.indexOf('if (!hasAnalyticsConsent(event))');
   assert.ok(gate > 0 && gate < src.indexOf(".from('sites')"), 'consent gate runs before any database access');
   assert.match(src, /event\.consent\?\.analytics === true/);
-  const gdpr = read('../../supabase/functions/gdpr-compliant-tracking/index.ts');
-  assert.match(gdpr, /consent: \{ analytics: \(consentData\.allowed_consent_types \|\| \[\]\)\.includes\('analytics'\) \}/);
 });
 
 test('only the analytics-consented tracker sends interactions, in every tracking mode', () => {
@@ -121,4 +119,10 @@ test('only the analytics-consented tracker sends interactions, in every tracking
   assert.match(tracker, /async function trackEvent\([^)]*\) \{\s*if \(!hasStoredAnalyticsConsent\(\)\) return;/);
   const beacon = read('../../src/lib/aggregate-beacon.js');
   assert.doesNotMatch(beacon, /track-event|interaction|pixel-tracking/, 'aggregate mode never sends per-event data');
+});
+
+test('gdpr-compliant-tracking stays removed and is not proxied', () => {
+  // It forwarded events to GA4/Meta/Google Ads with no customer Off or GPC check and had no caller.
+  assert.throws(() => read('../../supabase/functions/gdpr-compliant-tracking/index.ts'));
+  assert.doesNotMatch(read('../../supabase/functions/first-party-proxy/index.ts'), /gdpr-compliant-tracking/);
 });
