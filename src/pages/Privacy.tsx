@@ -8,7 +8,7 @@ import { useSEO } from "@/hooks/useSEO";
 import { seoFor } from "@/marketing-routes";
 import { Shield, CheckCircle, Mail, FileText, Database, Users, BarChart3, Megaphone, FileSearch } from "lucide-react";
 
-const LAST_UPDATED = "November 20, 2026";
+const LAST_UPDATED = "November 21, 2026";
 
 const Privacy = () => {
   useSEO(seoFor("/privacy/"));
@@ -545,14 +545,25 @@ const Privacy = () => {
               <div>
                 <h4 className="font-semibold mb-2">B. On cortiq.se</h4>
                 <p className="text-sm text-muted-foreground mb-3">
-                  Our own website does not load Google Analytics, advertising pixels or the CortIQ tracking
-                  script. It sets only:
+                  Our own website does not load Google Analytics, advertising pixels or other third-party tracking
+                  scripts. It measures itself with the CortIQ tracking script in Cookieless mode, which loads only
+                  after you accept statistics in our banner and is not used on the dashboard or login pages. It sets only:
                 </p>
                 <ul className="text-muted-foreground space-y-1 ml-4">
                   <li>• <code>site_cookie_consent</code> (localStorage), <code>site_consent</code> (cookie, 12 months) and <code>user_consent</code> (sessionStorage) - Your consent choices on cortiq.se</li>
+                  <li>• <code>cortiq_session_id</code> and <code>cortiq_session_expires</code> (sessionStorage) - Session identifier, only after you accept statistics (Lifetime: tab session)</li>
                   <li>• <code>theme</code> (localStorage) - Light/dark theme, only if you switch theme</li>
                   <li>• <code>sb-…-auth-token</code> (localStorage) - Login session for the dashboard, only when you log in</li>
                 </ul>
+                <p className="text-sm text-muted-foreground mt-3">
+                  <strong className="text-foreground">Do Not Track and Global Privacy Control:</strong> cortiq.se does
+                  not change its behaviour for a Do Not Track signal, because measurement on cortiq.se already waits for
+                  your choice in the banner; when your browser sends Global Privacy Control, the CortIQ script treats it
+                  as a refusal of marketing processing, and cortiq.se does not sell personal information or share it
+                  for cross-context behavioral advertising (section 7A). No advertising network or other third party
+                  collects personal information about your online activities over time and across websites through
+                  cortiq.se; our processors in section 5B act only on our behalf.
+                </p>
               </div>
               <p className="text-sm text-muted-foreground">
                 The CortIQ tracking script and the CortIQ consent banner set no cookies, in either mode. Tracker versions up to 5.5.15 send some requests directly to our server
@@ -602,6 +613,78 @@ const Privacy = () => {
                 <p className="text-sm text-muted-foreground mt-2">
                   You also have the right to lodge a complaint with a supervisory authority, in Sweden
                   Integritetsskyddsmyndigheten (IMY).
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* California */}
+          <Card className="glass shadow-elegant">
+            <CardHeader>
+              <CardTitle>7A. California Residents</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                This section is for California residents under the California Consumer Privacy Act (CCPA). It covers
+                personal information we handle for ourselves: visitors to cortiq.se and CortIQ account holders. Data
+                collected on a customer&apos;s website is processed on behalf of that website&apos;s owner under our Data
+                Processing Agreement;
+                send requests about it to the website owner (section 2).
+              </p>
+              <div className="bg-muted/50 p-4 rounded-lg">
+                <h4 className="font-semibold mb-2 text-foreground">Categories we collect, and why</h4>
+                <ul className="text-sm text-muted-foreground space-y-1 ml-4">
+                  <li>• <strong>Identifiers:</strong> email address and account ID (account holders); IP address (truncated before we store it in our database; our web host&apos;s access logs record it in full, section 5B); a session identifier on cortiq.se after you accept statistics; API keys and request logs (section 4).</li>
+                  <li>• <strong>Sensitive personal information (account log-in):</strong> email address and password. Our provider Supabase stores the password only as a hash. We use it only to give you access to your account and keep it secure.</li>
+                  <li>• <strong>Internet or other electronic network activity information:</strong> pages viewed, clicks, scroll depth, referrer and device type on cortiq.se, only after you accept statistics; your use of the dashboard.</li>
+                  <li>• <strong>Geolocation data (approximate only):</strong> country, and for the United States and Canada the state or province. We do not collect precise geolocation.</li>
+                </ul>
+                <p className="text-sm text-muted-foreground mt-2">
+                  We collect this from you and your browser, to provide, secure and improve the service and cortiq.se,
+                  to answer your requests, and to meet legal obligations. In the past 12 months we disclosed
+                  identifiers, sensitive personal information (account log-in), internet or other electronic network
+                  activity information and geolocation data to the service providers in section 5B, only to host,
+                  deliver and secure the service and to send emails you request; Anthropic receives only aggregated
+                  statistics. Retention is described in section 9.
+                </p>
+              </div>
+              <div className="bg-muted/50 p-4 rounded-lg">
+                <h4 className="font-semibold mb-2 text-foreground">Sale and sharing</h4>
+                <p className="text-sm text-muted-foreground">
+                  We do not sell the personal information of cortiq.se visitors or account holders, and we do not share
+                  it for cross-context behavioral advertising. cortiq.se loads no advertising pixels or third-party
+                  tracking scripts. We have not sold or shared such information in the past 12 months, and we have no
+                  actual knowledge of selling or sharing the personal information of consumers under 16. We use or
+                  disclose sensitive personal information only for the purposes allowed by Cal. Code Regs. tit. 11,
+                  §7027(m), and not to infer characteristics about you.
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  <strong className="text-foreground">Opt-out preference signals:</strong> because we do not sell or
+                  share personal information, an opt-out preference signal such as Global Privacy Control has nothing
+                  to opt you out of on cortiq.se. If your browser sends it, the CortIQ script treats it as a refusal of
+                  marketing processing for that browser; it does not change statistics you accepted in the banner. You
+                  can turn Global Privacy Control on in your browser settings or with a browser extension.
+                </p>
+              </div>
+              <div className="bg-muted/50 p-4 rounded-lg">
+                <h4 className="font-semibold mb-2 text-foreground">Your rights and how to use them</h4>
+                <ul className="text-sm text-muted-foreground space-y-1 ml-4">
+                  <li>• <strong>Know and access</strong> the personal information we have collected about you, including its categories, sources, purposes, the categories of third parties we disclose it to, and the specific pieces of personal information we hold</li>
+                  <li>• <strong>Delete</strong> personal information we collected from you, subject to certain exceptions</li>
+                  <li>• <strong>Correct</strong> inaccurate personal information</li>
+                  <li>• <strong>Opt out</strong> of sale or sharing, and <strong>limit</strong> the use of sensitive personal information (we do neither, as described above)</li>
+                  <li>• <strong>Not be discriminated or retaliated against</strong> for using these rights</li>
+                </ul>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Email info@expandtalk.se with &quot;California privacy request&quot; in the subject. We confirm receipt
+                  within 10 business days and respond within 45 days; if we need up to 45 more days, we tell you why
+                  within the first 45. To verify your identity we match the details you give against what we hold, for
+                  example by replying to your account email address. You may use an authorized agent; we will ask for
+                  your signed permission and may ask you to verify your identity directly.
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  If we make a material change to this policy, we will update the date at the top and tell account
+                  holders by email before the change takes effect.
                 </p>
               </div>
             </CardContent>

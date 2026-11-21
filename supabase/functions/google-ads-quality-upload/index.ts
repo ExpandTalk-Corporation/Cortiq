@@ -11,11 +11,16 @@
 // UPLOAD_CLICKS action picked by the site owner; a remarketing tag id ("AW-...",
 // sites.google_ads_conversion_id) is never used. Without a picked action the site is skipped
 // with status 'no_conversion_action' and its rows stay pending until one is picked.
+// GPC (California, CPPA Regs §7025(c)(1)/(5)): a conversion is never uploaded when its session,
+// a session with the same gclid or a session of the same hashed email ever sent GPC
+// (_shared/gpc-stop.ts). Status 'skipped_gpc', counted per site as `skipped.gpc`. A failed lookup
+// fails closed: the row goes back to pending and is counted as `skipped.gpc_unverified`.
 
 import { createClient } from '../_shared/supabase.ts';
 import { getSessionConsent } from '../_shared/session-consent.ts';
 import { type AdsAuth, isAdsAuth, loadSiteAdsAuth, toAdsDateTime, uploadClickConversions } from '../_shared/google-ads.ts';
 import { loadSitePolicy, gateAdsUpload } from '../_shared/jurisdiction-edge.ts';
+import { gpcStop } from '../_shared/gpc-stop.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -154,6 +159,7 @@ Deno.serve(async (req) => {
       const policy = await loadSitePolicy(supabase, site.id);
       const flag = Deno.env.get('JURISDICTION_ENFORCE');
       const pending = [];
+      const skipped = { gpc: 0, gpc_unverified: 0 };
       const now = new Date().toISOString();
       for (const conversion of claimed) {
         // Challenge leads (value 0) are not uploaded: a click conversion always counts as one.
@@ -173,6 +179,15 @@ Deno.serve(async (req) => {
             .eq('id', conversion.id).eq('upload_status', 'uploading');
           continue;
         }
+        // Opt-out preference signal: a hard stop of its own, independent of JURISDICTION_ENFORCE.
+        const gpc = await gpcStop(supabase, site.id, { sessionId, gclid: conversion.gclid, hashedEmail: conversion.hashed_email });
+        if (gpc.stop) {
+          skipped[gpc.reason]++;
+          await supabase.from('conversion_events')
+            .update({ upload_status: gpc.reason === 'gpc' ? 'skipped_gpc' : 'pending', upload_claimed_at: null })
+            .eq('id', conversion.id).eq('upload_status', 'uploading');
+          continue;
+        }
         if ((await gateAdsUpload(supabase, site.id, sessionId, policy, flag)).drop) {
           await supabase.from('conversion_events')
             .update({ upload_status: 'skipped_jurisdiction', upload_claimed_at: null })
@@ -181,7 +196,10 @@ Deno.serve(async (req) => {
         }
         pending.push(conversion);
       }
-      if (pending.length === 0) continue;
+      if (pending.length === 0) {
+        if (skipped.gpc || skipped.gpc_unverified) results.push({ site_id: site.id, uploaded: 0, success: true, skipped });
+        continue;
+      }
 
       // Build click conversions
       const conversionActionResource = `customers/${auth.customerId}/conversionActions/${conversionActionId}`;
@@ -234,7 +252,7 @@ Deno.serve(async (req) => {
         });
       } catch (_) {}
 
-      results.push({ site_id: site.id, uploaded: pending.length, success: uploadResult.success });
+      results.push({ site_id: site.id, uploaded: pending.length, success: uploadResult.success, skipped });
     }
 
     return new Response(JSON.stringify({ ok: true, results }), {

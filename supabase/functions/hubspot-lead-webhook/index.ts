@@ -4,6 +4,10 @@
 // Only UPDATES existing conversion_events that match the hash AND have
 // click_id_consent_given = true. Unmatched contacts are dropped (no insert).
 // google-ads-quality-upload re-checks current consent before any export.
+// GPC: this function shares nothing outside CortIQ; the Google Ads upload is what shares. A lead
+// whose linked sessions ever sent GPC (_shared/gpc-stop.ts: own session, same gclid, same hashed
+// email) is classified for the dashboard but never queued: upload_status = 'skipped_gpc'. An
+// unverified lookup still queues 'pending', because the upload runs the same check and fails closed.
 //
 // Self-reported source (attribution layer 1.5): when the site configures a "how did you hear
 // about us" contact property, its value is mapped IN MEMORY to a fixed category (trim +
@@ -14,6 +18,7 @@
 
 import { createClient } from '../_shared/supabase.ts';
 import { cleanChannelMap, mapReportedChannel } from '../_shared/reported-channel.ts';
+import { gpcStop } from '../_shared/gpc-stop.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -223,7 +228,7 @@ Deno.serve(async (req) => {
       // Match only consented conversions for this site that are not yet classified.
       const { data: convEvents } = await supabase
         .from('conversion_events')
-        .select('id, gclid, upload_status')
+        .select('id, gclid, upload_status, form_data')
         .eq('site_id', effectiveSiteId)
         .eq('hashed_email', hashedEmail)
         .eq('click_id_consent_given', true)
@@ -235,7 +240,13 @@ Deno.serve(async (req) => {
 
       for (const ce of convEvents) {
         const hasGclid = !!ce.gclid;
-        const uploadStatus = hasGclid ? 'pending' : 'skipped_no_gclid';
+        let uploadStatus = hasGclid ? 'pending' : 'skipped_no_gclid';
+        if (hasGclid) {
+          const gpc = await gpcStop(supabase, effectiveSiteId, {
+            sessionId: (ce as any).form_data?.tracking_session_id, gclid: ce.gclid, hashedEmail,
+          });
+          if (gpc.reason === 'gpc') uploadStatus = 'skipped_gpc';
+        }
 
         // Atomic claim: only update if still unclassified, so two concurrent webhook
         // deliveries can't both classify (and later double-upload) the same lead.
