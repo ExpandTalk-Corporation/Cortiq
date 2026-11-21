@@ -1,5 +1,6 @@
 import PublicLayout from "@/components/PublicLayout";
 import { MarketMap } from "@/components/home/MarketMap";
+import { BannerLanguageMap } from "@/components/home/BannerLanguageMap";
 import { MarketTable, WorksToday } from "@/components/home/MarketTable";
 import { ROUTING_TODAY_LINE } from "@/components/home/copy";
 import { DISCLAIMER, PACK_VERSION } from "@/lib/jurisdiction";
@@ -33,6 +34,15 @@ export default function Markets() {
       <section className="container mx-auto max-w-6xl px-4 pb-12">
         <h2 className="mb-6 text-2xl font-bold">Rule status per market</h2>
         <MarketTable />
+      </section>
+
+      <section className="container mx-auto max-w-6xl px-4 pb-12">
+        <h2 className="mb-2 text-2xl font-bold">Banner languages</h2>
+        <p className="mb-6 max-w-3xl text-muted-foreground">
+          The consent banner comes in 13 languages. This map shows where each one is an official language. It is a
+          separate layer from the markets: a language does not change which rules apply.
+        </p>
+        <BannerLanguageMap idPrefix="markets-page-langs" />
       </section>
 
       <section className="container mx-auto max-w-6xl px-4 pb-16">

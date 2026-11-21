@@ -12,9 +12,9 @@ test('baseline is opt-in for every purpose; sharing purposes are marketing', () 
   assert.deepEqual([...SHARING_PURPOSES].sort(), ['ad_platform_sharing', 'attribution']);
 });
 
-test('pack snapshot: version 2026.11.20-2, rule ids and honest statuses (changing a status is a reviewed decision)', () => {
+test('pack snapshot: version 2026.11.21-1, rule ids and honest statuses (changing a status is a reviewed decision)', () => {
   assert.equal(PACK.version, PACK_VERSION);
-  assert.equal(PACK_VERSION, '2026.11.20-2');
+  assert.equal(PACK_VERSION, '2026.11.21-1');
   assert.deepEqual(PACK.rules.map((r) => [`${r.id}@${r.version}`, r.status]), [
     ['eu.statistics.aggregate@1', 'reviewed_agent'],
     ['world.statistics.aggregate@1', 'draft'],

@@ -1,11 +1,11 @@
 // supabase/functions/_shared/jurisdiction/packs.ts
-// Rule pack 2026.11.20-2: today's behaviour written as data. Every legal statement is a hypothesis.
+// Rule pack 2026.11.21-1: today's behaviour written as data. Every legal statement is a hypothesis.
 // Raising a status to approved_internal is a reviewed commit that also fills `approval`.
 import type { Pack, Rule } from './types.ts';
 import { PRODUCTION_STATUSES } from './types.ts';
 
-export const PACK_VERSION = '2026.11.20-2';
-const ALL_BUT_EU = ['uk', 'ch', 'us_ca', 'us_other', 'ca_qc', 'ca_other', 'br', 'other'] as const;
+export const PACK_VERSION = '2026.11.21-1';
+const ALL_BUT_EU = ['uk', 'ch', 'us_ca', 'us_other', 'ca_qc', 'ca_other', 'br', 'mx', 'ar', 'cl', 'co', 'za', 'other'] as const;
 
 const EU_AGGREGATE: Rule = {
   id: 'eu.statistics.aggregate', version: 1, markets: ['eu'], purposes: ['statistics', 'conversion'],
@@ -42,6 +42,7 @@ const WORLD_AGGREGATE: Rule = {
     'UK: PECR Schedule A1 para 5 (in force 5 Feb 2026) may cover this if the site informs visitors and offers a simple free objection; whether para 5(2) affects use of IP/UA is not reviewed. A PECR exemption does not replace the lawful basis: a UK GDPR legitimate-interest assessment is still required.',
     'Québec Law 25 (CQLR c. P-39.1, s. 8.1) not reviewed.',
     'Switzerland (FADP; Telecommunications Act art. 45c) and Brazil (LGPD) not reviewed.',
+    'Mexico, Argentina, Chile, Colombia and South Africa not reviewed.',
   ],
   assessment: 'Hypothesis: records today\'s behaviour outside the EU; not reviewed for any of these markets.',
   effectiveFrom: '2026-11-20',
@@ -69,7 +70,7 @@ const SERVER_LOG: Rule = {
     "GPC is specified as a do-not-sell-or-share signal and is not meant to limit first-party, same-context use (W3C GPC); treating it as an art. 21 objection is CortIQ's choice, not a requirement of the spec.",
     "Server-side AI agents and crawlers are not known to send `Sec-GPC`, and the human behind an agentic fetch usually cannot set it (not verified); the customer's own objection channel carries the art. 12(2) duty.",
     'An objection received by email or another channel cannot be matched to stored hits (truncated IP, no identifier; art. 11 and 12(2)); going forward it can only be honoured by excluding the agent or user agent.',
-    'Market-specific rules outside the EU (UK, CH, US, CA, BR) not reviewed.',
+    'Market-specific rules outside the EU (UK, CH, US, CA, BR, MX, AR, CL, CO, ZA) not reviewed.',
   ],
   assessment: "Hypothesis: counting requests by AI agents for statistics on the server, with truncated IP (/24 IPv4, /48 IPv6) and no device storage, is outside the consent requirement for terminal equipment. The customer's basis would be GDPR art. 6(1)(f) with a documented balancing test. The art. 21 right to object is exercised through the customer's ordinary channel, which the customer must provide (art. 12(2)) and state explicitly in its privacy information (art. 21(4)); CortIQ also treats `Sec-GPC: 1` as an objection by automated means (art. 21(5)). Art. 6(1)(f) is not available to public authorities in the performance of their tasks.",
   effectiveFrom: '2026-11-20', approval: null,

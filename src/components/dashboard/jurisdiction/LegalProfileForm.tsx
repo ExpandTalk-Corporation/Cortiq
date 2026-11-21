@@ -17,7 +17,8 @@ export interface LegalProfileFormProps {
 
 const MARKET_LABEL: Record<Market, string> = {
   eu: 'EU / EEA', uk: 'UK', ch: 'Switzerland', us_ca: 'US — California', us_other: 'US — other states',
-  ca_qc: 'Canada — Québec', ca_other: 'Canada — other provinces', br: 'Brazil', other: 'Other',
+  ca_qc: 'Canada — Québec', ca_other: 'Canada — other provinces', br: 'Brazil',
+  mx: 'Mexico', ar: 'Argentina', cl: 'Chile', co: 'Colombia', za: 'South Africa', other: 'Other',
 };
 
 export function LegalProfileForm({ profile, onSave, saving }: LegalProfileFormProps) {

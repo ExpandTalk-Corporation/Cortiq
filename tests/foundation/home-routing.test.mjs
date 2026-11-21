@@ -31,7 +31,7 @@ function engineView(market) {
 test('the table lists every market the engine knows, in engine order', () => {
   const rows = marketStatuses();
   assert.deepEqual(rows.map((r) => r.market), [...MARKETS]);
-  assert.equal(rows.length, 9);
+  assert.equal(rows.length, 14);
   for (const m of MARKETS) {
     assert.ok(MARKET_LABEL[m], `label for ${m}`);
     assert.ok(ROUTING_LAWS[m], `laws for ${m}`);

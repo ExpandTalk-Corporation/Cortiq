@@ -6,7 +6,8 @@ import type { CustomerProfile, Market, Outcome, Purpose } from './jurisdiction.t
 // One representative signed country per market, so decide() evaluates exactly that market.
 const SAMPLE: Record<Market, [string, string | null]> = {
   eu: ['SE', null], uk: ['GB', null], ch: ['CH', null], us_ca: ['US', 'CA'], us_other: ['US', 'TX'],
-  ca_qc: ['CA', 'QC'], ca_other: ['CA', 'ON'], br: ['BR', null], other: ['JP', null],
+  ca_qc: ['CA', 'QC'], ca_other: ['CA', 'ON'], br: ['BR', null], mx: ['MX', null], ar: ['AR', null], cl: ['CL', null],
+  co: ['CO', null], za: ['ZA', null], other: ['JP', null],
 };
 
 export interface EffectiveRow { market: Market; purpose: Purpose; outcome: Outcome; ruleIds: string[]; status: 'production' | 'baseline' }

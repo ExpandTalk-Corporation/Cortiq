@@ -7,7 +7,7 @@ import { effectiveByMarket } from './effectiveByMarket.ts';
 export const MARKET_LABEL: Record<Market, string> = {
   eu: 'EU/EEA', uk: 'United Kingdom', ch: 'Switzerland', us_ca: 'United States: California',
   us_other: 'United States: other states', ca_qc: 'Canada: Québec', ca_other: 'Canada: other provinces',
-  br: 'Brazil', other: 'Rest of the world',
+  br: 'Brazil', mx: 'Mexico', ar: 'Argentina', cl: 'Chile', co: 'Colombia', za: 'South Africa', other: 'Rest of the world',
 };
 
 export const PURPOSE_LABEL: Record<Purpose, string> = {

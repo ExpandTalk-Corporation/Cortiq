@@ -1,4 +1,5 @@
 // Builds the world map on /markets/ and the homepage from Natural Earth data, once, at dev time.
+// Also writes the banner-language layer for /markets/ from scripts/data/cldr-banner-languages.json.
 // Run `node scripts/build-market-map.mjs` after changing the engine's market mapping or the data packages;
 // tests/foundation/market-map.test.mjs fails while the committed module is stale.
 //
@@ -11,16 +12,19 @@
 // Market per shape comes from the engine's own marketOf(); this file never lists markets.
 // The fallback market ("Rest of the world") is drawn as one merged shape without inner borders: the map shows markets,
 // not countries, and so draws no border inside it (Crimea, Kosovo, Taiwan, Western Sahara, Somaliland, Kashmir).
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { geoEqualEarth } from 'd3-geo';
 import { feature, merge } from 'topojson-client';
 import { EEA_COUNTRIES, marketOf } from '../supabase/functions/_shared/jurisdiction/markets.ts';
 import { MARKETS } from '../supabase/functions/_shared/jurisdiction/types.ts';
+import { BANNER_LANGS } from '../supabase/functions/_shared/banner-langs.ts';
 
 const require = createRequire(import.meta.url);
 const OUT = fileURLToPath(new URL('../src/lib/marketMapPaths.generated.ts', import.meta.url));
+const LANG_OUT = fileURLToPath(new URL('../src/lib/bannerLangMapPaths.generated.ts', import.meta.url));
+const LANG_DATA = fileURLToPath(new URL('./data/cldr-banner-languages.json', import.meta.url));
 
 const WIDTH = 1000;
 // Douglas-Peucker tolerance (px) and smallest island kept (px²; a country always keeps its largest ring).
@@ -159,7 +163,8 @@ function pathAt(raw, { tolerance, minArea }) {
   return `M${Math.round(x) - 1} ${Math.round(y) - 1}h2v2h-2z`;
 }
 
-export function buildMap() {
+// The market shapes and the projection both maps share (the banner-language layer is drawn on the same frame).
+function frame() {
   const fallback = marketOf('ZZ', '');
   const listed = sources();
   const rest = listed.filter((c) => marketOf(...c.codes[0].split('-')) === fallback);
@@ -173,9 +178,13 @@ export function buildMap() {
   // Integer coordinates on a 1000-px-wide map; fitWidth gives the height.
   const [[, y0], [, y1]] = [projection([0, 90]), projection([0, -60])];
   const top = Math.floor(y0); const height = Math.ceil(y1 - top);
-
-  const shapes = [];
   const project = (geo) => rings(projection, geo).map((r) => r.map(([x, y]) => [x, y - top]));
+  return { fallback, all, height, project };
+}
+
+export function buildMap() {
+  const { fallback, all, height, project } = frame();
+  const shapes = [];
   for (const c of all) {
     const [country, region = ''] = c.codes[0].split('-');
     const market = marketOf(country, region);
@@ -210,6 +219,68 @@ export function buildMap() {
   return { viewBox: `0 0 ${WIDTH} ${height}`, shapes: shapes.map(({ thumb: _, ...x }) => x), thumb, outline, fallback };
 }
 
+// --- banner-language layer --------------------------------------------------------------------------
+// Where each banner language is official, per Unicode CLDR (scripts/data/cldr-banner-languages.json). Whole countries,
+// so the US and Canada come from world-atlas unsplit; countries 110m drops come from 50m. Not a market: the banner picks
+// its language from the page and the browser, never from the visitor's country.
+// Short English names where i18n-iso-countries gives a list-style name or the same name twice (both Congos).
+const LANG_NAME = {
+  GB: 'United Kingdom', CD: 'DR Congo', CG: 'Republic of the Congo', FM: 'Micronesia', VG: 'British Virgin Islands',
+  VI: 'US Virgin Islands', SX: 'Sint Maarten', MF: 'Saint Martin', VA: 'Vatican City', FK: 'Falkland Islands',
+  CC: 'Cocos Islands', BQ: 'Caribbean Netherlands',
+};
+export function buildLangMap() {
+  const iso = require('i18n-iso-countries');
+  const cldr = JSON.parse(readFileSync(LANG_DATA, 'utf8'));
+  const w110 = require('world-atlas/countries-110m.json');
+  const w50 = require('world-atlas/countries-50m.json');
+  const { project } = frame();
+  const byCode = new Map();
+  for (const topo of [w110, w50]) {
+    for (const g of topo.objects.countries.geometries) {
+      const code = g.id ? iso.numericToAlpha2(g.id) : NO_CODE[g.properties.name];
+      if (code && code !== 'AQ' && !byCode.has(code)) byCode.set(code, { topo, geom: g });
+    }
+  }
+  const langs = Object.keys(cldr.languages);
+  const unknown = langs.filter((l) => !BANNER_LANGS.has(l));
+  if (unknown.length) throw new Error(`not banner languages: ${unknown.join(', ')}`);
+  const paths = {}; const countries = {};
+  for (const lang of langs) {
+    // ISO 3166-1 codes only (CLDR also lists e.g. Sark and the Canary Islands on their own).
+    const codes = cldr.languages[lang].filter((c) => iso.getName(c, 'en'));
+    countries[lang] = codes.map((c) => ({ code: c, name: LANG_NAME[c] ?? iso.getName(c, 'en', { select: 'alias' }) ?? iso.getName(c, 'en') }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'en'));
+    const groups = new Map();
+    for (const c of codes) {
+      const s = byCode.get(c);
+      if (!s) continue; // too small for either atlas: listed, not drawn
+      if (!groups.has(s.topo)) groups.set(s.topo, []);
+      groups.get(s.topo).push(s.geom);
+    }
+    paths[lang] = [...groups.entries()].map(([topo, gs]) => pathAt(project(merge(topo, gs)), FULL)).join('');
+  }
+  return { cldrVersion: cldr.cldrVersion, paths, countries };
+}
+
+export const renderLang = (m) => `// Generated by scripts/build-market-map.mjs from Unicode CLDR ${m.cldrVersion} territory data
+// (scripts/data/cldr-banner-languages.json) and Natural Earth via world-atlas (ISC). Do not edit.
+// Same frame as marketMapPaths.generated.ts. tests/foundation/banner-language-map.test.mjs checks it.
+
+export interface LangCountry { code: string; name: string }
+
+export const LANG_CLDR_VERSION = ${JSON.stringify(m.cldrVersion)};
+
+/** Countries where the language is official or de facto official, per CLDR, merged per language. */
+export const LANG_PATHS: Record<string, string> = {
+${Object.entries(m.paths).map(([l, d]) => `  ${l}: ${JSON.stringify(d)},`).join('\n')}
+};
+
+export const LANG_COUNTRIES: Record<string, LangCountry[]> = {
+${Object.entries(m.countries).map(([l, cs]) => `  ${l}: ${JSON.stringify(cs)},`).join('\n')}
+};
+`;
+
 export const render = (map) => `// Generated by scripts/build-market-map.mjs from Natural Earth (public domain) and US Census
 // Bureau cartographic boundary data, via world-atlas, us-atlas (ISC) and sane-topojson (MIT). Do not edit.
 // Market per shape = marketOf() from the jurisdiction engine; tests/foundation/market-map.test.mjs checks both.
@@ -238,7 +309,8 @@ ${Object.entries(map.thumb).map(([m, d]) => `  ${m}: ${JSON.stringify(d)},`).joi
 `;
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  const text = render(buildMap());
-  writeFileSync(OUT, text);
-  console.log(`Wrote ${OUT} (${(Buffer.byteLength(text) / 1024).toFixed(1)} kB)`);
+  for (const [out, text] of [[OUT, render(buildMap())], [LANG_OUT, renderLang(buildLangMap())]]) {
+    writeFileSync(out, text);
+    console.log(`Wrote ${out} (${(Buffer.byteLength(text) / 1024).toFixed(1)} kB)`);
+  }
 }

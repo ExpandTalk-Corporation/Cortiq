@@ -124,6 +124,8 @@
     --map-stroke: 0 0% 100%;
     --map-fallback: 240 5% 93%;
     --map-market-line: 240 6% 28%;
+    --map-lang: 168 32% 40%;
+    --map-lang-land: 240 5% 90%;
   }
 
   .dark {
@@ -209,6 +211,8 @@
     --map-stroke: 240 10% 3.9%;
     --map-fallback: 240 5% 13%;
     --map-market-line: 240 5% 72%;
+    --map-lang: 168 30% 58%;
+    --map-lang-land: 240 5% 18%;
   }
 }
 
@@ -246,6 +250,9 @@
   .market-map [data-market]:hover path { opacity: 0.8; }
   .market-map [data-market][aria-pressed="true"] path,
   .market-map [data-market]:focus-visible path { stroke: hsl(var(--foreground)); stroke-width: 1.6; }
+  /* Banner-language layer (/markets/): all land light, countries where the chosen language is official on top. */
+  .market-map .ml-land { fill: hsl(var(--map-lang-land)); stroke: none; }
+  .market-map .ml-lang { fill: hsl(var(--map-lang)); }
 }
 
 @layer utilities {
