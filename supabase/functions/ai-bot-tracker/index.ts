@@ -93,7 +93,6 @@ serve(async (req) => {
       userAgent,
       sessionId,
       probeData,
-      citationData,
       assetsLoaded // New: indicates if CSS/JS were loaded
     } = await req.json();
 
@@ -105,10 +104,12 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Valid siteId is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
-    // Unregistered UA with no citation and no automation evidence = an ordinary browser.
-    // Acknowledge without writing, so cached old trackers stop inflating AI visits.
+    // Unregistered UA with no automation evidence = an ordinary browser. Acknowledge
+    // without writing, so cached old trackers stop inflating AI visits. That includes
+    // trackers before 5.5.23 sending citationData: a human arriving from an AI service is
+    // visitor analytics (ai-search-tracker), never a bot row.
     const reqUa = req.headers.get('user-agent') || userAgent || '';
-    if (!classifyBot(reqUa).botCategory && !citationData && !hasAutomationEvidence(probeData)) {
+    if (!classifyBot(reqUa).botCategory && !hasAutomationEvidence(probeData)) {
       return new Response(JSON.stringify({ success: true, skipped: 'no_bot_evidence' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
@@ -167,10 +168,7 @@ serve(async (req) => {
     // real user. Category comes from the registry; only fall back to signals when
     // the UA is unrecognized.
     let requestType: string = botCategory ?? 'unknown';
-    if (!botCategory) {
-      if (citationData) requestType = 'citation';
-      else if (probeData?.jsExecuted && isVisual) requestType = 'agentic';
-    }
+    if (!botCategory && probeData?.jsExecuted && isVisual) requestType = 'agentic';
 
     // Use the new upsert function for agent session tracking
     const { data: agentSessionId, error: sessionError } = await supabase
@@ -236,25 +234,6 @@ serve(async (req) => {
 
       if (probeError) {
         console.error('Error inserting probe signal:', probeError);
-      }
-    }
-
-    // If citation data exists, insert citation record
-    if (citationData && trafficData) {
-      const { error: citationError } = await supabase
-        .from('ai_citations')
-        .insert({
-          site_id: site.id,
-          traffic_id: trafficData.id,
-          cited_url: citationData.url || url,
-          citation_context: citationData.context,
-          utm_source: citationData.utmSource,
-          utm_medium: citationData.utmMedium,
-          utm_campaign: citationData.utmCampaign,
-        });
-
-      if (citationError) {
-        console.error('Error inserting citation:', citationError);
       }
     }
 
