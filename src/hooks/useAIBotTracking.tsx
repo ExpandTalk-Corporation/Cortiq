@@ -3,9 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface AIBotTrafficData {
   totalTraffic: number;
+  /** Requests from citation crawlers in the bot registry (PerplexityBot, OAI-SearchBot, …). */
   citationRequests: number;
   trainingCrawlers: number;
-  citationCtr: number;
   botBreakdown: { name: string; count: number; percentage: number; category: string }[];
   dailyTrend: { date: string; traffic: number }[];
   topUrls: { url: string; visits: number }[];
@@ -31,7 +31,7 @@ export const useAIBotTracking = (siteId: string | null, range: { from: string; t
       if (error) throw error;
 
       const j = (data ?? {}) as {
-        totalTraffic?: number; citationRequests?: number; trainingCrawlers?: number; citationCtr?: number;
+        totalTraffic?: number; citationRequests?: number; trainingCrawlers?: number;
         botBreakdown?: { name: string; count: number; percentage: number; category: string }[];
         dailyTrend?: { date: string; traffic: number }[];
         topUrls?: { url: string; visits: number }[];
@@ -41,7 +41,6 @@ export const useAIBotTracking = (siteId: string | null, range: { from: string; t
         totalTraffic: Number(j.totalTraffic ?? 0),
         citationRequests: Number(j.citationRequests ?? 0),
         trainingCrawlers: Number(j.trainingCrawlers ?? 0),
-        citationCtr: Number(j.citationCtr ?? 0),
         botBreakdown: (j.botBreakdown ?? []).map(b => ({
           name: b.name, count: Number(b.count), percentage: Number(b.percentage), category: b.category,
         })),

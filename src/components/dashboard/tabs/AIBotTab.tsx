@@ -129,15 +129,15 @@ export const AIBotTab = ({ selectedSite }: AIBotTabProps) => {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Citation Requests</CardTitle>
+                <CardTitle className="text-sm font-medium">Citation Crawler Requests</CardTitle>
                 <FileText className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{data?.citationRequests.toLocaleString() || 0}</div>
                 <p className="text-xs text-muted-foreground mt-1">
                   {data && data.totalTraffic > 0 
-                    ? `${Math.round((data.citationRequests / data.totalTraffic) * 100)}% of LLM traffic`
-                    : '0% of LLM traffic'
+                    ? `${Math.round((data.citationRequests / data.totalTraffic) * 100)}% of AI bot requests — AI search indexing, not citations in answers`
+                    : 'AI search indexing, not citations in answers'
                   }
                 </p>
               </CardContent>
