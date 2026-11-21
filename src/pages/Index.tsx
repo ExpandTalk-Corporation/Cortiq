@@ -21,12 +21,12 @@ const Index = () => {
       <PublicNavigation />
       <HeroSection />
       <AiTrafficSection />
-      <RoutingSection />
+      <AttributionSection />
       <ToolsSection />
       <ConsentSection />
       <ModesSection />
       <LegalSection />
-      <AttributionSection />
+      <RoutingSection />
       <OperationsSection />
       <ClosingCta />
       <PublicFooter />

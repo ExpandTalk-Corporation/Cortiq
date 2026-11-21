@@ -84,7 +84,9 @@ test('the section renders status from the engine, never as hand-written text', (
   for (const f of ['RoutingSection.tsx', 'MarketTable.tsx', 'MarketMap.tsx', 'copy.ts']) {
     assert.doesNotMatch(read(HOME + f), /Baseline opt-in|draft rules only|rule in review|none approved/i, `${f} hardcodes a status`);
   }
-  assert.match(read('src/pages/Index.tsx'), /<AiTrafficSection \/>\s*<RoutingSection \/>\s*<ToolsSection \/>/);
+  // 2026-11-21: moved after the legal section (its "routing per country" link points here) when the homepage
+  // was repositioned for marketing managers.
+  assert.match(read('src/pages/Index.tsx'), /<LegalSection \/>\s*<RoutingSection \/>\s*<OperationsSection \/>/);
 });
 
 test('the disclaimer says technical defaults, not legal advice', () => {

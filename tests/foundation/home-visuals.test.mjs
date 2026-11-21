@@ -101,14 +101,25 @@ test('the banner example is the real banner in a sandbox without same-origin acc
   assert.doesNotMatch(src, /allow-same-origin/);
 });
 
-test('the hero figure links to its full source, which sits in the AI traffic section', () => {
+// 2026-11-21: the "1 in 33" figure moved from the hero to the top of the AI traffic section, with its reference.
+test('the TollBit figure links to its full source in the AI traffic section', () => {
   const hero = read(HOME + 'HeroSection.tsx');
   const ai = read(HOME + 'AiTrafficSection.tsx');
-  assert.match(hero, /href=\{`#\$\{AI_TRAFFIC_SOURCE_ID\}`\}/);
-  assert.match(hero, />\s*TollBit, H1 2026\s*<\/a>/);
-  assert.doesNotMatch(hero, /Source: TollBit/, 'the full source sentence lives in AiTrafficSection');
+  assert.doesNotMatch(hero, /every 33 human visits/, 'the figure lives in AiTrafficSection');
+  assert.match(ai, /one AI bot visit for every 33 human visits/);
+  assert.match(ai, /href=\{`#\$\{AI_TRAFFIC_SOURCE_ID\}`\}/);
+  assert.match(ai, />\s*TollBit, H1 2026\s*<\/a>/);
   assert.match(ai, /export const AI_TRAFFIC_SOURCE_ID = "ai-traffic-source"/);
   assert.match(ai, /<p id=\{AI_TRAFFIC_SOURCE_ID\}[^>]*>\s*Source: TollBit, State of the Bots H1 2026, median European publisher site on its network \(North America: 1 in 93\)\. Self-identified bots only\./);
+});
+
+test('each hero card links to a section that carries its anchor', () => {
+  assert.match(read(HOME + 'HeroSection.tsx'), /HERO_QUESTIONS\.map/);
+  assert.match(read(HOME + 'AiTrafficSection.tsx'), /<section id=\{AI_TRAFFIC_ID\}/);
+  assert.match(read(HOME + 'AttributionSection.tsx'), /<section id=\{CONVERSIONS_ID\}/);
+  assert.match(read(HOME + 'ConsentSection.tsx'), /<section id=\{CONSENT_ID\}/);
+  const copy = read(HOME + 'copy.ts');
+  for (const id of ['AI_TRAFFIC_ID', 'CONVERSIONS_ID', 'CONSENT_ID']) assert.match(copy, new RegExp(`href: \`#\\$\\{${id}\\}\``));
 });
 
 test('reviewed legal text sits in details, measurement modes keep their full text', () => {
