@@ -19,5 +19,11 @@ export function marketOf(country: unknown, region: unknown): Market | null {
   if (c === 'US') return r === '' || r === 'CA' ? 'us_ca' : 'us_other';
   if (c === 'CA') return r === '' || r === 'QC' ? 'ca_qc' : 'ca_other';
   if (c === 'BR') return 'br';
+  // Named so rules can be written for them; until then they get the same rules as 'other'.
+  if (c === 'MX') return 'mx';
+  if (c === 'AR') return 'ar';
+  if (c === 'CL') return 'cl';
+  if (c === 'CO') return 'co';
+  if (c === 'ZA') return 'za';
   return 'other';
 }

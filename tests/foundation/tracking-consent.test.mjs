@@ -104,7 +104,7 @@ for (const expiresAt of ['2000-01-01T00:00:00Z', null, 'invalid', 946684800000])
 
 // Human visits arriving from AI services are visitor analytics, not security.
 const aiReferral = { referrer: 'https://chatgpt.com/', search: '?utm_source=chatgpt.com' };
-const isAIReferralCall = c => c.url.endsWith('/ai-search-tracker') || (c.url.endsWith('/ai-bot-tracker') && c.body.citationData);
+const isAIReferralCall = c => c.url.endsWith('/ai-search-tracker') || c.url.endsWith('/ai-bot-tracker');
 
 test('AI-referral visit sends nothing before consent', async () => {
   const b = browser({}, null, null, aiReferral);
@@ -117,7 +117,9 @@ test('AI-referral visit is measured once after consent, and not after revocation
   b.choose(true);
   await settle();
   assert.equal(b.calls.filter(c => c.url.endsWith('/ai-search-tracker')).length, 1);
-  assert.equal(b.calls.filter(c => c.url.endsWith('/ai-bot-tracker') && c.body.citationData).length, 1);
+  // A human from an AI service is never reported to the bot endpoint (5.5.23): there it
+  // was stored as an "Unknown Bot" with request_type 'citation'.
+  assert.equal(b.calls.filter(c => c.url.endsWith('/ai-bot-tracker')).length, 0, 'no bot report for a human visit');
   b.choose(false);
   b.choose(true);
   await settle();
@@ -127,7 +129,7 @@ test('AI-referral visit is measured once after consent, and not after revocation
 test('AI-referral visit with stored consent is measured on load', async () => {
   const b = browser({ cookieless: true }, { analytics: true }, null, aiReferral);
   await settle();
-  assert.equal(b.calls.filter(isAIReferralCall).length, 2);
+  assert.equal(b.calls.filter(isAIReferralCall).length, 1, 'ai-search-tracker only');
 });
 
 // WordPress plugin < 5.4.0 stored { timestamp, consentId, policyVersion } without expiresAt.

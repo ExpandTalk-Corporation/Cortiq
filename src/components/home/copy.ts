@@ -125,6 +125,13 @@ export const ROUTING_LAWS: Record<Market, string> = {
   ca_qc: "Québec private-sector privacy act (CQLR c. P-39.1) as amended by Law 25",
   ca_other: "PIPEDA (S.C. 2000, c. 5), or a substantially similar provincial law",
   br: "LGPD (Law 13.709/2018)",
+  // Named markets without rules of their own yet (pack 2026.11.21-1): the law named, no rule written. Citations checked
+  // by the jurist agent 2026-11-21; Chile's Law 21.719 starts 1 Dec 2026 unless the passed postponement is published.
+  mx: "LFPDPPP (Federal Law on Protection of Personal Data Held by Private Parties), in force 21 March 2025. No market-specific rule yet.",
+  ar: "Law 25.326 on Personal Data Protection. No market-specific rule yet.",
+  cl: "Law 19.628, as amended by Law 21.719 (the amendments are not yet in force). No market-specific rule yet.",
+  co: "Law 1581 of 2012 and Decree 1377 of 2013 (now in Decree 1074 of 2015). No market-specific rule yet.",
+  za: "POPIA (Protection of Personal Information Act 4 of 2013). No market-specific rule yet.",
   other: "No market-specific law reviewed. Local law is the site owner's assessment.",
 };
 

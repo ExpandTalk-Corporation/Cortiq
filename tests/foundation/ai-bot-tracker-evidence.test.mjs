@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { loadEdge } from './edge-harness.mjs';
 
 // Trackers before 5.5.8 probed on soft signals that are normal in Safari/Firefox and
@@ -40,7 +41,6 @@ test('an iPhone probe with only soft signals is acknowledged and not stored', as
 for (const [label, ua, body] of [
   ['webdriver signal', IPHONE, { probeData: { jsExecuted: true, signals: { ...SOFT, webdriver: true } } }],
   ['honeypot trigger', IPHONE, { probeData: { jsExecuted: true, signals: { honeypotTriggered: true } } }],
-  ['citation data', IPHONE, { citationData: { url: 'https://expandtalk.se/', utm_source: 'chatgpt' } }],
   ['registered AI UA', 'Mozilla/5.0 (compatible; GPTBot/1.2; +https://openai.com/gptbot)', {}],
 ]) {
   test(`${label} still reaches storage`, async () => {
@@ -51,3 +51,21 @@ for (const [label, ua, body] of [
     assert.ok(calls.length > 0, 'went past the guard');
   });
 }
+
+// Trackers before 5.5.23 also reported a human arriving from an AI service here, with
+// citationData. That visit belongs to ai-search-tracker; stored here it became an
+// "Unknown Bot" row with request_type 'citation' plus a row in ai_citations.
+test('citation data from an ordinary browser is acknowledged and not stored', async () => {
+  const { calls, client } = recordingClient();
+  const handler = loadEdge('ai-bot-tracker', client);
+  const res = await handler(post(IPHONE, { referrer: 'https://chatgpt.com/', citationData: { url: 'https://expandtalk.se/', utm_source: 'chatgpt.com' } }));
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).skipped, 'no_bot_evidence');
+  assert.deepEqual(calls, []);
+});
+
+test('ai-bot-tracker never writes ai_citations or derives a category from citationData', () => {
+  const src = readFileSync(new URL('../../supabase/functions/ai-bot-tracker/index.ts', import.meta.url), 'utf8');
+  assert.doesNotMatch(src, /ai_citations/);
+  assert.doesNotMatch(src.replace(/\/\/.*$/gm, ''), /citationData/);
+});

@@ -1,7 +1,7 @@
 /**
  * CortIQ Advanced Tracking Script
  * Unified visitor profiling with AI agent detection
- * Version: 5.5.22 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
+ * Version: 5.5.23 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
  *
  * Usage:
  * <script>
@@ -17,7 +17,7 @@
   'use strict';
 
   // Keep in sync with wordpress-plugin/cortiq-analytics.php (CORTIQ_VERSION).
-  const CORTIQ_VERSION = '5.5.22';
+  const CORTIQ_VERSION = '5.5.23';
 
   // Configuration: window.cortiqConfig, overridden by data-* attributes on this script
   // tag, so a single-tag install (<script src=… data-site-id=…>) works and a tag that
@@ -1189,8 +1189,8 @@
   // server-hit), which needs no client code at all. Sends bot signatures and
   // coarse capability signals for a single page context (SECURITY_SESSION_ID,
   // in-memory). No cross-visit identity is written to the visitor's device.
-  // trackAISearch/trackAICitation below measure human AI referrals and are NOT part
-  // of this layer: startAnalytics() calls them only after analytics consent.
+  // trackAISearch below measures human AI referrals and is NOT part
+  // of this layer: startAnalytics() calls it only after analytics consent.
   // ─────────────────────────────────────────────────────────────────────────
 
   const AI_BOT_UA = {
@@ -1297,15 +1297,6 @@
     apiFetch('/ai-bot-tracker', { method: 'POST', body: payload, keepalive: true }).catch(function () {});
   }
 
-  function trackAICitation() {
-    const p = new URLSearchParams(window.location.search);
-    const src = p.get('utm_source') || '';
-    if (!detectAIReferrer()) return;
-    const payload = JSON.stringify({ siteId: SITE_ID, url: window.location.href, referrer: document.referrer, userAgent: navigator.userAgent, sessionId: SECURITY_SESSION_ID, citationData: { url: window.location.href, utm_source: src, utm_medium: p.get('utm_medium'), utm_campaign: p.get('utm_campaign') } });
-    try {
-      postBotEvent(payload);
-    } catch (_) { /* Storage or browser capability unavailable. */ }
-  }
 
   function runBotProbe() {
     const ua = navigator.userAgent;
@@ -1417,11 +1408,11 @@
     startSecurityLayer();
     trackPageView();
     // AI-referral measurement (a human arriving from ChatGPT/Perplexity/…) is visitor
-    // analytics, not security: it only runs after consent, once per page load.
+    // analytics, not security: it only runs after consent, once per page load. It goes to
+    // ai-search-tracker only — never to the bot endpoint, where it would count as a bot.
     if (!aiReferralTracked) {
       aiReferralTracked = true;
       try { trackAISearch(); } catch (_) {}
-      try { trackAICitation(); } catch (_) {}
     }
     if (!listenersInstalled) {
       listenersInstalled = true;
