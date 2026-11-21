@@ -120,7 +120,7 @@ export const ROUTING_LAWS: Record<Market, string> = {
   eu: "ePrivacy Directive art. 5(3) as implemented in each country (Sweden: Electronic Communications Act (2022:482), ch. 9 s. 28), and the GDPR",
   uk: "PECR as amended by the Data (Use and Access) Act 2025, and the UK GDPR",
   ch: "Federal Act on Data Protection (FADP, SR 235.1) and Telecommunications Act (SR 784.10) art. 45c",
-  us_ca: "CCPA as amended by the CPRA, and its regulations (incl. opt-out preference signals)",
+  us_ca: "CCPA as amended by the CPRA and its regulations, incl. opt-out preference signals (GPC). Opt-in first.",
   us_other: "State privacy laws; several require honouring a universal opt-out signal such as GPC for sale and targeted advertising",
   ca_qc: "Québec private-sector privacy act (CQLR c. P-39.1) as amended by Law 25",
   ca_other: "PIPEDA (S.C. 2000, c. 5), or a substantially similar provincial law",
