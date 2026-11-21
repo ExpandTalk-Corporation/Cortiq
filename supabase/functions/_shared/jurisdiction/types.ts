@@ -12,7 +12,7 @@ export const RULE_STATUSES = ['draft', 'reviewed_agent', 'approved_internal', 'r
 export type RuleStatus = typeof RULE_STATUSES[number];
 export const PRODUCTION_STATUSES: readonly RuleStatus[] = ['approved_internal', 'reviewed_counsel'];
 
-export const MARKETS = ['eu', 'uk', 'ch', 'us_ca', 'us_other', 'ca_qc', 'ca_other', 'br', 'other'] as const;
+export const MARKETS = ['eu', 'uk', 'ch', 'us_ca', 'us_other', 'ca_qc', 'ca_other', 'br', 'mx', 'ar', 'cl', 'co', 'za', 'other'] as const;
 export type Market = typeof MARKETS[number];
 
 export type Storage = 'none' | 'session' | 'persistent';

@@ -9,7 +9,8 @@ test('EEA countries map to eu; UK, CH, BR and the rest map to their own market',
   assert.equal(marketOf('GB', null), 'uk');
   assert.equal(marketOf('CH', null), 'ch');
   assert.equal(marketOf('BR', null), 'br');
-  assert.equal(marketOf('JP', null), 'other');
+  for (const [c, m] of [['MX', 'mx'], ['AR', 'ar'], ['CL', 'cl'], ['CO', 'co'], ['ZA', 'za']]) assert.equal(marketOf(c, null), m, c);
+  for (const c of ['JP', 'AO', 'MZ', 'PE', 'UY']) assert.equal(marketOf(c, null), 'other', c);
   assert.equal(marketOf('se', null), 'eu', 'case-insensitive');
 });
 
@@ -33,7 +34,7 @@ test('constants: ranks are strict, markets and purposes are closed lists', () =>
   assert.ok(OUTCOME_RANK.allowed < OUTCOME_RANK.allowed_unless_opt_out);
   assert.ok(OUTCOME_RANK.allowed_unless_opt_out < OUTCOME_RANK.needs_opt_in);
   assert.ok(OUTCOME_RANK.needs_opt_in < OUTCOME_RANK.blocked);
-  assert.deepEqual([...MARKETS], ['eu', 'uk', 'ch', 'us_ca', 'us_other', 'ca_qc', 'ca_other', 'br', 'other']);
+  assert.deepEqual([...MARKETS], ['eu', 'uk', 'ch', 'us_ca', 'us_other', 'ca_qc', 'ca_other', 'br', 'mx', 'ar', 'cl', 'co', 'za', 'other']);
   assert.deepEqual([...PURPOSES], ['statistics', 'conversion', 'attribution', 'ad_platform_sharing', 'agent_measurement']);
   assert.deepEqual([...PRODUCTION_STATUSES], ['approved_internal', 'reviewed_counsel']);
 });

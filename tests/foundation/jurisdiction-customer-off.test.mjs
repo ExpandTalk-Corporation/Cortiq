@@ -256,7 +256,7 @@ const statsInput = (over = {}) => () => ({ visitor: { country: 'SE', region: nul
 const policyClient = (policy) => db({ site: null, policy }).client;
 // A rule that already blocks statistics in every market: decide() then reports rule_blocked, not customer_off.
 const BLOCKING = { version: 'test-blocking', rules: [{ ...PACK.rules[0], id: 'test.block', version: 1,
-  markets: ['eu', 'uk', 'ch', 'us_ca', 'us_other', 'ca_qc', 'ca_other', 'br', 'other'], purposes: ['statistics'], outcome: 'blocked',
+  markets: ['eu', 'uk', 'ch', 'us_ca', 'us_other', 'ca_qc', 'ca_other', 'br', 'mx', 'ar', 'cl', 'co', 'za', 'other'], purposes: ['statistics'], outcome: 'blocked',
   relaxable: false, status: 'approved_internal', law: null, effectiveFrom: '2020-01-01',
   technique: { storage: 'persistent', identifiers: 'cross_site' }, approval: { approvedBy: 'test', approvedAt: '2026-11-01', reviewDue: '2027-01-31' } }] };
 
