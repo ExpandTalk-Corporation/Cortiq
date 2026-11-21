@@ -10,6 +10,7 @@ import { CATEGORY_COLORS } from "./categoryColors";
 import { Sparkline } from "./Sparkline";
 import { ExampleTag } from "./BrowserFrame";
 import { HeroDashboardMock } from "./HeroDashboardMock";
+import { AI_TRAFFIC_ID } from "./copy";
 
 // Bot names on this page come from the ingest registry, so the page only names bots CortIQ classifies.
 const CATEGORY_STYLE: Record<BotCategory, { icon: LucideIcon; tag: string }> = {
@@ -18,7 +19,7 @@ const CATEGORY_STYLE: Record<BotCategory, { icon: LucideIcon; tag: string }> = {
   citation: { icon: Globe, tag: "Visibility signal" },
 };
 
-// The hero's "1 in 33" claim links here; the footnote carries its full source sentence.
+// The "1 in 33" figure at the top of this section links here; the footnote carries its full source sentence.
 export const AI_TRAFFIC_SOURCE_ID = "ai-traffic-source";
 
 // TollBit, State of the Bots H1 2026 (publisher sites on its network, self-identified bots only).
@@ -31,13 +32,21 @@ const REGIONS = [
 
 export function AiTrafficSection() {
   return (
-    <section className="py-20 px-4">
+    <section id={AI_TRAFFIC_ID} className="py-20 px-4 scroll-mt-16">
       <div className="container mx-auto max-w-6xl">
         <SectionHeader
           eyebrow="AI traffic"
           title="Not all AI traffic is equal"
           intro="A training crawler and ChatGPT fetching your page for a real user look alike in a server log. CortIQ sorts every AI visit into one of three groups, server-side from the request or in the browser after consent."
         />
+        <p className="mx-auto -mt-4 mb-12 max-w-3xl text-center text-xl md:text-2xl font-semibold text-foreground leading-snug">
+          On European sites, one AI bot visit for every 33 human visits
+          {/* Short reference next to the figure it sources; the full source sentence is the footnote under the Europe vs North America figures. */}
+          <a href={`#${AI_TRAFFIC_SOURCE_ID}`} className="ml-1 align-super whitespace-nowrap text-xs font-normal text-muted-foreground underline underline-offset-2 hover:text-foreground">
+            TollBit, H1 2026
+          </a>
+          .
+        </p>
         <div className="mx-auto mb-12 max-w-3xl">
           <HeroDashboardMock />
         </div>

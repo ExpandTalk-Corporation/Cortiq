@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { EyeOff, Languages, Puzzle, RotateCcw, Scale, ScrollText, Settings2, type LucideIcon } from "lucide-react";
-import { BANNER_POINTS } from "./copy";
+import { BANNER_POINTS, CONSENT_ID } from "./copy";
 import { SectionHeader } from "./SectionHeader";
 
 const DEMO_LANGS = [
@@ -35,7 +35,7 @@ export function ConsentSection() {
   const [run, setRun] = useState(0);
 
   return (
-    <section className="py-20 px-4">
+    <section id={CONSENT_ID} className="py-20 px-4 scroll-mt-16">
       <div className="container mx-auto max-w-6xl">
         <SectionHeader
           eyebrow="Consent and the law"

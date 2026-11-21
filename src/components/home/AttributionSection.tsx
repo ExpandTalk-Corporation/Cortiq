@@ -2,12 +2,12 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
 import { ArrowDown, ArrowRight } from "lucide-react";
 import { SectionHeader } from "./SectionHeader";
 import { BrowserFrame } from "./BrowserFrame";
-import { ATTRIBUTION } from "./copy";
+import { ATTRIBUTION, CONVERSIONS_ID } from "./copy";
 import { ATTRIBUTION_FLOW, CONVERSION_BARS } from "@/data/homeSample";
 
 export function AttributionSection() {
   return (
-    <section className="py-20 px-4 bg-muted/30">
+    <section id={CONVERSIONS_ID} className="py-20 px-4 bg-muted/30 scroll-mt-16">
       <div className="container mx-auto max-w-6xl">
         <SectionHeader
           eyebrow="Ads and attribution"

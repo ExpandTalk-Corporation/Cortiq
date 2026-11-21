@@ -212,3 +212,15 @@ export const OPERATIONS: { id: "server" | "uptime" | "sri" | "api"; title: strin
   { id: "sri", title: "Pinned installs with SRI", text: "Optional versioned script URLs with integrity hashes, so a changed file is blocked by the browser." },
   { id: "api", title: "REST API and MCP", text: "Query your analytics from your own tools or from AI agents with read-only API keys." },
 ];
+
+// Homepage anchors: the hero cards link to these sections.
+export const AI_TRAFFIC_ID = "ai-traffic";
+export const CONVERSIONS_ID = "conversions";
+export const CONSENT_ID = "consent";
+
+// Hero cards: one per buyer question, each linking to the section that answers it.
+export const HERO_QUESTIONS = [
+  { label: "Audience", text: "Know who you reach, humans and AI agents", href: `#${AI_TRAFFIC_ID}` },
+  { label: "Conversions", text: "Find goals and forms that stopped counting", href: `#${CONVERSIONS_ID}` },
+  { label: "Privacy", text: "Measure what consent allows, and see each market's rules", href: `#${CONSENT_ID}` },
+] as const;
