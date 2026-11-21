@@ -2,11 +2,15 @@
 // Run `node scripts/build-market-map.mjs` after changing the engine's market mapping or the data packages;
 // tests/foundation/market-map.test.mjs fails while the committed module is stale.
 //
-// Sources (all Natural Earth, public domain):
-//   countries        world-atlas@2.0.2 countries-110m; EEA states that 110m drops (Malta, Liechtenstein) from 50m
-//   US states        us-atlas@3.0.1 states-10m: California on its own, the other 50 states + DC merged
-//   Canadian provs.  sane-topojson@4.0.0 world_50m subunits (Natural Earth admin-1): Québec on its own, the rest merged
+// Sources:
+//   countries        world-atlas@2.0.2 (ISC; Natural Earth 4.1.0, public domain) countries-110m; EEA states that 110m
+//                    drops (Malta, Liechtenstein) from 50m
+//   US states        us-atlas@3.0.1 (ISC; US Census Bureau cartographic boundary files, 2017) states-10m: California
+//                    on its own, the other 50 states + DC merged
+//   Canadian provs.  sane-topojson@4.0.0 (MIT; Natural Earth admin-1) world_50m subunits: Québec on its own, the rest merged
 // Market per shape comes from the engine's own marketOf(); this file never lists markets.
+// The fallback market ("Rest of the world") is drawn as one merged shape without inner borders: the map shows markets,
+// not countries, and so draws no border inside it (Crimea, Kosovo, Taiwan, Western Sahara, Somaliland, Kashmir).
 import { writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
@@ -24,7 +28,7 @@ const WIDTH = 1000;
 const FULL = { tolerance: 0.45, minArea: 1.5 };
 const THUMB = { tolerance: 1.8, minArea: 16 };
 
-// Features in world-atlas without an ISO code: the code edge geo reports for each place.
+// Features in world-atlas without an ISO code: the ISO 3166 code we assign; edge geo is expected to report the same.
 const NO_CODE = { Kosovo: 'XK', Somaliland: 'SO', 'N. Cyprus': 'CY' };
 // us-atlas ids are FIPS codes; the engine reads the postal code (ISO 3166-2:US suffix). Territories (60+) are
 // separate countries in edge geo and in world-atlas, so they are left out here.
@@ -51,12 +55,12 @@ function sources() {
     const code = codeOf(g);
     if (!code) throw new Error(`no ISO code for ${g.properties.name}`);
     if (code === 'AQ' || code === 'US' || code === 'CA') continue; // no Antarctica; US and Canada come split below
-    countries.push({ codes: [code], geo: feature(w110, g) });
+    countries.push({ codes: [code], geo: feature(w110, g), topo: w110, geom: g });
     have.add(code);
   }
   for (const g of w50.objects.countries.geometries) {
     const code = codeOf(g);
-    if (code && EEA_COUNTRIES.has(code) && !have.has(code)) countries.push({ codes: [code], geo: feature(w50, g) });
+    if (code && EEA_COUNTRIES.has(code) && !have.has(code)) countries.push({ codes: [code], geo: feature(w50, g), topo: w50, geom: g });
   }
 
   const us = states.objects.states.geometries.filter((g) => FIPS[g.id]);
@@ -156,7 +160,14 @@ function pathAt(raw, { tolerance, minArea }) {
 }
 
 export function buildMap() {
-  const all = sources();
+  const fallback = marketOf('ZZ', '');
+  const listed = sources();
+  const rest = listed.filter((c) => marketOf(...c.codes[0].split('-')) === fallback);
+  if (rest.some((c) => c.topo !== rest[0].topo)) throw new Error('fallback market spans several source topologies');
+  const all = [
+    ...listed.filter((c) => !rest.includes(c)),
+    { codes: [...new Set(rest.flatMap((c) => c.codes))].sort(), geo: merge(rest[0].topo, rest.map((c) => c.geom)), topo: rest[0].topo, geom: null },
+  ];
   const land = { type: 'FeatureCollection', features: all.map((c) => (c.geo.type === 'Feature' ? c.geo : { type: 'Feature', geometry: c.geo })) };
   const projection = geoEqualEarth().fitWidth(WIDTH, land);
   // Integer coordinates on a 1000-px-wide map; fitWidth gives the height.
@@ -164,6 +175,7 @@ export function buildMap() {
   const top = Math.floor(y0); const height = Math.ceil(y1 - top);
 
   const shapes = [];
+  const project = (geo) => rings(projection, geo).map((r) => r.map(([x, y]) => [x, y - top]));
   for (const c of all) {
     const [country, region = ''] = c.codes[0].split('-');
     const market = marketOf(country, region);
@@ -172,15 +184,34 @@ export function buildMap() {
       const [cc, rr = ''] = code.split('-');
       if (marketOf(cc, rr) !== market) throw new Error(`${code} is not in the same market as ${c.codes[0]}`);
     }
-    const raw = rings(projection, c.geo).map((r) => r.map(([x, y]) => [x, y - top]));
+    const raw = project(c.geo);
+    c.market = market;
     shapes.push({ codes: c.codes, market, d: pathAt(raw, FULL), thumb: pathAt(raw, THUMB) });
   }
+  // Border per named market: its shapes merged per source topology, so inner borders (between EU countries) drop out
+  // and only the market's own border is drawn. The fallback market (what marketOf gives a country it does not name)
+  // gets none.
+  const outline = {}; const outlineThumb = {};
+  for (const m of MARKETS) {
+    if (m === fallback) continue;
+    const mine = all.filter((c) => c.market === m);
+    const groups = new Map();
+    for (const c of mine) {
+      const key = c.topo ?? c;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(c);
+    }
+    const parts = [...groups.values()].map((cs) => project(cs[0].topo ? merge(cs[0].topo, cs.map((c) => c.geom)) : cs[0].geo));
+    outlineThumb[m] = parts.map((raw) => pathAt(raw, THUMB)).join('');
+    if (mine.length > 1) outline[m] = parts.map((raw) => pathAt(raw, FULL)).join('');
+  }
   shapes.sort((a, b) => MARKETS.indexOf(a.market) - MARKETS.indexOf(b.market) || a.codes[0].localeCompare(b.codes[0]));
-  const thumb = Object.fromEntries(MARKETS.map((m) => [m, shapes.filter((x) => x.market === m).map((x) => x.thumb).join('')]));
-  return { viewBox: `0 0 ${WIDTH} ${height}`, shapes: shapes.map(({ thumb: _, ...x }) => x), thumb };
+  const thumb = Object.fromEntries(MARKETS.map((m) => [m, outlineThumb[m] ?? shapes.filter((x) => x.market === m).map((x) => x.thumb).join('')]));
+  return { viewBox: `0 0 ${WIDTH} ${height}`, shapes: shapes.map(({ thumb: _, ...x }) => x), thumb, outline, fallback };
 }
 
-export const render = (map) => `// Generated by scripts/build-market-map.mjs from Natural Earth data (public domain). Do not edit.
+export const render = (map) => `// Generated by scripts/build-market-map.mjs from Natural Earth (public domain) and US Census
+// Bureau cartographic boundary data, via world-atlas, us-atlas (ISC) and sane-topojson (MIT). Do not edit.
 // Market per shape = marketOf() from the jurisdiction engine; tests/foundation/market-map.test.mjs checks both.
 import type { Market } from '../../supabase/functions/_shared/jurisdiction/types.ts';
 
@@ -192,7 +223,15 @@ export const MAP_SHAPES: MapShape[] = [
 ${map.shapes.map((s) => `  { codes: ${JSON.stringify(s.codes)}, market: ${JSON.stringify(s.market)}, d: ${JSON.stringify(s.d)} },`).join('\n')}
 ];
 
-/** Coarser outline per market for the homepage thumbnail (same projection and viewBox). */
+/** The market marketOf() gives a country it does not name: the engine's fallback, drawn without a market border. */
+export const MAP_FALLBACK: Market = ${JSON.stringify(map.fallback)};
+
+/** Border of a market drawn from several shapes, inner borders merged away. Other named markets: their shapes. */
+export const MAP_OUTLINE: Partial<Record<Market, string>> = {
+${Object.entries(map.outline).map(([m, d]) => `  ${m}: ${JSON.stringify(d)},`).join('\n')}
+};
+
+/** Coarser outline per market for the homepage thumbnail (same projection and viewBox; named markets merged). */
 export const MAP_THUMB: Record<Market, string> = {
 ${Object.entries(map.thumb).map(([m, d]) => `  ${m}: ${JSON.stringify(d)},`).join('\n')}
 };

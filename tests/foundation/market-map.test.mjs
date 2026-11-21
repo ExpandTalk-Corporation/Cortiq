@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { buildMap, render } from '../../scripts/build-market-map.mjs';
-import { MAP_SHAPES, MAP_THUMB, MAP_VIEWBOX } from '../../src/lib/marketMapPaths.generated.ts';
+import { MAP_FALLBACK, MAP_OUTLINE, MAP_SHAPES, MAP_THUMB, MAP_VIEWBOX } from '../../src/lib/marketMapPaths.generated.ts';
 import { MARKETS, PACK, PRODUCTION_STATUSES } from '../../src/lib/jurisdiction.ts';
 import { marketOf, EEA_COUNTRIES } from '../../supabase/functions/_shared/jurisdiction/markets.ts';
 import { marketStatuses } from '../../src/lib/marketStatus.ts';
@@ -36,15 +36,43 @@ test('every market the engine knows has at least one shape, and nothing else is 
   for (const m of MARKETS) assert.ok(MAP_SHAPES.some((s) => s.market === m), `no shape for ${m}`);
   for (const s of MAP_SHAPES) assert.ok(MARKETS.includes(s.market), `unknown market ${s.market}`);
   const codes = MAP_SHAPES.flatMap((s) => s.codes);
-  // Natural Earth draws Somaliland and Northern Cyprus apart; edge geo reports them as SO and CY, so they share a code.
+  // Natural Earth draws Northern Cyprus apart from Cyprus; both get CY, so CY is listed under the EU and inside the
+  // merged fallback shape. Somaliland (SO) is part of the merged fallback shape only.
   const twice = codes.filter((c, i) => codes.indexOf(c) !== i).sort();
-  assert.deepEqual(twice, ['CY', 'SO'], 'a place is drawn twice');
+  assert.deepEqual(twice, ['CY'], 'a place is drawn twice');
   for (const c of EEA_COUNTRIES) assert.ok(codes.includes(c), `EEA state ${c} missing from the map`);
   for (const c of ['US-CA', 'CA-QC', 'GB', 'CH', 'BR']) assert.ok(codes.includes(c), `${c} missing`);
   assert.ok(!codes.includes('AQ'), 'no Antarctica');
   assert.match(MAP_VIEWBOX, /^0 0 1000 \d+$/);
   assert.deepEqual(Object.keys(MAP_THUMB), [...MARKETS], 'thumbnail outline for every market');
   for (const m of MARKETS) assert.match(MAP_THUMB[m], /^M/);
+});
+
+test('named markets get a visible border; the fallback is one shape with no inner borders and no market border', () => {
+  assert.equal(MAP_FALLBACK, marketOf('ZZ', ''), 'fallback = what the engine gives a country it does not name');
+  const rest = MAP_SHAPES.filter((s) => s.market === MAP_FALLBACK);
+  assert.equal(rest.length, 1, 'the fallback market is drawn as one merged shape, so no border is drawn inside it');
+  for (const c of ['RU', 'UA', 'TW', 'CN', 'XK', 'RS', 'EH', 'MA', 'SO', 'IN', 'PK']) assert.ok(rest[0].codes.includes(c), `${c} in fallback`);
+  assert.ok(MAP_OUTLINE.eu, 'EU border merged from its member states');
+  assert.ok(!(MAP_FALLBACK in MAP_OUTLINE), 'no market border around the fallback');
+  const src = read(COMPONENT);
+  assert.match(src, /className="mm-borders"/);
+  assert.match(src, /NAMED\.map\(/);
+  assert.match(src, /MARKETS\.filter\(\(m\) => m !== MAP_FALLBACK\)/);
+  assert.match(src, /mm-fallback/);
+  assert.match(src, /<LayerSwatch kind="border" \/>/, 'legend explains the border, so colour is not the only signal');
+  assert.match(src, /<LayerSwatch kind="fallback" \/>[\s\S]*MARKET_LABEL\[MAP_FALLBACK\]/, 'legend names the fallback');
+  assert.match(src, /className=\{`mm-swatch-\$\{kind\}`\}/);
+  // Tokens defined for both themes.
+  const css = read('src/index.css');
+  const block = (sel) => css.slice(css.indexOf(`${sel} {`), css.indexOf('}', css.indexOf(`${sel} {`)));
+  for (const sel of [':root', '.dark']) {
+    for (const t of ['--map-fallback', '--map-market-line', '--map-approved']) assert.match(block(sel), new RegExp(`${t}:`), `${t} in ${sel}`);
+  }
+  assert.match(css, /\.market-map \.mm-borders path \{[^}]*stroke: hsl\(var\(--map-market-line\)\)/);
+  assert.match(css, /\.market-map \.mm-fallback \{[^}]*--map-fallback/);
+  assert.match(css, /\.market-map \.mm-swatch-border \{[^}]*--map-market-line/);
+  assert.match(css, /\.market-map \.mm-swatch-fallback \{[^}]*--map-fallback/);
 });
 
 test('the map module stays small', () => {

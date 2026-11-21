@@ -14,7 +14,7 @@ export function MarketFields({ s }: { s: MarketStatus }) {
   return (
     <dl className="mt-2 space-y-2">
       <div><dt className="text-xs text-muted-foreground">Engine status (logged, not applied)</dt><dd className="text-foreground">{s.status}</dd></div>
-      <div><dt className="text-xs text-muted-foreground">Main laws</dt><dd className="text-muted-foreground">{ROUTING_LAWS[s.market]}</dd></div>
+      <div><dt className="text-xs text-muted-foreground">Main laws the rules refer to</dt><dd className="text-muted-foreground">{ROUTING_LAWS[s.market]}</dd></div>
       <div><dt className="text-xs text-muted-foreground">Rules on file</dt><dd className="text-muted-foreground">{rulesText(s)}</dd></div>
     </dl>
   );
@@ -38,7 +38,7 @@ export function MarketTable() {
           <thead>
             <tr className="border-b text-left text-muted-foreground">
               <th scope="col" className="p-3 font-medium">Market</th>
-              <th scope="col" className="p-3 font-medium">Main laws</th>
+              <th scope="col" className="p-3 font-medium">Main laws the rules refer to</th>
               <th scope="col" className="p-3 font-medium">Rules on file</th>
               <th scope="col" className="p-3 font-medium">Engine status (logged, not applied)</th>
             </tr>

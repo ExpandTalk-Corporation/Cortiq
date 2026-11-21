@@ -30,7 +30,7 @@ export function marketMapModel(statuses: MarketStatus[] = marketStatuses()) {
   const byCat = (c: MapCategory) => statuses.filter((s) => mapCategory(s) === c);
   const labelFor = (c: MapCategory): string => {
     const rows = byCat(c);
-    if (c === 'approved') return 'Approved internally';
+    if (c === 'approved') return 'Rule approved internally (CortIQ default, not legal advice)';
     const rules = rows.flatMap((s) => s.rulesOnFile.filter((r) => (c === 'market_rules' ? isMarketRule(r) : !isMarketRule(r))));
     const st = statusList(rules.map((r) => r.status));
     if (c === 'market_rules') return `Market rules on file${st ? ` (${st})` : ''}, logged only`;
