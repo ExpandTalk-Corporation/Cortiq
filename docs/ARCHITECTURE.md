@@ -316,7 +316,6 @@ sitekit-sync           -- Google SiteKit sync
 consent-check          -- Check cookie consent
 cookie-scanner         -- Scan site cookies
 data-retention         -- Data cleanup
-gdpr-compliant-tracking -- GDPR tracking
 ...
 ```
 

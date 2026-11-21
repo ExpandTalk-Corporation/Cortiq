@@ -32,7 +32,7 @@ created_at`). Every insert therefore fails with "column site_id does not exist" 
 never thrown. So even a site that called `pixel-tracking` would write nothing.
 
 `pixel-tracking` is also not referenced by `spa-tracking.js` or the WP plugin — only by
-`first-party-proxy`, `gdpr-compliant-tracking`, and `FirstPartySetupGuide.tsx`.
+`first-party-proxy` and `FirstPartySetupGuide.tsx` (`gdpr-compliant-tracking` was removed 2026-11-21).
 
 ### 3. Behavioural tracking is consent-gated (correct, but currently a no-op)
 `hasInteractionConsent()` (`spa-tracking.js:423`) requires a stored analytics-consent record
