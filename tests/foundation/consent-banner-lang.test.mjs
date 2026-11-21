@@ -37,6 +37,16 @@ async function store(bannerLang) {
   return db.calls.find((c) => c.table === 'cookie_consents' && c.type === 'insert').payload.banner_lang;
 }
 
+test('the WordPress plugin banner posts its language too, from the same 13 codes', () => {
+  const php = read('../../wordpress-plugin/cortiq-analytics.php');
+  const list = php.match(/function cortiq_banner_languages\(\) \{\s*return array\(([^)]*)\)/)[1].match(/'([a-z]+)'/g).map((x) => x.slice(1, -1));
+  assert.deepEqual(list.sort(), [...LANGS].sort());
+  assert.match(php, /\$lang\s+= cortiq_banner_lang\( \$opts \);/);
+  assert.match(php, /var CQ_LANG = '<\?php echo esc_js\( \$lang \); \?>';/);
+  const post = php.slice(php.indexOf("cqFetch('/store-consent'"), php.indexOf("cqFetch('/store-consent'") + 800);
+  assert.match(post, /banner_lang: CQ_LANG/);
+});
+
 test('store-consent keeps a known code and stores null for anything else', async () => {
   assert.equal(await store('fi'), 'fi');
   for (const bad of ['xx', 'SV', 'no', '', 42, null, undefined, 'sv-SE']) assert.equal(await store(bad), null, String(bad));

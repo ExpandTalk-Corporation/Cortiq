@@ -3,7 +3,7 @@
  * Plugin Name: CortIQ Analytics
  * Plugin URI: https://cortiq.se
  * Description: Analytics for the agentic web. Classifies AI crawlers and agent fetches (GPTBot, ClaudeBot, ChatGPT-User, PerplexityBot…) and measures human visitors after consent — cookieless mode, heatmaps, conversions and a built-in consent banner.
- * Version: 5.5.23
+ * Version: 5.5.24
  * Author: CortIQ
  * Author URI: https://cortiq.se
  * Requires at least: 5.6
@@ -21,7 +21,7 @@ if ( defined( 'CORTIQ_LOADED' ) ) return;
 define( 'CORTIQ_LOADED', true );
 
 // Shared with public/spa-tracking.js (CORTIQ_VERSION) — also the ?ver= cache-bust for it.
-define( 'CORTIQ_VERSION',    '5.5.23' );
+define( 'CORTIQ_VERSION',    '5.5.24' );
 define( 'CORTIQ_OPTION_KEY', 'cortiq_options' );
 // Supabase Edge Functions base — used for the GDPR consent ledger (store-consent).
 define( 'CORTIQ_API',        'https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1' );
@@ -639,7 +639,8 @@ function cortiq_cookie_banner() {
     $opts = cortiq_options();
     if ( empty( $opts['gdpr_enabled'] ) ) return;
     $accent = $opts['accent_color'] ? esc_attr( $opts['accent_color'] ) : '#6366f1';
-    $t      = cortiq_banner_strings( cortiq_banner_lang( $opts ) );
+    $lang   = cortiq_banner_lang( $opts );
+    $t      = cortiq_banner_strings( $lang );
     ?>
 <style>
 #cq-overlay,#cq-reopen{--cq-accent:<?php echo $accent; ?>}
@@ -757,6 +758,7 @@ function cortiq_cookie_banner() {
     'gpc'   => $t['gpc'],
   ) ); ?>;
   var POLICY_VERSION = '<?php echo esc_js( $opts['policy_version'] ); ?>';
+  var CQ_LANG = '<?php echo esc_js( $lang ); ?>'; // language the banner is shown in, sent with each answer
   var MAX_AGE = <?php echo max( 1, intval( $opts['reprompt_cooldown_days'] ) ); ?>*24*60*60*1000; // re-ask after an accepted choice
   var MAX_AGE_REJECT = <?php echo max( 1, intval( $opts['reprompt_reject_days'] ) ); ?>*24*60*60*1000; // re-ask after necessary-only
   function ageFor(c){ return (c && (c.preferences || c.analytics || c.marketing)) ? MAX_AGE : MAX_AGE_REJECT; }
@@ -818,7 +820,7 @@ function cortiq_cookie_banner() {
           session_id: c.consentId, page_url: location.href,
           consent_types:{ necessary:true, analytics:anal, marketing:mark, preferences:pref },
           source:'cookie_banner', gpc_signal:GPC, time_zone:tz(),
-          policy_version: POLICY_VERSION, locale: locale.substring(0,10)
+          policy_version: POLICY_VERSION, locale: locale.substring(0,10), banner_lang: CQ_LANG
         })
       }).catch(function(){});
     } catch(e){}
