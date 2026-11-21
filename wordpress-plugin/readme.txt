@@ -3,7 +3,7 @@ Contributors: cortiq
 Tags: analytics, ai-tracking, heatmap, cookie-free, gdpr, chatgpt, ai-bots
 Requires at least: 5.6
 Tested up to: 6.8
-Stable tag: 5.5.21
+Stable tag: 5.5.22
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -86,6 +86,9 @@ All data is stored in the EU (AWS eu-north-1 via Supabase).
 The tracking script is loaded with `defer` so it does not block rendering.
 
 == Changelog ==
+
+= 5.5.22 =
+* Click tracking no longer reads the value of form fields: clicks on inputs, text areas and selects (such as a search box in the menu) are not recorded.
 
 = 5.5.21 =
 * Optional self-reported source: a site can name one "how did you hear about us?" select or radio field; with analytics consent the tracker sends only a category mapped from the chosen option. Text fields are never read. Off unless configured, full mode only.

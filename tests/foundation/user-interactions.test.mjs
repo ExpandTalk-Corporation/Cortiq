@@ -122,3 +122,12 @@ test('only the analytics-consented tracker sends interactions, in every tracking
   const beacon = read('../../src/lib/aggregate-beacon.js');
   assert.doesNotMatch(beacon, /track-event|interaction|pixel-tracking/, 'aggregate mode never sends per-event data');
 });
+
+test('tracker: click tracking never reads a form field value and skips form controls', () => {
+  const src = read('../../public/spa-tracking.js');
+  const start = src.indexOf('function setupInteractionTracking');
+  const body = src.slice(start, src.indexOf('\n  }\n', start));
+  assert.ok(start > 0, 'setupInteractionTracking found');
+  assert.doesNotMatch(body, /\.value\b/, 'no .value read in click tracking');
+  assert.match(body, /INPUT\|TEXTAREA\|SELECT/, 'form controls are skipped');
+});
