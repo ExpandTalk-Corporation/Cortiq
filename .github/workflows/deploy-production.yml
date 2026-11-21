@@ -1,18 +1,34 @@
-name: Build Check
+name: Deploy production
+
+# Builds on every push to main and uploads dist/ to the Loopia web root over FTPS, then checks the live site.
+# Supabase functions and migrations are deployed separately (see CLAUDE.md → Deployment).
+# Required secrets for the upload: FTP_HOST, FTP_USER, FTP_PASSWORD, FTP_REMOTE_DIR (the domain web root).
+# Without them the workflow only builds, as before.
 
 on:
   push:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: List what would be uploaded without uploading anything
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
 
 env:
   NODE_VERSION: '22'
+  SITE_URL: https://cortiq.se
 
 jobs:
-  build:
-    name: Build
+  deploy:
+    name: Build and deploy
     runs-on: ubuntu-latest
+    environment: production
 
     steps:
       - name: Checkout
@@ -36,8 +52,55 @@ jobs:
           VITE_APP_ENV: production
           NODE_ENV: production
 
-      - name: Build summary
+      - name: Check FTP secrets
+        id: ftp
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_REMOTE_DIR: ${{ secrets.FTP_REMOTE_DIR }}
         run: |
-          echo "### Build complete" >> $GITHUB_STEP_SUMMARY
-          echo "Size: $(du -sh dist/ | cut -f1)" >> $GITHUB_STEP_SUMMARY
-          echo "Deploy manually: upload \`dist/\` to cortiq.se via FTP/SFTP" >> $GITHUB_STEP_SUMMARY
+          if [ -n "$FTP_HOST" ] && [ -n "$FTP_USER" ] && [ -n "$FTP_PASSWORD" ] && [ -n "$FTP_REMOTE_DIR" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "### Built, not deployed" >> "$GITHUB_STEP_SUMMARY"
+            echo "FTP secrets are missing: add FTP_HOST, FTP_USER, FTP_PASSWORD and FTP_REMOTE_DIR to the production environment." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Install lftp
+        if: steps.ftp.outputs.enabled == 'true'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq lftp
+
+      # Hashed assets first so new HTML never points at a file that is not there yet; nothing is deleted on the
+      # server, so pages already open keep their old assets. Assets are content-addressed, so an existing file
+      # of the same size is skipped. Everything else is uploaded every time, HTML last.
+      - name: Upload over FTPS
+        if: steps.ftp.outputs.enabled == 'true'
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_REMOTE_DIR: ${{ secrets.FTP_REMOTE_DIR }}
+          DRY: ${{ inputs.dry_run && '--dry-run' || '' }}
+        run: |
+          lftp --env-password -u "$FTP_USER" "$FTP_HOST" <<EOF
+          set ftp:ssl-force true
+          set ftp:ssl-protect-data true
+          set ssl:verify-certificate true
+          set net:max-retries 3
+          set net:timeout 30
+          mirror $DRY --reverse --ignore-time --parallel=4 --verbose=1 dist/assets "$FTP_REMOTE_DIR/assets"
+          mirror $DRY --reverse --parallel=4 --verbose=1 --exclude '^assets/' --exclude '\.html\$' dist "$FTP_REMOTE_DIR"
+          mirror $DRY --reverse --parallel=4 --verbose=1 --include '\.html\$' --include '/\$' --exclude '^assets/' dist "$FTP_REMOTE_DIR"
+          bye
+          EOF
+
+      - name: Smoke test the live site
+        if: steps.ftp.outputs.enabled == 'true' && !inputs.dry_run
+        run: node scripts/smoke-live.mjs "$SITE_URL"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "Commit: ${GITHUB_SHA::7} · dist size: $(du -sh dist/ 2>/dev/null | cut -f1)" >> "$GITHUB_STEP_SUMMARY"
