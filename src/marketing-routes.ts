@@ -27,8 +27,8 @@ export interface MarketingRoute {
 export const MARKETING_ROUTES: MarketingRoute[] = [
   {
     path: '/',
-    title: 'CortIQ — AI Agent Analytics & Cookieless Web Analytics',
-    description: 'Classify AI training crawlers, agent fetches and citation crawlers. Consent-first, cookieless visitor analytics with heatmaps. EU-hosted, free during beta.',
+    title: 'CortIQ — Analytics for AI Traffic, Conversions and Consent',
+    description: 'See who visits, humans and AI agents, and find where your tags stop counting conversions. Consent controls built in. EU-hosted, free during beta.',
     published: '2026-02-09',
     changefreq: 'weekly',
     priority: 1.0,
