@@ -169,7 +169,7 @@ export function MarketMapThumbnail({ idPrefix = "market-map-thumb" }: { idPrefix
         <Legend idPrefix={idPrefix} />
       </div>
       <span className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary">
-        Rule status per market on a map (logged, not applied) <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+        Rule status per market on a map <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
       </span>
     </Link>
   );

@@ -77,44 +77,80 @@ export const LEGAL_NOTES = [
 
 // Routing per country. The flow follows decide() in supabase/functions/_shared/jurisdiction/;
 // status per market is never written here, it comes from src/lib/marketStatus.ts.
+// Homepage texts stay short (one line per step); the full wording is in `detail`, shown on /markets/.
 export const ROUTING_ID = "routing";
+
+export const ROUTING_HEADER = {
+  eyebrow: "Routing per country",
+  title: "See what each market's rules would allow, before anything changes",
+  intro:
+    "Each request is matched to a country and a purpose and checked against a versioned rule. Today CortIQ applies the same opt-in default in every market and shows you, per country, how many requests are refused or still wait for consent, and what the draft rules would allow.",
+};
 
 export const ROUTING_FLOW = [
   {
-    step: "Visitor request",
-    text: "A page view, event, consent answer or server-side request reaches a CortIQ collector.",
+    step: "Request",
+    text: "A page view, event, consent answer or server-side request arrives.",
+    detail: "A page view, event, consent answer or server-side request reaches a CortIQ collector.",
   },
   {
     step: "Country",
-    text: "Taken only from the signed edge location. Without one, CortIQ uses the markets you have selected (including your country of establishment), or EU/EEA, UK and Québec if you have selected none. Until you have answered where you operate, EU/EEA, UK and Québec are also checked.",
+    text: "From the edge network's signed country, never from the browser time zone.",
+    detail:
+      "Taken only from the signed edge location. Without one, CortIQ uses the markets you have selected (including your country of establishment), or EU/EEA, UK and Québec if you have selected none. Until you have answered where you operate, EU/EEA, UK and Québec are also checked.",
   },
   {
     step: "Purpose",
-    text: "Each collector names its purpose: statistics, conversions, attribution, sharing with ad platforms or server-side AI-agent measurement.",
+    text: "Statistics, conversions, attribution, ad platforms or AI-agent measurement.",
+    detail:
+      "Each collector names its purpose: statistics, conversions, attribution, sharing with ad platforms or server-side AI-agent measurement.",
   },
   {
     step: "Rule",
-    text: "The strictest matching rule decides. On customer sites only approved rules count; without one, the baseline is opt-in for every purpose. You can make a purpose stricter, not looser.",
+    text: "The strictest approved rule decides. Without one: opt-in.",
+    detail:
+      "The strictest matching rule decides. On customer sites only approved rules count; without one, the baseline is opt-in for every purpose. You can make a purpose stricter, not looser.",
   },
 ];
 
 export const ROUTING_OUTCOMES = [
-  {
-    outcome: "Collect",
-    text: "The data is stored.",
-  },
+  { outcome: "Collect", text: "The data is stored.", detail: "The data is stored." },
   {
     outcome: "Drop",
-    text: "Applied now for purposes you turn Off, and for marketing data, aggregate counts and server-side requests when GPC is present (listed below). Opt-in and market rules are logged only, not yet applied.",
+    text: "Now for your own Off, and GPC (marketing, aggregate, server-side).",
+    detail:
+      "Applied now for purposes you turn Off, and for marketing data, aggregate counts and server-side requests when GPC is present (listed below). Opt-in and market rules are logged only, not yet applied.",
   },
   {
-    outcome: "Log decision",
-    text: "Every decision is counted per day, country and purpose. Daily counts only.",
+    outcome: "Log",
+    text: "Counted per day, country and purpose.",
+    detail: "Every decision is counted per day, country and purpose. Daily counts only.",
   },
 ];
 
+export const ROUTING_LOGGED_LINE =
+  "Market rules are logged against real traffic and do not stop data yet.";
+
 export const ROUTING_TODAY_LINE =
   "Today CortIQ does the same in every market: browser analytics waits for consent, aggregate counting runs only on sites that turn it on, server-side AI-agent measurement runs from the site's own server, and the market rules below are logged, not applied.";
+
+// Short name per market for the homepage grid and the collapsed table row; the full citation is ROUTING_LAWS.
+export const ROUTING_LAW_SHORT: Record<Market, string> = {
+  eu: "GDPR and ePrivacy",
+  uk: "UK GDPR and PECR",
+  ch: "FADP",
+  us_ca: "CCPA/CPRA",
+  us_other: "State privacy laws",
+  ca_qc: "Law 25",
+  ca_other: "PIPEDA",
+  br: "LGPD",
+  mx: "LFPDPPP",
+  ar: "Law 25.326",
+  cl: "Law 19.628",
+  co: "Law 1581",
+  za: "POPIA",
+  other: "No law reviewed",
+};
 
 export const ROUTING_LAWS: Record<Market, string> = {
   eu: "ePrivacy Directive art. 5(3) as implemented in each country (Sweden: Electronic Communications Act (2022:482), ch. 9 s. 28), and the GDPR",
@@ -125,13 +161,13 @@ export const ROUTING_LAWS: Record<Market, string> = {
   ca_qc: "Québec private-sector privacy act (CQLR c. P-39.1) as amended by Law 25",
   ca_other: "PIPEDA (S.C. 2000, c. 5), or a substantially similar provincial law",
   br: "LGPD (Law 13.709/2018)",
-  // Named markets without rules of their own yet (pack 2026.11.21-1): the law named, no rule written. Citations checked
+  // Named markets without rules of their own yet (pack 2026.11.21-1): the status column says so. Citations checked
   // by the jurist agent 2026-11-21; Chile's Law 21.719 starts 1 Dec 2026 unless the passed postponement is published.
-  mx: "LFPDPPP (Federal Law on Protection of Personal Data Held by Private Parties), in force 21 March 2025. No market-specific rule yet.",
-  ar: "Law 25.326 on Personal Data Protection. No market-specific rule yet.",
-  cl: "Law 19.628, as amended by Law 21.719 (the amendments are not yet in force). No market-specific rule yet.",
-  co: "Law 1581 of 2012 and Decree 1377 of 2013 (now in Decree 1074 of 2015). No market-specific rule yet.",
-  za: "POPIA (Protection of Personal Information Act 4 of 2013). No market-specific rule yet.",
+  mx: "LFPDPPP (Federal Law on Protection of Personal Data Held by Private Parties), in force 21 March 2025",
+  ar: "Law 25.326 on Personal Data Protection",
+  cl: "Law 19.628, as amended by Law 21.719 (the amendments are not yet in force)",
+  co: "Law 1581 of 2012 and Decree 1377 of 2013 (now in Decree 1074 of 2015)",
+  za: "POPIA (Protection of Personal Information Act 4 of 2013)",
   other: "No market-specific law reviewed. Local law is the site owner's assessment.",
 };
 
@@ -145,19 +181,21 @@ export const ROUTING_OFF_COLLECTORS =
 export const ROUTING_WORKS_TODAY = [
   {
     title: "Global Privacy Control",
-    text: "When the browser sends GPC, the banner keeps marketing off, aggregate counting stops, and the server-side adapters (5.5.20 and later) do not send the request.",
+    text: "The banner keeps marketing off, aggregate counting stops, and server-side adapters (5.5.20+) do not send the request.",
   },
   {
     title: "Your own Off",
-    text: `New data for a purpose you turn off is dropped, within about a minute, in ${ROUTING_OFF_COLLECTORS}`,
+    text: "Turn a purpose Off and the collectors listed under More drop its new data, usually within a minute.",
+    more: `Applies to ${ROUTING_OFF_COLLECTORS}`,
   },
   {
     title: "Country of each consent",
-    text: "CortIQ already records which country each consent was given from. It comes from the signed edge location, or the browser time zone when that is missing. Rules never use the time zone.",
+    text: "CortIQ already records which country each consent was given from.",
+    more: "It comes from the signed edge location, or the browser time zone when that is missing. Rules never use the time zone.",
   },
   {
     title: "Consent impact per country",
-    text: "Consent → Impact shows per country what the rules would allow, banner answers by language, and pixel readiness.",
+    text: "Consent → Impact shows per country what opt-in leaves uncounted, banner answers by language and pixel readiness.",
   },
 ];
 

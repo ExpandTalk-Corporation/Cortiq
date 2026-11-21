@@ -6,7 +6,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { decide, DISCLAIMER, MARKETS, PACK, PURPOSES, PRODUCTION_STATUSES } from '../../src/lib/jurisdiction.ts';
 import { marketStatuses, MARKET_LABEL } from '../../src/lib/marketStatus.ts';
 import { CHECK_KEYS } from '../../supabase/functions/_shared/gtm-audit/types.ts';
-import { ROUTING_LAWS, ROUTING_OFF_COLLECTORS, ROUTING_WORKS_TODAY } from '../../src/components/home/copy.ts';
+import { ROUTING_FLOW, ROUTING_LAW_SHORT, ROUTING_LAWS, ROUTING_OFF_COLLECTORS, ROUTING_OUTCOMES, ROUTING_WORKS_TODAY } from '../../src/components/home/copy.ts';
 
 const root = new URL('../../', import.meta.url);
 const read = (p) => readFileSync(new URL(p, root), 'utf8');
@@ -72,11 +72,14 @@ test('no market is described as approved while no rule has a production status',
 
 test('the section renders status from the engine, never as hand-written text', () => {
   const src = read(HOME + 'RoutingSection.tsx');
-  assert.match(src, /<MarketTable \/>/);
-  assert.match(src, /\{DISCLAIMER\}/);
+  assert.match(src, /<MarketGrid \/>/);
+  assert.match(src, /\{ROUTING_LOGGED_LINE\}/);
+  assert.match(src, /\{DISCLAIMER\}|<MarketGrid \/>/);
+  assert.match(read('src/pages/Markets.tsx'), /<MarketTable \/>/);
   const table = read(HOME + 'MarketTable.tsx');
   assert.match(table, /marketStatuses\(\)/);
   assert.match(table, /\{s\.status\}/);
+  assert.match(table, /\{s\.statusShort\}/);
   assert.match(table, /\{DISCLAIMER\}/);
   for (const f of ['RoutingSection.tsx', 'MarketTable.tsx', 'MarketMap.tsx', 'copy.ts']) {
     assert.doesNotMatch(read(HOME + f), /Baseline opt-in|draft rules only|rule in review|none approved/i, `${f} hardcodes a status`);
@@ -98,10 +101,33 @@ test('home copy makes no compliance or consent-free claims', () => {
 
 test('the Off list on the homepage is the dashboard wording', () => {
   assert.ok(read('src/components/dashboard/jurisdiction/RulesByMarketTab.tsx').includes(ROUTING_OFF_COLLECTORS.replace(' Some other collectors do not check it yet.', '')));
-  assert.ok(ROUTING_WORKS_TODAY.some((w) => w.text.includes(ROUTING_OFF_COLLECTORS)));
+  assert.ok(ROUTING_WORKS_TODAY.some((w) => (w.more ?? w.text).includes(ROUTING_OFF_COLLECTORS)));
 });
 
 test('the GTM Audit card renders its check count from the engine', () => {
   assert.equal(CHECK_KEYS.length, 15);
   assert.match(read(HOME + 'ToolsSection.tsx'), /\{CHECK_KEYS\.length\}/);
+});
+
+test('homepage texts stay short and even; the full wording lives on /markets/', () => {
+  for (const s of ROUTING_FLOW) {
+    assert.ok(s.text.length <= 80, `step ${s.step} is ${s.text.length} chars on the homepage`);
+    assert.ok(s.detail.length >= s.text.length, `step ${s.step} has its full text in detail`);
+  }
+  for (const o of ROUTING_OUTCOMES) assert.ok(o.text.length <= 70, `outcome ${o.outcome}`);
+  for (const w of ROUTING_WORKS_TODAY) assert.ok(w.text.length <= 120, `${w.title} is ${w.text.length} chars`);
+  for (const m of MARKETS) assert.ok(ROUTING_LAW_SHORT[m] && ROUTING_LAW_SHORT[m].length <= 20, `short law for ${m}`);
+  const page = read('src/pages/Markets.tsx');
+  assert.match(page, /\{s\.detail\}/);
+  assert.match(page, /\{o\.detail\}/);
+});
+
+test('the short status says the same as the full one', () => {
+  for (const row of marketStatuses()) {
+    assert.equal(row.statusShort.startsWith('Opt-in'), row.status.startsWith('Baseline opt-in'), `${row.market}: ${row.statusShort}`);
+    assert.equal(row.statusShort.includes('Approved') || row.statusShort.includes('approved'), row.status.startsWith('Approved'), row.market);
+    for (const [re, word] of [[/in review/, 'in review'], [/draft rules/, 'draft'], [/no rule yet/, 'no rule yet']]) {
+      assert.equal(re.test(row.statusShort), row.status.includes(word), `${row.market}: ${word}`);
+    }
+  }
 });
