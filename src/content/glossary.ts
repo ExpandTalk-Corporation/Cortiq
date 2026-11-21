@@ -223,7 +223,7 @@ export const GLOSSARY: ContentPageData = {
             {
               id: 'training-crawler',
               term: 'Training crawler',
-              definition: 'A bot that collects content to train AI models, such as GPTBot, ClaudeBot or Google-Extended. It brings no visitors back.',
+              definition: 'A bot that collects content to train AI models, such as GPTBot, ClaudeBot or CCBot. It brings no visitors back.',
             },
             {
               id: 'agentic-fetch',

@@ -298,7 +298,7 @@ Each attribute has a `window.cortiqConfig` equivalent (`siteId`, `apiKey`, `apiU
 
 ## Server-side agent measurement
 
-Most AI training and citation crawlers (GPTBot, ClaudeBot, PerplexityBot, Google-Extended…) never run JavaScript, so the browser script cannot see them. Server-side adapters run on your server or edge and send CortIQ only:
+Most AI training and citation crawlers (GPTBot, ClaudeBot, PerplexityBot, CCBot…) never run JavaScript, so the browser script cannot see them. Server-side adapters run on your server or edge and send CortIQ only:
 
 - requests whose User-Agent looks like a bot or AI agent,
 - fetches of `/robots.txt`, `/llms.txt`, `/llms-full.txt`,

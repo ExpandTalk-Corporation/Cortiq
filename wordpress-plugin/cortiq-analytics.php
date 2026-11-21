@@ -29,7 +29,7 @@ define( 'CORTIQ_GEO_API',    'https://cortiq-geo.cortiq.workers.dev' );
 // Server-side agent measurement: honeypot path and AI-bot pre-filter (CortIQ's registry).
 // Keep CORTIQ_AGENT_UA in sync with AGENT_UA in public/cortiq-server.mjs (test-enforced).
 define( 'CORTIQ_TRAP_PATH',  '/cortiq-trap/' );
-define( 'CORTIQ_AGENT_UA',   '/GPTBot|ChatGPT|OAI-SearchBot|Claude-User|Claude-SearchBot|ClaudeBot|anthropic-ai|Perplexity|Google-Extended|GoogleOther|Googlebot|bingbot|BingPreview|Meta-ExternalAgent|FacebookBot|facebookexternalhit|Applebot|YouBot|DuckAssistBot|Grok|Amazonbot|Bytespider|CCBot|Diffbot|cohere-ai|DeepSeek|MistralAI/i' );
+define( 'CORTIQ_AGENT_UA',   '/GPTBot|ChatGPT|OAI-SearchBot|Claude-User|Claude-SearchBot|ClaudeBot|anthropic-ai|Perplexity|Google-Agent|Google-GeminiNotebook|GoogleOther|Googlebot|bingbot|BingPreview|Meta-ExternalFetcher|Meta-WebIndexer|Meta-ExternalAgent|FacebookBot|facebookexternalhit|Applebot|Amzn-User|Amzn-SearchBot|Amazonbot|MistralAI|Kimi-User|Kimi-SearchBot|KimiBot|Elevenlabs|SBIntuitions|YouBot|DuckAssistBot|ExaSearchBot|NagetBot|Grok|Bytespider|CCBot|Diffbot|cohere-training-data-crawler|cohere-ai|DeepSeek|AI2Bot|QwenBot|ChatGLM-Spider|HySpider|YiBot|Reflectionbot|Cotoyogi|ICC-Crawler|Timpibot|VelenPublicWebCrawler|ImagesiftBot|omgili/i' );
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers

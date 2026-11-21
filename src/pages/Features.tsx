@@ -235,7 +235,7 @@ export default function Features() {
             <Card className="border-red-500/30">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">🔴 Training Crawlers</CardTitle>
-                <CardDescription>GPTBot, ClaudeBot, Google-Extended, CCBot</CardDescription>
+                <CardDescription>GPTBot, ClaudeBot, CCBot, Bytespider</CardDescription>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground">
                 Pure infrastructure cost — they consume your content to train models, with no

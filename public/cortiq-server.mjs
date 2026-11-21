@@ -33,7 +33,7 @@ export const TRAP_PATH = '/cortiq-trap/';
 // Pre-filter: the AI bots CortIQ classifies (its registry). Anything else would be
 // discarded server-side, so it never leaves your server. Must cover every registry bot
 // (tests/foundation/server-adapters.test.mjs enforces it).
-export const AGENT_UA = /GPTBot|ChatGPT|OAI-SearchBot|Claude-User|Claude-SearchBot|ClaudeBot|anthropic-ai|Perplexity|Google-Extended|GoogleOther|Googlebot|bingbot|BingPreview|Meta-ExternalAgent|FacebookBot|facebookexternalhit|Applebot|YouBot|DuckAssistBot|Grok|Amazonbot|Bytespider|CCBot|Diffbot|cohere-ai|DeepSeek|MistralAI/i;
+export const AGENT_UA = /GPTBot|ChatGPT|OAI-SearchBot|Claude-User|Claude-SearchBot|ClaudeBot|anthropic-ai|Perplexity|Google-Agent|Google-GeminiNotebook|GoogleOther|Googlebot|bingbot|BingPreview|Meta-ExternalFetcher|Meta-WebIndexer|Meta-ExternalAgent|FacebookBot|facebookexternalhit|Applebot|Amzn-User|Amzn-SearchBot|Amazonbot|MistralAI|Kimi-User|Kimi-SearchBot|KimiBot|Elevenlabs|SBIntuitions|YouBot|DuckAssistBot|ExaSearchBot|NagetBot|Grok|Bytespider|CCBot|Diffbot|cohere-training-data-crawler|cohere-ai|DeepSeek|AI2Bot|QwenBot|ChatGLM-Spider|HySpider|YiBot|Reflectionbot|Cotoyogi|ICC-Crawler|Timpibot|VelenPublicWebCrawler|ImagesiftBot|omgili/i;
 
 const WATCHED_FILES = new Set(['/robots.txt', '/llms.txt', '/llms-full.txt']);
 

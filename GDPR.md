@@ -30,7 +30,7 @@ Runs on your own server or edge: Next.js/Vercel middleware, Netlify Edge, Cloudf
 - Only bot-like requests are sent to CortIQ; ordinary human requests never leave your server
 - Data per request: timestamp, URL path, referrer, user agent, and the IP truncated to /24 (IPv6 /48) on your server before sending. CortIQ clears the truncated IP after 30 days
 
-Most AI training and citation crawlers (GPTBot, ClaudeBot, PerplexityBot, Google-Extended) never execute JavaScript, so this is also the only reliable way to see them.
+Most AI training and citation crawlers (GPTBot, ClaudeBot, PerplexityBot, CCBot) never execute JavaScript, so this is also the only reliable way to see them.
 
 The measurement reads only the HTTP request your server already receives and stores or reads nothing on the visitor's device. In our assessment it is therefore not covered by ePrivacy Art. 5(3) (Swedish LEK chapter 9, section 28), so cookie consent is not required for it. Note that the EDPB's Guidelines 2/2023 take a broad view of "gaining access" (paragraphs 42–43 and 55), so this is an interpretation, not settled law. You need a legal basis under the GDPR (typically legitimate interest, Art. 6(1)(f), with a documented balancing test; not available to public authorities in the performance of their tasks) and must describe the processing and the right to object (Art. 21) in your privacy policy.
 

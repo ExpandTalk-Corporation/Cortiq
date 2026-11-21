@@ -30,7 +30,7 @@
 const ENDPOINT = 'https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1/server-hit';
 const TRAP_PATH = '/cortiq-trap/';
 // Keep in sync with AGENT_UA in public/cortiq-server.mjs (test-enforced).
-const AGENT_UA = /GPTBot|ChatGPT|OAI-SearchBot|Claude-User|Claude-SearchBot|ClaudeBot|anthropic-ai|Perplexity|Google-Extended|GoogleOther|Googlebot|bingbot|BingPreview|Meta-ExternalAgent|FacebookBot|facebookexternalhit|Applebot|YouBot|DuckAssistBot|Grok|Amazonbot|Bytespider|CCBot|Diffbot|cohere-ai|DeepSeek|MistralAI/i;
+const AGENT_UA = /GPTBot|ChatGPT|OAI-SearchBot|Claude-User|Claude-SearchBot|ClaudeBot|anthropic-ai|Perplexity|Google-Agent|Google-GeminiNotebook|GoogleOther|Googlebot|bingbot|BingPreview|Meta-ExternalFetcher|Meta-WebIndexer|Meta-ExternalAgent|FacebookBot|facebookexternalhit|Applebot|Amzn-User|Amzn-SearchBot|Amazonbot|MistralAI|Kimi-User|Kimi-SearchBot|KimiBot|Elevenlabs|SBIntuitions|YouBot|DuckAssistBot|ExaSearchBot|NagetBot|Grok|Bytespider|CCBot|Diffbot|cohere-training-data-crawler|cohere-ai|DeepSeek|AI2Bot|QwenBot|ChatGLM-Spider|HySpider|YiBot|Reflectionbot|Cotoyogi|ICC-Crawler|Timpibot|VelenPublicWebCrawler|ImagesiftBot|omgili/i;
 const WATCHED_FILES = new Set(['/robots.txt', '/llms.txt', '/llms-full.txt']);
 const HONEYPOT_HTML = `<a href="${TRAP_PATH}" rel="nofollow" tabindex="-1" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden">.</a>`;
 
