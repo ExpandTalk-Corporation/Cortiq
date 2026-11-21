@@ -52,9 +52,11 @@ test('sample data names no bots (names come from the registry)', () => {
 // Jurist-reviewed and sourced statements. They may move (e.g. into <details>), never change.
 // 2026-11-20: the TollBit source moved to the AI traffic footnote and "CortIQ already records which country…"
 // moved to Routing per country; both unchanged. The rest of the routing copy is not jurist-reviewed yet, so it
-// is not listed here; home-routing.test.mjs ties its status column to the engine and bans compliance claims.
+// is not listed here; 2026-11-21: the routing intro was condensed and jurist-reviewed again (the old intro's
+// "logged … do not stop data yet" sentence stays word for word); home-routing.test.mjs ties its status column to the engine and bans compliance claims.
 const REVIEWED = [
-  "Each request is matched to a market and a purpose, and a versioned rule says what CortIQ would collect. Market rules are logged against real traffic and do not stop data yet. Your own Off already stops data, and GPC does in the places listed below.",
+  "Today CortIQ applies the same opt-in default in every market and shows you, per country, how many requests are refused or still wait for consent, and what the draft rules would allow.",
+  "Market rules are logged against real traffic and do not stop data yet.",
   "Applied now for purposes you turn Off, and for marketing data, aggregate counts and server-side requests when GPC is present (listed below). Opt-in and market rules are logged only, not yet applied.",
   "It does not change what is collected today.",
   "Storing information on the visitor's device, or gaining access to information already there, needs consent unless it is strictly necessary to transmit a communication or to provide a service the visitor explicitly asked for. Regulators generally do not treat analytics for the site owner as strictly necessary, so CortIQ's browser tracking waits for consent (EDPB Guidelines 2/2023). National laws implement the rule and differ in detail.",

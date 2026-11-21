@@ -29,6 +29,8 @@ export interface MarketStatus {
   baselineOnly: boolean;
   rulesOnFile: RuleOnFile[];
   status: string;
+  /** The same status in a few words, for the homepage grid; `status` stays the full sentence. */
+  statusShort: string;
 }
 
 const list = (xs: string[]) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
@@ -45,20 +47,26 @@ export function marketStatus(market: Market): MarketStatus {
   const statuses = new Set(rulesOnFile.map((r) => r.status));
 
   let status: string;
+  let statusShort: string;
   if (approved.length) {
     status = approved.length === PURPOSES.length
       ? 'Approved internally for every purpose'
       : `Approved internally for ${purposeList(approved).toLowerCase()}; baseline opt-in for the rest`;
+    statusShort = approved.length === PURPOSES.length ? 'Approved' : 'Partly approved';
   } else if (!baselineOnly) {
     status = 'Stricter than opt-in (no approved rule yet)';
+    statusShort = 'Stricter than opt-in';
   } else if (statuses.has('reviewed_agent')) {
     status = 'Baseline opt-in (rule in review, none approved)';
+    statusShort = 'Opt-in · rule in review';
   } else if (statuses.has('draft')) {
     status = 'Baseline opt-in (draft rules only, none approved)';
+    statusShort = 'Opt-in · draft rules';
   } else {
     status = 'Baseline opt-in (no rule yet)';
+    statusShort = 'Opt-in · no rule yet';
   }
-  return { market, approved, baselineOnly, rulesOnFile, status };
+  return { market, approved, baselineOnly, rulesOnFile, status, statusShort };
 }
 
 export const marketStatuses = (): MarketStatus[] => MARKETS.map(marketStatus);

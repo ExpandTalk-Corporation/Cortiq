@@ -2,7 +2,7 @@ import PublicLayout from "@/components/PublicLayout";
 import { MarketMap } from "@/components/home/MarketMap";
 import { BannerLanguageMap } from "@/components/home/BannerLanguageMap";
 import { MarketTable, WorksToday } from "@/components/home/MarketTable";
-import { ROUTING_TODAY_LINE } from "@/components/home/copy";
+import { ROUTING_FLOW, ROUTING_OUTCOMES, ROUTING_TODAY_LINE } from "@/components/home/copy";
 import { DISCLAIMER, PACK_VERSION } from "@/lib/jurisdiction";
 import { useSEO } from "@/hooks/useSEO";
 import { seoFor } from "@/marketing-routes";
@@ -29,6 +29,29 @@ export default function Markets() {
           boundary files. The map shows markets, not countries, and is not a statement on any border or territory. Very
           small states are drawn as dots; the list above and the table below include every market.
         </p>
+      </section>
+
+      <section className="container mx-auto max-w-6xl px-4 pb-12">
+        <h2 className="mb-6 text-2xl font-bold">How a request is routed</h2>
+        <ol className="grid gap-3 md:grid-cols-2">
+          {ROUTING_FLOW.map((s, i) => (
+            <li key={s.step} className="rounded-lg border bg-background p-4 text-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-primary">{i + 1}. {s.step}</p>
+              <p className="mt-1 text-muted-foreground">{s.detail}</p>
+            </li>
+          ))}
+          <li className="rounded-lg border bg-background p-4 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-primary">{ROUTING_FLOW.length + 1}. Outcome</p>
+            <dl className="mt-1 space-y-2">
+              {ROUTING_OUTCOMES.map((o) => (
+                <div key={o.outcome}>
+                  <dt className="font-medium text-foreground">{o.outcome}</dt>
+                  <dd className="text-muted-foreground">{o.detail}</dd>
+                </div>
+              ))}
+            </dl>
+          </li>
+        </ol>
       </section>
 
       <section className="container mx-auto max-w-6xl px-4 pb-12">
