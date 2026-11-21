@@ -31,7 +31,7 @@
  *      RewriteCond %{REQUEST_URI} !\.(php\d?|pht|phtml|phar|phps|cgi|pl|py|asp|aspx|shtml)$ [NC]
  *      RewriteCond %{HTTP:X-Cortiq-Edge} ^$
  *      RewriteCond %{ENV:REDIRECT_STATUS} ^$
- *      RewriteCond %{HTTP_USER_AGENT} (GPTBot|ChatGPT|OAI-SearchBot|Claude-User|Claude-SearchBot|ClaudeBot|anthropic-ai|Perplexity|Google-Extended|GoogleOther|Googlebot|bingbot|BingPreview|Meta-ExternalAgent|FacebookBot|facebookexternalhit|Applebot|YouBot|DuckAssistBot|Grok|Amazonbot|Bytespider|CCBot|Diffbot|cohere-ai|DeepSeek|MistralAI) [NC]
+ *      RewriteCond %{HTTP_USER_AGENT} (GPTBot|ChatGPT|OAI-SearchBot|Claude-User|Claude-SearchBot|ClaudeBot|anthropic-ai|Perplexity|Google-Agent|Google-GeminiNotebook|GoogleOther|Googlebot|bingbot|BingPreview|Meta-ExternalFetcher|Meta-WebIndexer|Meta-ExternalAgent|FacebookBot|facebookexternalhit|Applebot|Amzn-User|Amzn-SearchBot|Amazonbot|MistralAI|Kimi-User|Kimi-SearchBot|KimiBot|Elevenlabs|SBIntuitions|YouBot|DuckAssistBot|ExaSearchBot|NagetBot|Grok|Bytespider|CCBot|Diffbot|cohere-training-data-crawler|cohere-ai|DeepSeek|AI2Bot|QwenBot|ChatGLM-Spider|HySpider|YiBot|Reflectionbot|Cotoyogi|ICC-Crawler|Timpibot|VelenPublicWebCrawler|ImagesiftBot|omgili) [NC]
  *      RewriteCond %{REQUEST_FILENAME} -f [OR]
  *      RewriteCond %{REQUEST_FILENAME}index.html -f
  *      RewriteRule ^ /cortiq-server.php [L]
@@ -52,7 +52,7 @@ const CORTIQ_API = 'https://cxmkdtgfocgbfizawlwa.supabase.co/functions/v1';
 const CORTIQ_SPA_FALLBACK = false;
 
 // Keep in sync with public/cortiq-server.mjs (tests/foundation/server-adapters.test.mjs checks it).
-define( 'CORTIQ_AGENT_UA', '/GPTBot|ChatGPT|OAI-SearchBot|Claude-User|Claude-SearchBot|ClaudeBot|anthropic-ai|Perplexity|Google-Extended|GoogleOther|Googlebot|bingbot|BingPreview|Meta-ExternalAgent|FacebookBot|facebookexternalhit|Applebot|YouBot|DuckAssistBot|Grok|Amazonbot|Bytespider|CCBot|Diffbot|cohere-ai|DeepSeek|MistralAI/i' );
+define( 'CORTIQ_AGENT_UA', '/GPTBot|ChatGPT|OAI-SearchBot|Claude-User|Claude-SearchBot|ClaudeBot|anthropic-ai|Perplexity|Google-Agent|Google-GeminiNotebook|GoogleOther|Googlebot|bingbot|BingPreview|Meta-ExternalFetcher|Meta-WebIndexer|Meta-ExternalAgent|FacebookBot|facebookexternalhit|Applebot|Amzn-User|Amzn-SearchBot|Amazonbot|MistralAI|Kimi-User|Kimi-SearchBot|KimiBot|Elevenlabs|SBIntuitions|YouBot|DuckAssistBot|ExaSearchBot|NagetBot|Grok|Bytespider|CCBot|Diffbot|cohere-training-data-crawler|cohere-ai|DeepSeek|AI2Bot|QwenBot|ChatGLM-Spider|HySpider|YiBot|Reflectionbot|Cotoyogi|ICC-Crawler|Timpibot|VelenPublicWebCrawler|ImagesiftBot|omgili/i' );
 define( 'CORTIQ_TRAP_PATH', '/cortiq-trap/' );
 
 const CORTIQ_WATCHED = array( '/robots.txt', '/llms.txt', '/llms-full.txt' );

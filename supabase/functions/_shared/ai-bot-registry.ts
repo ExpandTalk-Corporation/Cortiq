@@ -37,32 +37,73 @@ export const AI_BOT_REGISTRY: BotSignature[] = [
   // Perplexity
   { pattern: /Perplexity-User/i,   type: 'perplexity', name: 'Perplexity-User',    category: 'agentic' },
   { pattern: /PerplexityBot/i,     type: 'perplexity', name: 'PerplexityBot',      category: 'citation' },
-  // Google
-  { pattern: /Google-Extended/i,   type: 'gemini',     name: 'Google-Extended',    category: 'training' },
+  // Google (Google-Extended is a robots.txt token only, see ROBOTS_TXT_ONLY_TOKENS)
+  { pattern: /Google-Agent/i,      type: 'gemini',     name: 'Google-Agent',       category: 'agentic' },
+  { pattern: /Google-GeminiNotebook/i, type: 'gemini', name: 'Google-GeminiNotebook', category: 'agentic' },
   { pattern: /GoogleOther/i,       type: 'gemini',     name: 'GoogleOther',        category: 'citation' },
   { pattern: /Googlebot/i,         type: 'gemini',     name: 'Googlebot',          category: 'citation' },
   // Microsoft / Bing
   { pattern: /bingbot|BingPreview/i, type: 'bingbot',  name: 'Bingbot',            category: 'citation' },
   // Meta
+  { pattern: /Meta-ExternalFetcher/i, type: 'meta',    name: 'Meta-ExternalFetcher', category: 'agentic' },
+  { pattern: /Meta-WebIndexer/i,   type: 'meta',       name: 'Meta-WebIndexer',    category: 'citation' },
   { pattern: /Meta-ExternalAgent/i, type: 'meta',      name: 'Meta-ExternalAgent', category: 'training' },
   { pattern: /FacebookBot|facebookexternalhit/i, type: 'meta', name: 'FacebookBot', category: 'citation' },
-  // Apple
-  { pattern: /Applebot-Extended/i, type: 'apple',      name: 'Applebot-Extended',  category: 'training' },
+  // Apple (Applebot-Extended is a robots.txt token only; Applebot does the crawling)
   { pattern: /Applebot/i,          type: 'apple',      name: 'Applebot',           category: 'citation' },
-  // You.com / DuckDuckGo — AI-answer crawlers that fetch in real time and cite sources
+  // Amazon
+  { pattern: /Amzn-User/i,         type: 'amazon',     name: 'Amzn-User',          category: 'agentic' },
+  { pattern: /Amzn-SearchBot/i,    type: 'amazon',     name: 'Amzn-SearchBot',     category: 'citation' },
+  { pattern: /Amazonbot/i,         type: 'amazon',     name: 'Amazonbot',          category: 'citation' },
+  // Mistral: -User fetches for a user, -Index feeds Mistral search, -Training collects training data
+  { pattern: /MistralAI-User/i,    type: 'mistral',    name: 'MistralAI-User',     category: 'agentic' },
+  { pattern: /MistralAI-Index/i,   type: 'mistral',    name: 'MistralAI-Index',    category: 'citation' },
+  { pattern: /MistralAI/i,         type: 'mistral',    name: 'MistralAI',          category: 'training' },
+  // Moonshot AI (Kimi)
+  { pattern: /Kimi-User/i,         type: 'kimi',       name: 'Kimi-User',          category: 'agentic' },
+  { pattern: /Kimi-SearchBot/i,    type: 'kimi',       name: 'Kimi-SearchBot',     category: 'citation' },
+  { pattern: /KimiBot/i,           type: 'kimi',       name: 'KimiBot',            category: 'training' },
+  // ElevenLabs: ElevenlabsBot fetches pages a customer adds to an agent's knowledge base
+  { pattern: /ElevenlabsBot/i,     type: 'elevenlabs', name: 'ElevenlabsBot',      category: 'agentic' },
+  { pattern: /ElevenlabsCrawler/i, type: 'elevenlabs', name: 'ElevenlabsCrawler',  category: 'training' },
+  // SB Intuitions (Sarashina): the search bot fetches for users and links sources; the other one trains
+  { pattern: /SBIntuitions-SearchBot/i, type: 'sbintuitions', name: 'SBIntuitions-SearchBot', category: 'citation' },
+  { pattern: /SBIntuitionsBot/i,   type: 'sbintuitions', name: 'SBIntuitionsBot',  category: 'training' },
+  // You.com / DuckDuckGo / Exa / Naget — AI-answer and AI-search crawlers that cite sources
   { pattern: /YouBot/i,            type: 'youdotcom',  name: 'YouBot',             category: 'citation' },
   { pattern: /DuckAssistBot/i,     type: 'duckduckgo', name: 'DuckAssistBot',      category: 'citation' },
+  { pattern: /ExaSearchBot/i,      type: 'exa',        name: 'ExaSearchBot',       category: 'citation' },
+  { pattern: /NagetBot/i,          type: 'naget',      name: 'NagetBot',           category: 'citation' },
   // xAI
   { pattern: /Grok/i,              type: 'grok',       name: 'Grok',               category: 'agentic' },
   // Other training crawlers
-  { pattern: /Amazonbot/i,         type: 'amazon',     name: 'Amazonbot',          category: 'citation' },
   { pattern: /Bytespider/i,        type: 'bytedance',  name: 'Bytespider',         category: 'training' },
   { pattern: /CCBot/i,             type: 'commoncrawl',name: 'CCBot',              category: 'training' },
   { pattern: /Diffbot/i,           type: 'diffbot',    name: 'Diffbot',            category: 'training' },
+  { pattern: /cohere-training-data-crawler/i, type: 'cohere', name: 'cohere-training-data-crawler', category: 'training' },
   { pattern: /cohere-ai/i,         type: 'cohere',     name: 'cohere-ai',          category: 'training' },
   { pattern: /DeepSeek/i,          type: 'deepseek',   name: 'DeepSeek',           category: 'training' },
-  { pattern: /MistralAI/i,         type: 'mistral',    name: 'MistralAI',          category: 'training' },
+  { pattern: /AI2Bot/i,            type: 'ai2',        name: 'AI2Bot',             category: 'training' },
+  { pattern: /QwenBot/i,           type: 'qwen',       name: 'QwenBot',            category: 'training' },
+  { pattern: /ChatGLM-Spider/i,    type: 'zhipu',      name: 'ChatGLM-Spider',     category: 'training' },
+  { pattern: /HySpider/i,          type: 'tencent',    name: 'HySpider',           category: 'training' },
+  { pattern: /YiBot/i,             type: '01ai',       name: 'YiBot',              category: 'training' },
+  { pattern: /Reflectionbot/i,     type: 'reflection', name: 'Reflectionbot',      category: 'training' },
+  { pattern: /Cotoyogi/i,          type: 'cotoyogi',   name: 'Cotoyogi',           category: 'training' },
+  { pattern: /ICC-Crawler/i,       type: 'nict',       name: 'ICC-Crawler',        category: 'training' },
+  { pattern: /Timpibot/i,          type: 'timpi',      name: 'Timpibot',           category: 'training' },
+  { pattern: /VelenPublicWebCrawler/i, type: 'velen',  name: 'VelenPublicWebCrawler', category: 'training' },
+  { pattern: /ImagesiftBot/i,      type: 'imagesift',  name: 'ImagesiftBot',       category: 'training' },
+  { pattern: /omgili/i,            type: 'webzio',     name: 'omgili',             category: 'training' },
 ];
+
+// robots.txt product tokens that never arrive as a User-Agent: they only tell an existing crawler what the
+// content it already fetches may be used for. Read them in robots.txt (geo/site-checks.ts), never in traffic,
+// so they stay out of AI_BOT_REGISTRY and out of copy about observed visits. Value = the crawler that fetches.
+export const ROBOTS_TXT_ONLY_TOKENS: Readonly<Record<string, string>> = {
+  'Google-Extended': 'Googlebot',   // developers.google.com/crawling/docs/crawlers-fetchers/google-common-crawlers
+  'Applebot-Extended': 'Applebot',  // support.apple.com/en-us/119829
+};
 
 // NOTE on agentic browsers (Perplexity Comet, ChatGPT Atlas in browse mode, Claude
 // for Chrome): these deliberately send a stock Chrome user-agent and are NOT reliably

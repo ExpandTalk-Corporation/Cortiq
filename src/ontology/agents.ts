@@ -19,7 +19,7 @@ import {
  *   ├── human_visitor
  *   └── automated_agent
  *       └── ai_agent
- *           ├── training_crawler   (GPTBot, ClaudeBot, Google-Extended, …)
+ *           ├── training_crawler   (GPTBot, ClaudeBot, CCBot, …)
  *           ├── agentic_agent      (ChatGPT-User, Claude-User, Perplexity-User, …)
  *           └── citation_crawler   (OAI-SearchBot, PerplexityBot, Googlebot, …)
  */

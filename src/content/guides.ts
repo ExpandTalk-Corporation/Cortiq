@@ -153,7 +153,7 @@ export const DETECT_BOTS: ContentPageData = {
         {
           type: 'list',
           items: [
-            '**Training crawlers** (GPTBot, ClaudeBot, Google-Extended) collect content for model training and send no visitors back.',
+            '**Training crawlers** (GPTBot, ClaudeBot, CCBot) collect content for model training and send no visitors back.',
             '**Citation crawlers** (OAI-SearchBot, PerplexityBot) index pages for AI search; being crawled is a precondition for being cited.',
             '**Agentic fetches** (ChatGPT-User, Claude-User, Perplexity-User) happen when a person asks an assistant to read your page right now.',
           ],

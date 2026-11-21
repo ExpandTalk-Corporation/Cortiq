@@ -19,7 +19,7 @@ CortIQ is an open-source, EU-built analytics platform with a dedicated module fo
 
 CortIQ classifies every AI visit into three categories — this is the core differentiator. The canonical bot registry is shared by the JS tag and the server-side ingest path:
 
-- **Training crawlers** (GPTBot, ClaudeBot, Google-Extended, Meta-ExternalAgent, CCBot, Bytespider) — infrastructure cost, no referral value
+- **Training crawlers** (GPTBot, ClaudeBot, Meta-ExternalAgent, CCBot, Bytespider) — infrastructure cost, no referral value
 - **Agentic** (agent fetches via ChatGPT-User, Claude-User, Perplexity-User, plus JS-signal heuristics for in-browser AI agents) — real users acting through an AI; track and convert them. AI browsers such as Perplexity Comet or Claude for Chrome send a stock Chrome user agent and are not identified by name.
 - **Citation crawlers** (PerplexityBot, OAI-SearchBot, Claude-SearchBot, YouBot, DuckAssistBot) — AI search indexing, your visibility signal
 

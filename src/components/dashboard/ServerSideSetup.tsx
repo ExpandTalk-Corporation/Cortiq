@@ -110,7 +110,7 @@ Single-page app without prerendered HTML? Set CORTIQ_SPA_FALLBACK = true.`;
       <div>
         <Label>Server-side agent measurement (recommended for AI crawlers)</Label>
         <p className="text-xs text-muted-foreground mt-1">
-          Most AI crawlers (GPTBot, ClaudeBot, PerplexityBot, Google-Extended) never run JavaScript, so no browser
+          Most AI crawlers (GPTBot, ClaudeBot, PerplexityBot, CCBot) never run JavaScript, so no browser
           script sees them. These adapters run on your server or edge and send CortIQ only bot/agent requests,
           <code> robots.txt</code> / <code>llms.txt</code> fetches and hits on a hidden honeypot link — with the IP
           truncated and without query strings. Ordinary human page requests are not sent; a person who opens the

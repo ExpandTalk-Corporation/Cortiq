@@ -31,7 +31,7 @@ It classifies every AI visit into three categories:
 
 | Type | Examples | What it means for you |
 |------|----------|-----------------------|
-| 🔴 **Training Crawlers** | GPTBot, ClaudeBot, CCBot, Google-Extended | Pure infrastructure cost — no referral value |
+| 🔴 **Training Crawlers** | GPTBot, ClaudeBot, CCBot, Bytespider | Pure infrastructure cost — no referral value |
 | 🟢 **Agentic Fetches** | ChatGPT-User, Claude-User, Perplexity-User | Real users acting through an AI — track and convert them |
 | 🔵 **Citation Crawlers** | PerplexityBot, OAI-SearchBot, Claude-SearchBot | AI search indexing — your visibility signal |
 

@@ -78,11 +78,14 @@ CortIQ classifies AI traffic into three categories — this is the core differen
 
 | Category | Examples | Interpretation |
 |----------|----------|---------------|
-| Training Crawlers | GPTBot, ClaudeBot, Google-Extended | Infrastructure cost, no referral value |
+| Training Crawlers | GPTBot, ClaudeBot, CCBot | Infrastructure cost, no referral value |
 | Agentic Fetches | ChatGPT-User, Claude-User, Perplexity-User (in-browser agents like Comet send stock Chrome UAs — JS-signal heuristics only) | Real user intent, track and convert |
 | Citation Crawlers | PerplexityBot, YouBot, DuckAssistBot | AI search indexing, visibility signal |
 
 Canonical registry: `supabase/functions/_shared/ai-bot-registry.ts` (used by `ai-bot-tracker` and `cloudflare-ingest`). Frontend, `src/ontology/agents.ts` and marketing pages import it via `src/lib/aiBotRegistry.ts` — never keep a separate bot list. `tests/foundation/marketing-bot-claims.test.mjs` fails if a public page names a bot the registry does not classify.
+robots.txt-only tokens (`Google-Extended`, `Applebot-Extended`) never arrive as a User-Agent: they live in
+`ROBOTS_TXT_ONLY_TOKENS`, never in `AI_BOT_REGISTRY`, and copy must not claim we see their visits. A new registry
+name must also be added to `AGENT_UA` in the four server adapters (`tests/foundation/server-adapters.test.mjs`).
 
 ---
 

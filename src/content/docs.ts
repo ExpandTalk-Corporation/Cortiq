@@ -283,7 +283,7 @@ export const SERVER_SIDE: ContentPageData = {
       id: 'why',
       heading: 'Why on the server',
       blocks: [
-        { type: 'p', text: 'GPTBot, ClaudeBot, PerplexityBot, Google-Extended and most other crawlers fetch the HTML and leave. They appear in your server logs, not in JavaScript analytics. CortIQ classifies each request as a [training crawler, agentic fetch or citation crawler](/features/ai/) with the same registry the browser script uses.' },
+        { type: 'p', text: 'GPTBot, ClaudeBot, PerplexityBot, CCBot and most other crawlers fetch the HTML and leave. They appear in your server logs, not in JavaScript analytics. CortIQ classifies each request as a [training crawler, agentic fetch or citation crawler](/features/ai/) with the same registry the browser script uses.' },
         { type: 'p', text: 'Three signals are reported: requests with a bot or agent user agent, fetches of `/robots.txt`, `/llms.txt` and `/llms-full.txt`, and hits on a hidden honeypot link that `robots.txt` tells crawlers to skip. A honeypot hit means the visitor ignores `robots.txt`, whatever its user agent claims.' },
         { type: 'p', text: 'AI agents that run inside a normal browser and send a standard Chrome user agent cannot be identified from the request alone; the browser script measures those after consent.' },
       ],
