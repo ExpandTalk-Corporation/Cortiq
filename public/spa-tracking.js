@@ -1,7 +1,7 @@
 /**
  * CortIQ Advanced Tracking Script
  * Unified visitor profiling with AI agent detection
- * Version: 5.5.21 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
+ * Version: 5.5.22 (shared with the WordPress plugin — see src/lib/plugin-version.ts)
  *
  * Usage:
  * <script>
@@ -17,7 +17,7 @@
   'use strict';
 
   // Keep in sync with wordpress-plugin/cortiq-analytics.php (CORTIQ_VERSION).
-  const CORTIQ_VERSION = '5.5.21';
+  const CORTIQ_VERSION = '5.5.22';
 
   // Configuration: window.cortiqConfig, overridden by data-* attributes on this script
   // tag, so a single-tag install (<script src=… data-site-id=…>) works and a tag that
@@ -987,8 +987,9 @@
     let lastKey = '', lastTime = 0;
     document.addEventListener('click', function (e) {
       if (!hasInteractionConsent()) return;
-      const el = e.target && e.target.closest && e.target.closest('a, button, [role="button"], nav *, [data-wfa-track], input[type="submit"], input[type="button"]');
-      if (!el) return;
+      const el = e.target && e.target.closest && e.target.closest('a, button, [role="button"], nav *, [data-wfa-track]');
+      // Form controls are skipped: a search box in the nav would otherwise send what the visitor typed.
+      if (!el || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
       const key = (el.id || el.className || el.tagName) + (el.textContent || '').trim().slice(0, 30);
       const now = Date.now();
       if (key === lastKey && now - lastTime < 500) return;
@@ -998,7 +999,7 @@
       const type = inNav ? 'nav_navigation' : isBtn ? 'button_click' : el.tagName === 'A' ? 'link_click' : 'element_click';
       trackEvent('interaction', window.location.pathname, {
         interaction_type: type,
-        element_text: (el.textContent || el.value || '').trim().slice(0, 100),
+        element_text: (el.textContent || '').trim().slice(0, 100),
         element_id: el.id || null,
         element_class: (typeof el.className === 'string' ? el.className : '').slice(0, 100) || null,
         element_tag: el.tagName.toLowerCase(),

@@ -126,3 +126,12 @@ test('gdpr-compliant-tracking stays removed and is not proxied', () => {
   assert.throws(() => read('../../supabase/functions/gdpr-compliant-tracking/index.ts'));
   assert.doesNotMatch(read('../../supabase/functions/first-party-proxy/index.ts'), /gdpr-compliant-tracking/);
 });
+
+test('tracker: click tracking never reads a form field value and skips form controls', () => {
+  const src = read('../../public/spa-tracking.js');
+  const start = src.indexOf('function setupInteractionTracking');
+  const body = src.slice(start, src.indexOf('\n  }\n', start));
+  assert.ok(start > 0, 'setupInteractionTracking found');
+  assert.doesNotMatch(body, /\.value\b/, 'no .value read in click tracking');
+  assert.match(body, /INPUT\|TEXTAREA\|SELECT/, 'form controls are skipped');
+});
