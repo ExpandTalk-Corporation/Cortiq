@@ -1339,63 +1339,6 @@ export type Database = {
           },
         ]
       }
-      ai_citations: {
-        Row: {
-          citation_context: string | null
-          cited_url: string
-          clicked: boolean | null
-          clicked_at: string | null
-          created_at: string
-          id: string
-          site_id: string
-          traffic_id: string | null
-          utm_campaign: string | null
-          utm_medium: string | null
-          utm_source: string | null
-        }
-        Insert: {
-          citation_context?: string | null
-          cited_url: string
-          clicked?: boolean | null
-          clicked_at?: string | null
-          created_at?: string
-          id?: string
-          site_id: string
-          traffic_id?: string | null
-          utm_campaign?: string | null
-          utm_medium?: string | null
-          utm_source?: string | null
-        }
-        Update: {
-          citation_context?: string | null
-          cited_url?: string
-          clicked?: boolean | null
-          clicked_at?: string | null
-          created_at?: string
-          id?: string
-          site_id?: string
-          traffic_id?: string | null
-          utm_campaign?: string | null
-          utm_medium?: string | null
-          utm_source?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ai_citations_site_id_fkey"
-            columns: ["site_id"]
-            isOneToOne: false
-            referencedRelation: "sites"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ai_citations_traffic_id_fkey"
-            columns: ["traffic_id"]
-            isOneToOne: false
-            referencedRelation: "ai_bot_traffic"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       ai_conversion_goals: {
         Row: {
           created_at: string | null

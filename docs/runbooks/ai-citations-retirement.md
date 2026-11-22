@@ -113,6 +113,15 @@ Rollback of step B: re-insert from the archive tables (`insert into ai_bot_traff
 on conflict (id) do update set request_type = excluded.request_type`, then `ai_citations` and `ai_bot_probe_signals`
 from their archives).
 
+## Status
+
+- Step A verified 2026-11-22 (deploy 2026-11-21 16:30 UTC): no new `ai_citations` or human citation rows,
+  `ai_search_traffic` still receiving.
+- Step B run 2026-11-22 as one guarded block: 66 archived + deleted, 4,762 reclassified, 4,761 probe signals archived,
+  6,792 citation crawler rows untouched.
+- Step C: `20261213000001_drop_ai_citations.sql`.
+- Drop the three `*_archive_20261212` tables after 2027-02-20.
+
 ## Step C: drop the table (separate migration, after step B)
 
 ```sql
