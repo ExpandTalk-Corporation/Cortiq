@@ -409,7 +409,7 @@ async function observeState(browser, state, context, inPageSource) {
     const status = res ? res.status() : 0;
     out.status = status;
     const text = await p.evaluate(() => document.title + ' ' + (document.body ? document.body.innerText.slice(0, 3000) : ''));
-    if ([403, 429, 503].includes(status) && /just a moment|attention required|captcha|verify you are human/i.test(text)) {
+    if ([403, 429, 503].includes(status) && /just a moment|attention required|captcha|verify you are human|errors\.edgesuite\.net/i.test(text)) {
       out.challenge = true;
       return { out, cmp, html };
     }

@@ -35,7 +35,10 @@ export function assessCoverage({ target, baseline }: AssessInput): Finding[] {
     scope: 'Coverage', checkKey: 'coverage.untestable', status: 'untestable', priority: 'medium',
     title: `${plural(bad.length, 'page', 'pages')} could not be tested automatically`,
     explanation: 'These pages blocked the automated browser (bot protection or a login), timed out or returned an error. They are left out of every other check in this report.',
-    fix: MANUAL_STEPS.generic, typicalOwner: 'developer',
+    fix: bad.some(({ p }) => /bot protection/.test(untestableReason(p)))
+      ? `${MANUAL_STEPS.generic} To test these pages automatically next time, let requests with the user agent "CortIQ-TrackingCheck" through the bot protection (for example an allow rule in Akamai or Cloudflare).`
+      : MANUAL_STEPS.generic,
+    typicalOwner: 'developer',
     evidence: {
       pages: bad.map(({ s, p }) => `${s.role === 'baseline' ? 'current' : 'new'} ${displayPath(p.path)}`),
       details: bad.map(({ p }) => `${displayPath(p.path)}: ${stripQueryValues(untestableReason(p))}`),

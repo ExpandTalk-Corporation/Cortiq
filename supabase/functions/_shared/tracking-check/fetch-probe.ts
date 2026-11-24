@@ -14,7 +14,8 @@ export interface ProbeOptions {
 // browser but its TLS handshake is not one. The real-browser probe uses Chrome's own user agent.
 const USER_AGENT = 'CortIQ-TrackingCheck/1.0 (+https://cortiq.se/tracking-check/)';
 const MAX_BODY = 2_000_000;
-const CHALLENGE = /cf-chl|challenges\.cloudflare\.com|Just a moment\.\.\.|Attention Required! \| Cloudflare|captcha-delivery\.com|verify you are human/i;
+// Akamai's block page links its reference to errors.edgesuite.net (dots HTML-encoded in the raw body).
+const CHALLENGE = /cf-chl|challenges\.cloudflare\.com|Just a moment\.\.\.|Attention Required! \| Cloudflare|captcha-delivery\.com|verify you are human|errors(\.|&#46;)edgesuite(\.|&#46;)net/i;
 
 export function withTestParams(pageUrl: string): string {
   const u = new URL(pageUrl);
