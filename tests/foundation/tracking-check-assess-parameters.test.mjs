@@ -48,6 +48,7 @@ test('challenge, 401 and failed pages are untestable and excluded from other che
   const [coverage] = byKey(findings, 'coverage.untestable');
   assert.equal(coverage.status, 'untestable');
   assert.deepEqual(coverage.evidence.pages, ['new /a/', 'new /b/', 'new /c/']);
+  assert.match(coverage.fix, /user agent "CortIQ-TrackingCheck"/, 'bot protection: tell them what to allow');
   assert.equal(byKey(findings, 'params.survive').length, 0, 'no pass or fail from untestable pages');
 });
 
@@ -90,6 +91,7 @@ test('error pages (HTTP 403/500) are untestable and give no params, consent or C
   const [coverage] = byKey(findings, 'coverage.untestable');
   assert.equal(coverage.status, 'untestable');
   assert.deepEqual(coverage.evidence.details, ['/blocked/: HTTP 403', '/broken/: HTTP 500']);
+  assert.doesNotMatch(coverage.fix, /CortIQ-TrackingCheck/, 'no allow-rule advice for plain HTTP errors');
   assert.equal(findings.filter((f) => f.status === 'pass').length, 0, findings.filter((f) => f.status === 'pass').map((f) => f.checkKey).join());
   assert.equal(findings.filter((f) => ['Parameters', 'Consent', 'CSP'].includes(f.scope)).length, 0);
 });

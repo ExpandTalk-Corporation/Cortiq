@@ -59,6 +59,11 @@ test('basic auth is only sent to the starting origin', async () => {
 test('detects bot-protection challenges and redirect loops', async () => {
   const challenge = await fetchProbe('https://new.example/', { resolve, fetchImpl: fakeFetch({ '/': () => new Response('<title>Just a moment...</title>', { status: 403 }) }) });
   assert.equal(challenge.challenge, true);
+  // Akamai Bot Manager block page (pwc.se 2026-11-24): dots in the reference URL are HTML-encoded.
+  const akamai = await fetchProbe('https://new.example/', { resolve, fetchImpl: fakeFetch({ '/': () => new Response('<HTML><HEAD><TITLE>Access Denied</TITLE></HEAD><BODY><H1>Access Denied</H1>Reference&#32;&#35;18&#46;2c9a645f<P>https&#58;&#47;&#47;errors&#46;edgesuite&#46;net&#47;18&#46;2c9a645f</P></BODY></HTML>', { status: 403 }) }) });
+  assert.equal(akamai.challenge, true);
+  const plain403 = await fetchProbe('https://new.example/', { resolve, fetchImpl: fakeFetch({ '/': () => new Response('<h1>Forbidden</h1>', { status: 403 }) }) });
+  assert.equal(plain403.challenge, false);
   const loop = await fetchProbe('https://new.example/a', { resolve, fetchImpl: fakeFetch({ '/a': redirect('/b'), '/b': redirect('/a') }) });
   assert.match(loop.error, /Too many redirects/);
 });
