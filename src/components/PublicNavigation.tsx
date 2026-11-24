@@ -4,6 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 import { BarChart3, Menu, ChevronDown, Github } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useAuth } from "@/hooks/useAuth";
 
 type NavLink = { to: string; label: string; note?: string };
 type NavItem = { label: string; to: string; children?: NavLink[] };
@@ -50,6 +51,8 @@ export default function PublicNavigation() {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const location = useLocation();
+  // Null in the prerendered HTML and the first client render; set after mount when signed in.
+  const { user } = useAuth();
 
   // Mount the radix Sheet only client-side. Its internal useLayoutEffect produced
   // server/client differences that threw hydration errors (#418/#423) during prerender;
@@ -122,12 +125,20 @@ export default function PublicNavigation() {
             <Github className="h-5 w-5" />
           </a>
           <ThemeToggle />
-          <Link to="/auth">
-            <Button variant="ghost" size="sm">Log in</Button>
-          </Link>
-          <Link to="/auth">
-            <Button size="sm" className="bg-gradient-primary">Request invitation</Button>
-          </Link>
+          {user ? (
+            <Link to="/dashboard">
+              <Button size="sm" className="bg-gradient-primary">Open dashboard</Button>
+            </Link>
+          ) : (
+            <>
+              <Link to="/auth">
+                <Button variant="ghost" size="sm">Log in</Button>
+              </Link>
+              <Link to="/auth">
+                <Button size="sm" className="bg-gradient-primary">Request invitation</Button>
+              </Link>
+            </>
+          )}
         </div>
 
         {/* Mobile Menu */}
@@ -187,12 +198,20 @@ export default function PublicNavigation() {
                     <Github className="h-5 w-5" />
                     <span className="font-medium">GitHub</span>
                   </a>
-                  <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
-                    <Button variant="outline" className="w-full">Log in</Button>
-                  </Link>
-                  <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
-                    <Button className="w-full bg-gradient-primary">Request invitation</Button>
-                  </Link>
+                  {user ? (
+                    <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)}>
+                      <Button className="w-full bg-gradient-primary">Open dashboard</Button>
+                    </Link>
+                  ) : (
+                    <>
+                      <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
+                        <Button variant="outline" className="w-full">Log in</Button>
+                      </Link>
+                      <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
+                        <Button className="w-full bg-gradient-primary">Request invitation</Button>
+                      </Link>
+                    </>
+                  )}
                 </div>
               </div>
             </SheetContent>
