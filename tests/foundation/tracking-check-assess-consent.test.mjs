@@ -14,6 +14,7 @@ const EXT = 'https://cdn.extellio.com/tracker.js';
 const policyRun = (states, policy = POLICY) => assess({ mode: 'policy', baseline: null, policy, target: site('target', [page('/', { states })]) });
 const compareRun = (states) => assess({ mode: 'comparison', baseline: site('baseline', [page('/')]), policy: null, target: site('target', [page('/', { states })]) });
 const byKey = (findings, key) => findings.filter((f) => f.checkKey === key);
+const NONE_DENIED = st('none', { consentCommands: [DENIED] });
 const granular = [st('analytics_only', { requests: [req(GA)] }), st('marketing_only', { requests: [req(ADS)] })];
 
 test('Pretec case: nothing to Google after reject passes; Extellio cookieless pings are a factual warning', () => {
@@ -151,6 +152,41 @@ test('unknown third parties after reject are a warning; own site and known tools
   const [f] = byKey(findings, 'consent.unknown_after_reject');
   assert.equal(f.status, 'warning');
   assert.deepEqual(f.evidence.details, ['px.unknown-tracker.example (on /)']);
+});
+
+test('unknown hosts that only deliver images, fonts or styles are named, not warned about', () => {
+  const content = [
+    req('https://mediahub.boohoo.com/dress.jpg?w=800&fmt=webp', 'image'),
+    req('https://static.e-stradivarius.net/fonts/x.woff2', 'font'),
+    req('https://cdn.occtoo-media.com/a/b.css?v=3', 'stylesheet'),
+  ];
+  const only = policyRun([NONE_DENIED, st('reject', { requests: content }), st('accept'), ...granular]);
+  const [p] = byKey(only, 'consent.unknown_after_reject');
+  assert.equal(p.status, 'pass');
+  assert.match(p.explanation, /mediahub\.boohoo\.com, static\.e-stradivarius\.net, cdn\.occtoo-media\.com only delivered images, fonts or stylesheets/);
+  assert.match(p.explanation, /still receive the visitor's IP address/);
+
+  const mixed = policyRun([NONE_DENIED, st('reject', { requests: [
+    ...content,
+    req('https://img.cdn.example/p.gif', 'image'),                    // pixel-like path
+    req('https://img2.cdn.example/banner.jpg?uid=abc123', 'image'),     // data parameter
+    req('https://cdn.occtoo-media.com/api/profile', 'xhr'),           // same host, not content
+  ] }), st('accept'), ...granular]);
+  const [w] = byKey(mixed, 'consent.unknown_after_reject');
+  assert.equal(w.status, 'warning');
+  assert.deepEqual(w.evidence.details.map((d) => d.split(' ')[0]).sort(), ['cdn.occtoo-media.com', 'img.cdn.example', 'img2.cdn.example']);
+  assert.match(w.explanation, /mediahub\.boohoo\.com, static\.e-stradivarius\.net only delivered/);
+
+  const withCookie = policyRun([NONE_DENIED, st('reject', { requests: [content[0]], cookies: [{ name: 'uid', domain: '.boohoo.com' }] }), st('accept'), ...granular]);
+  assert.equal(byKey(withCookie, 'consent.unknown_after_reject')[0].status, 'warning', 'a cookie on the host domain is more than content');
+});
+
+test('content delivery: catalog paths are content, tracking paths are not', async () => {
+  const { isContentDelivery } = await import('../../supabase/functions/_shared/tracking-check/assess/consent.ts');
+  assert.equal(isContentDelivery('https://cdn.example/catalog/item.jpg', 'image'), true);
+  assert.equal(isContentDelivery('https://cdn.example/img/1x1.gif', 'image'), false);
+  assert.equal(isContentDelivery('https://cdn.example/track/open.png', 'image'), false);
+  assert.equal(isContentDelivery('https://cdn.example/app.js', 'script'), false);
 });
 
 test('category check respects independent policy flags', () => {

@@ -446,12 +446,32 @@ function categoryCheck({ mode, policy }: AssessInput, pages: PageObservation[]):
   return out;
 }
 
+// Resource types a page displays (images, fonts, styles, video), as opposed to code and data requests.
+const CONTENT_TYPES = new Set(['image', 'font', 'stylesheet', 'media']);
+// Image-CDN parameters for size, format and cache busting; any other parameter could carry data.
+const CONTENT_PARAMS = /^(w|h|width|height|q|quality|fit|fm|fmt|format|auto|dpr|crop|resize|rect|bg|v|ver|version|imwidth|imheight|sw|sh|preset|tr|f)$/i;
+// Paths that look like a tracking pixel or a collection endpoint, whatever the resource type.
+const BEACON_PATH = /(^|[/_.-])(pixel|track(ing)?|collect|beacon|events?|impression|hit|log|1x1|p)([/_.-]|$)/i;
+
+/**
+ * A request that only delivers content: a displayed resource type, no beacon-like path and no query
+ * parameters beyond size/format. Says nothing about consent; the host still receives the IP address.
+ */
+export function isContentDelivery(url: string, type: string): boolean {
+  if (!CONTENT_TYPES.has(type)) return false;
+  let u: URL;
+  try { u = new URL(url); } catch { return false; }
+  if (BEACON_PATH.test(u.pathname)) return false;
+  return [...u.searchParams.keys()].every((k) => CONTENT_PARAMS.test(k));
+}
+
 function unknownAfterReject({ mode, policy, target }: AssessInput, pages: PageObservation[]): Finding[] {
   if (mode !== 'policy' || !policy?.noUnknownVendorsAfterReject) return [];
   const own = siteKey(new URL(target.origin).hostname);
-  const hosts = new Map<string, { pages: Set<string>; stored: Set<string> }>();
+  // content: every request to the host only delivered content and it set no cookies or frame storage.
+  const hosts = new Map<string, { pages: Set<string>; stored: Set<string>; content: boolean }>();
   const at = (host: string) => {
-    if (!hosts.has(host)) hosts.set(host, { pages: new Set(), stored: new Set() });
+    if (!hosts.has(host)) hosts.set(host, { pages: new Set(), stored: new Set(), content: true });
     return hosts.get(host)!;
   };
   const evaluated: PageObservation[] = [];
@@ -463,28 +483,40 @@ function unknownAfterReject({ mode, policy, target }: AssessInput, pages: PageOb
       let host = '';
       try { host = new URL(r.url).hostname; } catch { continue; }
       if (!host || siteKey(host) === own || vendorForUrl(r.url)) continue;
-      at(host).pages.add(p.path);
+      const h = at(host);
+      h.pages.add(p.path);
+      if (!isContentDelivery(r.url, r.type)) h.content = false;
     }
     // An embedded frame from an unknown domain that writes to its own storage is reported with the domain.
     for (const { host, key } of unknownFrameStored(st)) {
       if (siteKey(host) === own) continue;
-      const h = at(host); h.pages.add(p.path); h.stored.add(key);
+      const h = at(host); h.pages.add(p.path); h.stored.add(key); h.content = false;
+    }
+    // A cookie set for the host's domain means it is more than a file server.
+    for (const c of st.cookies) {
+      const key = siteKey(c.domain.replace(/^\./, ''));
+      for (const [host, h] of hosts) if (siteKey(host) === key) h.content = false;
     }
   }
   if (!evaluated.length) return [];
-  if (!hosts.size) {
+  const content = [...hosts].filter(([, h]) => h.content).map(([host]) => host);
+  const unknown = [...hosts].filter(([, h]) => !h.content);
+  const contentNote = content.length
+    ? ` ${content.join(', ')} only delivered images, fonts or stylesheets, with no cookies, storage or data parameters seen; ${content.length === 1 ? 'it still receives' : 'they still receive'} the visitor's IP address, so check ${content.length === 1 ? 'it is' : 'they are'} the site's own or a supplier's content delivery.`
+    : '';
+  if (!unknown.length) {
     return [pass('consent.unknown_after_reject', 'No unknown third parties are contacted after "Reject all"',
-      'Every third-party request after rejection went to a tool CortIQ recognises.', evaluated)];
+      `Every third-party request after rejection went to a tool CortIQ recognises${content.length ? ' or only delivered content.' + contentNote : '.'}`, evaluated)];
   }
   return [finding({
     scope: 'Consent', checkKey: 'consent.unknown_after_reject', status: 'warning', priority: 'medium',
-    title: `${plural(hosts.size, 'unknown third party is', 'unknown third parties are')} contacted after "Reject all"`,
-    explanation: `These domains are not in CortIQ's list of known tools. They may be harmless (CDNs, video, fonts) or tracking tools.${[...hosts.values()].some((h) => h.stored.size) ? ' Some are embedded frames that stored data in the browser after "Reject all"; the stored keys are listed with the domain.' : ''}`,
+    title: `${plural(unknown.length, 'unknown third party is', 'unknown third parties are')} contacted after "Reject all"`,
+    explanation: `These domains are not in CortIQ's list of known tools and sent or loaded more than images, fonts or styles. They may be harmless (CDNs, video) or tracking tools.${unknown.some(([, h]) => h.stored.size) ? ' Some are embedded frames that stored data in the browser after "Reject all"; the stored keys are listed with the domain.' : ''}${contentNote}`,
     fix: 'Identify each domain. If it is a tracking or marketing tool, block it until consent in the cookie banner.',
     typicalOwner: 'marketing',
     evidence: {
-      pages: [...new Set([...hosts.values()].flatMap((h) => [...h.pages]))],
-      details: [...hosts].map(([h, { pages: ps, stored }]) => `${h} (on ${[...ps].join(', ')}${stored.size ? `; stored ${[...stored].join(', ')}` : ''})`),
+      pages: [...new Set(unknown.flatMap(([, h]) => [...h.pages]))],
+      details: unknown.map(([h, { pages: ps, stored }]) => `${h} (on ${[...ps].join(', ')}${stored.size ? `; stored ${[...stored].join(', ')}` : ''})`),
     },
   })];
 }
