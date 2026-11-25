@@ -30,6 +30,8 @@ const OWNER: Record<string, string> = {
 /** Hero card: the top of the sample report, so the visitor sees the result before reading about the tool. */
 function ReportPreview() {
   const top = SAMPLE.findings.filter((f) => f.status !== "pass").slice(0, 5);
+  const vendors = SAMPLE.summary.vendors ?? [];
+  const stored = new Set(vendors.flatMap((v) => Object.values(v.states).flatMap((c) => [...(c?.stored ?? []), ...(c?.kept ?? [])])));
   return (
     <a href="#sample" className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Open the sample report">
       <Card className="border-primary/20 bg-background/90 shadow-2xl backdrop-blur transition-transform hover:-translate-y-1 motion-reduce:transition-none">
@@ -40,7 +42,9 @@ function ReportPreview() {
               <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
               <span className="h-2.5 w-2.5 rounded-full bg-green-400" />
             </div>
-            <span className="text-xs text-muted-foreground">www.example.com · sample data</span>
+            <span className="text-xs text-muted-foreground">
+              www.example.com · {vendors.length} {vendors.length === 1 ? "tool" : "tools"} · {stored.size} {stored.size === 1 ? "cookie or key" : "cookies and keys"} · sample data
+            </span>
           </div>
           <div className="grid grid-cols-3 gap-2 border-b px-5 py-4 text-center">
             {(["fail", "manual", "pass"] as const).map((s) => (
