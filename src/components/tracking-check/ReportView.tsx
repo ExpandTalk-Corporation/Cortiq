@@ -1,22 +1,17 @@
 import { useState, type ReactNode } from 'react';
-import { AlertTriangle, CheckCircle2, ChevronDown, Copy, Hand, HelpCircle, XCircle } from 'lucide-react';
+import { ChevronDown, Copy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import type { FindingStatus, Mode } from '../../../supabase/functions/_shared/tracking-check/types.ts';
+import type { FindingStatus, Mode, Scope } from '../../../supabase/functions/_shared/tracking-check/types.ts';
 import { MATRIX_MANUAL_NOTE, MATRIX_NOTE, ORIGIN_SHORT, OWNER_LABEL, SCRIPTS_NOTE, STATE_LABEL, cellText, matrixStates, scriptConsentText, scriptIntegrityText, scriptPagesText, type ReportSummary, type ScriptRow, type VendorRow } from '../../../supabase/functions/_shared/tracking-check/report.ts';
 import type { DiffItem, RunDiff } from '../../../supabase/functions/_shared/tracking-check/diff.ts';
 import type { FindingRow } from '@/hooks/useTrackingCheck';
+import { ConsentJourney } from './ConsentJourney';
+import { CATEGORY_STYLE, STATUS } from './status';
 
-const STATUS: Record<FindingStatus, { label: string; icon: typeof XCircle; className: string }> = {
-  fail: { label: 'Problem', icon: XCircle, className: 'text-red-600 dark:text-red-400' },
-  warning: { label: 'Review', icon: AlertTriangle, className: 'text-amber-600 dark:text-amber-400' },
-  manual: { label: 'Test manually', icon: Hand, className: 'text-blue-600 dark:text-blue-400' },
-  untestable: { label: 'Not tested', icon: HelpCircle, className: 'text-muted-foreground' },
-  pass: { label: 'OK', icon: CheckCircle2, className: 'text-green-600 dark:text-green-400' },
-};
 const anchor = (checkKey: string) => `finding-${checkKey.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
 
 interface ReportViewProps {
@@ -82,6 +77,8 @@ export function ReportView({ summary, findings, mode, baselineUrl, targetUrl, fi
 
       {summary.diff && <ChangesCard diff={summary.diff} onShow={showFix} />}
 
+      {summary.vendors && summary.vendors.length > 0 && <ConsentJourney rows={summary.vendors} findings={findings} onShow={showFix} />}
+
       {summary.vendors && summary.vendors.length > 0 && <VendorTable rows={summary.vendors} onShow={showFix} />}
 
       {summary.scripts && summary.scripts.length > 0 && (
@@ -92,15 +89,35 @@ export function ReportView({ summary, findings, mode, baselineUrl, targetUrl, fi
         <CollapsibleTrigger asChild>
           <Button variant="ghost" className="gap-2 px-0"><ChevronDown className={`h-4 w-4 transition-transform ${listOpen ? '' : '-rotate-90'}`} aria-hidden />All {findings.length} checks</Button>
         </CollapsibleTrigger>
-        <CollapsibleContent className="mt-2 divide-y rounded-md border">
-          {findings.map((f) => (
-            <FindingItem key={f.id ?? f.checkKey} finding={f} open={open === f.checkKey}
-              onToggle={() => setOpen(open === f.checkKey ? null : f.checkKey)} onVerify={onVerify} />
+        <CollapsibleContent className="mt-2 space-y-4">
+          {byScope(findings).map(({ scope, items, open: toFix }) => (
+            <section key={scope} aria-label={scope}>
+              <h3 className="mb-1 text-sm font-medium">
+                {scope}
+                <span className="font-normal text-muted-foreground"> · {toFix ? `${toFix} to fix or review` : 'nothing to fix'}</span>
+              </h3>
+              <div className="divide-y rounded-md border">
+                {items.map((f) => (
+                  <FindingItem key={f.id ?? f.checkKey} finding={f} open={open === f.checkKey}
+                    onToggle={() => setOpen(open === f.checkKey ? null : f.checkKey)} onVerify={onVerify} />
+                ))}
+              </div>
+            </section>
           ))}
         </CollapsibleContent>
       </Collapsible>
     </div>
   );
+}
+
+const OPEN: FindingStatus[] = ['fail', 'warning'];
+
+/** Findings grouped by area in their original order; areas with something to fix come first. */
+function byScope(findings: FindingRow[]): { scope: Scope; items: FindingRow[]; open: number }[] {
+  const groups = new Map<Scope, FindingRow[]>();
+  for (const f of findings) groups.set(f.scope, [...(groups.get(f.scope) ?? []), f]);
+  return [...groups].map(([scope, items]) => ({ scope, items, open: items.filter((f) => OPEN.includes(f.status)).length }))
+    .sort((a, b) => Number(b.open > 0) - Number(a.open > 0));
 }
 
 // Scheduled runs: what changed since the previous run of the same schedule. Older runs have no diff.
@@ -149,7 +166,18 @@ function ChangesCard({ diff, onShow }: { diff: RunDiff; onShow: (checkKey: strin
       </CardHeader>
       {!none && (
         <CardContent className="space-y-4">
-          {diff.newProblems.length > 0 && <section className="space-y-2"><h3 className="font-medium">New problems</h3>{items(diff.newProblems, c.newProblems, true)}</section>}
+          {(diff.newProblems.length > 0 || diff.resolved.length > 0) && (
+            <div className="grid gap-4 md:grid-cols-2">
+              <section className="space-y-2 rounded-md border border-red-500/30 p-3">
+                <h3 className="font-medium">New problems</h3>
+                {diff.newProblems.length ? items(diff.newProblems, c.newProblems, true) : <p className="text-sm text-muted-foreground">None</p>}
+              </section>
+              <section className="space-y-2 rounded-md border border-green-500/30 p-3">
+                <h3 className="font-medium">Resolved</h3>
+                {diff.resolved.length ? items(diff.resolved, c.resolved, false) : <p className="text-sm text-muted-foreground">None</p>}
+              </section>
+            </div>
+          )}
           {(diff.newVendors.length > 0 || diff.newCookies.length > 0) && (
             <section className="space-y-1">
               <h3 className="font-medium">New tools and cookies</h3>
@@ -157,7 +185,6 @@ function ChangesCard({ diff, onShow }: { diff: RunDiff; onShow: (checkKey: strin
               {diff.newCookies.length > 0 && <p className="text-sm">New cookies or storage: {diff.newCookies.map((k) => `${k.name} (${k.vendor})`).join(', ')}{c.newCookies > diff.newCookies.length && ` +${c.newCookies - diff.newCookies.length} more`}</p>}
             </section>
           )}
-          {diff.resolved.length > 0 && <section className="space-y-2"><h3 className="font-medium">Resolved</h3>{items(diff.resolved, c.resolved, false)}</section>}
           {diff.notTested.length > 0 && <section className="space-y-2"><h3 className="font-medium">Not tested this time</h3>{items(diff.notTested, c.notTested, true)}</section>}
           {diff.removedVendors.length > 0 && <p className="text-sm text-muted-foreground">No longer seen: {diff.removedVendors.map((v) => v.name).join(', ')}</p>}
         </CardContent>
@@ -198,6 +225,9 @@ function VendorTable({ rows, onShow }: { rows: VendorRow[]; onShow: (checkKey: s
                         ? <Button variant="link" className="h-auto p-0 text-left font-medium" onClick={() => onShow(key)}>{r.name}</Button>
                         : <span className="font-medium">{r.name}</span>}
                     </div>
+                    <span className={`mt-1 inline-flex items-center gap-1 rounded-full border px-1.5 text-[11px] ${CATEGORY_STYLE[r.category].badge}`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${CATEGORY_STYLE[r.category].dot}`} aria-hidden />{CATEGORY_STYLE[r.category].label}
+                    </span>
                   </td>
                   {states.map((st) => <td key={st} className="py-2 pr-3">{cellText(r.states[st])}</td>)}
                   <td className="py-2 text-muted-foreground">{r.origin ? ORIGIN_SHORT[r.origin] : ''}</td>

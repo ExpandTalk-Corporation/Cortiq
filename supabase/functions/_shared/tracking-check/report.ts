@@ -145,6 +145,42 @@ export const MATRIX_MANUAL_NOTE = 'Checking by hand: Chrome\'s incognito window 
 /** States that any row has a cell for, in display order. */
 export const matrixStates = (rows: VendorRow[]): ConsentState[] => MATRIX_STATES.filter((s) => rows.some((r) => r.states[s]?.of));
 
+// Consent journey: the tested states as steps, with the tools active in each. Each step is its own visit, so there are no timings.
+export interface JourneyTool {
+  id: string; name: string; category: ConsentCategory; stored: string[];
+  /** Status of the finding about this tool in this state; null when no finding covers this state. */
+  status: FindingStatus | null;
+  findingKey: string | null;
+}
+export interface JourneyStep { state: ConsentState; tools: JourneyTool[]; byCategory: Partial<Record<ConsentCategory, number>> }
+
+/** Which states a consent finding is about, from its checkKey and the tool's category. */
+function findingStates(checkKey: string, category: ConsentCategory): ConsentState[] {
+  if (checkKey.startsWith('consent.before_choice.')) return ['none'];
+  if (checkKey.startsWith('consent.after_reject.')) return ['reject'];
+  if (checkKey.startsWith('consent.category.')) {
+    if (category === 'marketing') return ['analytics_only'];
+    if (category === 'analytics') return ['marketing_only'];
+  }
+  return [];
+}
+
+export function consentJourney(rows: VendorRow[], findings: { checkKey: string; status: FindingStatus }[]): JourneyStep[] {
+  const statusOf = new Map(findings.map((f) => [f.checkKey, f.status]));
+  return matrixStates(rows).map((state) => {
+    const tools: JourneyTool[] = [];
+    const byCategory: Partial<Record<ConsentCategory, number>> = {};
+    for (const r of rows) {
+      const cell = r.states[state];
+      if (!cell?.pages.length) continue;
+      const key = r.findings.find((k) => findingStates(k, r.category).includes(state) && statusOf.get(k) !== 'pass') ?? null;
+      tools.push({ id: r.id, name: r.name, category: r.category, stored: cell.stored, status: key ? statusOf.get(key) ?? null : null, findingKey: key });
+      byCategory[r.category] = (byCategory[r.category] ?? 0) + 1;
+    }
+    return { state, tools, byCategory };
+  });
+}
+
 /** A cell as text: what the tool did, and on which pages only when it did not do it everywhere. */
 export function cellText(cell: VendorCell | undefined, maxPages = 5): string {
   if (!cell || !cell.of) return 'Not tested';
