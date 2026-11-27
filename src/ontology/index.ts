@@ -15,7 +15,7 @@ export { integrations } from './integrations';
 /* ── Combined ontology object ────────────────────────────────────── */
 
 export const ontology: Ontology = {
-  version: '2.0.0',
+  version: '2.1.0',
   description: 'CortIQ analytics ontology — agents, events, traffic sources, and integration providers for the agentic web.',
   agents,
   events,

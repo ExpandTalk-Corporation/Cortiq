@@ -12,49 +12,19 @@ import {
   type BotCategory,
   type BotSignature,
 } from '../../supabase/functions/_shared/ai-bot-registry.ts';
+import { AGENT_CLASSES, BOT_VENDORS, CATEGORY_CLASS, vendorOf } from '../../supabase/functions/_shared/agent-ontology.ts';
 
 export { AI_BOT_REGISTRY, classifyBot };
 export type { BotCategory, BotSignature };
 
 export const BOT_CATEGORIES: BotCategory[] = ['training', 'agentic', 'citation'];
 
-export const BOT_CATEGORY_META: Record<BotCategory, { label: string; description: string }> = {
-  training: {
-    label: 'Training Crawlers',
-    description: 'Crawl content to build or refresh model corpora. Infrastructure cost, no referral value.',
-  },
-  agentic: {
-    label: 'Agentic Fetches',
-    description: 'An AI assistant fetching a page on behalf of a real user. Real intent — treat like a visitor.',
-  },
-  citation: {
-    label: 'Citation & Search Crawlers',
-    description: 'Index content for AI-powered and traditional search answers. Visibility signal.',
-  },
-};
+/** Labels and descriptions come from the agent ontology's category classes. */
+export const BOT_CATEGORY_META: Record<BotCategory, { label: string; description: string }> = Object.fromEntries(
+  BOT_CATEGORIES.map((c) => [c, { label: AGENT_CLASSES[CATEGORY_CLASS[c]].label, description: AGENT_CLASSES[CATEGORY_CLASS[c]].description }]),
+) as Record<BotCategory, { label: string; description: string }>;
 
-/** Registry `type` → vendor display name. */
-export const BOT_VENDORS: Record<string, string> = {
-  chatgpt: 'OpenAI',
-  claude: 'Anthropic',
-  perplexity: 'Perplexity',
-  gemini: 'Google',
-  bingbot: 'Microsoft',
-  meta: 'Meta',
-  apple: 'Apple',
-  youdotcom: 'You.com',
-  duckduckgo: 'DuckDuckGo',
-  grok: 'xAI',
-  amazon: 'Amazon',
-  bytedance: 'ByteDance',
-  commoncrawl: 'Common Crawl',
-  diffbot: 'Diffbot',
-  cohere: 'Cohere',
-  deepseek: 'DeepSeek',
-  mistral: 'Mistral AI',
-};
-
-export const vendorOf = (sig: BotSignature): string => BOT_VENDORS[sig.type] ?? sig.type;
+export { BOT_VENDORS, vendorOf };
 
 export const botsInCategory = (category: BotCategory): BotSignature[] =>
   AI_BOT_REGISTRY.filter(sig => sig.category === category);

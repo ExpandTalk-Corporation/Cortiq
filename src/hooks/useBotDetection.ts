@@ -1,9 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { isA } from '../../supabase/functions/_shared/agent-ontology.ts';
 
 export interface BotOverviewRow {
   bot_name: string;
-  bot_category: 'ai_agent' | 'search_crawler' | 'seo_tool' | 'monitoring' | 'training_crawler' | 'generic_bot';
+  /** bot_catalog.category when detected: an agent ontology class ('ai_agent' in rows from before 2026-12). */
+  bot_category: string;
   total_requests: number;
   last_seen: string;
   top_countries: { country: string; count: number }[];
@@ -84,10 +86,10 @@ export function useBotHourlyTrend(
 export function computeBotSummary(rows: BotOverviewRow[]) {
   const total = rows.reduce((s, r) => s + r.total_requests, 0);
   const aiAgentCount = rows
-    .filter(r => r.bot_category === 'ai_agent')
+    .filter(r => isA(r.bot_category, 'ai_agent'))
     .reduce((s, r) => s + r.total_requests, 0);
   const crawlerCount = rows
-    .filter(r => r.bot_category === 'search_crawler' || r.bot_category === 'training_crawler')
+    .filter(r => r.bot_category.endsWith('_crawler'))
     .reduce((s, r) => s + r.total_requests, 0);
   const topBot = rows[0] ?? null;
 

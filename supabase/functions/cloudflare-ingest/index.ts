@@ -3,6 +3,7 @@ import { createClient } from "../_shared/supabase.ts";
 // Canonical AI-bot classifier — shared with ai-bot-tracker so server-log hits are
 // classified identically to JS-tag hits and merge cleanly in the dashboard.
 import { classifyBot, storedBotCategory } from "../_shared/ai-bot-registry.ts";
+import { classifyAgent, visitorTypeFor, type VisitorType } from "../_shared/agent-ontology.ts";
 import { jurisdictionGate, runShadow, signalsFrom } from "../_shared/jurisdiction-edge.ts";
 
 const corsHeaders = {
@@ -11,113 +12,14 @@ const corsHeaders = {
 };
 
 // ---------------------------------------------------------------------------
-// User-agent classification
+// User-agent classification — the agent ontology decides (_shared/agent-ontology.ts):
+// AI_BOT_REGISTRY first, then its named non-AI bots, then the generic bot fallback.
+// visitor_type values are generated into the table's CHECK from VISITOR_TYPES.
 // ---------------------------------------------------------------------------
 
-type VisitorType = 'human' | 'search_crawler' | 'ai_bot' | 'scraper' | 'monitoring' | 'unknown';
-
-interface Classification {
-  visitorType: VisitorType;
-  botName: string | null;
-}
-
-const SEARCH_CRAWLERS: [RegExp, string][] = [
-  [/Googlebot/i,          'Googlebot'],
-  [/Bingbot|adidxbot/i,   'Bingbot'],
-  [/YandexBot/i,          'YandexBot'],
-  [/DuckDuckBot/i,        'DuckDuckBot'],
-  [/Baiduspider/i,        'Baiduspider'],
-  [/Sogou/i,              'Sogou'],
-  [/Exabot/i,             'Exabot'],
-  [/facebot|facebookexternalhit/i, 'FacebookBot'],
-  [/ia_archiver/i,        'Alexa Crawler'],
-  [/AhrefsBot/i,          'AhrefsBot'],
-  [/SemrushBot/i,         'SemrushBot'],
-  [/MJ12bot/i,            'MJ12bot'],
-  [/DotBot/i,             'DotBot'],
-  [/seznambot/i,          'SeznamBot'],
-];
-
-const AI_BOTS: [RegExp, string][] = [
-  [/GPTBot/i,             'GPTBot (OpenAI)'],
-  [/ChatGPT-User/i,       'ChatGPT Browser'],
-  [/OAI-SearchBot/i,      'OpenAI SearchBot'],
-  [/ClaudeBot/i,          'ClaudeBot (Anthropic)'],
-  [/anthropic-ai/i,       'Anthropic Crawler'],
-  [/Claude-Web/i,         'Claude Browser'],
-  [/PerplexityBot/i,      'PerplexityBot'],
-  [/comet\/\d/i,          'Perplexity Comet'],
-  [/GoogleOther/i,        'GoogleOther (Gemini)'],
-  [/Gemini/i,             'Gemini'],
-  [/GrokBot/i,            'GrokBot (xAI)'],
-  [/CCBot/i,              'Common Crawl Bot'],
-  [/Applebot/i,           'Applebot'],
-  [/YouBot/i,             'YouBot'],
-  [/BrightBot/i,          'BrightBot'],
-  [/DataForSeoBot/i,      'DataForSeoBot'],
-  [/meta-externalagent/i, 'Meta AI Crawler'],
-  [/FacebookBot/i,        'FacebookBot AI'],
-  [/Bytespider/i,         'ByteDance Crawler'],
-];
-
-const SCRAPERS: [RegExp, string][] = [
-  [/python-requests/i,    'python-requests'],
-  [/python\/\d/i,         'Python script'],
-  [/curl\//i,             'curl'],
-  [/wget\//i,             'wget'],
-  [/axios\//i,            'axios'],
-  [/node-fetch/i,         'node-fetch'],
-  [/node\/\d/i,           'Node.js'],
-  [/Go-http-client/i,     'Go HTTP client'],
-  [/Java\//i,             'Java client'],
-  [/okhttp\//i,           'OkHttp (Android/Java)'],
-  [/scrapy/i,             'Scrapy'],
-  [/PHP\//i,              'PHP script'],
-  [/Ruby\/\d/i,           'Ruby script'],
-  [/Wget/i,               'Wget'],
-  [/libcurl/i,            'libcurl'],
-  [/HTTPie/i,             'HTTPie'],
-];
-
-const MONITORING: [RegExp, string][] = [
-  [/UptimeRobot/i,        'UptimeRobot'],
-  [/Pingdom/i,            'Pingdom'],
-  [/GTmetrix/i,           'GTmetrix'],
-  [/StatusCake/i,         'StatusCake'],
-  [/Site24x7/i,           'Site24x7'],
-  [/Uptime\.com/i,        'Uptime.com'],
-  [/NewRelic/i,           'New Relic'],
-  [/Datadog/i,            'Datadog'],
-];
-
-// Generic bot catch-all (after specific patterns)
-const GENERIC_BOT = /bot|crawler|spider|scraper/i;
-
-function classifyUA(ua: string | null): Classification {
-  if (!ua) return { visitorType: 'unknown', botName: null };
-
-  for (const [pattern, name] of MONITORING) {
-    if (pattern.test(ua)) return { visitorType: 'monitoring', botName: name };
-  }
-  for (const [pattern, name] of AI_BOTS) {
-    if (pattern.test(ua)) return { visitorType: 'ai_bot', botName: name };
-  }
-  for (const [pattern, name] of SEARCH_CRAWLERS) {
-    if (pattern.test(ua)) return { visitorType: 'search_crawler', botName: name };
-  }
-  for (const [pattern, name] of SCRAPERS) {
-    if (pattern.test(ua)) return { visitorType: 'scraper', botName: name };
-  }
-  if (GENERIC_BOT.test(ua)) {
-    return { visitorType: 'scraper', botName: 'Generic bot' };
-  }
-
-  // Looks like a real browser
-  if (/Mozilla\/5\.0/i.test(ua) && /Chrome|Firefox|Safari|Edge|Opera/i.test(ua)) {
-    return { visitorType: 'human', botName: null };
-  }
-
-  return { visitorType: 'unknown', botName: null };
+function classifyUA(ua: string | null): { visitorType: VisitorType<'cloudflare_traffic'>; botName: string | null } {
+  const { classId, botName } = classifyAgent(ua);
+  return { visitorType: visitorTypeFor('cloudflare_traffic', classId), botName };
 }
 
 // Anonymise to /24 subnet (IPv4) or first 3 groups (IPv6)
