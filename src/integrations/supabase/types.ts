@@ -1967,6 +1967,7 @@ export type Database = {
           id: string
           ip_ranges: string[]
           is_active: boolean
+          match_order: number
           name: string
           ua_patterns: string[]
           vendor: string | null
@@ -1979,6 +1980,7 @@ export type Database = {
           id?: string
           ip_ranges?: string[]
           is_active?: boolean
+          match_order?: number
           name: string
           ua_patterns?: string[]
           vendor?: string | null
@@ -1991,6 +1993,7 @@ export type Database = {
           id?: string
           ip_ranges?: string[]
           is_active?: boolean
+          match_order?: number
           name?: string
           ua_patterns?: string[]
           vendor?: string | null

@@ -87,6 +87,18 @@ robots.txt-only tokens (`Google-Extended`, `Applebot-Extended`) never arrive as 
 `ROBOTS_TXT_ONLY_TOKENS`, never in `AI_BOT_REGISTRY`, and copy must not claim we see their visits. A new registry
 name must also be added to `AGENT_UA` in the four server adapters (`tests/foundation/server-adapters.test.mjs`).
 
+### Agent ontology → generated SQL (added 2026-11-28)
+- `supabase/functions/_shared/agent-ontology.ts` is the master for bot classes and visitor types: `AGENT_CLASSES`
+  (tree), `OTHER_BOTS` (non-AI bots; AI bots come from the registry), `VISITOR_TYPES` (stored values per table →
+  classes), `classifyAgent`/`visitorTypeFor` (used by `cloudflare-ingest`). `src/ontology/agents.ts` and
+  `BOT_CATEGORY_META` derive from it.
+- `scripts/gen-ontology-sql.mjs` generates `*_ontology_sync.sql`: `bot_catalog` rows + `match_order`, the
+  `bot_catalog.category` CHECK (leaf classes), the `unified_visitors`/`cloudflare_traffic` visitor_type CHECKs and the
+  `company_integrations.integration_type` CHECK (from `src/ontology/integrations.ts`). After any change to the
+  registry, the ontology or integration instances: run the script and commit the new migration. `npm run build`
+  starts with `--check` and `tests/foundation/ontology-sql.test.mjs` fails on drift. Never edit a sync migration.
+- `bot_detections.bot_category` keeps old values (`ai_agent`, …) on rows from before the sync; it has no writer.
+
 ---
 
 ## Conversion & Attribution (added 2026-06-24)
